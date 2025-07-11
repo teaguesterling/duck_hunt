@@ -1,0 +1,90 @@
+{
+  "errors": [],
+  "generated_at": "2024-01-15T10:30:00Z",
+  "metrics": {
+    "_totals": {
+      "CONFIDENCE.HIGH": 2,
+      "CONFIDENCE.LOW": 1,
+      "CONFIDENCE.MEDIUM": 1,
+      "SEVERITY.HIGH": 1,
+      "SEVERITY.LOW": 2,
+      "SEVERITY.MEDIUM": 1,
+      "loc": 156,
+      "nosec": 0
+    }
+  },
+  "results": [
+    {
+      "code": "sql = \"SELECT * FROM users WHERE id = '%s'\" % user_id\ncursor.execute(sql)",
+      "col_offset": 0,
+      "end_col_offset": 25,
+      "filename": "src/auth.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 89,
+        "link": "https://cwe.mitre.org/data/definitions/89.html"
+      },
+      "issue_severity": "HIGH",
+      "issue_text": "Use of % formatting in SQL queries can lead to SQL injection vulnerabilities.",
+      "line_number": 45,
+      "line_range": [45, 46],
+      "more_info": "https://bandit.readthedocs.io/en/latest/plugins/b608_hardcoded_sql_expressions.html",
+      "test_id": "B608",
+      "test_name": "hardcoded_sql_expressions"
+    },
+    {
+      "code": "password = \"admin123\"",
+      "col_offset": 4,
+      "end_col_offset": 21,
+      "filename": "src/config.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 259,
+        "link": "https://cwe.mitre.org/data/definitions/259.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Possible hardcoded password: 'admin123'",
+      "line_number": 12,
+      "line_range": [12],
+      "more_info": "https://bandit.readthedocs.io/en/latest/plugins/b106_hardcoded_password_funcarg.html",
+      "test_id": "B106",
+      "test_name": "hardcoded_password_funcarg"
+    },
+    {
+      "code": "subprocess.call(cmd, shell=True)",
+      "col_offset": 4,
+      "end_col_offset": 33,
+      "filename": "src/utils.py",
+      "issue_confidence": "MEDIUM", 
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "subprocess call with shell=True identified, security issue.",
+      "line_number": 28,
+      "line_range": [28],
+      "more_info": "https://bandit.readthedocs.io/en/latest/plugins/b602_subprocess_popen_with_shell_equals_true.html",
+      "test_id": "B602",
+      "test_name": "subprocess_popen_with_shell_equals_true"
+    },
+    {
+      "code": "requests.get(url, verify=False)",
+      "col_offset": 8,
+      "end_col_offset": 32,
+      "filename": "src/api.py",
+      "issue_confidence": "LOW",
+      "issue_cwe": {
+        "id": 295,
+        "link": "https://cwe.mitre.org/data/definitions/295.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Requests call with verify=False disabling SSL certificate checks, security issue.",
+      "line_number": 67,
+      "line_range": [67],
+      "more_info": "https://bandit.readthedocs.io/en/latest/plugins/b501_request_with_no_cert_validation.html", 
+      "test_id": "B501",
+      "test_name": "request_with_no_cert_validation"
+    }
+  ]
+}

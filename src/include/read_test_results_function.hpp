@@ -25,7 +25,8 @@ enum class TestResultFormat : uint8_t {
     STYLELINT_JSON = 14,
     CLIPPY_JSON = 15,
     MARKDOWNLINT_JSON = 16,
-    YAMLLINT_JSON = 17
+    YAMLLINT_JSON = 17,
+    BANDIT_JSON = 18
 };
 
 // Bind data for read_test_results table function
@@ -107,5 +108,6 @@ void ParseStylelintJSON(const std::string& content, std::vector<ValidationEvent>
 void ParseClippyJSON(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseMarkdownlintJSON(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseYamllintJSON(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseBanditJSON(const std::string& content, std::vector<ValidationEvent>& events);
 
 } // namespace duckdb

@@ -422,6 +422,61 @@ ORDER BY event_id;
 error	ERROR
 warning	WARNING
 
+# Test 53: Bandit JSON format parsing
+statement ok
+CREATE TABLE bandit_results AS 
+SELECT * FROM read_test_results('workspace/bandit_sample.json', 'bandit_json');
+
+# Verify Bandit parsing results
+query IIII
+SELECT COUNT(*), tool_name,
+       COUNT(CASE WHEN status = 'ERROR' THEN 1 END) as errors,
+       COUNT(CASE WHEN status = 'WARNING' THEN 1 END) as warnings
+FROM bandit_results
+GROUP BY tool_name;
+----
+4	bandit	1	1
+
+# Test 54: Bandit auto-detection
+query I
+SELECT DISTINCT tool_name FROM parse_test_results('{"results":[{"test_id":"B101","issue_severity":"HIGH","issue_confidence":"HIGH","filename":"test.py","line_number":1,"issue_text":"Test security issue"}]}', 'auto');
+----
+bandit
+
+# Test 55: Bandit field validation
+query IIII
+SELECT file_path, line_number, error_code, severity
+FROM parse_test_results('{"results":[{"filename":"src/auth.py","line_number":45,"test_id":"B608","issue_severity":"HIGH","issue_confidence":"HIGH","issue_text":"SQL injection vulnerability"}]}', 'bandit_json');
+----
+src/auth.py	45	B608	HIGH
+
+# Test 56: Bandit severity mapping
+query II
+SELECT severity, status FROM parse_test_results('{"results":[{"filename":"test.py","line_number":1,"test_id":"B101","issue_severity":"HIGH","issue_text":"High severity"},{"filename":"test.py","line_number":2,"test_id":"B102","issue_severity":"MEDIUM","issue_text":"Medium severity"},{"filename":"test.py","line_number":3,"test_id":"B103","issue_severity":"LOW","issue_text":"Low severity"}]}', 'bandit_json')
+ORDER BY event_id;
+----
+HIGH	ERROR
+MEDIUM	WARNING
+LOW	INFO
+
+# Test 57: Bandit event type and category validation
+query II
+SELECT DISTINCT event_type, category FROM parse_test_results('{"results":[{"filename":"test.py","line_number":1,"test_id":"B101","issue_severity":"HIGH","issue_text":"Security issue"}]}', 'bandit_json');
+----
+security_finding	security
+
+# Test 58: Bandit CWE suggestion extraction
+query I
+SELECT suggestion FROM parse_test_results('{"results":[{"filename":"test.py","line_number":1,"test_id":"B608","issue_severity":"HIGH","issue_text":"SQL injection","issue_cwe":{"id":89,"link":"https://cwe.mitre.org/data/definitions/89.html"}}]}', 'bandit_json');
+----
+CWE-89: https://cwe.mitre.org/data/definitions/89.html
+
+# Test 59: Bandit function name extraction
+query I
+SELECT function_name FROM parse_test_results('{"results":[{"filename":"test.py","line_number":1,"test_id":"B101","test_name":"hardcoded_password_funcarg","issue_severity":"HIGH","issue_text":"Hardcoded password"}]}', 'bandit_json');
+----
+hardcoded_password_funcarg
+
 # Clean up
 statement ok
 DROP TABLE rubocop_results;
@@ -449,3 +504,6 @@ DROP TABLE markdownlint_results;
 
 statement ok
 DROP TABLE yamllint_results;
+
+statement ok
+DROP TABLE bandit_results;
