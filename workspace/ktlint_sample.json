@@ -1,0 +1,76 @@
+[
+  {
+    "file": "src/main/kotlin/com/example/UserService.kt",
+    "errors": [
+      {
+        "line": 12,
+        "column": 1,
+        "message": "Missing newline at end of file",
+        "rule": "final-newline"
+      },
+      {
+        "line": 8,
+        "column": 25,
+        "message": "Unnecessary semicolon",
+        "rule": "no-semi"
+      }
+    ]
+  },
+  {
+    "file": "src/main/kotlin/com/example/DataManager.kt",
+    "errors": [
+      {
+        "line": 15,
+        "column": 9,
+        "message": "Unexpected indentation (expected 4, actual 8)",
+        "rule": "indent"
+      },
+      {
+        "line": 23,
+        "column": 1,
+        "message": "Line must not be longer than 120 characters (current length is 135)",
+        "rule": "max-line-length"
+      },
+      {
+        "line": 35,
+        "column": 32,
+        "message": "Missing spacing after \",\"",
+        "rule": "comma-spacing"
+      }
+    ]
+  },
+  {
+    "file": "src/main/kotlin/com/example/ApiController.kt",
+    "errors": [
+      {
+        "line": 7,
+        "column": 1,
+        "message": "Wildcard import should not be used",
+        "rule": "no-wildcard-imports"
+      },
+      {
+        "line": 42,
+        "column": 17,
+        "message": "String template should be replaced with string concatenation",
+        "rule": "string-template"
+      }
+    ]
+  },
+  {
+    "file": "src/test/kotlin/com/example/TestUtils.kt",
+    "errors": [
+      {
+        "line": 19,
+        "column": 5,
+        "message": "Function name should be in camelCase",
+        "rule": "function-naming"
+      },
+      {
+        "line": 28,
+        "column": 1,
+        "message": "Too many blank lines (expected at most 1, actual 3)",
+        "rule": "no-consecutive-blank-lines"
+      }
+    ]
+  }
+]

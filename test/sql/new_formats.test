@@ -537,6 +537,63 @@ SELECT suggestion FROM parse_test_results('{"BugCollection":{"BugInstance":[{"ty
 ----
 Possible null pointer dereference of user in com.example.Service.processData(User)
 
+# Test 67: ktlint JSON format parsing
+statement ok
+CREATE TABLE ktlint_results AS 
+SELECT * FROM read_test_results('workspace/ktlint_sample.json', 'ktlint_json');
+
+# Verify ktlint parsing results
+query IIII
+SELECT COUNT(*), tool_name,
+       COUNT(CASE WHEN status = 'ERROR' THEN 1 END) as errors,
+       COUNT(CASE WHEN status = 'WARNING' THEN 1 END) as warnings
+FROM ktlint_results
+GROUP BY tool_name;
+----
+9	ktlint	2	7
+
+# Test 68: ktlint auto-detection
+query I
+SELECT DISTINCT tool_name FROM parse_test_results('[{"file":"Test.kt","errors":[{"line":1,"column":1,"message":"Missing newline","rule":"final-newline"}]}]', 'auto');
+----
+ktlint
+
+# Test 69: ktlint field validation
+query IIIII
+SELECT file_path, line_number, column_number, error_code, category
+FROM parse_test_results('[{"file":"src/main/kotlin/Example.kt","errors":[{"line":15,"column":25,"message":"Unnecessary semicolon","rule":"no-semi"}]}]', 'ktlint_json');
+----
+src/main/kotlin/Example.kt	15	25	no-semi	code_style
+
+# Test 70: ktlint rule-based severity mapping
+query II
+SELECT error_code, status FROM parse_test_results('[{"file":"Test.kt","errors":[{"line":1,"column":1,"message":"Missing newline at end of file","rule":"final-newline"},{"line":2,"column":1,"message":"Line too long","rule":"max-line-length"},{"line":3,"column":1,"message":"Wrong indentation","rule":"indent"}]}]', 'ktlint_json')
+ORDER BY event_id;
+----
+final-newline	ERROR
+max-line-length	WARNING
+indent	ERROR
+
+# Test 71: ktlint event type validation
+query I
+SELECT DISTINCT event_type FROM parse_test_results('[{"file":"Test.kt","errors":[{"line":1,"column":1,"message":"Style issue","rule":"style-rule"}]}]', 'ktlint_json');
+----
+lint_issue
+
+# Test 72: ktlint category validation
+query I
+SELECT DISTINCT category FROM parse_test_results('[{"file":"Test.kt","errors":[{"line":1,"column":1,"message":"Style issue","rule":"style-rule"}]}]', 'ktlint_json');
+----
+code_style
+
+# Test 73: ktlint multi-file parsing
+query II
+SELECT file_path, COUNT(*) as error_count FROM parse_test_results('[{"file":"File1.kt","errors":[{"line":1,"column":1,"message":"Error 1","rule":"rule1"}]},{"file":"File2.kt","errors":[{"line":2,"column":2,"message":"Error 2","rule":"rule2"},{"line":3,"column":3,"message":"Error 3","rule":"rule3"}]}]', 'ktlint_json')
+GROUP BY file_path ORDER BY file_path;
+----
+File1.kt	1
+File2.kt	2
+
 # Clean up
 statement ok
 DROP TABLE rubocop_results;
@@ -570,3 +627,6 @@ DROP TABLE bandit_results;
 
 statement ok
 DROP TABLE spotbugs_results;
+
+statement ok
+DROP TABLE ktlint_results;
