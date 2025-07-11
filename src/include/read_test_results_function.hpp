@@ -8,14 +8,15 @@ namespace duckdb {
 
 // Enum for test result format detection
 enum class TestResultFormat : uint8_t {
-    AUTO = 0,
-    PYTEST_JSON = 1,
-    GOTEST_JSON = 2,
-    ESLINT_JSON = 3,
-    PYTEST_TEXT = 4,
-    MAKE_ERROR = 5,
-    GENERIC_LINT = 6,
-    UNKNOWN = 255
+    UNKNOWN = 0,
+    AUTO = 1,
+    PYTEST_JSON = 2,
+    GOTEST_JSON = 3,
+    ESLINT_JSON = 4,
+    PYTEST_TEXT = 5,
+    MAKE_ERROR = 6,
+    GENERIC_LINT = 7,
+    DUCKDB_TEST = 8
 };
 
 // Bind data for read_test_results table function
@@ -70,5 +71,6 @@ void PopulateDataChunkFromEvents(DataChunk &output, const std::vector<Validation
 
 // Format-specific parsers
 void ParsePytestJSON(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseDuckDBTestOutput(const std::string& content, std::vector<ValidationEvent>& events);
 
 } // namespace duckdb

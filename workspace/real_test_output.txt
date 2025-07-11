@@ -1,0 +1,6 @@
+./build/release/"/test/unittest" "/mnt/aux-data/teague/Projects/duck_hunt/test/*"
+Filters: /mnt/aux-data/teague/Projects/duck_hunt/test/*
+[0/1] (0%): /mnt/aux-data/teague/Projects/duck_hunt/test/sql/duck_hunt.test     [1/1] (100%): /mnt/aux-data/teague/Projects/duck_hunt/test/sql/duck_hunt.test   
+===============================================================================
+All tests passed (3 assertions in 1 test case)
+

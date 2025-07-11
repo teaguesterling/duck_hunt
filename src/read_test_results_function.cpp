@@ -7,6 +7,7 @@
 #include "yyjson.hpp"
 #include <fstream>
 #include <regex>
+#include <sstream>
 
 namespace duckdb {
 
@@ -27,7 +28,12 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
         }
     }
     
-    // Check text patterns
+    // Check text patterns (DuckDB test should be checked before make error since it may contain both)
+    if (content.find("[0/") != std::string::npos && content.find("] (0%):") != std::string::npos && 
+        content.find("test cases:") != std::string::npos) {
+        return TestResultFormat::DUCKDB_TEST;
+    }
+    
     if (content.find("PASSED") != std::string::npos && content.find("::") != std::string::npos) {
         return TestResultFormat::PYTEST_TEXT;
     }
@@ -45,6 +51,7 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
 
 std::string TestResultFormatToString(TestResultFormat format) {
     switch (format) {
+        case TestResultFormat::UNKNOWN: return "unknown";
         case TestResultFormat::AUTO: return "auto";
         case TestResultFormat::PYTEST_JSON: return "pytest_json";
         case TestResultFormat::GOTEST_JSON: return "gotest_json";
@@ -52,7 +59,7 @@ std::string TestResultFormatToString(TestResultFormat format) {
         case TestResultFormat::PYTEST_TEXT: return "pytest_text";
         case TestResultFormat::MAKE_ERROR: return "make_error";
         case TestResultFormat::GENERIC_LINT: return "generic_lint";
-        case TestResultFormat::UNKNOWN: return "unknown";
+        case TestResultFormat::DUCKDB_TEST: return "duckdb_test";
         default: return "unknown";
     }
 }
@@ -65,6 +72,8 @@ TestResultFormat StringToTestResultFormat(const std::string& str) {
     if (str == "pytest_text") return TestResultFormat::PYTEST_TEXT;
     if (str == "make_error") return TestResultFormat::MAKE_ERROR;
     if (str == "generic_lint") return TestResultFormat::GENERIC_LINT;
+    if (str == "duckdb_test") return TestResultFormat::DUCKDB_TEST;
+    if (str == "unknown") return TestResultFormat::UNKNOWN;
     return TestResultFormat::AUTO;  // Default to auto-detection
 }
 
@@ -159,6 +168,9 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
     switch (format) {
         case TestResultFormat::PYTEST_JSON:
             ParsePytestJSON(content, global_state->events);
+            break;
+        case TestResultFormat::DUCKDB_TEST:
+            ParseDuckDBTestOutput(content, global_state->events);
             break;
         default:
             // For other formats, create a dummy event for now
@@ -330,6 +342,136 @@ void ParsePytestJSON(const std::string& content, std::vector<ValidationEvent>& e
     }
     
     yyjson_doc_free(doc);
+}
+
+void ParseDuckDBTestOutput(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream stream(content);
+    std::string line;
+    int64_t event_id = 1;
+    
+    // Track current test being processed
+    std::string current_test_file;
+    bool in_failure_section = false;
+    std::string failure_message;
+    std::string failure_query;
+    int failure_line = -1;
+    
+    while (std::getline(stream, line)) {
+        // Parse test progress lines: [X/Y] (Z%): /path/to/test.test
+        if (line.find("[") == 0 && line.find("]:") != std::string::npos) {
+            size_t path_start = line.find("): ");
+            if (path_start != std::string::npos) {
+                current_test_file = line.substr(path_start + 3);
+                // Trim any trailing whitespace/dots
+                while (!current_test_file.empty() && 
+                       (current_test_file.back() == '.' || current_test_file.back() == ' ')) {
+                    current_test_file.pop_back();
+                }
+            }
+        }
+        
+        // Detect failure start
+        else if (line.find("Wrong result in query!") != std::string::npos ||
+                 line.find("Query unexpectedly failed") != std::string::npos) {
+            in_failure_section = true;
+            failure_message = line;
+            
+            // Extract line number from failure message
+            size_t line_start = line.find(".test:");
+            if (line_start != std::string::npos) {
+                line_start += 6; // Length of ".test:"
+                size_t line_end = line.find(")", line_start);
+                if (line_end != std::string::npos) {
+                    try {
+                        failure_line = std::stoi(line.substr(line_start, line_end - line_start));
+                    } catch (...) {
+                        failure_line = -1;
+                    }
+                }
+            }
+        }
+        
+        // Capture SQL query in failure section
+        else if (in_failure_section && !line.empty() && 
+                 line.find("================================================================================") == std::string::npos &&
+                 line.find("SELECT") == 0) {
+            failure_query = line;
+        }
+        
+        // End of failure section - create failure event
+        else if (in_failure_section && line.find("FAILED:") != std::string::npos) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "duckdb_test";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.file_path = current_test_file;
+            event.line_number = failure_line;
+            event.column_number = -1;
+            event.function_name = failure_query.empty() ? "unknown" : failure_query.substr(0, 50);
+            event.status = ValidationEventStatus::FAIL;
+            event.category = "test_failure";
+            event.message = failure_message;
+            event.raw_output = failure_query;
+            event.execution_time = 0.0;
+            
+            events.push_back(event);
+            
+            // Reset failure tracking
+            in_failure_section = false;
+            failure_message.clear();
+            failure_query.clear();
+            failure_line = -1;
+        }
+        
+        // Parse summary line: test cases: X | Y passed | Z failed
+        else if (line.find("test cases:") != std::string::npos) {
+            // Extract summary statistics and create summary events
+            std::string summary_line = line;
+            
+            // Extract passed count
+            size_t passed_pos = summary_line.find(" passed");
+            if (passed_pos != std::string::npos) {
+                size_t passed_start = summary_line.rfind(" ", passed_pos - 1);
+                if (passed_start != std::string::npos) {
+                    try {
+                        int passed_count = std::stoi(summary_line.substr(passed_start + 1, passed_pos - passed_start - 1));
+                        
+                        // Create passed test events (summary)
+                        ValidationEvent summary_event;
+                        summary_event.event_id = event_id++;
+                        summary_event.tool_name = "duckdb_test";
+                        summary_event.event_type = ValidationEventType::TEST_RESULT;
+                        summary_event.status = ValidationEventStatus::INFO;
+                        summary_event.category = "test_summary";
+                        summary_event.message = "Test summary: " + std::to_string(passed_count) + " tests passed";
+                        summary_event.line_number = -1;
+                        summary_event.column_number = -1;
+                        summary_event.execution_time = 0.0;
+                        
+                        events.push_back(summary_event);
+                    } catch (...) {
+                        // Ignore parsing errors
+                    }
+                }
+            }
+        }
+    }
+    
+    // If no events were created, add a basic summary
+    if (events.empty()) {
+        ValidationEvent summary_event;
+        summary_event.event_id = 1;
+        summary_event.tool_name = "duckdb_test";
+        summary_event.event_type = ValidationEventType::TEST_RESULT;
+        summary_event.status = ValidationEventStatus::INFO;
+        summary_event.category = "test_summary";
+        summary_event.message = "DuckDB test output parsed (no specific test results found)";
+        summary_event.line_number = -1;
+        summary_event.column_number = -1;
+        summary_event.execution_time = 0.0;
+        
+        events.push_back(summary_event);
+    }
 }
 
 TableFunction GetReadTestResultsFunction() {
