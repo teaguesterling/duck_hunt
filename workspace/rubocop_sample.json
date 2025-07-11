@@ -1,0 +1,86 @@
+{
+  "metadata": {
+    "rubocop_version": "1.57.2",
+    "ruby_engine": "ruby",
+    "ruby_version": "3.2.0",
+    "ruby_patchlevel": "0",
+    "ruby_platform": "x86_64-linux"
+  },
+  "files": [
+    {
+      "path": "lib/user.rb",
+      "offenses": [
+        {
+          "severity": "convention",
+          "message": "Missing magic comment `# frozen_string_literal: true`.",
+          "cop_name": "Style/FrozenStringLiteralComment",
+          "corrected": false,
+          "correctable": true,
+          "location": {
+            "start_line": 1,
+            "start_column": 1,
+            "last_line": 1,
+            "last_column": 1,
+            "length": 1
+          }
+        },
+        {
+          "severity": "warning",
+          "message": "Useless assignment to variable `unused_var`.",
+          "cop_name": "Lint/UselessAssignment",
+          "corrected": false,
+          "correctable": false,
+          "location": {
+            "start_line": 5,
+            "start_column": 5,
+            "last_line": 5,
+            "last_column": 15,
+            "length": 11
+          }
+        }
+      ]
+    },
+    {
+      "path": "lib/calculator.rb",
+      "offenses": [
+        {
+          "severity": "error",
+          "message": "Undefined method `nonexistent_method` for Calculator.",
+          "cop_name": "NoMethodError",
+          "corrected": false,
+          "correctable": false,
+          "location": {
+            "start_line": 10,
+            "start_column": 8,
+            "last_line": 10,
+            "last_column": 25,
+            "length": 18
+          }
+        },
+        {
+          "severity": "convention",
+          "message": "Method has too many lines. [12/10]",
+          "cop_name": "Metrics/MethodLength",
+          "corrected": false,
+          "correctable": false,
+          "location": {
+            "start_line": 15,
+            "start_column": 3,
+            "last_line": 26,
+            "last_column": 6,
+            "length": 4
+          }
+        }
+      ]
+    },
+    {
+      "path": "spec/user_spec.rb",
+      "offenses": []
+    }
+  ],
+  "summary": {
+    "offense_count": 4,
+    "target_file_count": 3,
+    "inspected_file_count": 3
+  }
+}

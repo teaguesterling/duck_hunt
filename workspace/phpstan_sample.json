@@ -1,0 +1,38 @@
+{
+  "totals": {
+    "errors": 3,
+    "file_errors": 2
+  },
+  "files": {
+    "/src/User.php": {
+      "errors": 2,
+      "messages": [
+        {
+          "message": "Property App\\User::$name is never written, only read.",
+          "line": 15,
+          "ignorable": true
+        },
+        {
+          "message": "Call to an undefined method App\\User::getName().",
+          "line": 23,
+          "ignorable": false
+        }
+      ]
+    },
+    "/src/Calculator.php": {
+      "errors": 1,
+      "messages": [
+        {
+          "message": "Parameter $divisor of method App\\Calculator::divide() expects int, float given.",
+          "line": 42,
+          "ignorable": false
+        }
+      ]
+    },
+    "/src/Database.php": {
+      "errors": 0,
+      "messages": []
+    }
+  },
+  "errors": []
+}

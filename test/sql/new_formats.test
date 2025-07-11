@@ -1,0 +1,373 @@
+# name: test/sql/new_formats.test
+# description: test new RuboCop JSON and Cargo test JSON formats
+# group: [sql]
+
+require duck_hunt
+
+# Test 1: RuboCop JSON format parsing
+statement ok
+CREATE TABLE rubocop_results AS 
+SELECT * FROM read_test_results('workspace/rubocop_sample.json', 'rubocop_json');
+
+# Verify RuboCop parsing results
+query IIII
+SELECT COUNT(*), tool_name,
+       COUNT(CASE WHEN status = 'ERROR' THEN 1 END) as errors,
+       COUNT(CASE WHEN status = 'WARNING' THEN 1 END) as warnings
+FROM rubocop_results
+GROUP BY tool_name;
+----
+4	rubocop	1	3
+
+# Test 2: Cargo test JSON format parsing
+statement ok
+CREATE TABLE cargo_results AS 
+SELECT * FROM read_test_results('workspace/cargo_test_sample.json', 'cargo_test_json');
+
+# Verify Cargo test parsing results
+query IIII
+SELECT COUNT(*), tool_name,
+       COUNT(CASE WHEN status = 'PASS' THEN 1 END) as passes,
+       COUNT(CASE WHEN status = 'FAIL' THEN 1 END) as fails
+FROM cargo_results
+GROUP BY tool_name;
+----
+4	cargo_test	2	1
+
+# Test 3: RuboCop auto-detection
+query I
+SELECT DISTINCT tool_name FROM parse_test_results('{"files":[{"path":"test.rb","offenses":[{"severity":"error","cop_name":"TestCop","message":"Test message","location":{"start_line":1,"start_column":1}}]}]}', 'auto');
+----
+rubocop
+
+# Test 4: Cargo test auto-detection
+query I
+SELECT DISTINCT tool_name FROM parse_test_results('{"type":"test","event":"started","name":"test::example"}
+{"type":"test","event":"ok","name":"test::example","exec_time":0.001}', 'auto');
+----
+cargo_test
+
+# Test 5: RuboCop field validation
+query IIII
+SELECT file_path, line_number, error_code, severity
+FROM parse_test_results('{"files":[{"path":"/src/test.rb","offenses":[{"severity":"convention","cop_name":"Style/TestRule","message":"Test convention","location":{"start_line":5,"start_column":10}}]}]}', 'rubocop_json');
+----
+/src/test.rb	5	Style/TestRule	convention
+
+# Test 6: Cargo test field validation
+query IIII
+SELECT test_name, status, execution_time > 0 as has_time, message
+FROM parse_test_results('{"type":"test","event":"started","name":"module::test_function"}
+{"type":"test","event":"failed","name":"module::test_function","exec_time":0.123,"stdout":"assertion failed"}', 'cargo_test_json');
+----
+module::test_function	FAIL	true	Test failed: assertion failed
+
+# Test 7: RuboCop severity mapping
+query II
+SELECT severity, status FROM parse_test_results('{"files":[{"path":"test.rb","offenses":[{"severity":"error","cop_name":"TestCop","message":"Error msg","location":{"start_line":1,"start_column":1}},{"severity":"warning","cop_name":"TestCop2","message":"Warning msg","location":{"start_line":2,"start_column":1}},{"severity":"convention","cop_name":"TestCop3","message":"Convention msg","location":{"start_line":3,"start_column":1}}]}]}', 'rubocop_json')
+ORDER BY event_id;
+----
+error	ERROR
+warning	WARNING
+convention	WARNING
+
+# Test 8: Cargo test ignored status
+query II
+SELECT status, message FROM parse_test_results('{"type":"test","event":"started","name":"test::ignored_test"}
+{"type":"test","event":"ignored","name":"test::ignored_test","exec_time":0.001}', 'cargo_test_json');
+----
+SKIP	Test ignored
+
+# Test 9: RuboCop with no offenses
+query I
+SELECT COUNT(*) FROM parse_test_results('{"files":[{"path":"test.rb","offenses":[]}]}', 'rubocop_json');
+----
+0
+
+# Test 10: Cargo test with failure details
+query I
+SELECT message LIKE '%assertion failed%' as has_failure_details FROM parse_test_results('{"type":"test","event":"started","name":"test::failing"}
+{"type":"test","event":"failed","name":"test::failing","exec_time":0.001,"stdout":"assertion failed: expected true"}', 'cargo_test_json');
+----
+true
+
+# Test 11: RuboCop event type validation
+query I
+SELECT DISTINCT event_type FROM parse_test_results('{"files":[{"path":"test.rb","offenses":[{"severity":"error","cop_name":"TestCop","message":"Test","location":{"start_line":1,"start_column":1}}]}]}', 'rubocop_json');
+----
+lint_issue
+
+# Test 12: Cargo test event type validation
+query I
+SELECT DISTINCT event_type FROM parse_test_results('{"type":"test","event":"started","name":"test::example"}
+{"type":"test","event":"ok","name":"test::example","exec_time":0.001}', 'cargo_test_json');
+----
+test_result
+
+# Test 13: RuboCop category field
+query I
+SELECT DISTINCT category FROM parse_test_results('{"files":[{"path":"test.rb","offenses":[{"severity":"error","cop_name":"TestCop","message":"Test","location":{"start_line":1,"start_column":1}}]}]}', 'rubocop_json');
+----
+code_quality
+
+# Test 14: Cargo test category field
+query I
+SELECT DISTINCT category FROM parse_test_results('{"type":"test","event":"started","name":"test::example"}
+{"type":"test","event":"ok","name":"test::example","exec_time":0.001}', 'cargo_test_json');
+----
+test
+
+# Test 15: RuboCop location parsing
+query II
+SELECT line_number, column_number FROM parse_test_results('{"files":[{"path":"test.rb","offenses":[{"severity":"error","cop_name":"TestCop","message":"Test","location":{"start_line":15,"start_column":25}}]}]}', 'rubocop_json');
+----
+15	25
+
+# Test 16: SwiftLint JSON format parsing
+statement ok
+CREATE TABLE swiftlint_results AS 
+SELECT * FROM read_test_results('workspace/swiftlint_sample.json', 'swiftlint_json');
+
+# Verify SwiftLint parsing results
+query IIII
+SELECT COUNT(*), tool_name,
+       COUNT(CASE WHEN status = 'ERROR' THEN 1 END) as errors,
+       COUNT(CASE WHEN status = 'WARNING' THEN 1 END) as warnings
+FROM swiftlint_results
+GROUP BY tool_name;
+----
+5	swiftlint	2	3
+
+# Test 17: PHPStan JSON format parsing
+statement ok
+CREATE TABLE phpstan_results AS 
+SELECT * FROM read_test_results('workspace/phpstan_sample.json', 'phpstan_json');
+
+# Verify PHPStan parsing results
+query IIII
+SELECT COUNT(*), tool_name,
+       COUNT(CASE WHEN status = 'ERROR' THEN 1 END) as errors,
+       COUNT(CASE WHEN status = 'WARNING' THEN 1 END) as warnings
+FROM phpstan_results
+GROUP BY tool_name;
+----
+3	phpstan	2	1
+
+# Test 18: SwiftLint auto-detection
+query I
+SELECT DISTINCT tool_name FROM parse_test_results('[{"file":"test.swift","rule_id":"test_rule","severity":"warning","reason":"Test message","line":1,"column":1}]', 'auto');
+----
+swiftlint
+
+# Test 19: PHPStan auto-detection
+query I
+SELECT DISTINCT tool_name FROM parse_test_results('{"totals":{"errors":1},"files":{"/test.php":{"errors":1,"messages":[{"message":"Test error","line":1,"ignorable":false}]}}}', 'auto');
+----
+phpstan
+
+# Test 20: SwiftLint field validation
+query IIII
+SELECT file_path, line_number, error_code, severity
+FROM parse_test_results('[{"file":"/src/Test.swift","rule_id":"force_cast","severity":"error","reason":"Force casts should be avoided","line":10,"column":5}]', 'swiftlint_json');
+----
+/src/Test.swift	10	force_cast	error
+
+# Test 21: PHPStan field validation
+query IIII
+SELECT file_path, line_number, status, category
+FROM parse_test_results('{"files":{"/src/Test.php":{"messages":[{"message":"Test error","line":25,"ignorable":false}]}}}', 'phpstan_json');
+----
+/src/Test.php	25	ERROR	static_analysis
+
+# Test 22: SwiftLint event type validation
+query I
+SELECT DISTINCT event_type FROM parse_test_results('[{"file":"test.swift","rule_id":"test_rule","severity":"warning","reason":"Test","line":1,"column":1}]', 'swiftlint_json');
+----
+lint_issue
+
+# Test 23: PHPStan event type validation
+query I
+SELECT DISTINCT event_type FROM parse_test_results('{"files":{"test.php":{"messages":[{"message":"Test","line":1,"ignorable":false}]}}}', 'phpstan_json');
+----
+lint_issue
+
+# Test 24: SwiftLint suggestion field (type)
+query I
+SELECT suggestion FROM parse_test_results('[{"file":"test.swift","rule_id":"test_rule","type":"Force Cast","severity":"error","reason":"Test","line":1,"column":1}]', 'swiftlint_json');
+----
+Force Cast
+
+# Test 25: PHPStan ignorable status mapping
+query II
+SELECT status, severity FROM parse_test_results('{"files":{"test.php":{"messages":[{"message":"Ignorable issue","line":1,"ignorable":true},{"message":"Critical issue","line":2,"ignorable":false}]}}}', 'phpstan_json')
+ORDER BY event_id;
+----
+WARNING	warning
+ERROR	error
+
+# Test 26: ShellCheck JSON format parsing
+statement ok
+CREATE TABLE shellcheck_results AS 
+SELECT * FROM read_test_results('workspace/shellcheck_sample.json', 'shellcheck_json');
+
+# Verify ShellCheck parsing results
+query IIII
+SELECT COUNT(*), tool_name,
+       COUNT(CASE WHEN status = 'ERROR' THEN 1 END) as errors,
+       COUNT(CASE WHEN status = 'WARNING' THEN 1 END) as warnings
+FROM shellcheck_results
+GROUP BY tool_name;
+----
+5	shellcheck	2	2
+
+# Test 27: ShellCheck auto-detection
+query I
+SELECT DISTINCT tool_name FROM parse_test_results('[{"file":"test.sh","line":1,"column":1,"level":"error","code":"SC2086","message":"Test message"}]', 'auto');
+----
+shellcheck
+
+# Test 28: ShellCheck field validation
+query IIII
+SELECT file_path, line_number, error_code, severity
+FROM parse_test_results('[{"file":"/src/script.sh","line":10,"column":5,"level":"warning","code":"SC2034","message":"Variable unused"}]', 'shellcheck_json');
+----
+/src/script.sh	10	SC2034	warning
+
+# Test 29: ShellCheck severity mapping
+query II
+SELECT severity, status FROM parse_test_results('[{"file":"test.sh","line":1,"column":1,"level":"error","code":"SC1","message":"Error"},{"file":"test.sh","line":2,"column":1,"level":"warning","code":"SC2","message":"Warning"},{"file":"test.sh","line":3,"column":1,"level":"info","code":"SC3","message":"Info"},{"file":"test.sh","line":4,"column":1,"level":"style","code":"SC4","message":"Style"}]', 'shellcheck_json')
+ORDER BY event_id;
+----
+error	ERROR
+warning	WARNING
+info	INFO
+style	WARNING
+
+# Test 30: ShellCheck event type and category validation
+query II
+SELECT DISTINCT event_type, category FROM parse_test_results('[{"file":"test.sh","line":1,"column":1,"level":"error","code":"SC2086","message":"Test"}]', 'shellcheck_json');
+----
+lint_issue	shell_script
+
+# Test 31: ShellCheck fix suggestion detection
+query I
+SELECT suggestion FROM parse_test_results('[{"file":"test.sh","line":1,"column":1,"level":"error","code":"SC2086","message":"Test","fix":{"replacements":[{"line":1,"column":1,"replacement":"\"$var\""}]}}]', 'shellcheck_json');
+----
+Fix available
+
+# Test 32: stylelint JSON format parsing
+statement ok
+CREATE TABLE stylelint_results AS 
+SELECT * FROM read_test_results('workspace/stylelint_sample.json', 'stylelint_json');
+
+# Verify stylelint parsing results
+query IIII
+SELECT COUNT(*), tool_name,
+       COUNT(CASE WHEN status = 'ERROR' THEN 1 END) as errors,
+       COUNT(CASE WHEN status = 'WARNING' THEN 1 END) as warnings
+FROM stylelint_results
+GROUP BY tool_name;
+----
+5	stylelint	3	2
+
+# Test 33: stylelint auto-detection
+query I
+SELECT DISTINCT tool_name FROM parse_test_results('[{"source":"test.css","warnings":[{"line":1,"column":1,"rule":"color-no-invalid-hex","severity":"error","text":"Invalid hex color"}]}]', 'auto');
+----
+stylelint
+
+# Test 34: stylelint field validation
+query IIII
+SELECT file_path, line_number, error_code, severity
+FROM parse_test_results('[{"source":"/styles/main.css","warnings":[{"line":10,"column":5,"rule":"color-no-invalid-hex","severity":"error","text":"Invalid hex color"}]}]', 'stylelint_json');
+----
+/styles/main.css	10	color-no-invalid-hex	error
+
+# Test 35: stylelint severity mapping
+query II
+SELECT severity, status FROM parse_test_results('[{"source":"test.css","warnings":[{"line":1,"column":1,"rule":"rule1","severity":"error","text":"Error"},{"line":2,"column":1,"rule":"rule2","severity":"warning","text":"Warning"}]}]', 'stylelint_json')
+ORDER BY event_id;
+----
+error	ERROR
+warning	WARNING
+
+# Test 36: stylelint event type and category validation
+query II
+SELECT DISTINCT event_type, category FROM parse_test_results('[{"source":"test.css","warnings":[{"line":1,"column":1,"rule":"color-no-invalid-hex","severity":"error","text":"Invalid hex color"}]}]', 'stylelint_json');
+----
+lint_issue	css_style
+
+# Test 37: stylelint with no warnings
+query I
+SELECT COUNT(*) FROM parse_test_results('[{"source":"clean.css","warnings":[]}]', 'stylelint_json');
+----
+0
+
+# Test 38: Clippy JSON format parsing
+statement ok
+CREATE TABLE clippy_results AS 
+SELECT * FROM read_test_results('workspace/clippy_sample.json', 'clippy_json');
+
+# Verify Clippy parsing results
+query II
+SELECT COUNT(*), tool_name
+FROM clippy_results
+GROUP BY tool_name;
+----
+4	clippy
+
+# Test 39: Clippy auto-detection
+query I
+SELECT DISTINCT tool_name FROM parse_test_results('{"message":{"message":"test warning","spans":[{"file_name":"test.rs","line_start":1,"column_start":1,"is_primary":true}],"level":"warn"}}', 'auto');
+----
+clippy
+
+# Test 40: Clippy field validation
+query IIII
+SELECT file_path, line_number, error_code, severity
+FROM parse_test_results('{"message":{"message":"test warning","code":{"code":"test_lint"},"spans":[{"file_name":"src/test.rs","line_start":10,"column_start":5,"is_primary":true}],"level":"warn"}}', 'clippy_json');
+----
+src/test.rs	10	test_lint	warn
+
+# Test 41: Clippy severity mapping
+query II
+SELECT severity, status FROM parse_test_results('{"message":{"message":"test error","level":"error","spans":[{"file_name":"test.rs","line_start":1,"column_start":1,"is_primary":true}]}}
+{"message":{"message":"test warning","level":"warn","spans":[{"file_name":"test.rs","line_start":2,"column_start":1,"is_primary":true}]}}', 'clippy_json')
+ORDER BY event_id;
+----
+error	ERROR
+warn	WARNING
+
+# Test 42: Clippy event type and category validation
+query II
+SELECT DISTINCT event_type, category FROM parse_test_results('{"message":{"message":"test warning","spans":[{"file_name":"test.rs","line_start":1,"column_start":1,"is_primary":true}],"level":"warn"}}', 'clippy_json');
+----
+lint_issue	code_quality
+
+# Test 43: Clippy suggestion extraction
+query I
+SELECT suggestion FROM parse_test_results('{"message":{"message":"test warning","spans":[{"file_name":"test.rs","line_start":1,"column_start":1,"is_primary":true,"suggested_replacement":"fixed_code"}],"level":"warn"}}', 'clippy_json');
+----
+fixed_code
+
+# Clean up
+statement ok
+DROP TABLE rubocop_results;
+
+statement ok
+DROP TABLE cargo_results;
+
+statement ok
+DROP TABLE swiftlint_results;
+
+statement ok
+DROP TABLE phpstan_results;
+
+statement ok
+DROP TABLE shellcheck_results;
+
+statement ok
+DROP TABLE stylelint_results;
+
+statement ok
+DROP TABLE clippy_results;

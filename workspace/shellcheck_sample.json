@@ -1,0 +1,60 @@
+[
+  {
+    "file": "/scripts/deploy.sh",
+    "line": 5,
+    "column": 10,
+    "level": "error",
+    "code": "SC2086",
+    "message": "Double quote to prevent globbing and word splitting.",
+    "fix": {
+      "replacements": [
+        {
+          "line": 5,
+          "column": 10,
+          "precedence": 7,
+          "insertionPoint": "beforeStart",
+          "replacement": "\""
+        },
+        {
+          "line": 5,
+          "column": 15,
+          "precedence": 7,
+          "insertionPoint": "afterEnd",
+          "replacement": "\""
+        }
+      ]
+    }
+  },
+  {
+    "file": "/scripts/deploy.sh",
+    "line": 12,
+    "column": 8,
+    "level": "warning",
+    "code": "SC2034",
+    "message": "UNUSED_VAR appears unused. Verify use (or export if used externally)."
+  },
+  {
+    "file": "/scripts/backup.sh",
+    "line": 3,
+    "column": 1,
+    "level": "info",
+    "code": "SC2148",
+    "message": "Tips depend on target shell and yours is unknown. Add a shebang or a directive."
+  },
+  {
+    "file": "/scripts/backup.sh",
+    "line": 15,
+    "column": 20,
+    "level": "error",
+    "code": "SC2002",
+    "message": "Useless cat. Consider 'cmd < file | ..' or 'cmd file | ..' instead."
+  },
+  {
+    "file": "/scripts/test.sh",
+    "line": 8,
+    "column": 12,
+    "level": "style",
+    "code": "SC2006",
+    "message": "Use $(...) notation instead of legacy backticks `...`."
+  }
+]

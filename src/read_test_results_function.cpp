@@ -27,6 +27,33 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
         if (content.find("\"messages\":") != std::string::npos && content.find("\"filePath\":") != std::string::npos) {
             return TestResultFormat::ESLINT_JSON;
         }
+        if (content.find("\"files\":") != std::string::npos && content.find("\"offenses\":") != std::string::npos && content.find("\"cop_name\":") != std::string::npos) {
+            return TestResultFormat::RUBOCOP_JSON;
+        }
+        if (content.find("\"type\":") != std::string::npos && content.find("\"event\":") != std::string::npos && 
+            (content.find("\"suite\"") != std::string::npos || content.find("\"test\"") != std::string::npos)) {
+            return TestResultFormat::CARGO_TEST_JSON;
+        }
+        if (content.find("\"rule_id\":") != std::string::npos && content.find("\"severity\":") != std::string::npos && 
+            content.find("\"file\":") != std::string::npos) {
+            return TestResultFormat::SWIFTLINT_JSON;
+        }
+        if (content.find("\"totals\":") != std::string::npos && content.find("\"files\":") != std::string::npos && 
+            content.find("\"errors\":") != std::string::npos) {
+            return TestResultFormat::PHPSTAN_JSON;
+        }
+        if (content.find("\"code\":") != std::string::npos && content.find("\"level\":") != std::string::npos && 
+            content.find("\"line\":") != std::string::npos && content.find("\"column\":") != std::string::npos) {
+            return TestResultFormat::SHELLCHECK_JSON;
+        }
+        if (content.find("\"source\":") != std::string::npos && content.find("\"warnings\":") != std::string::npos && 
+            content.find("\"rule\":") != std::string::npos && content.find("\"severity\":") != std::string::npos) {
+            return TestResultFormat::STYLELINT_JSON;
+        }
+        if (content.find("\"message\":") != std::string::npos && content.find("\"spans\":") != std::string::npos && 
+            content.find("\"level\":") != std::string::npos && content.find("\"file_name\":") != std::string::npos) {
+            return TestResultFormat::CLIPPY_JSON;
+        }
     }
     
     // Check text patterns (DuckDB test should be checked before make error since it may contain both)
@@ -61,6 +88,13 @@ std::string TestResultFormatToString(TestResultFormat format) {
         case TestResultFormat::MAKE_ERROR: return "make_error";
         case TestResultFormat::GENERIC_LINT: return "generic_lint";
         case TestResultFormat::DUCKDB_TEST: return "duckdb_test";
+        case TestResultFormat::RUBOCOP_JSON: return "rubocop_json";
+        case TestResultFormat::CARGO_TEST_JSON: return "cargo_test_json";
+        case TestResultFormat::SWIFTLINT_JSON: return "swiftlint_json";
+        case TestResultFormat::PHPSTAN_JSON: return "phpstan_json";
+        case TestResultFormat::SHELLCHECK_JSON: return "shellcheck_json";
+        case TestResultFormat::STYLELINT_JSON: return "stylelint_json";
+        case TestResultFormat::CLIPPY_JSON: return "clippy_json";
         default: return "unknown";
     }
 }
@@ -74,6 +108,13 @@ TestResultFormat StringToTestResultFormat(const std::string& str) {
     if (str == "make_error") return TestResultFormat::MAKE_ERROR;
     if (str == "generic_lint") return TestResultFormat::GENERIC_LINT;
     if (str == "duckdb_test") return TestResultFormat::DUCKDB_TEST;
+    if (str == "rubocop_json") return TestResultFormat::RUBOCOP_JSON;
+    if (str == "cargo_test_json") return TestResultFormat::CARGO_TEST_JSON;
+    if (str == "swiftlint_json") return TestResultFormat::SWIFTLINT_JSON;
+    if (str == "phpstan_json") return TestResultFormat::PHPSTAN_JSON;
+    if (str == "shellcheck_json") return TestResultFormat::SHELLCHECK_JSON;
+    if (str == "stylelint_json") return TestResultFormat::STYLELINT_JSON;
+    if (str == "clippy_json") return TestResultFormat::CLIPPY_JSON;
     if (str == "unknown") return TestResultFormat::UNKNOWN;
     return TestResultFormat::AUTO;  // Default to auto-detection
 }
@@ -182,19 +223,35 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
         case TestResultFormat::MAKE_ERROR:
             ParseMakeErrors(content, global_state->events);
             break;
+        case TestResultFormat::PYTEST_TEXT:
+            ParsePytestText(content, global_state->events);
+            break;
         case TestResultFormat::GENERIC_LINT:
             ParseGenericLint(content, global_state->events);
             break;
+        case TestResultFormat::RUBOCOP_JSON:
+            ParseRuboCopJSON(content, global_state->events);
+            break;
+        case TestResultFormat::CARGO_TEST_JSON:
+            ParseCargoTestJSON(content, global_state->events);
+            break;
+        case TestResultFormat::SWIFTLINT_JSON:
+            ParseSwiftLintJSON(content, global_state->events);
+            break;
+        case TestResultFormat::PHPSTAN_JSON:
+            ParsePHPStanJSON(content, global_state->events);
+            break;
+        case TestResultFormat::SHELLCHECK_JSON:
+            ParseShellCheckJSON(content, global_state->events);
+            break;
+        case TestResultFormat::STYLELINT_JSON:
+            ParseStylelintJSON(content, global_state->events);
+            break;
+        case TestResultFormat::CLIPPY_JSON:
+            ParseClippyJSON(content, global_state->events);
+            break;
         default:
-            // For other formats, create a dummy event for now
-            ValidationEvent dummy_event;
-            dummy_event.event_id = 1;
-            dummy_event.tool_name = "dummy";
-            dummy_event.event_type = ValidationEventType::TEST_RESULT;
-            dummy_event.status = ValidationEventStatus::PASS;
-            dummy_event.message = "Dummy event - format detected: " + TestResultFormatToString(format);
-            dummy_event.category = "test";
-            global_state->events.push_back(dummy_event);
+            // For unknown formats, don't create any events
             break;
     }
     
@@ -738,6 +795,802 @@ void ParseMakeErrors(const std::string& content, std::vector<ValidationEvent>& e
     }
 }
 
+void ParsePytestText(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream stream(content);
+    std::string line;
+    int64_t event_id = 1;
+    
+    while (std::getline(stream, line)) {
+        if (line.empty()) continue;
+        
+        // Look for pytest text output patterns: "file.py::test_name STATUS"
+        if (line.find("::") != std::string::npos) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "pytest";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.line_number = -1;
+            event.column_number = -1;
+            event.execution_time = 0.0;
+            event.category = "test";
+            
+            // Parse the line format: "file.py::test_name STATUS"
+            size_t separator = line.find("::");
+            if (separator != std::string::npos) {
+                event.file_path = line.substr(0, separator);
+                
+                std::string rest = line.substr(separator + 2);
+                
+                // Find the status at the end
+                if (rest.find(" PASSED") != std::string::npos) {
+                    event.status = ValidationEventStatus::PASS;
+                    event.message = "Test passed";
+                    event.test_name = rest.substr(0, rest.find(" PASSED"));
+                } else if (rest.find(" FAILED") != std::string::npos) {
+                    event.status = ValidationEventStatus::FAIL;
+                    event.message = "Test failed";
+                    event.test_name = rest.substr(0, rest.find(" FAILED"));
+                } else if (rest.find(" SKIPPED") != std::string::npos) {
+                    event.status = ValidationEventStatus::SKIP;
+                    event.message = "Test skipped";
+                    event.test_name = rest.substr(0, rest.find(" SKIPPED"));
+                } else {
+                    // Default case
+                    event.status = ValidationEventStatus::INFO;
+                    event.message = "Test result";
+                    event.test_name = rest;
+                }
+            }
+            
+            events.push_back(event);
+        }
+    }
+}
+
+void ParseRuboCopJSON(const std::string& content, std::vector<ValidationEvent>& events) {
+    // Parse JSON using yyjson
+    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
+    if (!doc) {
+        throw IOException("Failed to parse RuboCop JSON");
+    }
+    
+    yyjson_val *root = yyjson_doc_get_root(doc);
+    if (!yyjson_is_obj(root)) {
+        yyjson_doc_free(doc);
+        throw IOException("Invalid RuboCop JSON: root is not an object");
+    }
+    
+    // Get files array
+    yyjson_val *files = yyjson_obj_get(root, "files");
+    if (!files || !yyjson_is_arr(files)) {
+        yyjson_doc_free(doc);
+        throw IOException("Invalid RuboCop JSON: no files array found");
+    }
+    
+    // Parse each file
+    size_t idx, max;
+    yyjson_val *file;
+    int64_t event_id = 1;
+    
+    yyjson_arr_foreach(files, idx, max, file) {
+        if (!yyjson_is_obj(file)) continue;
+        
+        // Get file path
+        yyjson_val *path = yyjson_obj_get(file, "path");
+        if (!path || !yyjson_is_str(path)) continue;
+        
+        std::string file_path = yyjson_get_str(path);
+        
+        // Get offenses array
+        yyjson_val *offenses = yyjson_obj_get(file, "offenses");
+        if (!offenses || !yyjson_is_arr(offenses)) continue;
+        
+        // Parse each offense
+        size_t offense_idx, offense_max;
+        yyjson_val *offense;
+        
+        yyjson_arr_foreach(offenses, offense_idx, offense_max, offense) {
+            if (!yyjson_is_obj(offense)) continue;
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "rubocop";
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.file_path = file_path;
+            event.line_number = -1;
+            event.column_number = -1;
+            event.execution_time = 0.0;
+            event.category = "code_quality";
+            
+            // Get severity
+            yyjson_val *severity = yyjson_obj_get(offense, "severity");
+            if (severity && yyjson_is_str(severity)) {
+                std::string severity_str = yyjson_get_str(severity);
+                if (severity_str == "error") {
+                    event.status = ValidationEventStatus::ERROR;
+                    event.severity = "error";
+                } else if (severity_str == "warning") {
+                    event.status = ValidationEventStatus::WARNING;
+                    event.severity = "warning";
+                } else if (severity_str == "convention") {
+                    event.status = ValidationEventStatus::WARNING;
+                    event.severity = "convention";
+                } else {
+                    event.status = ValidationEventStatus::INFO;
+                    event.severity = severity_str;
+                }
+            }
+            
+            // Get message
+            yyjson_val *message = yyjson_obj_get(offense, "message");
+            if (message && yyjson_is_str(message)) {
+                event.message = yyjson_get_str(message);
+            }
+            
+            // Get cop name (rule ID)
+            yyjson_val *cop_name = yyjson_obj_get(offense, "cop_name");
+            if (cop_name && yyjson_is_str(cop_name)) {
+                event.error_code = yyjson_get_str(cop_name);
+            }
+            
+            // Get location
+            yyjson_val *location = yyjson_obj_get(offense, "location");
+            if (location && yyjson_is_obj(location)) {
+                yyjson_val *start_line = yyjson_obj_get(location, "start_line");
+                yyjson_val *start_column = yyjson_obj_get(location, "start_column");
+                
+                if (start_line && yyjson_is_num(start_line)) {
+                    event.line_number = yyjson_get_int(start_line);
+                }
+                if (start_column && yyjson_is_num(start_column)) {
+                    event.column_number = yyjson_get_int(start_column);
+                }
+            }
+            
+            // Set raw output and structured data
+            event.raw_output = content;
+            event.structured_data = "rubocop_json";
+            
+            events.push_back(event);
+        }
+    }
+    
+    yyjson_doc_free(doc);
+}
+
+void ParseCargoTestJSON(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream stream(content);
+    std::string line;
+    int64_t event_id = 1;
+    
+    // Track test events
+    std::map<std::string, ValidationEvent> test_events;
+    
+    while (std::getline(stream, line)) {
+        if (line.empty()) continue;
+        
+        // Parse each JSON line
+        yyjson_doc *doc = yyjson_read(line.c_str(), line.length(), 0);
+        if (!doc) continue;
+        
+        yyjson_val *root = yyjson_doc_get_root(doc);
+        if (!yyjson_is_obj(root)) {
+            yyjson_doc_free(doc);
+            continue;
+        }
+        
+        // Get type and event
+        yyjson_val *type = yyjson_obj_get(root, "type");
+        yyjson_val *event_val = yyjson_obj_get(root, "event");
+        
+        if (!type || !yyjson_is_str(type) || !event_val || !yyjson_is_str(event_val)) {
+            yyjson_doc_free(doc);
+            continue;
+        }
+        
+        std::string type_str = yyjson_get_str(type);
+        std::string event_str = yyjson_get_str(event_val);
+        
+        // Handle test events
+        if (type_str == "test") {
+            yyjson_val *name = yyjson_obj_get(root, "name");
+            if (!name || !yyjson_is_str(name)) {
+                yyjson_doc_free(doc);
+                continue;
+            }
+            
+            std::string test_name = yyjson_get_str(name);
+            
+            if (event_str == "started") {
+                // Initialize test event
+                ValidationEvent event;
+                event.event_id = event_id++;
+                event.tool_name = "cargo_test";
+                event.event_type = ValidationEventType::TEST_RESULT;
+                event.test_name = test_name;
+                event.function_name = test_name;
+                event.line_number = -1;
+                event.column_number = -1;
+                event.execution_time = 0.0;
+                event.category = "test";
+                
+                test_events[test_name] = event;
+            } else if (event_str == "ok" || event_str == "failed" || event_str == "ignored") {
+                // Finalize test event
+                if (test_events.find(test_name) != test_events.end()) {
+                    ValidationEvent &event = test_events[test_name];
+                    
+                    // Get execution time
+                    yyjson_val *exec_time = yyjson_obj_get(root, "exec_time");
+                    if (exec_time && yyjson_is_num(exec_time)) {
+                        event.execution_time = yyjson_get_real(exec_time);
+                    }
+                    
+                    // Set status based on event
+                    if (event_str == "ok") {
+                        event.status = ValidationEventStatus::PASS;
+                        event.message = "Test passed";
+                        event.severity = "success";
+                    } else if (event_str == "failed") {
+                        event.status = ValidationEventStatus::FAIL;
+                        event.message = "Test failed";
+                        event.severity = "error";
+                        
+                        // Get failure details from stdout
+                        yyjson_val *stdout_val = yyjson_obj_get(root, "stdout");
+                        if (stdout_val && yyjson_is_str(stdout_val)) {
+                            std::string stdout_str = yyjson_get_str(stdout_val);
+                            if (!stdout_str.empty()) {
+                                event.message = "Test failed: " + stdout_str;
+                            }
+                        }
+                    } else if (event_str == "ignored") {
+                        event.status = ValidationEventStatus::SKIP;
+                        event.message = "Test ignored";
+                        event.severity = "info";
+                    }
+                    
+                    // Set raw output and structured data
+                    event.raw_output = content;
+                    event.structured_data = "cargo_test_json";
+                    
+                    events.push_back(event);
+                    test_events.erase(test_name);
+                }
+            }
+        }
+        
+        yyjson_doc_free(doc);
+    }
+}
+
+void ParseSwiftLintJSON(const std::string& content, std::vector<ValidationEvent>& events) {
+    // Parse JSON using yyjson
+    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
+    if (!doc) {
+        throw IOException("Failed to parse SwiftLint JSON");
+    }
+    
+    yyjson_val *root = yyjson_doc_get_root(doc);
+    if (!yyjson_is_arr(root)) {
+        yyjson_doc_free(doc);
+        throw IOException("Invalid SwiftLint JSON: root is not an array");
+    }
+    
+    // Parse each violation
+    size_t idx, max;
+    yyjson_val *violation;
+    int64_t event_id = 1;
+    
+    yyjson_arr_foreach(root, idx, max, violation) {
+        if (!yyjson_is_obj(violation)) continue;
+        
+        ValidationEvent event;
+        event.event_id = event_id++;
+        event.tool_name = "swiftlint";
+        event.event_type = ValidationEventType::LINT_ISSUE;
+        event.line_number = -1;
+        event.column_number = -1;
+        event.execution_time = 0.0;
+        event.category = "code_quality";
+        
+        // Get file path
+        yyjson_val *file = yyjson_obj_get(violation, "file");
+        if (file && yyjson_is_str(file)) {
+            event.file_path = yyjson_get_str(file);
+        }
+        
+        // Get line and column
+        yyjson_val *line = yyjson_obj_get(violation, "line");
+        if (line && yyjson_is_num(line)) {
+            event.line_number = yyjson_get_int(line);
+        }
+        
+        yyjson_val *column = yyjson_obj_get(violation, "column");
+        if (column && yyjson_is_num(column)) {
+            event.column_number = yyjson_get_int(column);
+        }
+        
+        // Get severity
+        yyjson_val *severity = yyjson_obj_get(violation, "severity");
+        if (severity && yyjson_is_str(severity)) {
+            std::string severity_str = yyjson_get_str(severity);
+            if (severity_str == "error") {
+                event.status = ValidationEventStatus::ERROR;
+                event.severity = "error";
+            } else if (severity_str == "warning") {
+                event.status = ValidationEventStatus::WARNING;
+                event.severity = "warning";
+            } else {
+                event.status = ValidationEventStatus::INFO;
+                event.severity = severity_str;
+            }
+        }
+        
+        // Get reason (message)
+        yyjson_val *reason = yyjson_obj_get(violation, "reason");
+        if (reason && yyjson_is_str(reason)) {
+            event.message = yyjson_get_str(reason);
+        }
+        
+        // Get rule ID
+        yyjson_val *rule_id = yyjson_obj_get(violation, "rule_id");
+        if (rule_id && yyjson_is_str(rule_id)) {
+            event.error_code = yyjson_get_str(rule_id);
+        }
+        
+        // Get type (rule type)
+        yyjson_val *type = yyjson_obj_get(violation, "type");
+        if (type && yyjson_is_str(type)) {
+            event.suggestion = yyjson_get_str(type);
+        }
+        
+        // Set raw output and structured data
+        event.raw_output = content;
+        event.structured_data = "swiftlint_json";
+        
+        events.push_back(event);
+    }
+    
+    yyjson_doc_free(doc);
+}
+
+void ParsePHPStanJSON(const std::string& content, std::vector<ValidationEvent>& events) {
+    // Parse JSON using yyjson
+    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
+    if (!doc) {
+        throw IOException("Failed to parse PHPStan JSON");
+    }
+    
+    yyjson_val *root = yyjson_doc_get_root(doc);
+    if (!yyjson_is_obj(root)) {
+        yyjson_doc_free(doc);
+        throw IOException("Invalid PHPStan JSON: root is not an object");
+    }
+    
+    // Get files object
+    yyjson_val *files = yyjson_obj_get(root, "files");
+    if (!files || !yyjson_is_obj(files)) {
+        yyjson_doc_free(doc);
+        throw IOException("Invalid PHPStan JSON: no files object found");
+    }
+    
+    // Parse each file
+    size_t idx, max;
+    yyjson_val *file_key, *file_data;
+    int64_t event_id = 1;
+    
+    yyjson_obj_foreach(files, idx, max, file_key, file_data) {
+        if (!yyjson_is_str(file_key) || !yyjson_is_obj(file_data)) continue;
+        
+        std::string file_path = yyjson_get_str(file_key);
+        
+        // Get messages array
+        yyjson_val *messages = yyjson_obj_get(file_data, "messages");
+        if (!messages || !yyjson_is_arr(messages)) continue;
+        
+        // Parse each message
+        size_t msg_idx, msg_max;
+        yyjson_val *message;
+        
+        yyjson_arr_foreach(messages, msg_idx, msg_max, message) {
+            if (!yyjson_is_obj(message)) continue;
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "phpstan";
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.file_path = file_path;
+            event.line_number = -1;
+            event.column_number = -1;
+            event.execution_time = 0.0;
+            event.category = "static_analysis";
+            
+            // Get message text
+            yyjson_val *msg_text = yyjson_obj_get(message, "message");
+            if (msg_text && yyjson_is_str(msg_text)) {
+                event.message = yyjson_get_str(msg_text);
+            }
+            
+            // Get line number
+            yyjson_val *line = yyjson_obj_get(message, "line");
+            if (line && yyjson_is_num(line)) {
+                event.line_number = yyjson_get_int(line);
+            }
+            
+            // Get ignorable status (use as severity indicator)
+            yyjson_val *ignorable = yyjson_obj_get(message, "ignorable");
+            if (ignorable && yyjson_is_bool(ignorable)) {
+                if (yyjson_get_bool(ignorable)) {
+                    event.status = ValidationEventStatus::WARNING;
+                    event.severity = "warning";
+                } else {
+                    event.status = ValidationEventStatus::ERROR;
+                    event.severity = "error";
+                }
+            } else {
+                // Default to error
+                event.status = ValidationEventStatus::ERROR;
+                event.severity = "error";
+            }
+            
+            // Set raw output and structured data
+            event.raw_output = content;
+            event.structured_data = "phpstan_json";
+            
+            events.push_back(event);
+        }
+    }
+    
+    yyjson_doc_free(doc);
+}
+
+void ParseShellCheckJSON(const std::string& content, std::vector<ValidationEvent>& events) {
+    // Parse JSON using yyjson
+    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
+    if (!doc) {
+        throw IOException("Failed to parse ShellCheck JSON");
+    }
+    
+    yyjson_val *root = yyjson_doc_get_root(doc);
+    if (!yyjson_is_arr(root)) {
+        yyjson_doc_free(doc);
+        throw IOException("Invalid ShellCheck JSON: root is not an array");
+    }
+    
+    // Parse each issue
+    size_t idx, max;
+    yyjson_val *issue;
+    int64_t event_id = 1;
+    
+    yyjson_arr_foreach(root, idx, max, issue) {
+        if (!yyjson_is_obj(issue)) continue;
+        
+        ValidationEvent event;
+        event.event_id = event_id++;
+        event.tool_name = "shellcheck";
+        event.event_type = ValidationEventType::LINT_ISSUE;
+        event.category = "shell_script";
+        
+        // Get file path
+        yyjson_val *file = yyjson_obj_get(issue, "file");
+        if (file && yyjson_is_str(file)) {
+            event.file_path = yyjson_get_str(file);
+        }
+        
+        // Get line number
+        yyjson_val *line = yyjson_obj_get(issue, "line");
+        if (line && yyjson_is_int(line)) {
+            event.line_number = yyjson_get_int(line);
+        } else {
+            event.line_number = -1;
+        }
+        
+        // Get column number
+        yyjson_val *column = yyjson_obj_get(issue, "column");
+        if (column && yyjson_is_int(column)) {
+            event.column_number = yyjson_get_int(column);
+        } else {
+            event.column_number = -1;
+        }
+        
+        // Get severity/level
+        yyjson_val *level = yyjson_obj_get(issue, "level");
+        if (level && yyjson_is_str(level)) {
+            std::string level_str = yyjson_get_str(level);
+            event.severity = level_str;
+            
+            // Map ShellCheck levels to ValidationEventStatus
+            if (level_str == "error") {
+                event.status = ValidationEventStatus::ERROR;
+            } else if (level_str == "warning") {
+                event.status = ValidationEventStatus::WARNING;
+            } else if (level_str == "info") {
+                event.status = ValidationEventStatus::INFO;
+            } else if (level_str == "style") {
+                event.status = ValidationEventStatus::WARNING;
+            } else {
+                event.status = ValidationEventStatus::WARNING;
+            }
+        } else {
+            event.severity = "warning";
+            event.status = ValidationEventStatus::WARNING;
+        }
+        
+        // Get error code (SC#### codes)
+        yyjson_val *code = yyjson_obj_get(issue, "code");
+        if (code && yyjson_is_str(code)) {
+            event.error_code = yyjson_get_str(code);
+        }
+        
+        // Get message
+        yyjson_val *message = yyjson_obj_get(issue, "message");
+        if (message && yyjson_is_str(message)) {
+            event.message = yyjson_get_str(message);
+        }
+        
+        // Get fix suggestions if available
+        yyjson_val *fix = yyjson_obj_get(issue, "fix");
+        if (fix && yyjson_is_obj(fix)) {
+            yyjson_val *replacements = yyjson_obj_get(fix, "replacements");
+            if (replacements && yyjson_is_arr(replacements)) {
+                event.suggestion = "Fix available";
+            }
+        }
+        
+        // Set raw output and structured data
+        event.raw_output = content;
+        event.structured_data = "shellcheck_json";
+        
+        events.push_back(event);
+    }
+    
+    yyjson_doc_free(doc);
+}
+
+void ParseStylelintJSON(const std::string& content, std::vector<ValidationEvent>& events) {
+    // Parse JSON using yyjson
+    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
+    if (!doc) {
+        throw IOException("Failed to parse stylelint JSON");
+    }
+    
+    yyjson_val *root = yyjson_doc_get_root(doc);
+    if (!yyjson_is_arr(root)) {
+        yyjson_doc_free(doc);
+        throw IOException("Invalid stylelint JSON: root is not an array");
+    }
+    
+    // Parse each file result
+    size_t idx, max;
+    yyjson_val *file_result;
+    int64_t event_id = 1;
+    
+    yyjson_arr_foreach(root, idx, max, file_result) {
+        if (!yyjson_is_obj(file_result)) continue;
+        
+        // Get source file path
+        yyjson_val *source = yyjson_obj_get(file_result, "source");
+        if (!source || !yyjson_is_str(source)) continue;
+        
+        std::string file_path = yyjson_get_str(source);
+        
+        // Get warnings array
+        yyjson_val *warnings = yyjson_obj_get(file_result, "warnings");
+        if (!warnings || !yyjson_is_arr(warnings)) continue;
+        
+        // Parse each warning
+        size_t warn_idx, warn_max;
+        yyjson_val *warning;
+        
+        yyjson_arr_foreach(warnings, warn_idx, warn_max, warning) {
+            if (!yyjson_is_obj(warning)) continue;
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "stylelint";
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.category = "css_style";
+            event.file_path = file_path;
+            
+            // Get line number
+            yyjson_val *line = yyjson_obj_get(warning, "line");
+            if (line && yyjson_is_int(line)) {
+                event.line_number = yyjson_get_int(line);
+            } else {
+                event.line_number = -1;
+            }
+            
+            // Get column number
+            yyjson_val *column = yyjson_obj_get(warning, "column");
+            if (column && yyjson_is_int(column)) {
+                event.column_number = yyjson_get_int(column);
+            } else {
+                event.column_number = -1;
+            }
+            
+            // Get severity
+            yyjson_val *severity = yyjson_obj_get(warning, "severity");
+            if (severity && yyjson_is_str(severity)) {
+                std::string severity_str = yyjson_get_str(severity);
+                event.severity = severity_str;
+                
+                // Map stylelint severity to ValidationEventStatus
+                if (severity_str == "error") {
+                    event.status = ValidationEventStatus::ERROR;
+                } else if (severity_str == "warning") {
+                    event.status = ValidationEventStatus::WARNING;
+                } else {
+                    event.status = ValidationEventStatus::WARNING;
+                }
+            } else {
+                event.severity = "warning";
+                event.status = ValidationEventStatus::WARNING;
+            }
+            
+            // Get rule name
+            yyjson_val *rule = yyjson_obj_get(warning, "rule");
+            if (rule && yyjson_is_str(rule)) {
+                event.error_code = yyjson_get_str(rule);
+            }
+            
+            // Get message text
+            yyjson_val *text = yyjson_obj_get(warning, "text");
+            if (text && yyjson_is_str(text)) {
+                event.message = yyjson_get_str(text);
+            }
+            
+            // Set raw output and structured data
+            event.raw_output = content;
+            event.structured_data = "stylelint_json";
+            
+            events.push_back(event);
+        }
+    }
+    
+    yyjson_doc_free(doc);
+}
+
+void ParseClippyJSON(const std::string& content, std::vector<ValidationEvent>& events) {
+    // Parse JSONL format (JSON Lines) - each line is a separate JSON object
+    std::istringstream stream(content);
+    std::string line;
+    int64_t event_id = 1;
+    
+    while (std::getline(stream, line)) {
+        if (line.empty()) continue;
+        
+        // Parse JSON using yyjson
+        yyjson_doc *doc = yyjson_read(line.c_str(), line.length(), 0);
+        if (!doc) {
+            continue; // Skip invalid JSON lines
+        }
+        
+        yyjson_val *root = yyjson_doc_get_root(doc);
+        if (!yyjson_is_obj(root)) {
+            yyjson_doc_free(doc);
+            continue;
+        }
+        
+        // Get message object
+        yyjson_val *message = yyjson_obj_get(root, "message");
+        if (!message || !yyjson_is_obj(message)) {
+            yyjson_doc_free(doc);
+            continue;
+        }
+        
+        // Get spans array
+        yyjson_val *spans = yyjson_obj_get(message, "spans");
+        if (!spans || !yyjson_is_arr(spans)) {
+            yyjson_doc_free(doc);
+            continue;
+        }
+        
+        // Get primary span (first span with is_primary = true)
+        yyjson_val *primary_span = nullptr;
+        size_t idx, max;
+        yyjson_val *span;
+        
+        yyjson_arr_foreach(spans, idx, max, span) {
+            if (!yyjson_is_obj(span)) continue;
+            
+            yyjson_val *is_primary = yyjson_obj_get(span, "is_primary");
+            if (is_primary && yyjson_is_bool(is_primary) && yyjson_get_bool(is_primary)) {
+                primary_span = span;
+                break;
+            }
+        }
+        
+        if (!primary_span) {
+            // If no primary span found, use the first span
+            primary_span = yyjson_arr_get_first(spans);
+        }
+        
+        if (!primary_span) {
+            yyjson_doc_free(doc);
+            continue;
+        }
+        
+        ValidationEvent event;
+        event.event_id = event_id++;
+        event.tool_name = "clippy";
+        event.event_type = ValidationEventType::LINT_ISSUE;
+        event.category = "code_quality";
+        
+        // Get file name from primary span
+        yyjson_val *file_name = yyjson_obj_get(primary_span, "file_name");
+        if (file_name && yyjson_is_str(file_name)) {
+            event.file_path = yyjson_get_str(file_name);
+        }
+        
+        // Get line number from primary span
+        yyjson_val *line_start = yyjson_obj_get(primary_span, "line_start");
+        if (line_start && yyjson_is_int(line_start)) {
+            event.line_number = yyjson_get_int(line_start);
+        } else {
+            event.line_number = -1;
+        }
+        
+        // Get column number from primary span
+        yyjson_val *column_start = yyjson_obj_get(primary_span, "column_start");
+        if (column_start && yyjson_is_int(column_start)) {
+            event.column_number = yyjson_get_int(column_start);
+        } else {
+            event.column_number = -1;
+        }
+        
+        // Get severity level
+        yyjson_val *level = yyjson_obj_get(message, "level");
+        if (level && yyjson_is_str(level)) {
+            std::string level_str = yyjson_get_str(level);
+            event.severity = level_str;
+            
+            // Map clippy levels to ValidationEventStatus
+            if (level_str == "error") {
+                event.status = ValidationEventStatus::ERROR;
+            } else if (level_str == "warn" || level_str == "warning") {
+                event.status = ValidationEventStatus::WARNING;
+            } else if (level_str == "note" || level_str == "info") {
+                event.status = ValidationEventStatus::INFO;
+            } else {
+                event.status = ValidationEventStatus::WARNING;
+            }
+        } else {
+            event.severity = "warning";
+            event.status = ValidationEventStatus::WARNING;
+        }
+        
+        // Get code object for error code
+        yyjson_val *code = yyjson_obj_get(message, "code");
+        if (code && yyjson_is_obj(code)) {
+            yyjson_val *code_str = yyjson_obj_get(code, "code");
+            if (code_str && yyjson_is_str(code_str)) {
+                event.error_code = yyjson_get_str(code_str);
+            }
+        }
+        
+        // Get message text
+        yyjson_val *message_text = yyjson_obj_get(message, "message");
+        if (message_text && yyjson_is_str(message_text)) {
+            event.message = yyjson_get_str(message_text);
+        }
+        
+        // Get suggestion from primary span
+        yyjson_val *suggested_replacement = yyjson_obj_get(primary_span, "suggested_replacement");
+        if (suggested_replacement && yyjson_is_str(suggested_replacement)) {
+            event.suggestion = yyjson_get_str(suggested_replacement);
+        }
+        
+        // Set raw output and structured data
+        event.raw_output = content;
+        event.structured_data = "clippy_json";
+        
+        events.push_back(event);
+        
+        yyjson_doc_free(doc);
+    }
+}
+
 void ParseGenericLint(const std::string& content, std::vector<ValidationEvent>& events) {
     std::istringstream stream(content);
     std::string line;
@@ -796,9 +1649,146 @@ void ParseGenericLint(const std::string& content, std::vector<ValidationEvent>& 
     }
 }
 
+// Parse test results implementation for string input
+unique_ptr<FunctionData> ParseTestResultsBind(ClientContext &context, TableFunctionBindInput &input,
+                                              vector<LogicalType> &return_types, vector<string> &names) {
+    auto bind_data = make_uniq<ReadTestResultsBindData>();
+    
+    // Get content parameter (required)
+    if (input.inputs.empty()) {
+        throw BinderException("parse_test_results requires at least one parameter (content)");
+    }
+    bind_data->source = input.inputs[0].ToString();
+    
+    // Get format parameter (optional, defaults to auto)
+    if (input.inputs.size() > 1) {
+        bind_data->format = StringToTestResultFormat(input.inputs[1].ToString());
+    } else {
+        bind_data->format = TestResultFormat::AUTO;
+    }
+    
+    // Define return schema (same as read_test_results)
+    return_types = {
+        LogicalType::BIGINT,   // event_id
+        LogicalType::VARCHAR,  // tool_name
+        LogicalType::VARCHAR,  // event_type
+        LogicalType::VARCHAR,  // file_path
+        LogicalType::INTEGER,  // line_number
+        LogicalType::INTEGER,  // column_number
+        LogicalType::VARCHAR,  // function_name
+        LogicalType::VARCHAR,  // status
+        LogicalType::VARCHAR,  // severity
+        LogicalType::VARCHAR,  // category
+        LogicalType::VARCHAR,  // message
+        LogicalType::VARCHAR,  // suggestion
+        LogicalType::VARCHAR,  // error_code
+        LogicalType::VARCHAR,  // test_name
+        LogicalType::DOUBLE,   // execution_time
+        LogicalType::VARCHAR,  // raw_output
+        LogicalType::VARCHAR   // structured_data
+    };
+    
+    names = {
+        "event_id", "tool_name", "event_type", "file_path", "line_number",
+        "column_number", "function_name", "status", "severity", "category",
+        "message", "suggestion", "error_code", "test_name", "execution_time",
+        "raw_output", "structured_data"
+    };
+    
+    return std::move(bind_data);
+}
+
+unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &context, TableFunctionInitInput &input) {
+    auto &bind_data = input.bind_data->Cast<ReadTestResultsBindData>();
+    auto global_state = make_uniq<ReadTestResultsGlobalState>();
+    
+    // Use source directly as content (no file reading)
+    std::string content = bind_data.source;
+    
+    // Auto-detect format if needed
+    TestResultFormat format = bind_data.format;
+    if (format == TestResultFormat::AUTO) {
+        format = DetectTestResultFormat(content);
+    }
+    
+    // Parse content based on detected format (same logic as read_test_results)
+    switch (format) {
+        case TestResultFormat::PYTEST_JSON:
+            ParsePytestJSON(content, global_state->events);
+            break;
+        case TestResultFormat::DUCKDB_TEST:
+            ParseDuckDBTestOutput(content, global_state->events);
+            break;
+        case TestResultFormat::ESLINT_JSON:
+            ParseESLintJSON(content, global_state->events);
+            break;
+        case TestResultFormat::GOTEST_JSON:
+            ParseGoTestJSON(content, global_state->events);
+            break;
+        case TestResultFormat::MAKE_ERROR:
+            ParseMakeErrors(content, global_state->events);
+            break;
+        case TestResultFormat::PYTEST_TEXT:
+            ParsePytestText(content, global_state->events);
+            break;
+        case TestResultFormat::GENERIC_LINT:
+            ParseGenericLint(content, global_state->events);
+            break;
+        case TestResultFormat::RUBOCOP_JSON:
+            ParseRuboCopJSON(content, global_state->events);
+            break;
+        case TestResultFormat::CARGO_TEST_JSON:
+            ParseCargoTestJSON(content, global_state->events);
+            break;
+        case TestResultFormat::SWIFTLINT_JSON:
+            ParseSwiftLintJSON(content, global_state->events);
+            break;
+        case TestResultFormat::PHPSTAN_JSON:
+            ParsePHPStanJSON(content, global_state->events);
+            break;
+        case TestResultFormat::SHELLCHECK_JSON:
+            ParseShellCheckJSON(content, global_state->events);
+            break;
+        case TestResultFormat::STYLELINT_JSON:
+            ParseStylelintJSON(content, global_state->events);
+            break;
+        case TestResultFormat::CLIPPY_JSON:
+            ParseClippyJSON(content, global_state->events);
+            break;
+        default:
+            // For unknown formats, don't create any events
+            break;
+    }
+    
+    return std::move(global_state);
+}
+
+unique_ptr<LocalTableFunctionState> ParseTestResultsInitLocal(ExecutionContext &context, TableFunctionInitInput &input,
+                                                              GlobalTableFunctionState *global_state) {
+    return make_uniq<ReadTestResultsLocalState>();
+}
+
+void ParseTestResultsFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output) {
+    auto &global_state = data_p.global_state->Cast<ReadTestResultsGlobalState>();
+    auto &local_state = data_p.local_state->Cast<ReadTestResultsLocalState>();
+    
+    // Populate output chunk (same logic as read_test_results)
+    PopulateDataChunkFromEvents(output, global_state.events, local_state.chunk_offset, STANDARD_VECTOR_SIZE);
+    
+    // Update offset for next chunk
+    local_state.chunk_offset += output.size();
+}
+
 TableFunction GetReadTestResultsFunction() {
     TableFunction function("read_test_results", {LogicalType::VARCHAR, LogicalType::VARCHAR}, 
                           ReadTestResultsFunction, ReadTestResultsBind, ReadTestResultsInitGlobal, ReadTestResultsInitLocal);
+    
+    return function;
+}
+
+TableFunction GetParseTestResultsFunction() {
+    TableFunction function("parse_test_results", {LogicalType::VARCHAR, LogicalType::VARCHAR}, 
+                          ParseTestResultsFunction, ParseTestResultsBind, ParseTestResultsInitGlobal, ParseTestResultsInitLocal);
     
     return function;
 }

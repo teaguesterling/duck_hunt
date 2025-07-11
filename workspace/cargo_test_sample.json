@@ -1,0 +1,10 @@
+{ "type": "suite", "event": "started", "test_count": 4 }
+{ "type": "test", "event": "started", "name": "math::test_add" }
+{ "type": "test", "name": "math::test_add", "event": "ok", "exec_time": 0.001234 }
+{ "type": "test", "event": "started", "name": "math::test_subtract" }
+{ "type": "test", "name": "math::test_subtract", "event": "failed", "exec_time": 0.002345, "stdout": "assertion failed: left == right\n  left: 5\n right: 3" }
+{ "type": "test", "event": "started", "name": "utils::test_helper" }
+{ "type": "test", "name": "utils::test_helper", "event": "ignored", "exec_time": 0.000001 }
+{ "type": "test", "event": "started", "name": "integration::test_full_flow" }
+{ "type": "test", "name": "integration::test_full_flow", "event": "ok", "exec_time": 0.05678 }
+{ "type": "suite", "event": "ok", "passed": 2, "failed": 1, "ignored": 1, "measured": 0, "filtered_out": 0, "exec_time": 0.123456 }

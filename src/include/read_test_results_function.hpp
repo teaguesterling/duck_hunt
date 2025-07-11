@@ -16,7 +16,14 @@ enum class TestResultFormat : uint8_t {
     PYTEST_TEXT = 5,
     MAKE_ERROR = 6,
     GENERIC_LINT = 7,
-    DUCKDB_TEST = 8
+    DUCKDB_TEST = 8,
+    RUBOCOP_JSON = 9,
+    CARGO_TEST_JSON = 10,
+    SWIFTLINT_JSON = 11,
+    PHPSTAN_JSON = 12,
+    SHELLCHECK_JSON = 13,
+    STYLELINT_JSON = 14,
+    CLIPPY_JSON = 15
 };
 
 // Bind data for read_test_results table function
@@ -53,8 +60,9 @@ bool IsValidJSON(const std::string& content);
 
 // Main table function
 TableFunction GetReadTestResultsFunction();
+TableFunction GetParseTestResultsFunction();
 
-// Table function implementation
+// Table function implementation for read_test_results (file-based)
 unique_ptr<FunctionData> ReadTestResultsBind(ClientContext &context, TableFunctionBindInput &input,
                                             vector<LogicalType> &return_types, vector<string> &names);
 
@@ -65,16 +73,35 @@ unique_ptr<LocalTableFunctionState> ReadTestResultsInitLocal(ExecutionContext &c
 
 void ReadTestResultsFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output);
 
+// Table function implementation for parse_test_results (string-based)
+unique_ptr<FunctionData> ParseTestResultsBind(ClientContext &context, TableFunctionBindInput &input,
+                                             vector<LogicalType> &return_types, vector<string> &names);
+
+unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &context, TableFunctionInitInput &input);
+
+unique_ptr<LocalTableFunctionState> ParseTestResultsInitLocal(ExecutionContext &context, TableFunctionInitInput &input, 
+                                                             GlobalTableFunctionState *global_state);
+
+void ParseTestResultsFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output);
+
 // Helper function to populate DataChunk from ValidationEvents
 void PopulateDataChunkFromEvents(DataChunk &output, const std::vector<ValidationEvent> &events, 
                                 idx_t start_offset, idx_t chunk_size);
 
 // Format-specific parsers
 void ParsePytestJSON(const std::string& content, std::vector<ValidationEvent>& events);
+void ParsePytestText(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseDuckDBTestOutput(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseESLintJSON(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseGoTestJSON(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseMakeErrors(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseGenericLint(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseRuboCopJSON(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseCargoTestJSON(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseSwiftLintJSON(const std::string& content, std::vector<ValidationEvent>& events);
+void ParsePHPStanJSON(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseShellCheckJSON(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseStylelintJSON(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseClippyJSON(const std::string& content, std::vector<ValidationEvent>& events);
 
 } // namespace duckdb

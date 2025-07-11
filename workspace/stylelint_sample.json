@@ -1,0 +1,73 @@
+[
+  {
+    "source": "/src/styles/main.css",
+    "deprecations": [],
+    "invalidOptionWarnings": [],
+    "parseErrors": [],
+    "errored": true,
+    "warnings": [
+      {
+        "line": 15,
+        "column": 12,
+        "endLine": 15,
+        "endColumn": 18,
+        "rule": "color-no-invalid-hex",
+        "severity": "error",
+        "text": "Unexpected invalid hex color \"#gggggg\" (color-no-invalid-hex)"
+      },
+      {
+        "line": 23,
+        "column": 5,
+        "endLine": 23,
+        "endColumn": 10,
+        "rule": "declaration-block-no-duplicate-properties",
+        "severity": "error",
+        "text": "Unexpected duplicate \"color\" (declaration-block-no-duplicate-properties)"
+      }
+    ]
+  },
+  {
+    "source": "/src/styles/components.scss",
+    "deprecations": [],
+    "invalidOptionWarnings": [],
+    "parseErrors": [],
+    "errored": true,
+    "warnings": [
+      {
+        "line": 8,
+        "column": 3,
+        "endLine": 8,
+        "endColumn": 8,
+        "rule": "indentation",
+        "severity": "warning",
+        "text": "Expected indentation of 2 spaces (indentation)"
+      },
+      {
+        "line": 12,
+        "column": 1,
+        "endLine": 12,
+        "endColumn": 6,
+        "rule": "block-no-empty",
+        "severity": "warning",
+        "text": "Unexpected empty block (block-no-empty)"
+      },
+      {
+        "line": 18,
+        "column": 15,
+        "endLine": 18,
+        "endColumn": 20,
+        "rule": "unit-no-unknown",
+        "severity": "error",
+        "text": "Unexpected unknown unit \"px\" (unit-no-unknown)"
+      }
+    ]
+  },
+  {
+    "source": "/src/styles/layout.css",
+    "deprecations": [],
+    "invalidOptionWarnings": [],
+    "parseErrors": [],
+    "errored": false,
+    "warnings": []
+  }
+]

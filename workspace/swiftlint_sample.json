@@ -1,0 +1,47 @@
+[
+  {
+    "file": "/Users/developer/MyApp/Sources/User.swift",
+    "line": 15,
+    "column": 5,
+    "severity": "warning",
+    "type": "Line Length",
+    "rule_id": "line_length",
+    "reason": "Line should be 120 characters or less: currently 135 characters"
+  },
+  {
+    "file": "/Users/developer/MyApp/Sources/User.swift",
+    "line": 22,
+    "column": 1,
+    "severity": "error",
+    "type": "Force Cast",
+    "rule_id": "force_cast",
+    "reason": "Force casts should be avoided."
+  },
+  {
+    "file": "/Users/developer/MyApp/Sources/Calculator.swift",
+    "line": 8,
+    "column": 10,
+    "severity": "warning",
+    "type": "Variable Name",
+    "rule_id": "identifier_name",
+    "reason": "Variable name should be between 3 and 40 characters long: 'x'"
+  },
+  {
+    "file": "/Users/developer/MyApp/Sources/Calculator.swift",
+    "line": 25,
+    "column": 1,
+    "severity": "error",
+    "type": "Unused Declaration",
+    "rule_id": "unused_declaration",
+    "reason": "Function 'unusedFunction' is never used"
+  },
+  {
+    "file": "/Users/developer/MyApp/Sources/NetworkManager.swift",
+    "line": 45,
+    "column": 8,
+    "severity": "warning",
+    "type": "Trailing Whitespace",
+    "rule_id": "trailing_whitespace",
+    "reason": "Lines should not have trailing whitespace"
+  }
+]
