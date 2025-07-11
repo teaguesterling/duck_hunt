@@ -42,6 +42,11 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
             content.find("\"errors\":") != std::string::npos) {
             return TestResultFormat::PHPSTAN_JSON;
         }
+        if (content.find("\"file\":") != std::string::npos && content.find("\"level\":") != std::string::npos && 
+            content.find("\"code\":") != std::string::npos && content.find("\"message\":") != std::string::npos && content.find("\"line\":") != std::string::npos &&
+            content.find("\"DL") != std::string::npos) {
+            return TestResultFormat::HADOLINT_JSON;
+        }
         if (content.find("\"code\":") != std::string::npos && content.find("\"level\":") != std::string::npos && 
             content.find("\"line\":") != std::string::npos && content.find("\"column\":") != std::string::npos) {
             return TestResultFormat::SHELLCHECK_JSON;
@@ -120,6 +125,7 @@ std::string TestResultFormatToString(TestResultFormat format) {
         case TestResultFormat::BANDIT_JSON: return "bandit_json";
         case TestResultFormat::SPOTBUGS_JSON: return "spotbugs_json";
         case TestResultFormat::KTLINT_JSON: return "ktlint_json";
+        case TestResultFormat::HADOLINT_JSON: return "hadolint_json";
         default: return "unknown";
     }
 }
@@ -145,6 +151,7 @@ TestResultFormat StringToTestResultFormat(const std::string& str) {
     if (str == "bandit_json") return TestResultFormat::BANDIT_JSON;
     if (str == "spotbugs_json") return TestResultFormat::SPOTBUGS_JSON;
     if (str == "ktlint_json") return TestResultFormat::KTLINT_JSON;
+    if (str == "hadolint_json") return TestResultFormat::HADOLINT_JSON;
     if (str == "unknown") return TestResultFormat::UNKNOWN;
     return TestResultFormat::AUTO;  // Default to auto-detection
 }
@@ -294,6 +301,9 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
             break;
         case TestResultFormat::KTLINT_JSON:
             ParseKtlintJSON(content, global_state->events);
+            break;
+        case TestResultFormat::HADOLINT_JSON:
+            ParseHadolintJSON(content, global_state->events);
             break;
         default:
             // For unknown formats, don't create any events
@@ -2188,6 +2198,100 @@ void ParseKtlintJSON(const std::string& content, std::vector<ValidationEvent>& e
     yyjson_doc_free(doc);
 }
 
+void ParseHadolintJSON(const std::string& content, std::vector<ValidationEvent>& events) {
+    // Parse JSON using yyjson
+    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
+    if (!doc) {
+        throw IOException("Failed to parse hadolint JSON");
+    }
+    
+    yyjson_val *root = yyjson_doc_get_root(doc);
+    if (!yyjson_is_arr(root)) {
+        yyjson_doc_free(doc);
+        throw IOException("Invalid hadolint JSON: root is not an array");
+    }
+    
+    // Parse each issue
+    size_t idx, max;
+    yyjson_val *issue;
+    int64_t event_id = 1;
+    
+    yyjson_arr_foreach(root, idx, max, issue) {
+        if (!yyjson_is_obj(issue)) continue;
+        
+        ValidationEvent event;
+        event.event_id = event_id++;
+        event.tool_name = "hadolint";
+        event.event_type = ValidationEventType::LINT_ISSUE;
+        event.category = "dockerfile";
+        
+        // Get file path
+        yyjson_val *file = yyjson_obj_get(issue, "file");
+        if (file && yyjson_is_str(file)) {
+            event.file_path = yyjson_get_str(file);
+        }
+        
+        // Get line number
+        yyjson_val *line = yyjson_obj_get(issue, "line");
+        if (line && yyjson_is_int(line)) {
+            event.line_number = yyjson_get_int(line);
+        } else {
+            event.line_number = -1;
+        }
+        
+        // Get column number
+        yyjson_val *column = yyjson_obj_get(issue, "column");
+        if (column && yyjson_is_int(column)) {
+            event.column_number = yyjson_get_int(column);
+        } else {
+            event.column_number = -1;
+        }
+        
+        // Get code as error code
+        yyjson_val *code = yyjson_obj_get(issue, "code");
+        if (code && yyjson_is_str(code)) {
+            event.error_code = yyjson_get_str(code);
+        }
+        
+        // Get message
+        yyjson_val *message = yyjson_obj_get(issue, "message");
+        if (message && yyjson_is_str(message)) {
+            event.message = yyjson_get_str(message);
+        }
+        
+        // Get level and map to status
+        yyjson_val *level = yyjson_obj_get(issue, "level");
+        if (level && yyjson_is_str(level)) {
+            std::string level_str = yyjson_get_str(level);
+            event.severity = level_str;
+            
+            // Map hadolint levels to ValidationEventStatus
+            if (level_str == "error") {
+                event.status = ValidationEventStatus::ERROR;
+            } else if (level_str == "warning") {
+                event.status = ValidationEventStatus::WARNING;
+            } else if (level_str == "info") {
+                event.status = ValidationEventStatus::INFO;
+            } else if (level_str == "style") {
+                event.status = ValidationEventStatus::WARNING; // Treat style as warning
+            } else {
+                event.status = ValidationEventStatus::WARNING; // Default to warning
+            }
+        } else {
+            event.severity = "warning";
+            event.status = ValidationEventStatus::WARNING;
+        }
+        
+        // Set raw output and structured data
+        event.raw_output = content;
+        event.structured_data = "hadolint_json";
+        
+        events.push_back(event);
+    }
+    
+    yyjson_doc_free(doc);
+}
+
 void ParseGenericLint(const std::string& content, std::vector<ValidationEvent>& events) {
     std::istringstream stream(content);
     std::string line;
@@ -2366,6 +2470,9 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
             break;
         case TestResultFormat::KTLINT_JSON:
             ParseKtlintJSON(content, global_state->events);
+            break;
+        case TestResultFormat::HADOLINT_JSON:
+            ParseHadolintJSON(content, global_state->events);
             break;
         default:
             // For unknown formats, don't create any events

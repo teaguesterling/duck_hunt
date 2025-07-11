@@ -594,6 +594,66 @@ GROUP BY file_path ORDER BY file_path;
 File1.kt	1
 File2.kt	2
 
+# Test 74: hadolint JSON format parsing
+statement ok
+CREATE TABLE hadolint_results AS 
+SELECT * FROM read_test_results('workspace/hadolint_sample.json', 'hadolint_json');
+
+# Verify hadolint parsing results
+query IIIII
+SELECT COUNT(*), tool_name,
+       COUNT(CASE WHEN status = 'ERROR' THEN 1 END) as errors,
+       COUNT(CASE WHEN status = 'WARNING' THEN 1 END) as warnings,
+       COUNT(CASE WHEN status = 'INFO' THEN 1 END) as info
+FROM hadolint_results
+GROUP BY tool_name;
+----
+10	hadolint	4	4	2
+
+# Test 75: hadolint auto-detection
+query I
+SELECT DISTINCT tool_name FROM parse_test_results('[{"file":"Dockerfile","line":1,"column":1,"level":"error","code":"DL3006","message":"Always tag the version"}]', 'auto');
+----
+hadolint
+
+# Test 76: hadolint field validation
+query IIIII
+SELECT file_path, line_number, column_number, error_code, category
+FROM parse_test_results('[{"file":"Dockerfile","line":5,"column":1,"level":"warning","code":"DL3008","message":"Pin versions in apt get install"}]', 'hadolint_json');
+----
+Dockerfile	5	1	DL3008	dockerfile
+
+# Test 77: hadolint level mapping
+query II
+SELECT severity, status FROM parse_test_results('[{"file":"Dockerfile","line":1,"column":1,"level":"error","code":"DL1","message":"Error"},{"file":"Dockerfile","line":2,"column":1,"level":"warning","code":"DL2","message":"Warning"},{"file":"Dockerfile","line":3,"column":1,"level":"info","code":"DL3","message":"Info"},{"file":"Dockerfile","line":4,"column":1,"level":"style","code":"DL4","message":"Style"}]', 'hadolint_json')
+ORDER BY event_id;
+----
+error	ERROR
+warning	WARNING
+info	INFO
+style	WARNING
+
+# Test 78: hadolint event type validation
+query I
+SELECT DISTINCT event_type FROM parse_test_results('[{"file":"Dockerfile","line":1,"column":1,"level":"error","code":"DL3006","message":"Docker issue"}]', 'hadolint_json');
+----
+lint_issue
+
+# Test 79: hadolint category validation
+query I
+SELECT DISTINCT category FROM parse_test_results('[{"file":"Dockerfile","line":1,"column":1,"level":"error","code":"DL3006","message":"Docker issue"}]', 'hadolint_json');
+----
+dockerfile
+
+# Test 80: hadolint multi-file Docker project
+query II
+SELECT file_path, COUNT(*) as issue_count FROM parse_test_results('[{"file":"Dockerfile","line":1,"column":1,"level":"error","code":"DL3006","message":"Issue 1"},{"file":"Dockerfile.prod","line":2,"column":1,"level":"warning","code":"DL3008","message":"Issue 2"},{"file":"docker/app/Dockerfile","line":3,"column":1,"level":"info","code":"DL3009","message":"Issue 3"}]', 'hadolint_json')
+GROUP BY file_path ORDER BY file_path;
+----
+Dockerfile	1
+Dockerfile.prod	1
+docker/app/Dockerfile	1
+
 # Clean up
 statement ok
 DROP TABLE rubocop_results;
@@ -630,3 +690,6 @@ DROP TABLE spotbugs_results;
 
 statement ok
 DROP TABLE ktlint_results;
+
+statement ok
+DROP TABLE hadolint_results;

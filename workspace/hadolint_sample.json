@@ -1,0 +1,82 @@
+[
+  {
+    "file": "Dockerfile",
+    "line": 1,
+    "column": 1,
+    "level": "error",
+    "code": "DL3006",
+    "message": "Always tag the version of an image explicitly"
+  },
+  {
+    "file": "Dockerfile",
+    "line": 5,
+    "column": 1,
+    "level": "warning",
+    "code": "DL3008",
+    "message": "Pin versions in apt get install. Instead of `apt-get install <package>` use `apt-get install <package>=<version>`"
+  },
+  {
+    "file": "Dockerfile",
+    "line": 8,
+    "column": 1,
+    "level": "info",
+    "code": "DL3009",
+    "message": "Delete the apt-get lists after installing something"
+  },
+  {
+    "file": "Dockerfile",
+    "line": 12,
+    "column": 1,
+    "level": "error",
+    "code": "DL3025",
+    "message": "Use arguments JSON notation for CMD and ENTRYPOINT arguments"
+  },
+  {
+    "file": "Dockerfile",
+    "line": 15,
+    "column": 1,
+    "level": "warning",
+    "code": "DL3020",
+    "message": "Use COPY instead of ADD for files and folders"
+  },
+  {
+    "file": "Dockerfile",
+    "line": 18,
+    "column": 1,
+    "level": "style",
+    "code": "DL3047",
+    "message": "`useradd` without flag `-l` and high UID will result in unnecessarily large Image"
+  },
+  {
+    "file": "Dockerfile",
+    "line": 22,
+    "column": 1,
+    "level": "error",
+    "code": "DL3059",
+    "message": "Multiple consecutive `RUN` instructions. Consider consolidation."
+  },
+  {
+    "file": "Dockerfile.prod",
+    "line": 3,
+    "column": 1,
+    "level": "warning",
+    "code": "DL3018",
+    "message": "Pin versions in apk add. Instead of `apk add <package>` use `apk add <package>=<version>`"
+  },
+  {
+    "file": "Dockerfile.prod",
+    "line": 7,
+    "column": 1,
+    "level": "info",
+    "code": "DL3019",
+    "message": "Use the `--no-cache` switch to avoid the need to use `--update` and remove `/var/cache/apk/*` when done installing packages"
+  },
+  {
+    "file": "docker/app/Dockerfile",
+    "line": 4,
+    "column": 1,
+    "level": "error",
+    "code": "DL3002",
+    "message": "Last user should not be root"
+  }
+]
