@@ -58,6 +58,10 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
             content.find("\"ruleNames\":") != std::string::npos && content.find("\"ruleDescription\":") != std::string::npos) {
             return TestResultFormat::MARKDOWNLINT_JSON;
         }
+        if (content.find("\"file\":") != std::string::npos && content.find("\"line\":") != std::string::npos && 
+            content.find("\"column\":") != std::string::npos && content.find("\"rule\":") != std::string::npos && content.find("\"level\":") != std::string::npos) {
+            return TestResultFormat::YAMLLINT_JSON;
+        }
     }
     
     // Check text patterns (DuckDB test should be checked before make error since it may contain both)
@@ -100,6 +104,7 @@ std::string TestResultFormatToString(TestResultFormat format) {
         case TestResultFormat::STYLELINT_JSON: return "stylelint_json";
         case TestResultFormat::CLIPPY_JSON: return "clippy_json";
         case TestResultFormat::MARKDOWNLINT_JSON: return "markdownlint_json";
+        case TestResultFormat::YAMLLINT_JSON: return "yamllint_json";
         default: return "unknown";
     }
 }
@@ -121,6 +126,7 @@ TestResultFormat StringToTestResultFormat(const std::string& str) {
     if (str == "stylelint_json") return TestResultFormat::STYLELINT_JSON;
     if (str == "clippy_json") return TestResultFormat::CLIPPY_JSON;
     if (str == "markdownlint_json") return TestResultFormat::MARKDOWNLINT_JSON;
+    if (str == "yamllint_json") return TestResultFormat::YAMLLINT_JSON;
     if (str == "unknown") return TestResultFormat::UNKNOWN;
     return TestResultFormat::AUTO;  // Default to auto-detection
 }
@@ -258,6 +264,9 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
             break;
         case TestResultFormat::MARKDOWNLINT_JSON:
             ParseMarkdownlintJSON(content, global_state->events);
+            break;
+        case TestResultFormat::YAMLLINT_JSON:
+            ParseYamllintJSON(content, global_state->events);
             break;
         default:
             // For unknown formats, don't create any events
@@ -1689,6 +1698,96 @@ void ParseMarkdownlintJSON(const std::string& content, std::vector<ValidationEve
     yyjson_doc_free(doc);
 }
 
+void ParseYamllintJSON(const std::string& content, std::vector<ValidationEvent>& events) {
+    // Parse JSON using yyjson
+    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
+    if (!doc) {
+        throw IOException("Failed to parse yamllint JSON");
+    }
+    
+    yyjson_val *root = yyjson_doc_get_root(doc);
+    if (!yyjson_is_arr(root)) {
+        yyjson_doc_free(doc);
+        throw IOException("Invalid yamllint JSON: root is not an array");
+    }
+    
+    // Parse each issue
+    size_t idx, max;
+    yyjson_val *issue;
+    int64_t event_id = 1;
+    
+    yyjson_arr_foreach(root, idx, max, issue) {
+        if (!yyjson_is_obj(issue)) continue;
+        
+        ValidationEvent event;
+        event.event_id = event_id++;
+        event.tool_name = "yamllint";
+        event.event_type = ValidationEventType::LINT_ISSUE;
+        event.category = "configuration";
+        
+        // Get file path
+        yyjson_val *file = yyjson_obj_get(issue, "file");
+        if (file && yyjson_is_str(file)) {
+            event.file_path = yyjson_get_str(file);
+        }
+        
+        // Get line number
+        yyjson_val *line = yyjson_obj_get(issue, "line");
+        if (line && yyjson_is_int(line)) {
+            event.line_number = yyjson_get_int(line);
+        } else {
+            event.line_number = -1;
+        }
+        
+        // Get column number
+        yyjson_val *column = yyjson_obj_get(issue, "column");
+        if (column && yyjson_is_int(column)) {
+            event.column_number = yyjson_get_int(column);
+        } else {
+            event.column_number = -1;
+        }
+        
+        // Get severity level
+        yyjson_val *level = yyjson_obj_get(issue, "level");
+        if (level && yyjson_is_str(level)) {
+            std::string level_str = yyjson_get_str(level);
+            event.severity = level_str;
+            
+            // Map yamllint levels to ValidationEventStatus
+            if (level_str == "error") {
+                event.status = ValidationEventStatus::ERROR;
+            } else if (level_str == "warning") {
+                event.status = ValidationEventStatus::WARNING;
+            } else {
+                event.status = ValidationEventStatus::WARNING;
+            }
+        } else {
+            event.severity = "warning";
+            event.status = ValidationEventStatus::WARNING;
+        }
+        
+        // Get rule name as error code
+        yyjson_val *rule = yyjson_obj_get(issue, "rule");
+        if (rule && yyjson_is_str(rule)) {
+            event.error_code = yyjson_get_str(rule);
+        }
+        
+        // Get message
+        yyjson_val *message = yyjson_obj_get(issue, "message");
+        if (message && yyjson_is_str(message)) {
+            event.message = yyjson_get_str(message);
+        }
+        
+        // Set raw output and structured data
+        event.raw_output = content;
+        event.structured_data = "yamllint_json";
+        
+        events.push_back(event);
+    }
+    
+    yyjson_doc_free(doc);
+}
+
 void ParseGenericLint(const std::string& content, std::vector<ValidationEvent>& events) {
     std::istringstream stream(content);
     std::string line;
@@ -1855,6 +1954,9 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
             break;
         case TestResultFormat::MARKDOWNLINT_JSON:
             ParseMarkdownlintJSON(content, global_state->events);
+            break;
+        case TestResultFormat::YAMLLINT_JSON:
+            ParseYamllintJSON(content, global_state->events);
             break;
         default:
             // For unknown formats, don't create any events

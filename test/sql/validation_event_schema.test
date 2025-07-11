@@ -1,0 +1,181 @@
+# name: test/sql/validation_event_schema.test
+# description: test ValidationEvent schema and data types
+# group: [sql]
+
+require duck_hunt
+
+# Test 1: Verify all 17 ValidationEvent fields are present and correctly typed
+statement ok
+CREATE TABLE schema_test AS 
+SELECT * FROM parse_test_results('[{"filePath":"/test.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"test error","line":1,"column":8}]}]', 'eslint_json');
+
+# Test field presence and types
+query I
+SELECT COUNT(*) FROM (
+  SELECT 
+    event_id::BIGINT,
+    tool_name::VARCHAR,
+    event_type::VARCHAR,
+    file_path::VARCHAR,
+    line_number::INTEGER,
+    column_number::INTEGER,
+    function_name::VARCHAR,
+    status::VARCHAR,
+    severity::VARCHAR,
+    category::VARCHAR,
+    message::VARCHAR,
+    suggestion::VARCHAR,
+    error_code::VARCHAR,
+    test_name::VARCHAR,
+    execution_time::DOUBLE,
+    raw_output::VARCHAR,
+    structured_data::VARCHAR
+  FROM schema_test
+);
+----
+1
+
+# Test 2: Verify event_id sequencing
+statement ok
+CREATE TABLE multi_event_test AS 
+SELECT * FROM parse_test_results('src/main.c:15:5: error: first error
+src/main.c:20:1: warning: first warning
+src/utils.c:8:9: error: second error', 'generic_lint');
+
+query III
+SELECT MIN(event_id) as min_id, MAX(event_id) as max_id, COUNT(*) as total_events
+FROM multi_event_test;
+----
+1	3	3
+
+# Test 3: Verify status enum values
+query I
+SELECT DISTINCT status FROM parse_test_results('{"Action":"run","Package":"github.com/test","Test":"TestPass"}
+{"Action":"pass","Package":"github.com/test","Test":"TestPass","Elapsed":0.001}
+{"Action":"run","Package":"github.com/test","Test":"TestFail"}
+{"Action":"fail","Package":"github.com/test","Test":"TestFail","Elapsed":0.002}
+{"Action":"run","Package":"github.com/test","Test":"TestSkip"}
+{"Action":"skip","Package":"github.com/test","Test":"TestSkip","Elapsed":0.003}', 'gotest_json')
+ORDER BY status;
+----
+FAIL
+PASS
+SKIP
+
+# Test 4: Verify event_type enum values
+query I
+SELECT DISTINCT event_type FROM parse_test_results('[{"filePath":"/test.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"test","line":1,"column":8}]}]', 'eslint_json');
+----
+lint_issue
+
+query I
+SELECT DISTINCT event_type FROM parse_test_results('{"Action":"run","Package":"github.com/test","Test":"TestExample"}
+{"Action":"pass","Package":"github.com/test","Test":"TestExample","Elapsed":0.001}', 'gotest_json');
+----
+test_result
+
+# Test 5: Verify numerical field handling
+query IIII
+SELECT event_id, line_number, column_number, execution_time
+FROM parse_test_results('{"Action":"run","Package":"github.com/test","Test":"TestExample"}
+{"Action":"pass","Package":"github.com/test","Test":"TestExample","Elapsed":0.123}', 'gotest_json');
+----
+1	NULL	NULL	0.123
+
+# Test 6: Verify string field handling with special characters
+query II
+SELECT file_path, message
+FROM parse_test_results('[{"filePath":"/src/special-chars@#$.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"Variable with special chars: @#$%","line":1,"column":8}]}]', 'eslint_json');
+----
+/src/special-chars@#$.js	Variable with special chars: @#$%
+
+# Test 7: Verify NULL handling for optional fields
+query IIII
+SELECT function_name, suggestion, test_name, structured_data
+FROM parse_test_results('src/main.c:15:5: error: simple error', 'generic_lint');
+----
+(empty)	(empty)	(empty)	(empty)
+
+# Test 8: Verify tool_name mapping
+query I
+SELECT DISTINCT tool_name FROM parse_test_results('[{"filePath":"/test.js","messages":[{"ruleId":"rule1","severity":2,"message":"msg1","line":1,"column":8}]}]', 'eslint_json');
+----
+eslint
+
+query I
+SELECT DISTINCT tool_name FROM parse_test_results('{"Action":"run","Package":"github.com/test","Test":"TestExample"}
+{"Action":"pass","Package":"github.com/test","Test":"TestExample","Elapsed":0.001}', 'gotest_json');
+----
+go_test
+
+query I
+SELECT DISTINCT tool_name FROM parse_test_results('src/main.c:15:5: error: test error', 'generic_lint');
+----
+lint
+
+query I
+SELECT DISTINCT tool_name FROM parse_test_results('make: *** [Makefile:23: build/main] Error 1', 'make_error');
+----
+make
+
+# Test 9: Verify severity mapping
+query II
+SELECT severity, status FROM parse_test_results('[{"filePath":"/test.js","messages":[{"ruleId":"rule1","severity":1,"message":"warning msg","line":1,"column":8},{"ruleId":"rule2","severity":2,"message":"error msg","line":2,"column":9}]}]', 'eslint_json')
+ORDER BY event_id;
+----
+warning	WARNING
+error	ERROR
+
+# Test 10: Verify category field usage
+query I
+SELECT DISTINCT category FROM parse_test_results('[{"filePath":"/test.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"test","line":1,"column":8}]}]', 'eslint_json');
+----
+lint_error
+
+# Test 11: Verify raw_output field contains original content
+query I
+SELECT LENGTH(raw_output) > 0 as has_raw_output FROM parse_test_results('src/main.c:15:5: error: test error', 'generic_lint');
+----
+false
+
+# Test 12: Verify structured_data field for JSON formats
+query I
+SELECT structured_data IS NOT NULL as has_structured_data FROM parse_test_results('[{"filePath":"/test.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"test","line":1,"column":8}]}]', 'eslint_json');
+----
+true
+
+# Test 13: Verify line_number and column_number default values
+query II
+SELECT line_number, column_number FROM parse_test_results('make: *** [Makefile:23: build/main] Error 1', 'make_error');
+----
+NULL	NULL
+
+# Test 14: Verify event_id uniqueness within single parse
+statement ok
+CREATE TABLE uniqueness_test AS 
+SELECT * FROM parse_test_results('src/main.c:15:5: error: error1
+src/main.c:20:1: warning: warning1
+src/utils.c:8:9: error: error2
+src/utils.c:12:3: warning: warning2', 'generic_lint');
+
+query I
+SELECT COUNT(DISTINCT event_id) = COUNT(*) as all_unique FROM uniqueness_test;
+----
+true
+
+# Test 15: Verify execution_time field for test results
+query I
+SELECT execution_time > 0 as has_execution_time FROM parse_test_results('{"Action":"run","Package":"github.com/test","Test":"TestExample"}
+{"Action":"pass","Package":"github.com/test","Test":"TestExample","Elapsed":0.123}', 'gotest_json');
+----
+true
+
+# Clean up
+statement ok
+DROP TABLE schema_test;
+
+statement ok
+DROP TABLE multi_event_test;
+
+statement ok
+DROP TABLE uniqueness_test;

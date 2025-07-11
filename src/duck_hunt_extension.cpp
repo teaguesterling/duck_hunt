@@ -41,9 +41,12 @@ static void LoadInternal(DatabaseInstance &instance) {
 	                                                            LogicalType::VARCHAR, DuckHuntOpenSSLVersionScalarFun);
 	ExtensionUtil::RegisterFunction(instance, duck_hunt_openssl_version_scalar_function);
 
-	// Register the main table function for test result parsing
+	// Register table functions for test result parsing
 	auto read_test_results_function = GetReadTestResultsFunction();
 	ExtensionUtil::RegisterFunction(instance, read_test_results_function);
+	
+	auto parse_test_results_function = GetParseTestResultsFunction();
+	ExtensionUtil::RegisterFunction(instance, parse_test_results_function);
 }
 
 void DuckHuntExtension::Load(DuckDB &db) {

@@ -388,6 +388,40 @@ SELECT suggestion FROM parse_test_results('[{"fileName":"test.md","lineNumber":1
 ----
 Expected: 80; Actual: 95
 
+# Test 49: yamllint JSON format parsing
+statement ok
+CREATE TABLE yamllint_results AS 
+SELECT * FROM read_test_results('workspace/yamllint_sample.json', 'yamllint_json');
+
+# Verify yamllint parsing results
+query III
+SELECT COUNT(*), tool_name, COUNT(CASE WHEN status = 'ERROR' THEN 1 END) as errors
+FROM yamllint_results
+GROUP BY tool_name;
+----
+5	yamllint	3
+
+# Test 50: yamllint auto-detection
+query I
+SELECT DISTINCT tool_name FROM parse_test_results('[{"file":"test.yml","line":1,"column":1,"level":"error","rule":"indentation","message":"wrong indentation"}]', 'auto');
+----
+yamllint
+
+# Test 51: yamllint field validation
+query IIII
+SELECT file_path, line_number, error_code, category
+FROM parse_test_results('[{"file":"config.yaml","line":5,"column":10,"level":"error","rule":"line_length","message":"line too long"}]', 'yamllint_json');
+----
+config.yaml	5	line_length	configuration
+
+# Test 52: yamllint severity mapping
+query II
+SELECT severity, status FROM parse_test_results('[{"file":"test.yml","line":1,"column":1,"level":"error","rule":"test","message":"Error"},{"file":"test.yml","line":2,"column":1,"level":"warning","rule":"test2","message":"Warning"}]', 'yamllint_json')
+ORDER BY event_id;
+----
+error	ERROR
+warning	WARNING
+
 # Clean up
 statement ok
 DROP TABLE rubocop_results;
@@ -412,3 +446,6 @@ DROP TABLE clippy_results;
 
 statement ok
 DROP TABLE markdownlint_results;
+
+statement ok
+DROP TABLE yamllint_results;

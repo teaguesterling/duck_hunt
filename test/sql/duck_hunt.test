@@ -21,3 +21,81 @@ query I
 SELECT duck_hunt_openssl_version('Michael') ILIKE 'DuckHunt Michael, my linked OpenSSL version is OpenSSL%';
 ----
 true
+
+# Test read_test_results function with sample data
+statement ok
+CREATE TABLE test_data AS 
+SELECT * FROM read_test_results('workspace/eslint_sample.json', 'eslint_json');
+
+# Verify ESLint parsing results
+query III
+SELECT COUNT(*), 
+       COUNT(CASE WHEN status = 'ERROR' THEN 1 END) as errors,
+       COUNT(CASE WHEN status = 'WARNING' THEN 1 END) as warnings
+FROM test_data;
+----
+3	1	2
+
+# Test parse_test_results function with string input
+query IIII
+SELECT event_id, tool_name, status, error_code
+FROM parse_test_results('[{"filePath":"/test.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"test error","line":1,"column":8}]}]', 'eslint_json');
+----
+1	eslint	ERROR	no-unused-vars
+
+# Test format auto-detection
+query III
+SELECT tool_name, status, test_name
+FROM parse_test_results('{"Action":"run","Package":"github.com/test","Test":"TestExample"}
+{"Action":"fail","Package":"github.com/test","Test":"TestExample","Elapsed":0.001}
+{"Action":"run","Package":"github.com/test","Test":"TestWorking"}
+{"Action":"pass","Package":"github.com/test","Test":"TestWorking","Elapsed":0.002}', 'auto')
+ORDER BY event_id;
+----
+go_test	FAIL	TestExample
+go_test	PASS	TestWorking
+
+# Test generic lint parsing
+query IIII
+SELECT tool_name, file_path, line_number, status
+FROM parse_test_results('src/main.c:15:5: error: undeclared variable
+src/utils.c:20:1: warning: unused function', 'generic_lint')
+ORDER BY event_id;
+----
+lint	src/main.c	15	ERROR
+lint	src/utils.c	20	WARNING
+
+# Test make error parsing
+query I
+SELECT COUNT(*) FROM parse_test_results('src/main.c:15:5: error: undeclared_var
+make: *** [Makefile:23: build/main] Error 1', 'make_error');
+----
+2
+
+# Test ValidationEvent schema completeness
+query I
+SELECT COUNT(*) FROM (
+  SELECT event_id, tool_name, event_type, file_path, line_number, 
+         column_number, function_name, status, severity, category, 
+         message, suggestion, error_code, test_name, execution_time, 
+         raw_output, structured_data
+  FROM parse_test_results('src/test.c:1:1: error: test', 'generic_lint')
+);
+----
+1
+
+# Test empty input handling
+query I
+SELECT COUNT(*) FROM parse_test_results('', 'auto');
+----
+0
+
+# Test invalid JSON handling
+query I
+SELECT COUNT(*) FROM parse_test_results('invalid json}', 'auto');
+----
+0
+
+# Clean up
+statement ok
+DROP TABLE test_data;

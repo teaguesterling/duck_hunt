@@ -1,0 +1,42 @@
+[
+  {
+    "file": "docker-compose.yml",
+    "line": 3,
+    "column": 10,
+    "level": "error",
+    "message": "wrong indentation: expected 2 but found 9",
+    "rule": "indentation"
+  },
+  {
+    "file": "docker-compose.yml", 
+    "line": 12,
+    "column": 1,
+    "level": "warning",
+    "message": "truthy value should be one of [false, true]",
+    "rule": "truthy"
+  },
+  {
+    "file": ".github/workflows/ci.yml",
+    "line": 25,
+    "column": 15,
+    "level": "error", 
+    "message": "line too long (95 > 80 characters)",
+    "rule": "line_length"
+  },
+  {
+    "file": ".github/workflows/ci.yml",
+    "line": 8,
+    "column": 1,
+    "level": "warning",
+    "message": "missing document start \"---\"",
+    "rule": "document_start"
+  },
+  {
+    "file": "k8s/deployment.yaml",
+    "line": 45,
+    "column": 12,
+    "level": "error",
+    "message": "too many blank lines (2 > 1 allowed)",
+    "rule": "empty_lines"
+  }
+]
