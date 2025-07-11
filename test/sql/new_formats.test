@@ -477,6 +477,66 @@ SELECT function_name FROM parse_test_results('{"results":[{"filename":"test.py",
 ----
 hardcoded_password_funcarg
 
+# Test 60: SpotBugs JSON format parsing
+statement ok
+CREATE TABLE spotbugs_results AS 
+SELECT * FROM read_test_results('workspace/spotbugs_sample.json', 'spotbugs_json');
+
+# Verify SpotBugs parsing results
+query IIIII
+SELECT COUNT(*), tool_name,
+       COUNT(CASE WHEN status = 'ERROR' THEN 1 END) as errors,
+       COUNT(CASE WHEN status = 'WARNING' THEN 1 END) as warnings,
+       COUNT(CASE WHEN status = 'INFO' THEN 1 END) as info
+FROM spotbugs_results
+GROUP BY tool_name;
+----
+4	spotbugs	1	2	1
+
+# Test 61: SpotBugs auto-detection
+query I
+SELECT DISTINCT tool_name FROM parse_test_results('{"BugCollection":{"BugInstance":[{"type":"NP_NULL_ON_SOME_PATH","priority":"2","category":"CORRECTNESS","ShortMessage":"Null pointer dereference"}]}}', 'auto');
+----
+spotbugs
+
+# Test 62: SpotBugs field validation
+query IIII
+SELECT file_path, line_number, error_code, category
+FROM parse_test_results('{"BugCollection":{"BugInstance":[{"type":"SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE","priority":"1","category":"SECURITY","ShortMessage":"SQL injection","SourceLine":{"sourcepath":"com/example/Database.java","start":"45","primary":true}}]}}', 'spotbugs_json');
+----
+com/example/Database.java	45	SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE	security
+
+# Test 63: SpotBugs priority mapping
+query II
+SELECT severity, status FROM parse_test_results('{"BugCollection":{"BugInstance":[{"type":"HIGH_PRIORITY","priority":"1","category":"SECURITY","ShortMessage":"High"},{"type":"MED_PRIORITY","priority":"2","category":"CORRECTNESS","ShortMessage":"Medium"},{"type":"LOW_PRIORITY","priority":"3","category":"BAD_PRACTICE","ShortMessage":"Low"}]}}', 'spotbugs_json')
+ORDER BY event_id;
+----
+1	ERROR
+2	WARNING
+3	INFO
+
+# Test 64: SpotBugs category mapping to event types
+query II
+SELECT category, event_type FROM parse_test_results('{"BugCollection":{"BugInstance":[{"type":"SEC_BUG","priority":"1","category":"SECURITY","ShortMessage":"Security issue"},{"type":"PERF_BUG","priority":"2","category":"PERFORMANCE","ShortMessage":"Performance issue"},{"type":"CORRECT_BUG","priority":"2","category":"CORRECTNESS","ShortMessage":"Correctness issue"},{"type":"PRACTICE_BUG","priority":"3","category":"BAD_PRACTICE","ShortMessage":"Bad practice"}]}}', 'spotbugs_json')
+ORDER BY event_id;
+----
+security	security_finding
+performance	performance_issue
+correctness	lint_issue
+code_quality	lint_issue
+
+# Test 65: SpotBugs function name extraction
+query I
+SELECT function_name FROM parse_test_results('{"BugCollection":{"BugInstance":[{"type":"NP_NULL","priority":"2","category":"CORRECTNESS","ShortMessage":"Null pointer","Method":{"classname":"com.example.Service","name":"processData","primary":true}}]}}', 'spotbugs_json');
+----
+com.example.Service.processData
+
+# Test 66: SpotBugs suggestion extraction from LongMessage
+query I
+SELECT suggestion FROM parse_test_results('{"BugCollection":{"BugInstance":[{"type":"NP_NULL","priority":"2","category":"CORRECTNESS","ShortMessage":"Null pointer","LongMessage":"Possible null pointer dereference of user in com.example.Service.processData(User)"}]}}', 'spotbugs_json');
+----
+Possible null pointer dereference of user in com.example.Service.processData(User)
+
 # Clean up
 statement ok
 DROP TABLE rubocop_results;
@@ -507,3 +567,6 @@ DROP TABLE yamllint_results;
 
 statement ok
 DROP TABLE bandit_results;
+
+statement ok
+DROP TABLE spotbugs_results;

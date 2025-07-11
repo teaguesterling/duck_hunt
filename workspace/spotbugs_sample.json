@@ -1,0 +1,207 @@
+{
+  "BugCollection": {
+    "version": "4.8.3",
+    "sequence": 0,
+    "timestamp": "1705401000000",
+    "analysisTimestamp": "1705401000000",
+    "release": "",
+    "BugInstance": [
+      {
+        "type": "NP_NULL_ON_SOME_PATH",
+        "priority": "2",
+        "rank": "12",
+        "abbrev": "NP",
+        "category": "CORRECTNESS",
+        "instanceOccurrenceNum": "0",
+        "instanceOccurrenceMax": "0",
+        "cweid": "476",
+        "BugCode": {
+          "abbrev": "NP",
+          "cweid": "476"
+        },
+        "LongMessage": "Possible null pointer dereference of user in com.example.UserService.processUser(User)",
+        "ShortMessage": "Possible null pointer dereference",
+        "Class": {
+          "classname": "com.example.UserService",
+          "primary": true
+        },
+        "Method": {
+          "classname": "com.example.UserService",
+          "name": "processUser",
+          "signature": "(Lcom/example/User;)V",
+          "isStatic": false,
+          "primary": true
+        },
+        "SourceLine": {
+          "classname": "com.example.UserService",
+          "start": "45",
+          "end": "45",
+          "sourcepath": "com/example/UserService.java",
+          "sourcefile": "UserService.java",
+          "primary": true
+        }
+      },
+      {
+        "type": "SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE",
+        "priority": "1",
+        "rank": "2",
+        "abbrev": "SQL",
+        "category": "SECURITY", 
+        "instanceOccurrenceNum": "0",
+        "instanceOccurrenceMax": "0",
+        "cweid": "89",
+        "BugCode": {
+          "abbrev": "SQL",
+          "cweid": "89"
+        },
+        "LongMessage": "Non-constant string passed to execute or addBatch method on an SQL statement in com.example.DatabaseManager.executeQuery(String)",
+        "ShortMessage": "SQL injection vulnerability",
+        "Class": {
+          "classname": "com.example.DatabaseManager",
+          "primary": true
+        },
+        "Method": {
+          "classname": "com.example.DatabaseManager", 
+          "name": "executeQuery",
+          "signature": "(Ljava/lang/String;)V",
+          "isStatic": false,
+          "primary": true
+        },
+        "SourceLine": {
+          "classname": "com.example.DatabaseManager",
+          "start": "123",
+          "end": "123", 
+          "sourcepath": "com/example/DatabaseManager.java",
+          "sourcefile": "DatabaseManager.java",
+          "primary": true
+        }
+      },
+      {
+        "type": "DM_EXIT",
+        "priority": "3",
+        "rank": "18",
+        "abbrev": "Dm",
+        "category": "BAD_PRACTICE",
+        "instanceOccurrenceNum": "0",
+        "instanceOccurrenceMax": "0",
+        "BugCode": {
+          "abbrev": "Dm"
+        },
+        "LongMessage": "com.example.Application.shutdown() invokes System.exit(...), which shuts down the entire virtual machine",
+        "ShortMessage": "Method invokes System.exit(...)",
+        "Class": {
+          "classname": "com.example.Application",
+          "primary": true
+        },
+        "Method": {
+          "classname": "com.example.Application",
+          "name": "shutdown", 
+          "signature": "()V",
+          "isStatic": false,
+          "primary": true
+        },
+        "SourceLine": {
+          "classname": "com.example.Application",
+          "start": "67",
+          "end": "67",
+          "sourcepath": "com/example/Application.java", 
+          "sourcefile": "Application.java",
+          "primary": true
+        }
+      },
+      {
+        "type": "URF_UNREAD_FIELD",
+        "priority": "2",
+        "rank": "15",
+        "abbrev": "UrF",
+        "category": "PERFORMANCE",
+        "instanceOccurrenceNum": "0",
+        "instanceOccurrenceMax": "0",
+        "BugCode": {
+          "abbrev": "UrF"
+        },
+        "LongMessage": "Unread field: com.example.Config.databaseTimeout",
+        "ShortMessage": "Unread field",
+        "Class": {
+          "classname": "com.example.Config",
+          "primary": true
+        },
+        "Field": {
+          "classname": "com.example.Config",
+          "name": "databaseTimeout",
+          "signature": "I",
+          "isStatic": false,
+          "primary": true
+        },
+        "SourceLine": {
+          "classname": "com.example.Config", 
+          "start": "23",
+          "end": "23",
+          "sourcepath": "com/example/Config.java",
+          "sourcefile": "Config.java",
+          "primary": true
+        }
+      }
+    ],
+    "BugCategory": [
+      {
+        "category": "CORRECTNESS",
+        "description": "Correctness - General correctness concerns"
+      },
+      {
+        "category": "SECURITY", 
+        "description": "Security - A known security vulnerability"
+      },
+      {
+        "category": "BAD_PRACTICE",
+        "description": "Bad practice - Violations of recommended and essential coding practice"
+      },
+      {
+        "category": "PERFORMANCE",
+        "description": "Performance - Performance concerns"
+      }
+    ],
+    "PackageStats": {
+      "package": "",
+      "total_bugs": "4",
+      "total_size": "1234",
+      "priority_1": "1", 
+      "priority_2": "2",
+      "priority_3": "1"
+    },
+    "FindBugsSummary": {
+      "timestamp": "Tue, 16 Jan 2024 10:30:00 +0000",
+      "total_classes": "15",
+      "referenced_classes": "45", 
+      "total_bugs": "4",
+      "total_size": "1234",
+      "num_packages": "3",
+      "vm_version": "17.0.2+8",
+      "priority_1": "1",
+      "priority_2": "2", 
+      "priority_3": "1",
+      "FileStats": [
+        {
+          "path": "com/example/UserService.java",
+          "bugCount": "1",
+          "size": "234"
+        },
+        {
+          "path": "com/example/DatabaseManager.java", 
+          "bugCount": "1",
+          "size": "567"
+        },
+        {
+          "path": "com/example/Application.java",
+          "bugCount": "1", 
+          "size": "123"
+        },
+        {
+          "path": "com/example/Config.java",
+          "bugCount": "1",
+          "size": "89"
+        }
+      ]
+    }
+  }
+}
