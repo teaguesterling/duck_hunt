@@ -1,0 +1,52 @@
+[
+  {
+    "fileName": "README.md",
+    "lineNumber": 1,
+    "ruleNames": ["MD041", "first-line-heading"],
+    "ruleDescription": "First line in file should be a top level heading",
+    "ruleInformation": "https://github.com/DavidAnson/markdownlint/blob/v0.25.1/doc/Rules.md#md041",
+    "errorDetail": null,
+    "errorContext": "## Getting Started",
+    "errorRange": [1, 17]
+  },
+  {
+    "fileName": "README.md", 
+    "lineNumber": 5,
+    "ruleNames": ["MD032", "blanks-around-lists"],
+    "ruleDescription": "Lists should be surrounded by blank lines",
+    "ruleInformation": "https://github.com/DavidAnson/markdownlint/blob/v0.25.1/doc/Rules.md#md032",
+    "errorDetail": "Expected: 1; Actual: 0; Below",
+    "errorContext": "- Item 1",
+    "errorRange": [1, 8]
+  },
+  {
+    "fileName": "docs/CONTRIBUTING.md",
+    "lineNumber": 12,
+    "ruleNames": ["MD013", "line-length"],
+    "ruleDescription": "Line length",
+    "ruleInformation": "https://github.com/DavidAnson/markdownlint/blob/v0.25.1/doc/Rules.md#md013",
+    "errorDetail": "Expected: 80; Actual: 95",
+    "errorContext": "This is a very long line that exceeds the maximum line length limit and should be broken up",
+    "errorRange": [1, 95]
+  },
+  {
+    "fileName": "docs/API.md",
+    "lineNumber": 3,
+    "ruleNames": ["MD022", "blanks-around-headings"],
+    "ruleDescription": "Headings should be surrounded by blank lines",
+    "ruleInformation": "https://github.com/DavidAnson/markdownlint/blob/v0.25.1/doc/Rules.md#md022",
+    "errorDetail": "Expected: 1; Actual: 0; Below",
+    "errorContext": "# API Reference",
+    "errorRange": [1, 15]
+  },
+  {
+    "fileName": "docs/CHANGELOG.md",
+    "lineNumber": 8,
+    "ruleNames": ["MD024", "no-duplicate-heading"],
+    "ruleDescription": "Multiple headings with the same content",
+    "ruleInformation": "https://github.com/DavidAnson/markdownlint/blob/v0.25.1/doc/Rules.md#md024",
+    "errorDetail": null,
+    "errorContext": "## Version 1.0.0",
+    "errorRange": [1, 16]
+  }
+]

@@ -54,6 +54,10 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
             content.find("\"level\":") != std::string::npos && content.find("\"file_name\":") != std::string::npos) {
             return TestResultFormat::CLIPPY_JSON;
         }
+        if (content.find("\"fileName\":") != std::string::npos && content.find("\"lineNumber\":") != std::string::npos && 
+            content.find("\"ruleNames\":") != std::string::npos && content.find("\"ruleDescription\":") != std::string::npos) {
+            return TestResultFormat::MARKDOWNLINT_JSON;
+        }
     }
     
     // Check text patterns (DuckDB test should be checked before make error since it may contain both)
@@ -95,6 +99,7 @@ std::string TestResultFormatToString(TestResultFormat format) {
         case TestResultFormat::SHELLCHECK_JSON: return "shellcheck_json";
         case TestResultFormat::STYLELINT_JSON: return "stylelint_json";
         case TestResultFormat::CLIPPY_JSON: return "clippy_json";
+        case TestResultFormat::MARKDOWNLINT_JSON: return "markdownlint_json";
         default: return "unknown";
     }
 }
@@ -115,6 +120,7 @@ TestResultFormat StringToTestResultFormat(const std::string& str) {
     if (str == "shellcheck_json") return TestResultFormat::SHELLCHECK_JSON;
     if (str == "stylelint_json") return TestResultFormat::STYLELINT_JSON;
     if (str == "clippy_json") return TestResultFormat::CLIPPY_JSON;
+    if (str == "markdownlint_json") return TestResultFormat::MARKDOWNLINT_JSON;
     if (str == "unknown") return TestResultFormat::UNKNOWN;
     return TestResultFormat::AUTO;  // Default to auto-detection
 }
@@ -249,6 +255,9 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
             break;
         case TestResultFormat::CLIPPY_JSON:
             ParseClippyJSON(content, global_state->events);
+            break;
+        case TestResultFormat::MARKDOWNLINT_JSON:
+            ParseMarkdownlintJSON(content, global_state->events);
             break;
         default:
             // For unknown formats, don't create any events
@@ -1591,6 +1600,95 @@ void ParseClippyJSON(const std::string& content, std::vector<ValidationEvent>& e
     }
 }
 
+void ParseMarkdownlintJSON(const std::string& content, std::vector<ValidationEvent>& events) {
+    // Parse JSON using yyjson
+    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
+    if (!doc) {
+        throw IOException("Failed to parse markdownlint JSON");
+    }
+    
+    yyjson_val *root = yyjson_doc_get_root(doc);
+    if (!yyjson_is_arr(root)) {
+        yyjson_doc_free(doc);
+        throw IOException("Invalid markdownlint JSON: root is not an array");
+    }
+    
+    // Parse each issue
+    size_t idx, max;
+    yyjson_val *issue;
+    int64_t event_id = 1;
+    
+    yyjson_arr_foreach(root, idx, max, issue) {
+        if (!yyjson_is_obj(issue)) continue;
+        
+        ValidationEvent event;
+        event.event_id = event_id++;
+        event.tool_name = "markdownlint";
+        event.event_type = ValidationEventType::LINT_ISSUE;
+        event.category = "documentation";
+        
+        // Get file name
+        yyjson_val *file_name = yyjson_obj_get(issue, "fileName");
+        if (file_name && yyjson_is_str(file_name)) {
+            event.file_path = yyjson_get_str(file_name);
+        }
+        
+        // Get line number
+        yyjson_val *line_number = yyjson_obj_get(issue, "lineNumber");
+        if (line_number && yyjson_is_int(line_number)) {
+            event.line_number = yyjson_get_int(line_number);
+        } else {
+            event.line_number = -1;
+        }
+        
+        // Markdownlint doesn't provide column in the same way - use errorRange if available
+        yyjson_val *error_range = yyjson_obj_get(issue, "errorRange");
+        if (error_range && yyjson_is_arr(error_range)) {
+            yyjson_val *first_elem = yyjson_arr_get_first(error_range);
+            if (first_elem && yyjson_is_int(first_elem)) {
+                event.column_number = yyjson_get_int(first_elem);
+            } else {
+                event.column_number = -1;
+            }
+        } else {
+            event.column_number = -1;
+        }
+        
+        // Markdownlint issues are typically warnings (unless they're really severe)
+        event.severity = "warning";
+        event.status = ValidationEventStatus::WARNING;
+        
+        // Get rule names (first rule name as error code)
+        yyjson_val *rule_names = yyjson_obj_get(issue, "ruleNames");
+        if (rule_names && yyjson_is_arr(rule_names)) {
+            yyjson_val *first_rule = yyjson_arr_get_first(rule_names);
+            if (first_rule && yyjson_is_str(first_rule)) {
+                event.error_code = yyjson_get_str(first_rule);
+            }
+        }
+        
+        // Get rule description as message
+        yyjson_val *rule_description = yyjson_obj_get(issue, "ruleDescription");
+        if (rule_description && yyjson_is_str(rule_description)) {
+            event.message = yyjson_get_str(rule_description);
+        }
+        
+        // Get error detail as suggestion if available
+        yyjson_val *error_detail = yyjson_obj_get(issue, "errorDetail");
+        if (error_detail && yyjson_is_str(error_detail)) {
+            event.suggestion = yyjson_get_str(error_detail);
+        }
+        
+        // Set raw output and structured data
+        event.raw_output = content;
+        event.structured_data = "markdownlint_json";
+        
+        events.push_back(event);
+    }
+    
+    yyjson_doc_free(doc);
+}
+
 void ParseGenericLint(const std::string& content, std::vector<ValidationEvent>& events) {
     std::istringstream stream(content);
     std::string line;
@@ -1754,6 +1852,9 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
             break;
         case TestResultFormat::CLIPPY_JSON:
             ParseClippyJSON(content, global_state->events);
+            break;
+        case TestResultFormat::MARKDOWNLINT_JSON:
+            ParseMarkdownlintJSON(content, global_state->events);
             break;
         default:
             // For unknown formats, don't create any events

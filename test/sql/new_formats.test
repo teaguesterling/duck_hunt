@@ -350,6 +350,44 @@ SELECT suggestion FROM parse_test_results('{"message":{"message":"test warning",
 ----
 fixed_code
 
+# Test 44: markdownlint JSON format parsing
+statement ok
+CREATE TABLE markdownlint_results AS 
+SELECT * FROM read_test_results('workspace/markdownlint_sample.json', 'markdownlint_json');
+
+# Verify markdownlint parsing results
+query II
+SELECT COUNT(*), tool_name
+FROM markdownlint_results
+GROUP BY tool_name;
+----
+5	markdownlint
+
+# Test 45: markdownlint auto-detection
+query I
+SELECT DISTINCT tool_name FROM parse_test_results('[{"fileName":"test.md","lineNumber":1,"ruleNames":["MD041"],"ruleDescription":"First line heading issue"}]', 'auto');
+----
+markdownlint
+
+# Test 46: markdownlint field validation
+query IIII
+SELECT file_path, line_number, error_code, category
+FROM parse_test_results('[{"fileName":"docs/README.md","lineNumber":5,"ruleNames":["MD032","blanks-around-lists"],"ruleDescription":"Lists should be surrounded by blank lines"}]', 'markdownlint_json');
+----
+docs/README.md	5	MD032	documentation
+
+# Test 47: markdownlint event type validation
+query I
+SELECT DISTINCT event_type FROM parse_test_results('[{"fileName":"test.md","lineNumber":1,"ruleNames":["MD041"],"ruleDescription":"Test"}]', 'markdownlint_json');
+----
+lint_issue
+
+# Test 48: markdownlint suggestion extraction from errorDetail
+query I
+SELECT suggestion FROM parse_test_results('[{"fileName":"test.md","lineNumber":1,"ruleNames":["MD013"],"ruleDescription":"Line length","errorDetail":"Expected: 80; Actual: 95"}]', 'markdownlint_json');
+----
+Expected: 80; Actual: 95
+
 # Clean up
 statement ok
 DROP TABLE rubocop_results;
@@ -371,3 +409,6 @@ DROP TABLE stylelint_results;
 
 statement ok
 DROP TABLE clippy_results;
+
+statement ok
+DROP TABLE markdownlint_results;
