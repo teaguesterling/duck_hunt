@@ -1,0 +1,18 @@
+/path/to/project/src/main.cpp:15:5: warning: variable 'unused_var' is not used [-Wunused-variable]
+    int unused_var = 42;
+    ^
+/path/to/project/src/main.cpp:23:10: error: use of undeclared identifier 'missing_func' [-Wundeclared-identifier]
+    return missing_func();
+           ^
+/path/to/project/src/utils.cpp:8:1: warning: function 'helper' should be marked const [readability-const-correctness]
+void helper(int value) {
+^
+const 
+/path/to/project/src/utils.cpp:12:5: warning: variable name 'MyVar' does not conform to naming convention [readability-identifier-naming]
+    int MyVar = 0;
+    ^~~~~
+    my_var
+/path/to/project/include/header.h:25:8: error: class 'BadClass' has virtual functions but non-virtual destructor [cppcoreguidelines-virtual-class-destructor]
+class BadClass {
+      ^
+2 errors, 3 warnings generated.

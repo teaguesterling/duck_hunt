@@ -8,6 +8,7 @@
 #include <fstream>
 #include <regex>
 #include <sstream>
+#include <map>
 
 namespace duckdb {
 
@@ -20,10 +21,10 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
         if (content.find("\"tests\":") != std::string::npos) {
             return TestResultFormat::PYTEST_JSON;
         }
-        if (content.find("\"Action\":") != std::string::npos) {
+        if (content.find("\"Action\":") != std::string::npos && content.find("\"Package\":") != std::string::npos) {
             return TestResultFormat::GOTEST_JSON;
         }
-        if (content.find("\"messages\":") != std::string::npos) {
+        if (content.find("\"messages\":") != std::string::npos && content.find("\"filePath\":") != std::string::npos) {
             return TestResultFormat::ESLINT_JSON;
         }
     }
@@ -171,6 +172,18 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
             break;
         case TestResultFormat::DUCKDB_TEST:
             ParseDuckDBTestOutput(content, global_state->events);
+            break;
+        case TestResultFormat::ESLINT_JSON:
+            ParseESLintJSON(content, global_state->events);
+            break;
+        case TestResultFormat::GOTEST_JSON:
+            ParseGoTestJSON(content, global_state->events);
+            break;
+        case TestResultFormat::MAKE_ERROR:
+            ParseMakeErrors(content, global_state->events);
+            break;
+        case TestResultFormat::GENERIC_LINT:
+            ParseGenericLint(content, global_state->events);
             break;
         default:
             // For other formats, create a dummy event for now
@@ -466,6 +479,315 @@ void ParseDuckDBTestOutput(const std::string& content, std::vector<ValidationEve
         summary_event.status = ValidationEventStatus::INFO;
         summary_event.category = "test_summary";
         summary_event.message = "DuckDB test output parsed (no specific test results found)";
+        summary_event.line_number = -1;
+        summary_event.column_number = -1;
+        summary_event.execution_time = 0.0;
+        
+        events.push_back(summary_event);
+    }
+}
+
+void ParseESLintJSON(const std::string& content, std::vector<ValidationEvent>& events) {
+    // Parse JSON using yyjson
+    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
+    if (!doc) {
+        throw IOException("Failed to parse ESLint JSON");
+    }
+    
+    yyjson_val *root = yyjson_doc_get_root(doc);
+    if (!yyjson_is_arr(root)) {
+        yyjson_doc_free(doc);
+        throw IOException("Invalid ESLint JSON: root is not an array");
+    }
+    
+    // Parse each file result
+    size_t idx, max;
+    yyjson_val *file_result;
+    int64_t event_id = 1;
+    
+    yyjson_arr_foreach(root, idx, max, file_result) {
+        if (!yyjson_is_obj(file_result)) continue;
+        
+        // Get file path
+        yyjson_val *file_path = yyjson_obj_get(file_result, "filePath");
+        std::string file_path_str;
+        if (file_path && yyjson_is_str(file_path)) {
+            file_path_str = yyjson_get_str(file_path);
+        }
+        
+        // Get messages array
+        yyjson_val *messages = yyjson_obj_get(file_result, "messages");
+        if (!messages || !yyjson_is_arr(messages)) continue;
+        
+        // Parse each message
+        size_t msg_idx, msg_max;
+        yyjson_val *message;
+        yyjson_arr_foreach(messages, msg_idx, msg_max, message) {
+            if (!yyjson_is_obj(message)) continue;
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "eslint";
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.file_path = file_path_str;
+            event.execution_time = 0.0;
+            
+            // Extract line and column
+            yyjson_val *line = yyjson_obj_get(message, "line");
+            if (line && yyjson_is_num(line)) {
+                event.line_number = yyjson_get_int(line);
+            } else {
+                event.line_number = -1;
+            }
+            
+            yyjson_val *column = yyjson_obj_get(message, "column");
+            if (column && yyjson_is_num(column)) {
+                event.column_number = yyjson_get_int(column);
+            } else {
+                event.column_number = -1;
+            }
+            
+            // Extract message
+            yyjson_val *msg_text = yyjson_obj_get(message, "message");
+            if (msg_text && yyjson_is_str(msg_text)) {
+                event.message = yyjson_get_str(msg_text);
+            }
+            
+            // Extract rule ID
+            yyjson_val *rule_id = yyjson_obj_get(message, "ruleId");
+            if (rule_id && yyjson_is_str(rule_id)) {
+                event.error_code = yyjson_get_str(rule_id);
+                event.function_name = yyjson_get_str(rule_id);
+            }
+            
+            // Map severity to status
+            yyjson_val *severity = yyjson_obj_get(message, "severity");
+            if (severity && yyjson_is_num(severity)) {
+                int sev = yyjson_get_int(severity);
+                switch (sev) {
+                    case 2:
+                        event.status = ValidationEventStatus::ERROR;
+                        event.category = "lint_error";
+                        event.severity = "error";
+                        break;
+                    case 1:
+                        event.status = ValidationEventStatus::WARNING;
+                        event.category = "lint_warning"; 
+                        event.severity = "warning";
+                        break;
+                    default:
+                        event.status = ValidationEventStatus::INFO;
+                        event.category = "lint_info";
+                        event.severity = "info";
+                        break;
+                }
+            } else {
+                event.status = ValidationEventStatus::WARNING;
+                event.category = "lint_warning";
+                event.severity = "warning";
+            }
+            
+            events.push_back(event);
+        }
+    }
+    
+    yyjson_doc_free(doc);
+}
+
+void ParseGoTestJSON(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream stream(content);
+    std::string line;
+    int64_t event_id = 1;
+    
+    // Track test results
+    std::map<std::string, ValidationEvent> test_events;
+    
+    while (std::getline(stream, line)) {
+        if (line.empty()) continue;
+        
+        // Parse each JSON line
+        yyjson_doc *doc = yyjson_read(line.c_str(), line.length(), 0);
+        if (!doc) continue;
+        
+        yyjson_val *root = yyjson_doc_get_root(doc);
+        if (!yyjson_is_obj(root)) {
+            yyjson_doc_free(doc);
+            continue;
+        }
+        
+        // Extract fields
+        yyjson_val *action = yyjson_obj_get(root, "Action");
+        yyjson_val *package = yyjson_obj_get(root, "Package");
+        yyjson_val *test = yyjson_obj_get(root, "Test");
+        yyjson_val *elapsed = yyjson_obj_get(root, "Elapsed");
+        yyjson_val *output = yyjson_obj_get(root, "Output");
+        
+        if (!action || !yyjson_is_str(action)) {
+            yyjson_doc_free(doc);
+            continue;
+        }
+        
+        std::string action_str = yyjson_get_str(action);
+        std::string package_str = package && yyjson_is_str(package) ? yyjson_get_str(package) : "";
+        std::string test_str = test && yyjson_is_str(test) ? yyjson_get_str(test) : "";
+        
+        // Create unique test key
+        std::string test_key = package_str + "::" + test_str;
+        
+        if (action_str == "run" && !test_str.empty()) {
+            // Initialize test event
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "go_test";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.file_path = package_str;
+            event.test_name = test_str;
+            event.function_name = test_str;
+            event.line_number = -1;
+            event.column_number = -1;
+            event.execution_time = 0.0;
+            
+            test_events[test_key] = event;
+        } else if ((action_str == "pass" || action_str == "fail" || action_str == "skip") && !test_str.empty()) {
+            // Finalize test event
+            if (test_events.find(test_key) != test_events.end()) {
+                ValidationEvent &event = test_events[test_key];
+                
+                if (elapsed && yyjson_is_num(elapsed)) {
+                    event.execution_time = yyjson_get_real(elapsed);
+                }
+                
+                if (action_str == "pass") {
+                    event.status = ValidationEventStatus::PASS;
+                    event.category = "test_success";
+                    event.message = "Test passed";
+                } else if (action_str == "fail") {
+                    event.status = ValidationEventStatus::FAIL;
+                    event.category = "test_failure";
+                    event.message = "Test failed";
+                } else if (action_str == "skip") {
+                    event.status = ValidationEventStatus::SKIP;
+                    event.category = "test_skipped";
+                    event.message = "Test skipped";
+                }
+                
+                events.push_back(event);
+                test_events.erase(test_key);
+            }
+        }
+        
+        yyjson_doc_free(doc);
+    }
+}
+
+void ParseMakeErrors(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream stream(content);
+    std::string line;
+    int64_t event_id = 1;
+    
+    while (std::getline(stream, line)) {
+        // Parse GCC/Clang error format: file:line:column: severity: message
+        std::regex error_pattern(R"(([^:]+):(\d+):(\d*):?\s*(error|warning|note):\s*(.+))");
+        std::smatch match;
+        
+        if (std::regex_match(line, match, error_pattern)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "make";
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.file_path = match[1].str();
+            event.line_number = std::stoi(match[2].str());
+            event.column_number = match[3].str().empty() ? -1 : std::stoi(match[3].str());
+            event.function_name = "";
+            event.message = match[5].str();
+            event.execution_time = 0.0;
+            
+            std::string severity = match[4].str();
+            if (severity == "error") {
+                event.status = ValidationEventStatus::ERROR;
+                event.category = "build_error";
+                event.severity = "error";
+            } else if (severity == "warning") {
+                event.status = ValidationEventStatus::WARNING;
+                event.category = "build_warning";
+                event.severity = "warning";
+            } else {
+                event.status = ValidationEventStatus::INFO;
+                event.category = "build_info";
+                event.severity = "info";
+            }
+            
+            events.push_back(event);
+        }
+        // Check for make failure line
+        else if (line.find("make: ***") != std::string::npos && line.find("Error") != std::string::npos) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "make";
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.status = ValidationEventStatus::ERROR;
+            event.category = "build_failure";
+            event.severity = "error";
+            event.message = line;
+            event.line_number = -1;
+            event.column_number = -1;
+            event.execution_time = 0.0;
+            
+            events.push_back(event);
+        }
+    }
+}
+
+void ParseGenericLint(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream stream(content);
+    std::string line;
+    int64_t event_id = 1;
+    
+    while (std::getline(stream, line)) {
+        // Parse generic lint format: file:line:column: level: message
+        std::regex lint_pattern(R"(([^:]+):(\d+):(\d*):?\s*(error|warning|info|note):\s*(.+))");
+        std::smatch match;
+        
+        if (std::regex_match(line, match, lint_pattern)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "lint";
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.file_path = match[1].str();
+            event.line_number = std::stoi(match[2].str());
+            event.column_number = match[3].str().empty() ? -1 : std::stoi(match[3].str());
+            event.function_name = "";
+            event.message = match[5].str();
+            event.execution_time = 0.0;
+            
+            std::string level = match[4].str();
+            if (level == "error") {
+                event.status = ValidationEventStatus::ERROR;
+                event.category = "lint_error";
+                event.severity = "error";
+            } else if (level == "warning") {
+                event.status = ValidationEventStatus::WARNING;
+                event.category = "lint_warning";
+                event.severity = "warning";
+            } else {
+                event.status = ValidationEventStatus::INFO;
+                event.category = "lint_info";
+                event.severity = "info";
+            }
+            
+            events.push_back(event);
+        }
+    }
+    
+    // If no events were created, add a basic summary
+    if (events.empty()) {
+        ValidationEvent summary_event;
+        summary_event.event_id = 1;
+        summary_event.tool_name = "lint";
+        summary_event.event_type = ValidationEventType::LINT_ISSUE;
+        summary_event.status = ValidationEventStatus::INFO;
+        summary_event.category = "lint_summary";
+        summary_event.message = "Generic lint output parsed (no issues found)";
         summary_event.line_number = -1;
         summary_event.column_number = -1;
         summary_event.execution_time = 0.0;

@@ -1,0 +1,12 @@
+{"Time":"2024-07-11T00:50:12.123456789Z","Action":"run","Package":"github.com/example/project","Test":"TestCalculator"}
+{"Time":"2024-07-11T00:50:12.124567890Z","Action":"output","Package":"github.com/example/project","Test":"TestCalculator","Output":"=== RUN   TestCalculator\n"}
+{"Time":"2024-07-11T00:50:12.125678901Z","Action":"output","Package":"github.com/example/project","Test":"TestCalculator","Output":"    calculator_test.go:15: Expected 4, got 5\n"}
+{"Time":"2024-07-11T00:50:12.126789012Z","Action":"fail","Package":"github.com/example/project","Test":"TestCalculator","Elapsed":0.003}
+{"Time":"2024-07-11T00:50:12.127890123Z","Action":"run","Package":"github.com/example/project","Test":"TestStringUtils"}
+{"Time":"2024-07-11T00:50:12.128901234Z","Action":"output","Package":"github.com/example/project","Test":"TestStringUtils","Output":"=== RUN   TestStringUtils\n"}
+{"Time":"2024-07-11T00:50:12.129012345Z","Action":"pass","Package":"github.com/example/project","Test":"TestStringUtils","Elapsed":0.001}
+{"Time":"2024-07-11T00:50:12.130123456Z","Action":"run","Package":"github.com/example/project","Test":"TestSkippedTest"}
+{"Time":"2024-07-11T00:50:12.131234567Z","Action":"output","Package":"github.com/example/project","Test":"TestSkippedTest","Output":"=== RUN   TestSkippedTest\n"}
+{"Time":"2024-07-11T00:50:12.132345678Z","Action":"output","Package":"github.com/example/project","Test":"TestSkippedTest","Output":"    test.go:20: Skipping test due to missing dependency\n"}
+{"Time":"2024-07-11T00:50:12.133456789Z","Action":"skip","Package":"github.com/example/project","Test":"TestSkippedTest","Elapsed":0.002}
+{"Time":"2024-07-11T00:50:12.134567890Z","Action":"output","Package":"github.com/example/project","Output":"FAIL\tgithub.com/example/project\t0.010s\n"}

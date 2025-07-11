@@ -1,0 +1,59 @@
+[
+  {
+    "filePath": "/src/components/Button.js",
+    "messages": [
+      {
+        "ruleId": "no-unused-vars",
+        "severity": 2,
+        "message": "'React' is defined but never used.",
+        "line": 1,
+        "column": 8,
+        "nodeType": "Identifier",
+        "messageId": "unusedVar",
+        "endLine": 1,
+        "endColumn": 13
+      },
+      {
+        "ruleId": "prefer-const",
+        "severity": 1,
+        "message": "'value' is never reassigned. Use 'const' instead of 'let'.",
+        "line": 5,
+        "column": 5,
+        "nodeType": "Identifier",
+        "messageId": "useConst",
+        "endLine": 5,
+        "endColumn": 10
+      }
+    ],
+    "suppressedMessages": [],
+    "errorCount": 1,
+    "fatalErrorCount": 0,
+    "warningCount": 1,
+    "fixableErrorCount": 0,
+    "fixableWarningCount": 1,
+    "source": "import React from 'react';\n\nfunction Button() {\n  let value = 'hello';\n  return <button>{value}</button>;\n}\n\nexport default Button;"
+  },
+  {
+    "filePath": "/src/utils/helper.js",
+    "messages": [
+      {
+        "ruleId": "no-console",
+        "severity": 1,
+        "message": "Unexpected console statement.",
+        "line": 3,
+        "column": 3,
+        "nodeType": "MemberExpression",
+        "messageId": "unexpected",
+        "endLine": 3,
+        "endColumn": 14
+      }
+    ],
+    "suppressedMessages": [],
+    "errorCount": 0,
+    "fatalErrorCount": 0,
+    "warningCount": 1,
+    "fixableErrorCount": 0,
+    "fixableWarningCount": 0,
+    "source": "function debug(msg) {\n  console.log(msg);\n}\n\nexport { debug };"
+  }
+]

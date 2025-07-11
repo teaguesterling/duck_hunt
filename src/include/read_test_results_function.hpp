@@ -72,5 +72,9 @@ void PopulateDataChunkFromEvents(DataChunk &output, const std::vector<Validation
 // Format-specific parsers
 void ParsePytestJSON(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseDuckDBTestOutput(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseESLintJSON(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseGoTestJSON(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseMakeErrors(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseGenericLint(const std::string& content, std::vector<ValidationEvent>& events);
 
 } // namespace duckdb
