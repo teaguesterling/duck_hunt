@@ -11,7 +11,7 @@ Duck Hunt provides powerful SQL-based analysis of development tool outputs throu
 - **`read_test_results(file_path, format := 'AUTO')`** - Parse test results and build outputs from files
 - **`parse_test_results(content, format := 'AUTO')`** - Parse test results and build outputs from strings
 
-### Supported Formats (29 Total)
+### Supported Formats (31 Total)
 
 #### Test Frameworks
 - **pytest** (JSON & text output)
@@ -42,6 +42,8 @@ Duck Hunt provides powerful SQL-based analysis of development tool outputs throu
 - **GNU Make** build output (compilation errors, linking issues, target failures)
 - **Python builds** (pip, setuptools, pytest, wheel building)
 - **Node.js builds** (npm, yarn, webpack, jest, eslint)
+- **Cargo builds** (Rust compilation, testing, clippy, formatting)
+- **Maven builds** (Java compilation, JUnit testing, checkstyle, spotbugs, PMD)
 - **kube-score** (Kubernetes manifests)
 - **Generic lint** (fallback parser for common error formats)
 
@@ -198,6 +200,66 @@ This extension follows DuckDB extension conventions and includes:
 - Extensive format auto-detection
 
 For contributing guidelines, see `CONTRIBUTING.md`.
+
+## Future Work
+
+Duck Hunt currently supports 31 formats across test frameworks, linting tools, and build systems. The following expansions would provide comprehensive coverage of the entire development ecosystem:
+
+### 🔥 High Priority Build Systems
+- **Gradle** (Java/Android) - Mobile development  
+- **MSBuild** (C#/.NET) - Microsoft ecosystem
+- **Bazel** (Google's system) - Large-scale projects
+
+### 🐛 Debugging & Analysis Tools
+- **Valgrind** (memcheck, helgrind, cachegrind) - Memory analysis
+- **AddressSanitizer/ThreadSanitizer** - Fast sanitizer output
+- **GDB/LLDB** - Debugger stack traces and breakpoint logs
+- **Clang Static Analyzer** - Static analysis reports
+- **perf** - Linux performance profiling output
+
+### 🧪 Additional Test Frameworks  
+- **JUnit** (Java text output) - Enterprise testing
+- **RSpec** (Ruby) - Text output parsing
+- **Mocha/Chai** (JavaScript) - Text output parsing
+- **Google Test** (C++) - Console output parsing
+- **NUnit/xUnit** (C#/.NET) - Console output parsing
+
+### 🔍 Linting & Code Quality
+- **SonarQube** - Multi-language analysis (XML/JSON)
+- **Pylint/Flake8** (Python) - Text/JSON output
+- **golangci-lint** (Go) - Text/JSON output  
+- **Black/Prettier** (Formatters) - Text output
+- **CodeClimate** - Multi-language JSON output
+
+### 🔄 CI/CD & DevOps
+- **GitHub Actions** - Workflow log parsing
+- **GitLab CI** - Pipeline log parsing
+- **Jenkins** - Console output parsing
+- **Docker** - Build output parsing
+- **Ansible** - Playbook execution logs
+
+### 📦 Package Managers
+- **apt/dpkg** (Debian/Ubuntu) - Package management logs
+- **yum/rpm** (RedHat/CentOS) - Package management logs
+- **brew** (macOS) - Package installation logs
+- **composer** (PHP) - Dependency management
+
+### 🛠️ Specialized Build Systems
+- **SBT** (Scala Build Tool)
+- **Buck** (Facebook's build system) 
+- **Pants** (Twitter's build system)
+- **Ninja** (Low-level build system)
+
+### 📊 Performance & Monitoring
+- **Intel VTune** - CPU profiling reports
+- **gperftools** - Google performance tools
+- **Coverity** - Enterprise static analysis
+- **PVS-Studio** - Cross-platform analysis
+
+**Target**: ~70+ total formats covering 95% of development tool ecosystem
+**Current**: 31 formats (44% coverage)
+
+This roadmap would establish Duck Hunt as the definitive tool for agent-driven development workflow analysis across all major programming languages, build systems, and development tools.
 
 ## License
 

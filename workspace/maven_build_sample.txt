@@ -1,0 +1,166 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Building MyProject 1.0-SNAPSHOT
+[INFO] ------------------------------------------------------------------------
+[INFO] 
+[INFO] --- maven-clean-plugin:3.1.0:clean (default-clean) @ myproject ---
+[INFO] Deleting /home/user/myproject/target
+[INFO] 
+[INFO] --- maven-resources-plugin:3.0.2:resources (default-resources) @ myproject ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] Copying 3 resources
+[INFO] 
+[INFO] --- maven-compiler-plugin:3.8.0:compile (default-compile) @ myproject ---
+[INFO] Changes detected - recompiling the entire module!
+[INFO] Compiling 15 source files to /home/user/myproject/target/classes
+[WARNING] /home/user/myproject/src/main/java/com/example/MyClass.java:[23,15] variable might not have been initialized
+[ERROR] /home/user/myproject/src/main/java/com/example/Database.java:[45,20] cannot find symbol
+[ERROR]   symbol:   class UndefinedClass
+[ERROR]   location: class com.example.Database
+[ERROR] /home/user/myproject/src/main/java/com/example/Service.java:[67,8] incompatible types: String cannot be converted to int
+[ERROR] /home/user/myproject/src/main/java/com/example/Utils.java:[12,1] illegal start of type
+[INFO] -------------------------------------------------------------
+[ERROR] COMPILATION ERROR : 
+[INFO] -------------------------------------------------------------
+[ERROR] /home/user/myproject/src/main/java/com/example/Database.java:[45,20] cannot find symbol
+[ERROR] symbol: class UndefinedClass
+[ERROR] location: class com.example.Database
+[ERROR] /home/user/myproject/src/main/java/com/example/Service.java:[67,8] incompatible types: String cannot be converted to int
+[ERROR] /home/user/myproject/src/main/java/com/example/Utils.java:[12,1] illegal start of type
+[INFO] 3 errors 
+[INFO] -------------------------------------------------------------
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time: 4.567 s
+[INFO] Finished at: 2024-01-15T14:30:42+00:00
+[INFO] Final Memory: 25M/128M
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.8.0:compile (default-compile) on project myproject: Compilation failure: Compilation failure: 
+[ERROR] /home/user/myproject/src/main/java/com/example/Database.java:[45,20] cannot find symbol
+[ERROR] symbol: class UndefinedClass
+[ERROR] location: class com.example.Database
+[ERROR] /home/user/myproject/src/main/java/com/example/Service.java:[67,8] incompatible types: String cannot be converted to int
+[ERROR] /home/user/myproject/src/main/java/com/example/Utils.java:[12,1] illegal start of type
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven with the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException
+
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Building MyProject 1.0-SNAPSHOT
+[INFO] ------------------------------------------------------------------------
+[INFO] 
+[INFO] --- maven-surefire-plugin:2.22.1:test (default-test) @ myproject ---
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.example.DatabaseTest
+[ERROR] Tests run: 5, Failures: 2, Errors: 1, Skipped: 1, Time elapsed: 2.456 s <<< FAILURE! - in com.example.DatabaseTest
+[ERROR] testConnection(com.example.DatabaseTest)  Time elapsed: 0.123 s  <<< FAILURE!
+java.lang.AssertionError: Connection should not be null
+	at org.junit.Assert.fail(Assert.java:88)
+	at org.junit.Assert.assertTrue(Assert.java:41)
+	at com.example.DatabaseTest.testConnection(DatabaseTest.java:25)
+
+[ERROR] testQuery(com.example.DatabaseTest)  Time elapsed: 0.089 s  <<< ERROR!
+java.sql.SQLException: No suitable driver found for jdbc:unknown://localhost
+	at java.sql.DriverManager.getConnection(DriverManager.java:689)
+	at com.example.Database.connect(Database.java:34)
+	at com.example.DatabaseTest.testQuery(DatabaseTest.java:45)
+
+[INFO] Running com.example.ServiceTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.567 s - in com.example.ServiceTest
+[INFO] Running com.example.UtilsTest
+[ERROR] Tests run: 4, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.234 s <<< FAILURE! - in com.example.UtilsTest
+[ERROR] testStringConversion(com.example.UtilsTest)  Time elapsed: 0.012 s  <<< FAILURE!
+java.lang.AssertionError: Expected 'hello' but was 'world'
+	at org.junit.Assert.assertEquals(Assert.java:115)
+	at com.example.UtilsTest.testStringConversion(UtilsTest.java:67)
+
+[INFO] 
+[INFO] Results:
+[INFO] 
+[ERROR] Failures: 
+[ERROR]   DatabaseTest.testConnection:25 Connection should not be null
+[ERROR]   UtilsTest.testStringConversion:67 Expected 'hello' but was 'world'
+[ERROR] Errors: 
+[ERROR]   DatabaseTest.testQuery:45 » SQLException No suitable driver found for jdbc:unknown://localhost
+[INFO] 
+[ERROR] Tests run: 12, Failures: 3, Errors: 1, Skipped: 1
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time: 5.234 s
+[INFO] Finished at: 2024-01-15T14:31:15+00:00
+[INFO] Final Memory: 32M/256M
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:2.22.1:test (default-test) on project myproject: There are test failures.
+[ERROR] 
+[ERROR] Please refer to /home/user/myproject/target/surefire-reports for the individual test results.
+[ERROR] Please refer to dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Building MyProject 1.0-SNAPSHOT
+[INFO] ------------------------------------------------------------------------
+[INFO] 
+[INFO] --- maven-dependency-plugin:2.8:analyze (default-cli) @ myproject ---
+[WARNING] Used undeclared dependencies found:
+[WARNING]    org.apache.commons:commons-lang3:jar:3.12.0:compile
+[WARNING]    org.slf4j:slf4j-api:jar:1.7.36:compile
+[WARNING] Unused declared dependencies found:
+[WARNING]    junit:junit:jar:4.13.2:test
+[WARNING]    org.mockito:mockito-core:jar:4.6.1:test
+
+[INFO] --- maven-checkstyle-plugin:3.1.2:check (default-cli) @ myproject ---
+[INFO] Starting audit...
+[WARN] /home/user/myproject/src/main/java/com/example/MyClass.java:15: Line is longer than 120 characters (found 125). [LineLength]
+[WARN] /home/user/myproject/src/main/java/com/example/Service.java:23: Missing a Javadoc comment. [MissingJavadocMethod]
+[ERROR] /home/user/myproject/src/main/java/com/example/Utils.java:45: '{' at column 1 should be on the previous line. [LeftCurly]
+[ERROR] /home/user/myproject/src/main/java/com/example/Database.java:67: Name 'DB_URL' must match pattern '^[a-z][a-zA-Z0-9]*$'. [LocalVariableName]
+Audit done.
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-checkstyle-plugin:3.1.2:check (default-cli) on project myproject: Failed during checkstyle execution: There are 2 errors reported by Checkstyle 8.29 with /home/user/myproject/checkstyle.xml ruleset.
+[ERROR] -> [Help 1]
+
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Building MyProject 1.0-SNAPSHOT
+[INFO] ------------------------------------------------------------------------
+[INFO] 
+[INFO] --- spotbugs-maven-plugin:4.7.1.1:check (default-cli) @ myproject ---
+[INFO] SpotBugs Version is 4.7.1
+[INFO] Threshold is medium
+[INFO] Effort is default
+[INFO] Analyzing 23 classes
+[WARN] Medium: Dead store to local variable in com.example.Service.processData(String) [DLS_DEAD_LOCAL_STORE]
+[WARN] Medium: Method may fail to close stream in com.example.FileHandler.readFile(String) [OS_OPEN_STREAM]
+[ERROR] High: Null pointer dereference in com.example.Database.executeQuery(String) [NP_ALWAYS_NULL]
+[ERROR] High: SQL injection vulnerability in com.example.Database.findUser(String) [SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE]
+
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Building MyProject 1.0-SNAPSHOT
+[INFO] ------------------------------------------------------------------------
+[INFO] 
+[INFO] --- maven-pmd-plugin:3.17.0:check (default-cli) @ myproject ---
+[INFO] PMD version: 6.46.0
+[WARN] /home/user/myproject/src/main/java/com/example/MyClass.java:34: Avoid unused local variables such as 'unusedVar'. [UnusedLocalVariable]
+[WARN] /home/user/myproject/src/main/java/com/example/Service.java:56: Parameter 'input' is never read [UnusedFormalParameter]
+[ERROR] /home/user/myproject/src/main/java/com/example/Utils.java:78: Avoid empty catch blocks [EmptyCatchBlock]
+[ERROR] /home/user/myproject/src/main/java/com/example/Database.java:123: Avoid instantiating new objects inside loops [AvoidInstantiatingObjectsInLoops]

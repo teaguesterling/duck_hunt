@@ -37,7 +37,8 @@ enum class TestResultFormat : uint8_t {
     CMAKE_BUILD = 26,
     PYTHON_BUILD = 27,
     NODE_BUILD = 28,
-    CARGO_BUILD = 29
+    CARGO_BUILD = 29,
+    MAVEN_BUILD = 30
 };
 
 // Bind data for read_test_results table function
@@ -131,5 +132,6 @@ void ParseCMakeBuild(const std::string& content, std::vector<ValidationEvent>& e
 void ParsePythonBuild(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseNodeBuild(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseCargoBuild(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseMavenBuild(const std::string& content, std::vector<ValidationEvent>& events);
 
 } // namespace duckdb
