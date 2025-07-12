@@ -1,0 +1,202 @@
+   Compiling libc v0.2.147
+   Compiling cfg-if v1.0.0
+   Compiling proc-macro2 v1.0.66
+   Compiling unicode-ident v1.0.11
+   Compiling quote v1.0.33
+   Compiling syn v2.0.28
+   Compiling serde_derive v1.0.183
+   Compiling serde v1.0.183
+   Compiling itoa v1.0.9
+   Compiling ryu v1.0.15
+   Compiling serde_json v1.0.104
+   Compiling myproject v0.1.0 (/home/user/myproject)
+error[E0425]: cannot find value `undefined_variable` in this scope
+  --> src/main.rs:15:9
+   |
+15 |     let x = undefined_variable;
+   |         ^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0308]: mismatched types
+  --> src/lib.rs:23:5
+   |
+20 | fn calculate_sum(a: i32, b: i32) -> i32 {
+   |                                     --- expected `i32` because of return type
+...
+23 |     "invalid"
+   |     ^^^^^^^^^ expected `i32`, found `&str`
+
+error[E0277]: `MyStruct` doesn't implement `std::fmt::Display`
+  --> src/utils.rs:45:20
+   |
+45 |     println!("{}", my_struct);
+   |                    ^^^^^^^^^ `MyStruct` cannot be formatted with the default formatter
+   |
+   = help: the trait `std::fmt::Display` is not implemented for `MyStruct`
+   = note: in format strings you may be able to use `{:?}` (or {:#?} for pretty-print) instead
+
+warning: unused variable: `unused_var`
+  --> src/main.rs:8:9
+   |
+8  |     let unused_var = 42;
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+warning: function is never used: `dead_code_function`
+  --> src/utils.rs:12:4
+   |
+12 | fn dead_code_function() {
+   |    ^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+error: aborting due to 3 previous errors
+
+Some errors have detailed explanations: E0277, E0308, E0425.
+For more information about an error, try `rustc --explain E0277`.
+error: could not compile `myproject` due to 3 previous errors
+
+cargo test
+   Compiling myproject v0.1.0 (/home/user/myproject)
+    Finished test [unoptimized + debuginfo] target(s) in 2.34s
+     Running unittests src/lib.rs (target/debug/deps/myproject-a1b2c3d4e5f6)
+
+running 5 tests
+test tests::test_add ... ok
+test tests::test_subtract ... FAILED
+test tests::test_multiply ... ok
+test tests::test_divide ... FAILED
+test integration::test_complex_calculation ... ok
+
+failures:
+
+---- tests::test_subtract FAILED ----
+thread 'tests::test_subtract' panicked at 'assertion failed: `(left == right)`
+  left: `3`,
+ right: `5`', src/lib.rs:67:9
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- tests::test_divide FAILED ----
+thread 'tests::test_divide' panicked at 'attempt to divide by zero', src/lib.rs:89:5
+
+test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass '--lib'
+
+cargo clippy
+    Checking myproject v0.1.0 (/home/user/myproject)
+warning: this let binding has unit value
+ --> src/main.rs:12:5
+  |
+12 |     let _ = some_function();
+  |     ^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#let_unit_value
+  = note: `#[warn(clippy::let_unit_value)]` on by default
+
+warning: redundant clone
+ --> src/utils.rs:34:18
+  |
+34 |     let cloned = data.clone();
+  |                      ^^^^^^^^ help: remove this
+  |
+  = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#redundant_clone
+  = note: `#[warn(clippy::redundant_clone)]` on by default
+
+error: this function has too many arguments (8/7)
+ --> src/lib.rs:156:1
+   |
+156 | pub fn complex_function(a: i32, b: i32, c: i32, d: i32, e: i32, f: i32, g: i32, h: i32) -> i32 {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#too_many_arguments
+   = note: `-D clippy::too-many-arguments` implied by `-D warnings`
+
+error: could not compile `myproject` due to previous error
+
+cargo build --release
+   Compiling libc v0.2.147
+   Compiling proc-macro2 v1.0.66
+   Compiling quote v1.0.33
+   Compiling syn v2.0.28
+   Compiling serde v1.0.183
+   Compiling myproject v0.1.0 (/home/user/myproject)
+error[E0599]: no method named `non_existent_method` found for type `String` in the current scope
+  --> src/main.rs:25:14
+   |
+25 |     let result = my_string.non_existent_method();
+   |                            ^^^^^^^^^^^^^^^^^^^ method not found in `String`
+
+error[E0384]: cannot assign twice to immutable variable `immutable_var`
+  --> src/main.rs:30:5
+   |
+28 |     let immutable_var = 10;
+   |         -------------
+   |         |
+   |         first assignment to `immutable_var`
+   |         help: consider making this binding mutable: `mut immutable_var`
+29 |     // Some other code
+30 |     immutable_var = 20;
+   |     ^^^^^^^^^^^^^^^^^^ cannot assign twice to immutable variable
+
+error: aborting due to 2 previous errors
+
+Some errors have detailed explanations: E0384, E0599.
+For more information about an error, try `rustc --explain E0384`.
+error: could not compile `myproject` due to 2 previous errors
+
+cargo check
+    Checking myproject v0.1.0 (/home/user/myproject)
+warning: struct is never constructed: `UnusedStruct`
+ --> src/lib.rs:45:8
+  |
+45 | struct UnusedStruct {
+  |        ^^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` on by default
+
+warning: associated function is never used: `new`
+ --> src/lib.rs:50:12
+  |
+50 |     pub fn new() -> Self {
+  |            ^^^
+
+    Finished dev [unoptimized + debuginfo] target(s) in 1.23s
+
+cargo fmt -- --check
+Diff in /home/user/myproject/src/main.rs at line 18:
+ fn badly_formatted_function(x:i32,y:i32)->i32{
+-x+y}
++fn badly_formatted_function(x: i32, y: i32) -> i32 {
++    x + y
++}
+ 
+Diff in /home/user/myproject/src/utils.rs at line 28:
+-pub fn another_function( a : i32 , b : i32 ) -> i32 {
+-a*b
++pub fn another_function(a: i32, b: i32) -> i32 {
++    a * b
+ }
+
+cargo publish --dry-run
+    Updating crates.io index
+   Packaging myproject v0.1.0 (/home/user/myproject)
+   Verifying myproject v0.1.0 (/home/user/myproject)
+   Compiling myproject v0.1.0 (/home/user/myproject/target/package/myproject-0.1.0)
+    Finished dev [unoptimized + debuginfo] target(s) in 2.15s
+error: missing required fields in Cargo.toml manifest
+    = note: missing fields: description, license
+
+cargo install --path .
+  Installing myproject v0.1.0 (/home/user/myproject)
+   Compiling myproject v0.1.0 (/home/user/myproject)
+error[E0433]: failed to resolve: use of undeclared crate or module `undefined_crate`
+ --> src/main.rs:5:5
+  |
+5 | use undefined_crate::SomeStruct;
+  |     ^^^^^^^^^^^^^^ use of undeclared crate or module `undefined_crate`
+
+error: aborting due to previous error
+
+For more information about this error, try `rustc --explain E0433`.
+error: could not install `myproject` due to 1 previous error

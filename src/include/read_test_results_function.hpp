@@ -36,7 +36,8 @@ enum class TestResultFormat : uint8_t {
     KUBE_SCORE_JSON = 25,
     CMAKE_BUILD = 26,
     PYTHON_BUILD = 27,
-    NODE_BUILD = 28
+    NODE_BUILD = 28,
+    CARGO_BUILD = 29
 };
 
 // Bind data for read_test_results table function
@@ -129,5 +130,6 @@ void ParseKubeScoreJSON(const std::string& content, std::vector<ValidationEvent>
 void ParseCMakeBuild(const std::string& content, std::vector<ValidationEvent>& events);
 void ParsePythonBuild(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseNodeBuild(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseCargoBuild(const std::string& content, std::vector<ValidationEvent>& events);
 
 } // namespace duckdb
