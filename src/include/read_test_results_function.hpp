@@ -39,7 +39,8 @@ enum class TestResultFormat : uint8_t {
     NODE_BUILD = 28,
     CARGO_BUILD = 29,
     MAVEN_BUILD = 30,
-    GRADLE_BUILD = 31
+    GRADLE_BUILD = 31,
+    MSBUILD = 32
 };
 
 // Bind data for read_test_results table function
@@ -135,5 +136,6 @@ void ParseNodeBuild(const std::string& content, std::vector<ValidationEvent>& ev
 void ParseCargoBuild(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseMavenBuild(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseGradleBuild(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseMSBuild(const std::string& content, std::vector<ValidationEvent>& events);
 
 } // namespace duckdb

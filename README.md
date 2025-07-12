@@ -11,7 +11,7 @@ Duck Hunt provides powerful SQL-based analysis of development tool outputs throu
 - **`read_test_results(file_path, format := 'AUTO')`** - Parse test results and build outputs from files
 - **`parse_test_results(content, format := 'AUTO')`** - Parse test results and build outputs from strings
 
-### Supported Formats (32 Total)
+### Supported Formats (33 Total)
 
 #### Test Frameworks
 - **pytest** (JSON & text output)
@@ -45,6 +45,7 @@ Duck Hunt provides powerful SQL-based analysis of development tool outputs throu
 - **Cargo builds** (Rust compilation, testing, clippy, formatting)
 - **Maven builds** (Java compilation, JUnit testing, checkstyle, spotbugs, PMD)
 - **Gradle builds** (Java/Android compilation, testing, checkstyle, spotbugs, android lint)
+- **MSBuild** (C#/.NET compilation, xUnit testing, code analyzers)
 - **kube-score** (Kubernetes manifests)
 - **Generic lint** (fallback parser for common error formats)
 
@@ -204,10 +205,9 @@ For contributing guidelines, see `CONTRIBUTING.md`.
 
 ## Future Work
 
-Duck Hunt currently supports 32 formats across test frameworks, linting tools, and build systems. The following expansions would provide comprehensive coverage of the entire development ecosystem:
+Duck Hunt currently supports 33 formats across test frameworks, linting tools, and build systems. The following expansions would provide comprehensive coverage of the entire development ecosystem:
 
 ### 🔥 High Priority Build Systems
-- **MSBuild** (C#/.NET) - Microsoft ecosystem
 - **Bazel** (Google's system) - Large-scale projects
 
 ### 🐛 Debugging & Analysis Tools
@@ -257,7 +257,7 @@ Duck Hunt currently supports 32 formats across test frameworks, linting tools, a
 - **PVS-Studio** - Cross-platform analysis
 
 **Target**: ~70+ total formats covering 95% of development tool ecosystem
-**Current**: 32 formats (46% coverage)
+**Current**: 33 formats (47% coverage)
 
 This roadmap would establish Duck Hunt as the definitive tool for agent-driven development workflow analysis across all major programming languages, build systems, and development tools.
 

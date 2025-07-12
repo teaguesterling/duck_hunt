@@ -1,0 +1,129 @@
+Microsoft (R) Build Engine version 17.3.2+561848881 for .NET
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  MyProject -> C:\Users\Dev\MyProject\bin\Debug\net6.0\MyProject.dll
+
+Build started 11/15/2023 2:30:42 PM.
+Project "C:\Users\Dev\MyProject\MyProject.csproj" on node 1 (default targets).
+PrepareForBuild:
+  Creating directory "bin\Debug\net6.0\".
+  Creating directory "obj\Debug\net6.0\".
+GenerateTargetFrameworkMonikerAttribute:
+  Skipping target "GenerateTargetFrameworkMonikerAttribute" because all output files are up-to-date with respect to the input files.
+CoreCompile:
+C:\Users\Dev\MyProject\Database.cs(45,20): error CS0246: The type or namespace name 'UndefinedClass' could not be found (are you missing a using directive or an assembly reference?) [C:\Users\Dev\MyProject\MyProject.csproj]
+C:\Users\Dev\MyProject\Service.cs(67,8): error CS0029: Cannot implicitly convert type 'string' to 'int' [C:\Users\Dev\MyProject\MyProject.csproj]
+C:\Users\Dev\MyProject\Utils.cs(12,1): error CS1513: } expected [C:\Users\Dev\MyProject\MyProject.csproj]
+C:\Users\Dev\MyProject\MyClass.cs(23,15): warning CS0168: The variable 'unusedVar' is declared but never used [C:\Users\Dev\MyProject\MyProject.csproj]
+
+Build FAILED.
+
+C:\Users\Dev\MyProject\Database.cs(45,20): error CS0246: The type or namespace name 'UndefinedClass' could not be found (are you missing a using directive or an assembly reference?) [C:\Users\Dev\MyProject\MyProject.csproj]
+C:\Users\Dev\MyProject\Service.cs(67,8): error CS0029: Cannot implicitly convert type 'string' to 'int' [C:\Users\Dev\MyProject\MyProject.csproj]
+C:\Users\Dev\MyProject\Utils.cs(12,1): error CS1513: } expected [C:\Users\Dev\MyProject\MyProject.csproj]
+    3 Error(s)
+    1 Warning(s)
+
+Time Elapsed 00:00:02.45
+
+Microsoft (R) Build Engine version 17.3.2+561848881 for .NET
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  MyProject -> C:\Users\Dev\MyProject\bin\Debug\net6.0\MyProject.dll
+  MyProject.Tests -> C:\Users\Dev\MyProject.Tests\bin\Debug\net6.0\MyProject.Tests.dll
+Test run for C:\Users\Dev\MyProject.Tests\bin\Debug\net6.0\MyProject.Tests.dll (.NETCoreApp,Version=v6.0)
+Microsoft (R) Test Execution Command Line Tool Version 17.3.2 (x64)
+Copyright (c) Microsoft Corporation.  All rights reserved.
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:     5, Skipped:     0, Total:     5, Duration: 234 ms - MyProject.Tests.dll (net6.0)
+
+Microsoft (R) Build Engine version 17.3.2+561848881 for .NET
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  MyProject -> C:\Users\Dev\MyProject\bin\Debug\net6.0\MyProject.dll
+  MyProject.Tests -> C:\Users\Dev\MyProject.Tests\bin\Debug\net6.0\MyProject.Tests.dll
+Test run for C:\Users\Dev\MyProject.Tests\bin\Debug\net6.0\MyProject.Tests.dll (.NETCoreApp,Version=v6.0)
+Microsoft (R) Test Execution Command Line Tool Version 17.3.2 (x64)
+Copyright (c) Microsoft Corporation.  All rights reserved.
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.4.3+1b45f5407b (64-bit .NET 6.0.11)
+[xUnit.net 00:00:00.12]   Discovering: MyProject.Tests
+[xUnit.net 00:00:00.15]   Discovered:  MyProject.Tests
+[xUnit.net 00:00:00.15]   Starting:    MyProject.Tests
+[xUnit.net 00:00:00.23]     MyProject.Tests.DatabaseTests.TestConnection [FAIL]
+[xUnit.net 00:00:00.23]       Assert.NotNull() Failure
+[xUnit.net 00:00:00.23]       Expected: not null
+[xUnit.net 00:00:00.23]       Actual:   null
+[xUnit.net 00:00:00.23]       Stack Trace:
+[xUnit.net 00:00:00.23]         DatabaseTests.cs(25,0): at MyProject.Tests.DatabaseTests.TestConnection()
+[xUnit.net 00:00:00.25]     MyProject.Tests.ServiceTests.TestStringProcessing [PASS]
+[xUnit.net 00:00:00.27]     MyProject.Tests.UtilsTests.TestStringConversion [FAIL]
+[xUnit.net 00:00:00.27]       Assert.Equal() Failure
+[xUnit.net 00:00:00.27]       Expected: hello
+[xUnit.net 00:00:00.27]       Actual:   world
+[xUnit.net 00:00:00.27]       Stack Trace:
+[xUnit.net 00:00:00.27]         UtilsTests.cs(67,0): at MyProject.Tests.UtilsTests.TestStringConversion()
+[xUnit.net 00:00:00.28]     MyProject.Tests.UtilsTests.TestNullHandling [PASS]
+[xUnit.net 00:00:00.29]     MyProject.Tests.UtilsTests.TestEdgeCases [SKIP]
+[xUnit.net 00:00:00.29]       Reason: Not implemented yet
+[xUnit.net 00:00:00.29]   Finished:    MyProject.Tests
+
+Failed!  - Failed:     2, Passed:     2, Skipped:     1, Total:     5, Duration: 298 ms - MyProject.Tests.dll (net6.0)
+
+Microsoft (R) Build Engine version 17.3.2+561848881 for .NET
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Build started 11/15/2023 2:35:15 PM.
+Project "C:\Users\Dev\MyProject\MyProject.csproj" on node 1 (default targets).
+PrepareForBuild:
+  Creating directory "bin\Release\net6.0\".
+  Creating directory "obj\Release\net6.0\".
+GenerateTargetFrameworkMonikerAttribute:
+  Skipping target "GenerateTargetFrameworkMonikerAttribute" because all output files are up-to-date with respect to the input files.
+CoreCompile:
+  C:\Program Files\dotnet\sdk\6.0.404\Roslyn\bincore\csc.dll /noconfig /nowarn:1701,1702,1705 /nostdlib+ /errorreport:prompt /warn:4 /define:TRACE;RELEASE;NET6_0;NET6_0_OR_GREATER;NET5_0_OR_GREATER;NET /highentropyva+ /debug- /filealign:512 /optimize+ /out:obj\Release\net6.0\MyProject.dll /refout:obj\Release\net6.0\ref\MyProject.dll /target:library /warnaserror- /utf8output /deterministic+ /langversion:10.0 /analyzerconfig:C:\Users\Dev\MyProject\.editorconfig /analyzer:"C:\Users\Dev\.nuget\packages\microsoft.codeanalysis.analyzers\3.3.4\analyzers\dotnet\cs\Microsoft.CodeAnalysis.Analyzers.dll" /analyzer:"C:\Users\Dev\.nuget\packages\microsoft.codeanalysis.netanalyzers\6.0.0\analyzers\dotnet\cs\Microsoft.CodeAnalysis.NetAnalyzers.dll" Database.cs Service.cs Utils.cs MyClass.cs /reference:"C:\Program Files\dotnet\packs\Microsoft.NETCore.App.Ref\6.0.11\ref\net6.0\Microsoft.CSharp.dll" /reference:"C:\Program Files\dotnet\packs\Microsoft.NETCore.App.Ref\6.0.11\ref\net6.0\Microsoft.VisualBasic.Core.dll" 
+C:\Users\Dev\MyProject\Database.cs(45,20): error CS0246: The type or namespace name 'UndefinedClass' could not be found (are you missing a using directive or an assembly reference?) [C:\Users\Dev\MyProject\MyProject.csproj]
+C:\Users\Dev\MyProject\Service.cs(67,8): error CS0029: Cannot implicitly convert type 'string' to 'int' [C:\Users\Dev\MyProject\MyProject.csproj]
+C:\Users\Dev\MyProject\Utils.cs(12,1): error CS1513: } expected [C:\Users\Dev\MyProject\MyProject.csproj]
+
+Build FAILED.
+
+C:\Users\Dev\MyProject\Database.cs(45,20): error CS0246: The type or namespace name 'UndefinedClass' could not be found (are you missing a using directive or an assembly reference?) [C:\Users\Dev\MyProject\MyProject.csproj]
+C:\Users\Dev\MyProject\Service.cs(67,8): error CS0029: Cannot implicitly convert type 'string' to 'int' [C:\Users\Dev\MyProject\MyProject.csproj]
+C:\Users\Dev\MyProject\Utils.cs(12,1): error CS1513: } expected [C:\Users\Dev\MyProject\MyProject.csproj]
+    3 Error(s)
+    0 Warning(s)
+
+Time Elapsed 00:00:01.23
+
+Microsoft (R) Build Engine version 17.3.2+561848881 for .NET
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Build started 11/15/2023 2:40:12 PM.
+Project "C:\Users\Dev\MyProject\MyProject.csproj" on node 1 (default targets).
+PrepareForBuild:
+  Creating directory "bin\Debug\net6.0\".
+  Creating directory "obj\Debug\net6.0\".
+CoreCompile:
+  C:\Program Files\dotnet\sdk\6.0.404\Roslyn\bincore\csc.dll /noconfig /nowarn:1701,1702,1705 /nostdlib+ /errorreport:prompt /warn:4 /define:DEBUG;TRACE;NET6_0;NET6_0_OR_GREATER;NET5_0_OR_GREATER;NET /highentropyva+ /debug+ /debug:portable /filealign:512 /optimize- /out:obj\Debug\net6.0\MyProject.dll /refout:obj\Debug\net6.0\ref\MyProject.dll /target:library /warnaserror- /utf8output /deterministic+ /langversion:10.0 /analyzerconfig:C:\Users\Dev\MyProject\.editorconfig /analyzer:"C:\Users\Dev\.nuget\packages\microsoft.codeanalysis.analyzers\3.3.4\analyzers\dotnet\cs\Microsoft.CodeAnalysis.Analyzers.dll" /analyzer:"C:\Users\Dev\.nuget\packages\microsoft.codeanalysis.netanalyzers\6.0.0\analyzers\dotnet\cs\Microsoft.CodeAnalysis.NetAnalyzers.dll" Database.cs Service.cs Utils.cs MyClass.cs /reference:"C:\Program Files\dotnet\packs\Microsoft.NETCore.App.Ref\6.0.11\ref\net6.0\Microsoft.CSharp.dll" 
+C:\Users\Dev\MyProject\MyClass.cs(23,15): warning CS0168: The variable 'unusedVar' is declared but never used [C:\Users\Dev\MyProject\MyProject.csproj]
+C:\Users\Dev\MyProject\Service.cs(45,12): warning CA1031: Do not catch general exception types [C:\Users\Dev\MyProject\MyProject.csproj]
+C:\Users\Dev\MyProject\Database.cs(67,9): warning CA2100: Review SQL queries for security vulnerabilities [C:\Users\Dev\MyProject\MyProject.csproj]
+  MyProject -> C:\Users\Dev\MyProject\bin\Debug\net6.0\MyProject.dll
+
+Build succeeded.
+    0 Error(s)
+    3 Warning(s)
+
+Time Elapsed 00:00:01.56
