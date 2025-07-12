@@ -654,6 +654,368 @@ Dockerfile	1
 Dockerfile.prod	1
 docker/app/Dockerfile	1
 
+# Test 81: lintr JSON format parsing
+statement ok
+CREATE TABLE lintr_results AS 
+SELECT * FROM read_test_results('workspace/lintr_sample.json', 'lintr_json');
+
+# Verify lintr parsing results
+query IIII
+SELECT COUNT(*), tool_name,
+       COUNT(CASE WHEN status = 'ERROR' THEN 1 END) as errors,
+       COUNT(CASE WHEN status = 'WARNING' THEN 1 END) as warnings
+FROM lintr_results
+GROUP BY tool_name;
+----
+10	lintr	2	8
+
+# Test 82: lintr auto-detection
+query I
+SELECT DISTINCT tool_name FROM parse_test_results('[{"filename":"test.R","line_number":1,"column_number":1,"type":"style","message":"Use snake_case","linter":"object_name_linter"}]', 'auto');
+----
+lintr
+
+# Test 83: lintr field validation
+query IIIII
+SELECT file_path, line_number, column_number, error_code, category
+FROM parse_test_results('[{"filename":"analysis/script.R","line_number":15,"column_number":8,"type":"warning","message":"Line too long","linter":"line_length_linter"}]', 'lintr_json');
+----
+analysis/script.R	15	8	line_length_linter	r_code_style
+
+# Test 84: lintr type mapping
+query II
+SELECT severity, status FROM parse_test_results('[{"filename":"test.R","line_number":1,"column_number":1,"type":"error","message":"Error","linter":"test1"},{"filename":"test.R","line_number":2,"column_number":1,"type":"warning","message":"Warning","linter":"test2"},{"filename":"test.R","line_number":3,"column_number":1,"type":"style","message":"Style","linter":"test3"}]', 'lintr_json')
+ORDER BY event_id;
+----
+error	ERROR
+warning	WARNING
+style	WARNING
+
+# Test 85: lintr event type validation
+query I
+SELECT DISTINCT event_type FROM parse_test_results('[{"filename":"test.R","line_number":1,"column_number":1,"type":"style","message":"R style issue","linter":"style_linter"}]', 'lintr_json');
+----
+lint_issue
+
+# Test 86: lintr category validation
+query I
+SELECT DISTINCT category FROM parse_test_results('[{"filename":"test.R","line_number":1,"column_number":1,"type":"style","message":"R style issue","linter":"style_linter"}]', 'lintr_json');
+----
+r_code_style
+
+# Test 87: lintr code suggestion extraction
+query I
+SELECT suggestion FROM parse_test_results('[{"filename":"test.R","line_number":1,"column_number":1,"type":"style","message":"Use snake_case","linter":"object_name_linter","line":"calculateMean <- function(x) {"}]', 'lintr_json');
+----
+Code: calculateMean <- function(x) {
+
+# Test 88: lintr multi-file R project
+query II
+SELECT file_path, COUNT(*) as issue_count FROM parse_test_results('[{"filename":"analysis/data.R","line_number":1,"column_number":1,"type":"style","message":"Issue 1","linter":"linter1"},{"filename":"models/regression.R","line_number":2,"column_number":2,"type":"warning","message":"Issue 2","linter":"linter2"},{"filename":"utils/helpers.R","line_number":3,"column_number":3,"type":"error","message":"Issue 3","linter":"linter3"}]', 'lintr_json')
+GROUP BY file_path ORDER BY file_path;
+----
+analysis/data.R	1
+models/regression.R	1
+utils/helpers.R	1
+
+# Test 89: sqlfluff JSON format parsing
+statement ok
+CREATE TABLE sqlfluff_results AS 
+SELECT * FROM read_test_results('workspace/sqlfluff_sample.json', 'sqlfluff_json');
+
+# Verify sqlfluff parsing results
+query III
+SELECT COUNT(*), tool_name, COUNT(CASE WHEN status = 'WARNING' THEN 1 END) as warnings
+FROM sqlfluff_results
+GROUP BY tool_name;
+----
+13	sqlfluff	13
+
+# Test 90: sqlfluff auto-detection
+query I
+SELECT DISTINCT tool_name FROM parse_test_results('[{"filepath":"test.sql","violations":[{"line_no":1,"line_pos":1,"code":"L003","description":"Expected indentation","rule":"indentation"}]}]', 'auto');
+----
+sqlfluff
+
+# Test 91: sqlfluff field validation
+query IIIII
+SELECT file_path, line_number, column_number, error_code, category
+FROM parse_test_results('[{"filepath":"queries/analytics.sql","violations":[{"line_no":10,"line_pos":5,"code":"L010","description":"Keywords must be consistently upper case","rule":"capitalisation.keywords"}]}]', 'sqlfluff_json');
+----
+queries/analytics.sql	10	5	L010	sql_style
+
+# Test 92: sqlfluff violation parsing
+query II
+SELECT error_code, function_name FROM parse_test_results('[{"filepath":"test.sql","violations":[{"line_no":1,"line_pos":1,"code":"L003","description":"Indentation issue","rule":"indentation"}]}]', 'sqlfluff_json');
+----
+L003	indentation
+
+# Test 93: sqlfluff event type validation
+query I
+SELECT DISTINCT event_type FROM parse_test_results('[{"filepath":"test.sql","violations":[{"line_no":1,"line_pos":1,"code":"L003","description":"SQL style issue","rule":"indentation"}]}]', 'sqlfluff_json');
+----
+lint_issue
+
+# Test 94: sqlfluff category validation
+query I
+SELECT DISTINCT category FROM parse_test_results('[{"filepath":"test.sql","violations":[{"line_no":1,"line_pos":1,"code":"L003","description":"SQL style issue","rule":"indentation"}]}]', 'sqlfluff_json');
+----
+sql_style
+
+# Test 95: sqlfluff suggestion extraction
+query I
+SELECT suggestion FROM parse_test_results('[{"filepath":"test.sql","violations":[{"line_no":1,"line_pos":1,"code":"L003","description":"Indentation issue","rule":"indentation"}]}]', 'sqlfluff_json');
+----
+Rule: indentation
+
+# Test 96: sqlfluff multi-file SQL project
+query II
+SELECT file_path, COUNT(*) as violation_count FROM parse_test_results('[{"filepath":"queries/users.sql","violations":[{"line_no":1,"line_pos":1,"code":"L001","description":"Issue 1","rule":"rule1"}]},{"filepath":"migrations/schema.sql","violations":[{"line_no":2,"line_pos":2,"code":"L002","description":"Issue 2","rule":"rule2"},{"line_no":3,"line_pos":3,"code":"L003","description":"Issue 3","rule":"rule3"}]}]', 'sqlfluff_json')
+GROUP BY file_path ORDER BY file_path;
+----
+migrations/schema.sql	2
+queries/users.sql	1
+
+# Test 97: sqlfluff with no violations
+query I
+SELECT COUNT(*) FROM parse_test_results('[{"filepath":"clean.sql","violations":[]}]', 'sqlfluff_json');
+----
+0
+
+# Test 98: tflint JSON format parsing
+statement ok
+CREATE TABLE tflint_results AS 
+SELECT * FROM read_test_results('workspace/tflint_sample.json', 'tflint_json');
+
+# Verify tflint parsing results
+query IIIII
+SELECT COUNT(*), tool_name,
+       COUNT(CASE WHEN status = 'ERROR' THEN 1 END) as errors,
+       COUNT(CASE WHEN status = 'WARNING' THEN 1 END) as warnings,
+       COUNT(CASE WHEN status = 'INFO' THEN 1 END) as info
+FROM tflint_results
+GROUP BY tool_name;
+----
+10	tflint	3	5	2
+
+# Test 99: tflint auto-detection
+query I
+SELECT DISTINCT tool_name FROM parse_test_results('{"issues":[{"rule":{"name":"terraform_deprecated_interpolation","severity":"warning"},"message":"Test issue","range":{"filename":"main.tf","start":{"line":1,"column":1}}}],"errors":[]}', 'auto');
+----
+tflint
+
+# Test 100: tflint field validation
+query IIIII
+SELECT file_path, line_number, column_number, error_code, category
+FROM parse_test_results('{"issues":[{"rule":{"name":"aws_instance_invalid_type","severity":"error"},"message":"Invalid instance type","range":{"filename":"main.tf","start":{"line":10,"column":5}}}]}', 'tflint_json');
+----
+main.tf	10	5	aws_instance_invalid_type	infrastructure
+
+# Test 101: tflint severity mapping
+query II
+SELECT severity, status FROM parse_test_results('{"issues":[{"rule":{"name":"test_error","severity":"error"},"message":"Error issue","range":{"filename":"test.tf","start":{"line":1,"column":1}}},{"rule":{"name":"test_warning","severity":"warning"},"message":"Warning issue","range":{"filename":"test.tf","start":{"line":2,"column":1}}},{"rule":{"name":"test_notice","severity":"notice"},"message":"Notice issue","range":{"filename":"test.tf","start":{"line":3,"column":1}}}]}', 'tflint_json')
+ORDER BY event_id;
+----
+error	ERROR
+warning	WARNING
+notice	INFO
+
+# Test 102: tflint event type validation
+query I
+SELECT DISTINCT event_type FROM parse_test_results('{"issues":[{"rule":{"name":"terraform_issue","severity":"warning"},"message":"Terraform issue","range":{"filename":"main.tf","start":{"line":1,"column":1}}}]}', 'tflint_json');
+----
+lint_issue
+
+# Test 103: tflint category validation
+query I
+SELECT DISTINCT category FROM parse_test_results('{"issues":[{"rule":{"name":"terraform_issue","severity":"warning"},"message":"Terraform issue","range":{"filename":"main.tf","start":{"line":1,"column":1}}}]}', 'tflint_json');
+----
+infrastructure
+
+# Test 104: tflint suggestion extraction
+query I
+SELECT suggestion FROM parse_test_results('{"issues":[{"rule":{"name":"terraform_deprecated_interpolation","severity":"warning"},"message":"Use new syntax","range":{"filename":"main.tf","start":{"line":1,"column":1}}}]}', 'tflint_json');
+----
+Rule: terraform_deprecated_interpolation
+
+# Test 105: tflint multi-file Terraform project
+query II
+SELECT file_path, COUNT(*) as issue_count FROM parse_test_results('{"issues":[{"rule":{"name":"rule1","severity":"error"},"message":"Issue 1","range":{"filename":"main.tf","start":{"line":1,"column":1}}},{"rule":{"name":"rule2","severity":"warning"},"message":"Issue 2","range":{"filename":"variables.tf","start":{"line":2,"column":2}}},{"rule":{"name":"rule3","severity":"notice"},"message":"Issue 3","range":{"filename":"variables.tf","start":{"line":3,"column":3}}}]}', 'tflint_json')
+GROUP BY file_path ORDER BY file_path;
+----
+main.tf	1
+variables.tf	2
+
+# Test 106: tflint with no issues
+query I
+SELECT COUNT(*) FROM parse_test_results('{"issues":[],"errors":[]}', 'tflint_json');
+----
+0
+
+# Test 107: kube-score JSON format parsing
+statement ok
+CREATE TABLE kube_score_results AS 
+SELECT * FROM read_test_results('workspace/kube_score_sample.json', 'kube_score_json');
+
+# Verify kube-score parsing results
+query IIII
+SELECT COUNT(*), tool_name,
+       COUNT(CASE WHEN status = 'ERROR' THEN 1 END) as errors,
+       COUNT(CASE WHEN status = 'WARNING' THEN 1 END) as warnings
+FROM kube_score_results
+GROUP BY tool_name;
+----
+10	kube-score	3	7
+
+# Test 108: kube-score auto-detection
+query I
+SELECT DISTINCT tool_name FROM parse_test_results('[{"object_name":"test-app","type_meta":{"kind":"Deployment"},"file_name":"test.yaml","checks":[{"check":{"id":"container-resources","name":"Container Resources"},"grade":"WARNING","comments":[{"summary":"Resource limits not set"}]}]}]', 'auto');
+----
+kube-score
+
+# Test 109: kube-score field validation
+query IIIII
+SELECT file_path, line_number, error_code, category, function_name
+FROM parse_test_results('[{"object_name":"my-app","type_meta":{"kind":"Deployment"},"file_name":"deployment.yaml","file_row":5,"checks":[{"check":{"id":"container-security-context","name":"Container Security"},"grade":"CRITICAL","comments":[{"summary":"Container runs as root"}]}]}]', 'kube_score_json');
+----
+deployment.yaml	5	container-security-context	kubernetes	my-app (Deployment)
+
+# Test 110: kube-score severity mapping
+query II
+SELECT severity, status FROM parse_test_results('[{"object_name":"test","type_meta":{"kind":"Pod"},"file_name":"test.yaml","checks":[{"check":{"id":"test1"},"grade":"CRITICAL","comments":[{"summary":"Critical issue"}]},{"check":{"id":"test2"},"grade":"WARNING","comments":[{"summary":"Warning issue"}]}]}]', 'kube_score_json')
+ORDER BY event_id;
+----
+critical	ERROR
+warning	WARNING
+
+# Test 111: kube-score event type validation
+query I
+SELECT DISTINCT event_type FROM parse_test_results('[{"object_name":"test","type_meta":{"kind":"Service"},"file_name":"test.yaml","checks":[{"check":{"id":"service-check"},"grade":"WARNING","comments":[{"summary":"K8s issue"}]}]}]', 'kube_score_json');
+----
+lint_issue
+
+# Test 112: kube-score category validation
+query I
+SELECT DISTINCT category FROM parse_test_results('[{"object_name":"test","type_meta":{"kind":"Deployment"},"file_name":"test.yaml","checks":[{"check":{"id":"k8s-check"},"grade":"WARNING","comments":[{"summary":"Kubernetes issue"}]}]}]', 'kube_score_json');
+----
+kubernetes
+
+# Test 113: kube-score suggestion extraction
+query I
+SELECT suggestion FROM parse_test_results('[{"object_name":"test","type_meta":{"kind":"Pod"},"file_name":"test.yaml","checks":[{"check":{"id":"test-check"},"grade":"WARNING","comments":[{"summary":"Issue summary","description":"Detailed description of the issue"}]}]}]', 'kube_score_json');
+----
+Detailed description of the issue
+
+# Test 114: kube-score multi-resource Kubernetes project
+query II
+SELECT function_name, COUNT(*) as issue_count FROM parse_test_results('[{"object_name":"app","type_meta":{"kind":"Deployment"},"file_name":"app.yaml","checks":[{"check":{"id":"check1"},"grade":"WARNING","comments":[{"summary":"Issue 1"}]}]},{"object_name":"svc","type_meta":{"kind":"Service"},"file_name":"service.yaml","checks":[{"check":{"id":"check2"},"grade":"CRITICAL","comments":[{"summary":"Issue 2"},{"summary":"Issue 3"}]}]}]', 'kube_score_json')
+GROUP BY function_name ORDER BY function_name;
+----
+app (Deployment)	1
+svc (Service)	2
+
+# Test 115: kube-score with path information
+query I
+SELECT test_name FROM parse_test_results('[{"object_name":"test","type_meta":{"kind":"Pod"},"file_name":"test.yaml","checks":[{"check":{"id":"test-check"},"grade":"WARNING","comments":[{"path":"spec.containers[0].resources","summary":"Resource issue"}]}]}]', 'kube_score_json');
+----
+spec.containers[0].resources
+
+# Test 116: kube-score with no issues (only OK checks)
+query I
+SELECT COUNT(*) FROM parse_test_results('[{"object_name":"clean-app","type_meta":{"kind":"Deployment"},"file_name":"clean.yaml","checks":[{"check":{"id":"test-check"},"grade":"OK","comments":[]}]}]', 'kube_score_json');
+----
+0
+
+# Test 117: CMake build output parsing
+statement ok
+CREATE TABLE cmake_results AS 
+SELECT * FROM read_test_results('workspace/cmake_sample.txt', 'cmake_build');
+
+# Verify CMake parsing results
+query IIII
+SELECT COUNT(*), tool_name,
+       COUNT(CASE WHEN status = 'ERROR' THEN 1 END) as errors,
+       COUNT(CASE WHEN status = 'WARNING' THEN 1 END) as warnings
+FROM cmake_results
+GROUP BY tool_name;
+----
+24	cmake	19	5
+
+# Test 118: CMake auto-detection
+query I
+SELECT DISTINCT tool_name FROM parse_test_results('CMake Error at CMakeLists.txt:25 (find_package):
+Could not find package
+gmake[1]: *** [all] Error 2
+Building CXX object main.cpp.o', 'auto');
+----
+cmake
+
+# Test 119: CMake compilation error parsing
+query IIIII
+SELECT file_path, line_number, column_number, category, severity
+FROM parse_test_results('/home/user/src/main.cpp:15:10: error: iostream file not found', 'cmake_build');
+----
+/home/user/src/main.cpp	15	10	compilation	error
+
+# Test 120: CMake configuration error parsing
+query IIII
+SELECT file_path, line_number, category, message LIKE '%Could not find%' as has_package_error
+FROM parse_test_results('CMake Error at CMakeLists.txt:25 (find_package):
+  Could not find a package configuration file provided by "Boost"', 'cmake_build');
+----
+CMakeLists.txt	25	configuration	true
+
+# Test 121: CMake linker error parsing
+query III
+SELECT function_name, category, suggestion LIKE '%Link the library%' as has_suggestion
+FROM parse_test_results('/usr/bin/ld: database.cpp: undefined reference to `mysql_init`', 'cmake_build');
+----
+mysql_init	linking	true
+
+# Test 122: CMake severity mapping
+query II
+SELECT category, status FROM parse_test_results('/home/test.cpp:10:5: error: syntax error
+/home/test.cpp:15:8: warning: unused variable
+CMake Error at CMakeLists.txt:10:
+CMake Warning at CMakeLists.txt:20:', 'cmake_build')
+ORDER BY event_id;
+----
+compilation	ERROR
+compilation	WARNING
+configuration	ERROR
+configuration	WARNING
+
+# Test 123: CMake event type validation
+query I
+SELECT DISTINCT event_type FROM parse_test_results('/home/test.cpp:10:5: error: build failed', 'cmake_build');
+----
+build_error
+
+# Test 124: CMake category validation
+query I
+SELECT DISTINCT category FROM parse_test_results('/home/test.cpp:10:5: error: compilation failed
+/usr/bin/ld: undefined reference to test
+CMake Error at CMakeLists.txt:10:
+gmake[1]: *** [all] Error 2', 'cmake_build')
+ORDER BY category;
+----
+build_failure
+compilation
+configuration
+linking
+
+# Test 125: CMake multi-file project errors
+query II
+SELECT file_path, COUNT(*) as error_count FROM parse_test_results('/home/main.cpp:10:5: error: syntax error
+/home/utils.cpp:15:8: warning: unused variable
+/home/config.cpp:20:1: error: missing semicolon', 'cmake_build')
+WHERE file_path IS NOT NULL
+GROUP BY file_path ORDER BY file_path;
+----
+/home/config.cpp	1
+/home/main.cpp	1
+/home/utils.cpp	1
+
 # Clean up
 statement ok
 DROP TABLE rubocop_results;
@@ -693,3 +1055,18 @@ DROP TABLE ktlint_results;
 
 statement ok
 DROP TABLE hadolint_results;
+
+statement ok
+DROP TABLE lintr_results;
+
+statement ok
+DROP TABLE sqlfluff_results;
+
+statement ok
+DROP TABLE tflint_results;
+
+statement ok
+DROP TABLE kube_score_results;
+
+statement ok
+DROP TABLE cmake_results;

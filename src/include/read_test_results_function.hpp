@@ -29,7 +29,12 @@ enum class TestResultFormat : uint8_t {
     BANDIT_JSON = 18,
     SPOTBUGS_JSON = 19,
     KTLINT_JSON = 20,
-    HADOLINT_JSON = 21
+    HADOLINT_JSON = 21,
+    LINTR_JSON = 22,
+    SQLFLUFF_JSON = 23,
+    TFLINT_JSON = 24,
+    KUBE_SCORE_JSON = 25,
+    CMAKE_BUILD = 26
 };
 
 // Bind data for read_test_results table function
@@ -115,5 +120,10 @@ void ParseBanditJSON(const std::string& content, std::vector<ValidationEvent>& e
 void ParseSpotBugsJSON(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseKtlintJSON(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseHadolintJSON(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseLintrJSON(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseSqlfluffJSON(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseTflintJSON(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseKubeScoreJSON(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseCMakeBuild(const std::string& content, std::vector<ValidationEvent>& events);
 
 } // namespace duckdb

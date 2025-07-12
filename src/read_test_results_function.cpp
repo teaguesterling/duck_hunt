@@ -79,6 +79,22 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
             content.find("\"rule\":") != std::string::npos && content.find("\"line\":") != std::string::npos && content.find("\"column\":") != std::string::npos) {
             return TestResultFormat::KTLINT_JSON;
         }
+        if (content.find("\"filename\":") != std::string::npos && content.find("\"line_number\":") != std::string::npos && 
+            content.find("\"column_number\":") != std::string::npos && content.find("\"linter\":") != std::string::npos && content.find("\"type\":") != std::string::npos) {
+            return TestResultFormat::LINTR_JSON;
+        }
+        if (content.find("\"filepath\":") != std::string::npos && content.find("\"violations\":") != std::string::npos && 
+            content.find("\"line_no\":") != std::string::npos && content.find("\"code\":") != std::string::npos && content.find("\"rule\":") != std::string::npos) {
+            return TestResultFormat::SQLFLUFF_JSON;
+        }
+        if (content.find("\"issues\":") != std::string::npos && content.find("\"rule\":") != std::string::npos && 
+            content.find("\"range\":") != std::string::npos && content.find("\"filename\":") != std::string::npos && content.find("\"severity\":") != std::string::npos) {
+            return TestResultFormat::TFLINT_JSON;
+        }
+        if (content.find("\"object_name\":") != std::string::npos && content.find("\"type_meta\":") != std::string::npos && 
+            content.find("\"checks\":") != std::string::npos && content.find("\"grade\":") != std::string::npos && content.find("\"file_name\":") != std::string::npos) {
+            return TestResultFormat::KUBE_SCORE_JSON;
+        }
     }
     
     // Check text patterns (DuckDB test should be checked before make error since it may contain both)
@@ -89,6 +105,13 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
     
     if (content.find("PASSED") != std::string::npos && content.find("::") != std::string::npos) {
         return TestResultFormat::PYTEST_TEXT;
+    }
+    
+    if ((content.find("CMake Error") != std::string::npos || content.find("CMake Warning") != std::string::npos || 
+         content.find("gmake[") != std::string::npos) && 
+        (content.find("Building C") != std::string::npos || content.find("Building CXX") != std::string::npos || 
+         content.find("Linking") != std::string::npos || content.find("CMakeLists.txt") != std::string::npos)) {
+        return TestResultFormat::CMAKE_BUILD;
     }
     
     if (content.find("make: ***") != std::string::npos && content.find("Error") != std::string::npos) {
@@ -126,6 +149,11 @@ std::string TestResultFormatToString(TestResultFormat format) {
         case TestResultFormat::SPOTBUGS_JSON: return "spotbugs_json";
         case TestResultFormat::KTLINT_JSON: return "ktlint_json";
         case TestResultFormat::HADOLINT_JSON: return "hadolint_json";
+        case TestResultFormat::LINTR_JSON: return "lintr_json";
+        case TestResultFormat::SQLFLUFF_JSON: return "sqlfluff_json";
+        case TestResultFormat::TFLINT_JSON: return "tflint_json";
+        case TestResultFormat::KUBE_SCORE_JSON: return "kube_score_json";
+        case TestResultFormat::CMAKE_BUILD: return "cmake_build";
         default: return "unknown";
     }
 }
@@ -152,6 +180,11 @@ TestResultFormat StringToTestResultFormat(const std::string& str) {
     if (str == "spotbugs_json") return TestResultFormat::SPOTBUGS_JSON;
     if (str == "ktlint_json") return TestResultFormat::KTLINT_JSON;
     if (str == "hadolint_json") return TestResultFormat::HADOLINT_JSON;
+    if (str == "lintr_json") return TestResultFormat::LINTR_JSON;
+    if (str == "sqlfluff_json") return TestResultFormat::SQLFLUFF_JSON;
+    if (str == "tflint_json") return TestResultFormat::TFLINT_JSON;
+    if (str == "kube_score_json") return TestResultFormat::KUBE_SCORE_JSON;
+    if (str == "cmake_build") return TestResultFormat::CMAKE_BUILD;
     if (str == "unknown") return TestResultFormat::UNKNOWN;
     return TestResultFormat::AUTO;  // Default to auto-detection
 }
@@ -304,6 +337,21 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
             break;
         case TestResultFormat::HADOLINT_JSON:
             ParseHadolintJSON(content, global_state->events);
+            break;
+        case TestResultFormat::LINTR_JSON:
+            ParseLintrJSON(content, global_state->events);
+            break;
+        case TestResultFormat::SQLFLUFF_JSON:
+            ParseSqlfluffJSON(content, global_state->events);
+            break;
+        case TestResultFormat::TFLINT_JSON:
+            ParseTflintJSON(content, global_state->events);
+            break;
+        case TestResultFormat::KUBE_SCORE_JSON:
+            ParseKubeScoreJSON(content, global_state->events);
+            break;
+        case TestResultFormat::CMAKE_BUILD:
+            ParseCMakeBuild(content, global_state->events);
             break;
         default:
             // For unknown formats, don't create any events
@@ -2292,6 +2340,703 @@ void ParseHadolintJSON(const std::string& content, std::vector<ValidationEvent>&
     yyjson_doc_free(doc);
 }
 
+void ParseLintrJSON(const std::string& content, std::vector<ValidationEvent>& events) {
+    // Parse JSON using yyjson
+    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
+    if (!doc) {
+        throw IOException("Failed to parse lintr JSON");
+    }
+    
+    yyjson_val *root = yyjson_doc_get_root(doc);
+    if (!yyjson_is_arr(root)) {
+        yyjson_doc_free(doc);
+        throw IOException("Invalid lintr JSON: root is not an array");
+    }
+    
+    // Parse each lint issue
+    size_t idx, max;
+    yyjson_val *issue;
+    int64_t event_id = 1;
+    
+    yyjson_arr_foreach(root, idx, max, issue) {
+        if (!yyjson_is_obj(issue)) continue;
+        
+        ValidationEvent event;
+        event.event_id = event_id++;
+        event.tool_name = "lintr";
+        event.event_type = ValidationEventType::LINT_ISSUE;
+        event.category = "r_code_style";
+        
+        // Get filename
+        yyjson_val *filename = yyjson_obj_get(issue, "filename");
+        if (filename && yyjson_is_str(filename)) {
+            event.file_path = yyjson_get_str(filename);
+        }
+        
+        // Get line number
+        yyjson_val *line_number = yyjson_obj_get(issue, "line_number");
+        if (line_number && yyjson_is_int(line_number)) {
+            event.line_number = yyjson_get_int(line_number);
+        } else {
+            event.line_number = -1;
+        }
+        
+        // Get column number
+        yyjson_val *column_number = yyjson_obj_get(issue, "column_number");
+        if (column_number && yyjson_is_int(column_number)) {
+            event.column_number = yyjson_get_int(column_number);
+        } else {
+            event.column_number = -1;
+        }
+        
+        // Get linter name as error code
+        yyjson_val *linter = yyjson_obj_get(issue, "linter");
+        if (linter && yyjson_is_str(linter)) {
+            event.error_code = yyjson_get_str(linter);
+        }
+        
+        // Get message
+        yyjson_val *message = yyjson_obj_get(issue, "message");
+        if (message && yyjson_is_str(message)) {
+            event.message = yyjson_get_str(message);
+        }
+        
+        // Get type and map to status
+        yyjson_val *type = yyjson_obj_get(issue, "type");
+        if (type && yyjson_is_str(type)) {
+            std::string type_str = yyjson_get_str(type);
+            event.severity = type_str;
+            
+            // Map lintr types to ValidationEventStatus
+            if (type_str == "error") {
+                event.status = ValidationEventStatus::ERROR;
+            } else if (type_str == "warning") {
+                event.status = ValidationEventStatus::WARNING;
+            } else if (type_str == "style") {
+                event.status = ValidationEventStatus::WARNING; // Treat style as warning
+            } else {
+                event.status = ValidationEventStatus::INFO; // Default for other types
+            }
+        } else {
+            event.severity = "style";
+            event.status = ValidationEventStatus::WARNING;
+        }
+        
+        // Get line content as suggestion (if available)
+        yyjson_val *line_content = yyjson_obj_get(issue, "line");
+        if (line_content && yyjson_is_str(line_content)) {
+            event.suggestion = "Code: " + std::string(yyjson_get_str(line_content));
+        }
+        
+        // Set raw output and structured data
+        event.raw_output = content;
+        event.structured_data = "lintr_json";
+        
+        events.push_back(event);
+    }
+    
+    yyjson_doc_free(doc);
+}
+
+void ParseSqlfluffJSON(const std::string& content, std::vector<ValidationEvent>& events) {
+    // Parse JSON using yyjson
+    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
+    if (!doc) {
+        throw IOException("Failed to parse sqlfluff JSON");
+    }
+    
+    yyjson_val *root = yyjson_doc_get_root(doc);
+    if (!yyjson_is_arr(root)) {
+        yyjson_doc_free(doc);
+        throw IOException("Invalid sqlfluff JSON: root is not an array");
+    }
+    
+    // Parse each file entry
+    size_t file_idx, file_max;
+    yyjson_val *file_entry;
+    int64_t event_id = 1;
+    
+    yyjson_arr_foreach(root, file_idx, file_max, file_entry) {
+        if (!yyjson_is_obj(file_entry)) continue;
+        
+        // Get filepath
+        yyjson_val *filepath = yyjson_obj_get(file_entry, "filepath");
+        if (!filepath || !yyjson_is_str(filepath)) continue;
+        
+        std::string file_path = yyjson_get_str(filepath);
+        
+        // Get violations array
+        yyjson_val *violations = yyjson_obj_get(file_entry, "violations");
+        if (!violations || !yyjson_is_arr(violations)) continue;
+        
+        // Parse each violation
+        size_t viol_idx, viol_max;
+        yyjson_val *violation;
+        
+        yyjson_arr_foreach(violations, viol_idx, viol_max, violation) {
+            if (!yyjson_is_obj(violation)) continue;
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "sqlfluff";
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.category = "sql_style";
+            event.file_path = file_path;
+            
+            // Get line number
+            yyjson_val *line_no = yyjson_obj_get(violation, "line_no");
+            if (line_no && yyjson_is_int(line_no)) {
+                event.line_number = yyjson_get_int(line_no);
+            } else {
+                event.line_number = -1;
+            }
+            
+            // Get column position  
+            yyjson_val *line_pos = yyjson_obj_get(violation, "line_pos");
+            if (line_pos && yyjson_is_int(line_pos)) {
+                event.column_number = yyjson_get_int(line_pos);
+            } else {
+                event.column_number = -1;
+            }
+            
+            // Get rule code as error_code
+            yyjson_val *code = yyjson_obj_get(violation, "code");
+            if (code && yyjson_is_str(code)) {
+                event.error_code = yyjson_get_str(code);
+            }
+            
+            // Get rule name for context
+            yyjson_val *rule = yyjson_obj_get(violation, "rule");
+            if (rule && yyjson_is_str(rule)) {
+                event.function_name = yyjson_get_str(rule);
+            }
+            
+            // Get description as message
+            yyjson_val *description = yyjson_obj_get(violation, "description");
+            if (description && yyjson_is_str(description)) {
+                event.message = yyjson_get_str(description);
+            }
+            
+            // All sqlfluff violations are warnings by default
+            event.status = ValidationEventStatus::WARNING;
+            event.severity = "warning";
+            
+            // Create suggestion from rule name
+            if (!event.function_name.empty()) {
+                event.suggestion = "Rule: " + event.function_name;
+            }
+            
+            event.raw_output = content;
+            event.structured_data = "sqlfluff_json";
+            
+            events.push_back(event);
+        }
+    }
+    
+    yyjson_doc_free(doc);
+}
+
+void ParseTflintJSON(const std::string& content, std::vector<ValidationEvent>& events) {
+    // Parse JSON using yyjson
+    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
+    if (!doc) {
+        throw IOException("Failed to parse tflint JSON");
+    }
+    
+    yyjson_val *root = yyjson_doc_get_root(doc);
+    if (!yyjson_is_obj(root)) {
+        yyjson_doc_free(doc);
+        throw IOException("Invalid tflint JSON: root is not an object");
+    }
+    
+    // Get issues array
+    yyjson_val *issues = yyjson_obj_get(root, "issues");
+    if (!issues || !yyjson_is_arr(issues)) {
+        yyjson_doc_free(doc);
+        return; // No issues to process
+    }
+    
+    // Parse each issue
+    size_t idx, max;
+    yyjson_val *issue;
+    int64_t event_id = 1;
+    
+    yyjson_arr_foreach(issues, idx, max, issue) {
+        if (!yyjson_is_obj(issue)) continue;
+        
+        ValidationEvent event;
+        event.event_id = event_id++;
+        event.tool_name = "tflint";
+        event.event_type = ValidationEventType::LINT_ISSUE;
+        event.category = "infrastructure";
+        
+        // Get rule information
+        yyjson_val *rule = yyjson_obj_get(issue, "rule");
+        if (rule && yyjson_is_obj(rule)) {
+            // Get rule name as error code
+            yyjson_val *rule_name = yyjson_obj_get(rule, "name");
+            if (rule_name && yyjson_is_str(rule_name)) {
+                event.error_code = yyjson_get_str(rule_name);
+                event.function_name = yyjson_get_str(rule_name);
+            }
+            
+            // Get severity
+            yyjson_val *severity = yyjson_obj_get(rule, "severity");
+            if (severity && yyjson_is_str(severity)) {
+                std::string severity_str = yyjson_get_str(severity);
+                event.severity = severity_str;
+                
+                // Map tflint severities to ValidationEventStatus
+                if (severity_str == "error") {
+                    event.status = ValidationEventStatus::ERROR;
+                } else if (severity_str == "warning") {
+                    event.status = ValidationEventStatus::WARNING;
+                } else if (severity_str == "notice") {
+                    event.status = ValidationEventStatus::INFO;
+                } else {
+                    event.status = ValidationEventStatus::WARNING; // Default
+                }
+            } else {
+                event.severity = "warning";
+                event.status = ValidationEventStatus::WARNING;
+            }
+        }
+        
+        // Get message
+        yyjson_val *message = yyjson_obj_get(issue, "message");
+        if (message && yyjson_is_str(message)) {
+            event.message = yyjson_get_str(message);
+        }
+        
+        // Get range information
+        yyjson_val *range = yyjson_obj_get(issue, "range");
+        if (range && yyjson_is_obj(range)) {
+            // Get filename
+            yyjson_val *filename = yyjson_obj_get(range, "filename");
+            if (filename && yyjson_is_str(filename)) {
+                event.file_path = yyjson_get_str(filename);
+            }
+            
+            // Get start position
+            yyjson_val *start = yyjson_obj_get(range, "start");
+            if (start && yyjson_is_obj(start)) {
+                yyjson_val *line = yyjson_obj_get(start, "line");
+                if (line && yyjson_is_int(line)) {
+                    event.line_number = yyjson_get_int(line);
+                } else {
+                    event.line_number = -1;
+                }
+                
+                yyjson_val *column = yyjson_obj_get(start, "column");
+                if (column && yyjson_is_int(column)) {
+                    event.column_number = yyjson_get_int(column);
+                } else {
+                    event.column_number = -1;
+                }
+            }
+        }
+        
+        // Create suggestion from rule name
+        if (!event.function_name.empty()) {
+            event.suggestion = "Rule: " + event.function_name;
+        }
+        
+        event.raw_output = content;
+        event.structured_data = "tflint_json";
+        
+        events.push_back(event);
+    }
+    
+    yyjson_doc_free(doc);
+}
+
+void ParseKubeScoreJSON(const std::string& content, std::vector<ValidationEvent>& events) {
+    // Parse JSON using yyjson
+    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
+    if (!doc) {
+        throw IOException("Failed to parse kube-score JSON");
+    }
+    
+    yyjson_val *root = yyjson_doc_get_root(doc);
+    if (!yyjson_is_arr(root)) {
+        yyjson_doc_free(doc);
+        throw IOException("Invalid kube-score JSON: root is not an array");
+    }
+    
+    // Parse each Kubernetes object
+    size_t obj_idx, obj_max;
+    yyjson_val *k8s_object;
+    int64_t event_id = 1;
+    
+    yyjson_arr_foreach(root, obj_idx, obj_max, k8s_object) {
+        if (!yyjson_is_obj(k8s_object)) continue;
+        
+        // Get object metadata
+        std::string object_name;
+        std::string file_name;
+        std::string resource_kind;
+        std::string namespace_name = "default";
+        int line_number = -1;
+        
+        yyjson_val *obj_name = yyjson_obj_get(k8s_object, "object_name");
+        if (obj_name && yyjson_is_str(obj_name)) {
+            object_name = yyjson_get_str(obj_name);
+        }
+        
+        yyjson_val *file_name_val = yyjson_obj_get(k8s_object, "file_name");
+        if (file_name_val && yyjson_is_str(file_name_val)) {
+            file_name = yyjson_get_str(file_name_val);
+        }
+        
+        yyjson_val *file_row = yyjson_obj_get(k8s_object, "file_row");
+        if (file_row && yyjson_is_int(file_row)) {
+            line_number = yyjson_get_int(file_row);
+        }
+        
+        // Get resource kind from type_meta
+        yyjson_val *type_meta = yyjson_obj_get(k8s_object, "type_meta");
+        if (type_meta && yyjson_is_obj(type_meta)) {
+            yyjson_val *kind = yyjson_obj_get(type_meta, "kind");
+            if (kind && yyjson_is_str(kind)) {
+                resource_kind = yyjson_get_str(kind);
+            }
+        }
+        
+        // Get namespace from object_meta
+        yyjson_val *object_meta = yyjson_obj_get(k8s_object, "object_meta");
+        if (object_meta && yyjson_is_obj(object_meta)) {
+            yyjson_val *ns = yyjson_obj_get(object_meta, "namespace");
+            if (ns && yyjson_is_str(ns)) {
+                namespace_name = yyjson_get_str(ns);
+            }
+        }
+        
+        // Get checks array
+        yyjson_val *checks = yyjson_obj_get(k8s_object, "checks");
+        if (!checks || !yyjson_is_arr(checks)) continue;
+        
+        // Parse each check
+        size_t check_idx, check_max;
+        yyjson_val *check;
+        
+        yyjson_arr_foreach(checks, check_idx, check_max, check) {
+            if (!yyjson_is_obj(check)) continue;
+            
+            // Get grade to determine if this is an issue
+            yyjson_val *grade = yyjson_obj_get(check, "grade");
+            if (!grade || !yyjson_is_str(grade)) continue;
+            
+            std::string grade_str = yyjson_get_str(grade);
+            
+            // Skip OK checks unless they have comments
+            yyjson_val *comments = yyjson_obj_get(check, "comments");
+            bool has_comments = comments && yyjson_is_arr(comments) && yyjson_arr_size(comments) > 0;
+            
+            if (grade_str == "OK" && !has_comments) continue;
+            
+            // Get check information
+            yyjson_val *check_info = yyjson_obj_get(check, "check");
+            std::string check_id;
+            std::string check_name;
+            std::string check_comment;
+            
+            if (check_info && yyjson_is_obj(check_info)) {
+                yyjson_val *id = yyjson_obj_get(check_info, "id");
+                if (id && yyjson_is_str(id)) {
+                    check_id = yyjson_get_str(id);
+                }
+                
+                yyjson_val *name = yyjson_obj_get(check_info, "name");
+                if (name && yyjson_is_str(name)) {
+                    check_name = yyjson_get_str(name);
+                }
+                
+                yyjson_val *comment = yyjson_obj_get(check_info, "comment");
+                if (comment && yyjson_is_str(comment)) {
+                    check_comment = yyjson_get_str(comment);
+                }
+            }
+            
+            // Create validation event for each comment or one general event
+            if (has_comments) {
+                size_t comment_idx, comment_max;
+                yyjson_val *comment_obj;
+                
+                yyjson_arr_foreach(comments, comment_idx, comment_max, comment_obj) {
+                    if (!yyjson_is_obj(comment_obj)) continue;
+                    
+                    ValidationEvent event;
+                    event.event_id = event_id++;
+                    event.tool_name = "kube-score";
+                    event.event_type = ValidationEventType::LINT_ISSUE;
+                    event.category = "kubernetes";
+                    event.file_path = file_name;
+                    event.line_number = line_number;
+                    event.column_number = -1;
+                    event.error_code = check_id;
+                    event.function_name = object_name + " (" + resource_kind + ")";
+                    
+                    // Map grade to status
+                    if (grade_str == "CRITICAL") {
+                        event.status = ValidationEventStatus::ERROR;
+                        event.severity = "critical";
+                    } else if (grade_str == "WARNING") {
+                        event.status = ValidationEventStatus::WARNING;
+                        event.severity = "warning";
+                    } else {
+                        event.status = ValidationEventStatus::INFO;
+                        event.severity = "info";
+                    }
+                    
+                    // Get comment details
+                    yyjson_val *summary = yyjson_obj_get(comment_obj, "summary");
+                    yyjson_val *description = yyjson_obj_get(comment_obj, "description");
+                    yyjson_val *path = yyjson_obj_get(comment_obj, "path");
+                    
+                    if (summary && yyjson_is_str(summary)) {
+                        event.message = yyjson_get_str(summary);
+                    } else {
+                        event.message = check_name;
+                    }
+                    
+                    if (description && yyjson_is_str(description)) {
+                        event.suggestion = yyjson_get_str(description);
+                    }
+                    
+                    // Add path context if available
+                    if (path && yyjson_is_str(path) && strlen(yyjson_get_str(path)) > 0) {
+                        event.test_name = yyjson_get_str(path);
+                    }
+                    
+                    event.raw_output = content;
+                    event.structured_data = "kube_score_json";
+                    
+                    events.push_back(event);
+                }
+            } else {
+                // Create general event for non-OK checks without specific comments
+                ValidationEvent event;
+                event.event_id = event_id++;
+                event.tool_name = "kube-score";
+                event.event_type = ValidationEventType::LINT_ISSUE;
+                event.category = "kubernetes";
+                event.file_path = file_name;
+                event.line_number = line_number;
+                event.column_number = -1;
+                event.error_code = check_id;
+                event.function_name = object_name + " (" + resource_kind + ")";
+                event.message = check_name;
+                event.suggestion = check_comment;
+                
+                // Map grade to status
+                if (grade_str == "CRITICAL") {
+                    event.status = ValidationEventStatus::ERROR;
+                    event.severity = "critical";
+                } else if (grade_str == "WARNING") {
+                    event.status = ValidationEventStatus::WARNING;
+                    event.severity = "warning";
+                } else {
+                    event.status = ValidationEventStatus::INFO;
+                    event.severity = "info";
+                }
+                
+                event.raw_output = content;
+                event.structured_data = "kube_score_json";
+                
+                events.push_back(event);
+            }
+        }
+    }
+    
+    yyjson_doc_free(doc);
+}
+
+void ParseCMakeBuild(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream stream(content);
+    std::string line;
+    int64_t event_id = 1;
+    
+    while (std::getline(stream, line)) {
+        // Parse GCC/Clang error format: file:line:column: severity: message
+        std::regex cpp_error_pattern(R"(([^:]+):(\d+):(\d*):?\s*(error|warning|note):\s*(.+))");
+        std::smatch match;
+        
+        if (std::regex_match(line, match, cpp_error_pattern)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "cmake";
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.file_path = match[1].str();
+            event.line_number = std::stoi(match[2].str());
+            event.column_number = match[3].str().empty() ? -1 : std::stoi(match[3].str());
+            event.function_name = "";
+            event.message = match[5].str();
+            event.execution_time = 0.0;
+            
+            std::string severity = match[4].str();
+            if (severity == "error") {
+                event.status = ValidationEventStatus::ERROR;
+                event.category = "compilation";
+                event.severity = "error";
+            } else if (severity == "warning") {
+                event.status = ValidationEventStatus::WARNING;
+                event.category = "compilation";
+                event.severity = "warning";
+            } else if (severity == "note") {
+                event.status = ValidationEventStatus::ERROR;  // Treat notes as errors for CMake builds
+                event.category = "compilation";
+                event.severity = "error";
+            } else {
+                event.status = ValidationEventStatus::INFO;
+                event.category = "compilation";
+                event.severity = "info";
+            }
+            
+            event.raw_output = content;
+            event.structured_data = "cmake_build";
+            
+            events.push_back(event);
+        }
+        // Parse CMake configuration errors
+        else if (line.find("CMake Error") != std::string::npos) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "cmake";
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.status = ValidationEventStatus::ERROR;
+            event.category = "configuration";
+            event.severity = "error";
+            event.line_number = -1;
+            event.column_number = -1;
+            
+            // Extract file info from CMake errors like "CMake Error at CMakeLists.txt:25"
+            std::regex cmake_error_pattern(R"(CMake Error at ([^:]+):(\d+))");
+            std::smatch cmake_match;
+            if (std::regex_search(line, cmake_match, cmake_error_pattern)) {
+                event.file_path = cmake_match[1].str();
+                event.line_number = std::stoi(cmake_match[2].str());
+            }
+            
+            // For CMake errors, include the full content to capture multiline error details
+            event.message = content;
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "cmake_build";
+            
+            events.push_back(event);
+        }
+        // Parse CMake warnings
+        else if (line.find("CMake Warning") != std::string::npos) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "cmake";
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.status = ValidationEventStatus::WARNING;
+            event.category = "configuration";
+            event.severity = "warning";
+            event.line_number = -1;
+            event.column_number = -1;
+            
+            // Extract file info from CMake warnings
+            std::regex cmake_warning_pattern(R"(CMake Warning at ([^:]+):(\d+))");
+            std::smatch cmake_match;
+            if (std::regex_search(line, cmake_match, cmake_warning_pattern)) {
+                event.file_path = cmake_match[1].str();
+                event.line_number = std::stoi(cmake_match[2].str());
+            }
+            
+            // For CMake warnings, include the full content to capture multiline details
+            event.message = content;
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "cmake_build";
+            
+            events.push_back(event);
+        }
+        // Parse linker errors (both with and without /usr/bin/ld: prefix)
+        else if (line.find("undefined reference") != std::string::npos) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "cmake";
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.status = ValidationEventStatus::ERROR;
+            event.category = "linking";
+            event.severity = "error";
+            event.line_number = -1;
+            event.column_number = -1;
+            
+            // Extract symbol name from linker error
+            std::regex linker_pattern(R"(undefined reference to `([^']+)')");
+            std::smatch linker_match;
+            if (std::regex_search(line, linker_match, linker_pattern)) {
+                event.function_name = linker_match[1].str();
+                event.suggestion = "Link the library containing '" + event.function_name + "'";
+            }
+            
+            event.message = line;
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "cmake_build";
+            
+            events.push_back(event);
+        }
+        // Parse collect2 linker errors
+        else if (line.find("collect2: error:") != std::string::npos) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "cmake";
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.status = ValidationEventStatus::ERROR;
+            event.category = "linking";
+            event.severity = "error";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.message = line;
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "cmake_build";
+            
+            events.push_back(event);
+        }
+        // Parse gmake errors
+        else if (line.find("gmake[") != std::string::npos && line.find("***") != std::string::npos && line.find("Error") != std::string::npos) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "cmake";
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.status = ValidationEventStatus::ERROR;
+            event.category = "build_failure";
+            event.severity = "error";
+            event.message = line;
+            event.line_number = -1;
+            event.column_number = -1;
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "cmake_build";
+            
+            events.push_back(event);
+        }
+        // Parse CMake configuration summary errors  
+        else if (line.find("-- Configuring incomplete, errors occurred!") != std::string::npos) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "cmake";
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.status = ValidationEventStatus::ERROR;
+            event.category = "configuration";
+            event.severity = "error";
+            event.message = line;
+            event.line_number = -1;
+            event.column_number = -1;
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "cmake_build";
+            
+            events.push_back(event);
+        }
+    }
+}
+
 void ParseGenericLint(const std::string& content, std::vector<ValidationEvent>& events) {
     std::istringstream stream(content);
     std::string line;
@@ -2473,6 +3218,21 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
             break;
         case TestResultFormat::HADOLINT_JSON:
             ParseHadolintJSON(content, global_state->events);
+            break;
+        case TestResultFormat::LINTR_JSON:
+            ParseLintrJSON(content, global_state->events);
+            break;
+        case TestResultFormat::SQLFLUFF_JSON:
+            ParseSqlfluffJSON(content, global_state->events);
+            break;
+        case TestResultFormat::TFLINT_JSON:
+            ParseTflintJSON(content, global_state->events);
+            break;
+        case TestResultFormat::KUBE_SCORE_JSON:
+            ParseKubeScoreJSON(content, global_state->events);
+            break;
+        case TestResultFormat::CMAKE_BUILD:
+            ParseCMakeBuild(content, global_state->events);
             break;
         default:
             // For unknown formats, don't create any events

@@ -1,0 +1,133 @@
+[
+  {
+    "filepath": "queries/user_analytics.sql",
+    "violations": [
+      {
+        "line_no": 5,
+        "line_pos": 1,
+        "code": "L003",
+        "description": "Expected 1 indentation, found 0",
+        "rule": "indentation"
+      },
+      {
+        "line_no": 8,
+        "line_pos": 15,
+        "code": "L010",
+        "description": "Keywords must be consistently upper case.",
+        "rule": "capitalisation.keywords"
+      }
+    ]
+  },
+  {
+    "filepath": "queries/user_analytics.sql",
+    "violations": [
+      {
+        "line_no": 12,
+        "line_pos": 8,
+        "code": "L036",
+        "description": "Select targets should be on a new line unless there is only one select target.",
+        "rule": "select_targets"
+      }
+    ]
+  },
+  {
+    "filepath": "migrations/add_user_table.sql",
+    "violations": [
+      {
+        "line_no": 3,
+        "line_pos": 1,
+        "code": "L001",
+        "description": "Unnecessary trailing whitespace.",
+        "rule": "trailing_whitespace"
+      },
+      {
+        "line_no": 7,
+        "line_pos": 25,
+        "code": "L016",
+        "description": "Line is too long.",
+        "rule": "line_too_long"
+      }
+    ]
+  },
+  {
+    "filepath": "views/monthly_reports.sql",
+    "violations": [
+      {
+        "line_no": 2,
+        "line_pos": 1,
+        "code": "L014",
+        "description": "Unquoted identifiers must be consistently lower case.",
+        "rule": "capitalisation.identifiers"
+      },
+      {
+        "line_no": 15,
+        "line_pos": 12,
+        "code": "L019",
+        "description": "Commas should not have whitespace directly before them.",
+        "rule": "comma_style"
+      }
+    ]
+  },
+  {
+    "filepath": "stored_procedures/data_cleanup.sql",
+    "violations": [
+      {
+        "line_no": 8,
+        "line_pos": 5,
+        "code": "L022",
+        "description": "Blank line expected but not found after CTE closing bracket.",
+        "rule": "blank_lines"
+      }
+    ]
+  },
+  {
+    "filepath": "functions/calculate_metrics.sql",
+    "violations": [
+      {
+        "line_no": 4,
+        "line_pos": 1,
+        "code": "L009",
+        "description": "Files must end with a single trailing newline.",
+        "rule": "trailing_newline"
+      },
+      {
+        "line_no": 11,
+        "line_pos": 20,
+        "code": "L031",
+        "description": "Avoid table aliases in from clauses and join conditions.",
+        "rule": "aliasing.table"
+      }
+    ]
+  },
+  {
+    "filepath": "tests/test_user_queries.sql",
+    "violations": [
+      {
+        "line_no": 6,
+        "line_pos": 1,
+        "code": "L025",
+        "description": "Tables should not be aliased if that alias is not used.",
+        "rule": "aliasing.unused"
+      }
+    ]
+  },
+  {
+    "filepath": "dbt/models/staging/stg_users.sql",
+    "violations": [
+      {
+        "line_no": 3,
+        "line_pos": 8,
+        "code": "L027",
+        "description": "Qualified columns should be used in select statements when joining multiple tables.",
+        "rule": "qualification.column_references"
+      },
+      {
+        "line_no": 18,
+        "line_pos": 1,
+        "code": "L040",
+        "description": "Null comparison should use 'is' or 'is not'.",
+        "rule": "null_comparison"
+      }
+    ]
+  }
+]

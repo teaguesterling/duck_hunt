@@ -1,0 +1,92 @@
+-- The C compiler identification is GNU 11.4.0
+-- The CXX compiler identification is GNU 11.4.0
+-- Detecting C compiler ABI info - done
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info - done
+-- Detecting CXX compile features - done
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/user/project/build
+gmake[1]: Entering directory '/home/user/project/build'
+[ 11%] Building CXX object CMakeFiles/myproject.dir/src/main.cpp.o
+/home/user/project/src/main.cpp:15:10: error: 'iostream' file not found
+#include <iostream>
+         ^~~~~~~~~~
+1 error generated.
+gmake[2]: *** [CMakeFiles/myproject.dir/src/main.cpp.o] Error 1
+gmake[1]: *** [CMakeFiles/myproject.dir/all] Error 2
+gmake: *** [all] Error 2
+[ 22%] Building CXX object CMakeFiles/myproject.dir/src/utils.cpp.o
+/home/user/project/src/utils.cpp:23:5: warning: unused variable 'temp' [-Wunused-variable]
+    int temp = 0;
+    ^~~~
+/home/user/project/src/utils.cpp:45:12: error: use of undeclared identifier 'calculateSum'
+    return calculateSum(a, b);
+           ^
+1 warning and 1 error generated.
+gmake[2]: *** [CMakeFiles/myproject.dir/src/utils.cpp.o] Error 1
+[ 33%] Building CXX object CMakeFiles/myproject.dir/src/network.cpp.o
+/home/user/project/src/network.cpp:8:1: warning: control reaches end of non-void function [-Wreturn-type]
+}
+^
+1 warning generated.
+[ 44%] Building C object CMakeFiles/myproject.dir/src/legacy.c.o
+/home/user/project/src/legacy.c:12:5: error: expected ';' after expression
+    printf("Hello World")
+                         ^
+                         ;
+/home/user/project/src/legacy.c:18:9: warning: implicit declaration of function 'malloc' is invalid in C99 [-Wimplicit-function-declaration]
+    ptr = malloc(sizeof(int) * 10);
+        ^
+2 warnings and 1 error generated.
+gmake[2]: *** [CMakeFiles/myproject.dir/src/legacy.c.o] Error 1
+[ 55%] Linking CXX executable myproject
+/usr/bin/ld: CMakeFiles/myproject.dir/src/database.cpp.o: in function `Database::connect()':
+database.cpp:(.text+0x1a): undefined reference to `mysql_init'
+/usr/bin/ld: database.cpp:(.text+0x2f): undefined reference to `mysql_real_connect'
+collect2: error: ld returned 1 exit status
+gmake[2]: *** [myproject] Error 1
+gmake[1]: *** [CMakeFiles/myproject.dir/all] Error 2
+gmake: *** [all] Error 2
+CMake Error at CMakeLists.txt:25 (find_package):
+  Could not find a package configuration file provided by "Boost" with any of
+  the following names:
+
+    BoostConfig.cmake
+    boost-config.cmake
+
+  Add the installation prefix of "Boost" to CMAKE_PREFIX_PATH or set
+  "Boost_DIR" to a directory containing one of the above files.  If "Boost"
+  provides a separate development package or SDK, it may be required to be
+  installed for this to work.
+Call Stack (most recent call first):
+  CMakeLists.txt:25 (find_package)
+
+-- Configuring incomplete, errors occurred!
+CMake Warning at CMakeLists.txt:45 (message):
+  OpenSSL not found, building without SSL support
+Call Stack (most recent call first):
+  CMakeLists.txt:45 (message)
+
+CMake Error at src/CMakeLists.txt:12 (target_link_libraries):
+  Cannot specify link libraries for target "myapp" which is not built by this
+  project.
+Call Stack (most recent call first):
+  src/CMakeLists.txt:12 (target_link_libraries)
+
+/home/user/project/src/config.cpp:34:21: error: no member named 'getValue' in 'ConfigManager'
+    std::string val = config.getValue("database_url");
+                      ~~~~~~ ^
+/home/user/project/src/config.cpp:42:9: warning: comparison of integers of different signs: 'int' and 'size_t' (aka 'unsigned long') [-Wsign-compare]
+    if (i < values.size()) {
+        ~ ^ ~~~~~~~~~~~~~
+1 warning and 1 error generated.
+[ 66%] Building CXX object tests/CMakeFiles/unit_tests.dir/test_main.cpp.o
+/home/user/project/tests/test_main.cpp:15:18: error: no matching function for call to 'EXPECT_EQ'
+    EXPECT_EQ(result, "expected");
+    ^~~~~~~~~
+/usr/include/gtest/gtest.h:1564:63: note: candidate function template not viable: no known conversion from 'const char [9]' to 'int' for 2nd argument
+GTEST_API_ AssertionResult AssertEqHelper(const char* lhs_expression,
+                                          ^
+1 error generated.
+gmake[2]: *** [tests/CMakeFiles/unit_tests.dir/test_main.cpp.o] Error 1

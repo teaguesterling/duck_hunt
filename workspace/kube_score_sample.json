@@ -1,0 +1,257 @@
+[
+  {
+    "object_name": "my-app",
+    "type_meta": {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment"
+    },
+    "object_meta": {
+      "name": "my-app",
+      "namespace": "default"
+    },
+    "file_name": "deployment.yaml",
+    "file_row": 1,
+    "checks": [
+      {
+        "check": {
+          "id": "container-resources",
+          "name": "Container Resource Limits",
+          "comment": "Container resources should be set"
+        },
+        "grade": "WARNING",
+        "score": 5,
+        "skipped": false,
+        "comments": [
+          {
+            "path": "spec.template.spec.containers[0].resources.limits",
+            "summary": "Resource limits are not set",
+            "description": "Resource limits should be set to prevent containers from consuming excessive resources"
+          }
+        ]
+      },
+      {
+        "check": {
+          "id": "container-security-context",
+          "name": "Container Security Context",
+          "comment": "Container should run as non-root user"
+        },
+        "grade": "CRITICAL",
+        "score": 1,
+        "skipped": false,
+        "comments": [
+          {
+            "path": "spec.template.spec.containers[0].securityContext.runAsNonRoot",
+            "summary": "Container is running as root",
+            "description": "Container should not run as root user for security reasons"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "object_name": "web-service",
+    "type_meta": {
+      "apiVersion": "v1",
+      "kind": "Service"
+    },
+    "object_meta": {
+      "name": "web-service",
+      "namespace": "default"
+    },
+    "file_name": "service.yaml",
+    "file_row": 12,
+    "checks": [
+      {
+        "check": {
+          "id": "service-type",
+          "name": "Service Type",
+          "comment": "Service type should be appropriate for the use case"
+        },
+        "grade": "OK",
+        "score": 10,
+        "skipped": false,
+        "comments": []
+      },
+      {
+        "check": {
+          "id": "service-targets-pod",
+          "name": "Service Targets Pod",
+          "comment": "Service should target an existing pod"
+        },
+        "grade": "WARNING",
+        "score": 7,
+        "skipped": false,
+        "comments": [
+          {
+            "path": "spec.selector",
+            "summary": "Service selector may not match any pods",
+            "description": "The service selector should match labels on existing pods"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "object_name": "database",
+    "type_meta": {
+      "apiVersion": "apps/v1",
+      "kind": "StatefulSet"
+    },
+    "object_meta": {
+      "name": "database",
+      "namespace": "production"
+    },
+    "file_name": "statefulset.yaml",
+    "file_row": 25,
+    "checks": [
+      {
+        "check": {
+          "id": "statefulset-has-poddisruptionbudget",
+          "name": "StatefulSet has PodDisruptionBudget",
+          "comment": "StatefulSet should have a PodDisruptionBudget"
+        },
+        "grade": "WARNING",
+        "score": 3,
+        "skipped": false,
+        "comments": [
+          {
+            "path": "",
+            "summary": "No PodDisruptionBudget found",
+            "description": "StatefulSets should have a PodDisruptionBudget to ensure availability during cluster maintenance"
+          }
+        ]
+      },
+      {
+        "check": {
+          "id": "container-image-tag",
+          "name": "Container Image Tag",
+          "comment": "Container should use specific image tag"
+        },
+        "grade": "CRITICAL",
+        "score": 1,
+        "skipped": false,
+        "comments": [
+          {
+            "path": "spec.template.spec.containers[0].image",
+            "summary": "Container uses 'latest' tag",
+            "description": "Container images should use specific version tags instead of 'latest' for reproducibility"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "object_name": "nginx-ingress",
+    "type_meta": {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "Ingress"
+    },
+    "object_meta": {
+      "name": "nginx-ingress",
+      "namespace": "default"
+    },
+    "file_name": "ingress.yaml",
+    "file_row": 40,
+    "checks": [
+      {
+        "check": {
+          "id": "ingress-targets-service",
+          "name": "Ingress Targets Service",
+          "comment": "Ingress should target an existing service"
+        },
+        "grade": "OK",
+        "score": 10,
+        "skipped": false,
+        "comments": []
+      },
+      {
+        "check": {
+          "id": "ingress-tls",
+          "name": "Ingress TLS",
+          "comment": "Ingress should use TLS"
+        },
+        "grade": "WARNING",
+        "score": 6,
+        "skipped": false,
+        "comments": [
+          {
+            "path": "spec.tls",
+            "summary": "Ingress does not use TLS",
+            "description": "Ingress should be configured with TLS for secure communication"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "object_name": "api-deployment",
+    "type_meta": {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment"
+    },
+    "object_meta": {
+      "name": "api-deployment",
+      "namespace": "api"
+    },
+    "file_name": "api.yaml",
+    "file_row": 55,
+    "checks": [
+      {
+        "check": {
+          "id": "deployment-has-host-podantiaffinity",
+          "name": "Deployment has host podAntiAffinity",
+          "comment": "Deployment should have podAntiAffinity to spread pods across nodes"
+        },
+        "grade": "WARNING",
+        "score": 4,
+        "skipped": false,
+        "comments": [
+          {
+            "path": "spec.template.spec.affinity.podAntiAffinity",
+            "summary": "No podAntiAffinity configured",
+            "description": "Deployments should use podAntiAffinity to ensure pods are spread across different nodes for high availability"
+          }
+        ]
+      },
+      {
+        "check": {
+          "id": "container-resources",
+          "name": "Container Resource Requests",
+          "comment": "Container should have resource requests"
+        },
+        "grade": "CRITICAL",
+        "score": 2,
+        "skipped": false,
+        "comments": [
+          {
+            "path": "spec.template.spec.containers[0].resources.requests",
+            "summary": "Resource requests are not set",
+            "description": "Resource requests should be set to help the scheduler make better placement decisions"
+          }
+        ]
+      },
+      {
+        "check": {
+          "id": "pod-probes",
+          "name": "Pod Probes",
+          "comment": "Pod should have health probes"
+        },
+        "grade": "WARNING",
+        "score": 5,
+        "skipped": false,
+        "comments": [
+          {
+            "path": "spec.template.spec.containers[0].livenessProbe",
+            "summary": "Liveness probe is not configured",
+            "description": "Containers should have liveness probes to detect when they need to be restarted"
+          },
+          {
+            "path": "spec.template.spec.containers[0].readinessProbe",
+            "summary": "Readiness probe is not configured", 
+            "description": "Containers should have readiness probes to determine when they are ready to receive traffic"
+          }
+        ]
+      }
+    ]
+  }
+]

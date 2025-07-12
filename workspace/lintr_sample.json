@@ -1,0 +1,92 @@
+[
+  {
+    "filename": "analysis/data_preprocessing.R",
+    "line_number": 15,
+    "column_number": 1,
+    "type": "style",
+    "message": "Variable and function name style should be snake_case.",
+    "line": "calculateMean <- function(x) {",
+    "linter": "object_name_linter"
+  },
+  {
+    "filename": "analysis/data_preprocessing.R",
+    "line_number": 28,
+    "column_number": 45,
+    "type": "warning",
+    "message": "Lines should not be more than 80 characters.",
+    "line": "result <- some_very_long_function_name_that_exceeds_the_line_length_limit(data, parameter1, parameter2)",
+    "linter": "line_length_linter"
+  },
+  {
+    "filename": "models/regression_analysis.R",
+    "line_number": 42,
+    "column_number": 8,
+    "type": "error",
+    "message": "Undefined global function or variable 'undefined_variable'.",
+    "line": "result <- undefined_variable + 5",
+    "linter": "undefined_global_linter"
+  },
+  {
+    "filename": "models/regression_analysis.R",
+    "line_number": 67,
+    "column_number": 12,
+    "type": "style",
+    "message": "Use <-, not =, for assignment.",
+    "line": "final_result = process_data(cleaned_data)",
+    "linter": "assignment_linter"
+  },
+  {
+    "filename": "utils/helper_functions.R",
+    "line_number": 23,
+    "column_number": 1,
+    "type": "warning",
+    "message": "Avoid 1:length(...), 1:nrow(...), 1:ncol(...), 1:NROW(...) and 1:NCOL(...) expressions.",
+    "line": "for (i in 1:length(data)) {",
+    "linter": "seq_linter"
+  },
+  {
+    "filename": "utils/helper_functions.R",
+    "line_number": 45,
+    "column_number": 15,
+    "type": "style",
+    "message": "Put spaces around all infix operators.",
+    "line": "result<-calculate_mean(values)",
+    "linter": "spaces_around_operators_linter"
+  },
+  {
+    "filename": "visualization/plots.R",
+    "line_number": 12,
+    "column_number": 1,
+    "type": "warning",
+    "message": "Avoid library() calls in packages. Use Imports in DESCRIPTION instead.",
+    "line": "library(ggplot2)",
+    "linter": "library_call_linter"
+  },
+  {
+    "filename": "visualization/plots.R",
+    "line_number": 34,
+    "column_number": 20,
+    "type": "style",
+    "message": "Remove trailing whitespace.",
+    "line": "plot_title <- \"Analysis Results\"   ",
+    "linter": "trailing_whitespace_linter"
+  },
+  {
+    "filename": "tests/test_functions.R",
+    "line_number": 8,
+    "column_number": 1,
+    "type": "error",
+    "message": "Missing argument in function call.",
+    "line": "expect_equal(calculate_sum(), 10)",
+    "linter": "missing_argument_linter"
+  },
+  {
+    "filename": "config/settings.R",
+    "line_number": 5,
+    "column_number": 12,
+    "type": "warning",
+    "message": "Avoid using attach().",
+    "line": "attach(config_data)",
+    "linter": "attach_linter"
+  }
+]
