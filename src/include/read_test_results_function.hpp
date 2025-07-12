@@ -34,7 +34,8 @@ enum class TestResultFormat : uint8_t {
     SQLFLUFF_JSON = 23,
     TFLINT_JSON = 24,
     KUBE_SCORE_JSON = 25,
-    CMAKE_BUILD = 26
+    CMAKE_BUILD = 26,
+    PYTHON_BUILD = 27
 };
 
 // Bind data for read_test_results table function
@@ -125,5 +126,6 @@ void ParseSqlfluffJSON(const std::string& content, std::vector<ValidationEvent>&
 void ParseTflintJSON(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseKubeScoreJSON(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseCMakeBuild(const std::string& content, std::vector<ValidationEvent>& events);
+void ParsePythonBuild(const std::string& content, std::vector<ValidationEvent>& events);
 
 } // namespace duckdb

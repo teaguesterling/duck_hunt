@@ -114,6 +114,14 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
         return TestResultFormat::CMAKE_BUILD;
     }
     
+    // Check for Python build patterns
+    if ((content.find("Building wheel") != std::string::npos && content.find("setup.py") != std::string::npos) ||
+        (content.find("running build") != std::string::npos && content.find("python setup.py") != std::string::npos) ||
+        (content.find("pip install") != std::string::npos && content.find("ERROR:") != std::string::npos) ||
+        (content.find("FAILED") != std::string::npos && content.find("AssertionError") != std::string::npos)) {
+        return TestResultFormat::PYTHON_BUILD;
+    }
+    
     if (content.find("make: ***") != std::string::npos && content.find("Error") != std::string::npos) {
         return TestResultFormat::MAKE_ERROR;
     }
@@ -154,6 +162,7 @@ std::string TestResultFormatToString(TestResultFormat format) {
         case TestResultFormat::TFLINT_JSON: return "tflint_json";
         case TestResultFormat::KUBE_SCORE_JSON: return "kube_score_json";
         case TestResultFormat::CMAKE_BUILD: return "cmake_build";
+        case TestResultFormat::PYTHON_BUILD: return "python_build";
         default: return "unknown";
     }
 }
@@ -185,6 +194,7 @@ TestResultFormat StringToTestResultFormat(const std::string& str) {
     if (str == "tflint_json") return TestResultFormat::TFLINT_JSON;
     if (str == "kube_score_json") return TestResultFormat::KUBE_SCORE_JSON;
     if (str == "cmake_build") return TestResultFormat::CMAKE_BUILD;
+    if (str == "python_build") return TestResultFormat::PYTHON_BUILD;
     if (str == "unknown") return TestResultFormat::UNKNOWN;
     return TestResultFormat::AUTO;  // Default to auto-detection
 }
@@ -352,6 +362,9 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
             break;
         case TestResultFormat::CMAKE_BUILD:
             ParseCMakeBuild(content, global_state->events);
+            break;
+        case TestResultFormat::PYTHON_BUILD:
+            ParsePythonBuild(content, global_state->events);
             break;
         default:
             // For unknown formats, don't create any events
@@ -844,8 +857,17 @@ void ParseMakeErrors(const std::string& content, std::vector<ValidationEvent>& e
     std::istringstream stream(content);
     std::string line;
     int64_t event_id = 1;
+    std::string current_function;
     
     while (std::getline(stream, line)) {
+        // Parse function context: "file.c: In function 'function_name':"
+        std::regex function_pattern(R"(([^:]+):\s*In function\s+'([^']+)':)");
+        std::smatch func_match;
+        if (std::regex_match(line, func_match, function_pattern)) {
+            current_function = func_match[2].str();
+            continue;
+        }
+        
         // Parse GCC/Clang error format: file:line:column: severity: message
         std::regex error_pattern(R"(([^:]+):(\d+):(\d*):?\s*(error|warning|note):\s*(.+))");
         std::smatch match;
@@ -858,28 +880,34 @@ void ParseMakeErrors(const std::string& content, std::vector<ValidationEvent>& e
             event.file_path = match[1].str();
             event.line_number = std::stoi(match[2].str());
             event.column_number = match[3].str().empty() ? -1 : std::stoi(match[3].str());
-            event.function_name = "";
+            event.function_name = current_function;
             event.message = match[5].str();
             event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "make_build";
             
             std::string severity = match[4].str();
             if (severity == "error") {
                 event.status = ValidationEventStatus::ERROR;
-                event.category = "build_error";
+                event.category = "compilation";
                 event.severity = "error";
             } else if (severity == "warning") {
                 event.status = ValidationEventStatus::WARNING;
-                event.category = "build_warning";
+                event.category = "compilation"; 
                 event.severity = "warning";
+            } else if (severity == "note") {
+                event.status = ValidationEventStatus::INFO;
+                event.category = "compilation";
+                event.severity = "info";
             } else {
                 event.status = ValidationEventStatus::INFO;
-                event.category = "build_info";
+                event.category = "compilation";
                 event.severity = "info";
             }
             
             events.push_back(event);
         }
-        // Check for make failure line
+        // Parse make failure line with target extraction
         else if (line.find("make: ***") != std::string::npos && line.find("Error") != std::string::npos) {
             ValidationEvent event;
             event.event_id = event_id++;
@@ -892,6 +920,43 @@ void ParseMakeErrors(const std::string& content, std::vector<ValidationEvent>& e
             event.line_number = -1;
             event.column_number = -1;
             event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "make_build";
+            
+            // Extract makefile target from pattern like "[Makefile:23: build/main]"
+            std::regex target_pattern(R"(\[([^:]+):(\d+):\s*([^\]]+)\])");
+            std::smatch target_match;
+            if (std::regex_search(line, target_match, target_pattern)) {
+                event.file_path = target_match[1].str();  // Makefile
+                event.line_number = std::stoi(target_match[2].str());  // Line in Makefile
+                event.test_name = target_match[3].str();  // Target name (e.g., "build/main")
+            }
+            
+            events.push_back(event);
+        }
+        // Parse linker errors for make builds
+        else if (line.find("undefined reference") != std::string::npos) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "make";
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.status = ValidationEventStatus::ERROR;
+            event.category = "linking";
+            event.severity = "error";
+            event.message = line;
+            event.line_number = -1;
+            event.column_number = -1;
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "make_build";
+            
+            // Extract symbol name from undefined reference
+            std::regex symbol_pattern(R"(undefined reference to `([^']+)')");
+            std::smatch symbol_match;
+            if (std::regex_search(line, symbol_match, symbol_pattern)) {
+                event.function_name = symbol_match[1].str();
+                event.suggestion = "Link the library containing '" + event.function_name + "'";
+            }
             
             events.push_back(event);
         }
@@ -3232,6 +3297,9 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
         case TestResultFormat::CMAKE_BUILD:
             ParseCMakeBuild(content, global_state->events);
             break;
+        case TestResultFormat::PYTHON_BUILD:
+            ParsePythonBuild(content, global_state->events);
+            break;
         default:
             // For unknown formats, don't create any events
             break;
@@ -3268,6 +3336,221 @@ TableFunction GetParseTestResultsFunction() {
                           ParseTestResultsFunction, ParseTestResultsBind, ParseTestResultsInitGlobal, ParseTestResultsInitLocal);
     
     return function;
+}
+
+void ParsePythonBuild(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream stream(content);
+    std::string line;
+    int64_t event_id = 1;
+    std::string current_test;
+    std::string current_package;
+    
+    while (std::getline(stream, line)) {
+        // Parse pip wheel building errors
+        if (line.find("ERROR: Failed building wheel for") != std::string::npos) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "pip";
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.status = ValidationEventStatus::ERROR;
+            event.category = "package_build";
+            event.severity = "error";
+            event.message = line;
+            event.line_number = -1;
+            event.column_number = -1;
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "python_build";
+            
+            // Extract package name
+            std::regex package_pattern(R"(ERROR: Failed building wheel for ([^\s,]+))");
+            std::smatch package_match;
+            if (std::regex_search(line, package_match, package_pattern)) {
+                event.test_name = package_match[1].str();
+            }
+            
+            events.push_back(event);
+        }
+        // Parse setuptools/distutils compilation errors (C extension errors)
+        else if (line.find("error:") != std::string::npos && 
+                (line.find(".c:") != std::string::npos || line.find(".cpp:") != std::string::npos)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "setuptools";
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.status = ValidationEventStatus::ERROR;
+            event.category = "compilation";
+            event.severity = "error";
+            event.message = line;
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "python_build";
+            
+            // Extract file and line info from C compilation errors
+            std::regex c_error_pattern(R"(([^:]+):(\d+):(\d*):?\s*error:\s*(.+))");
+            std::smatch c_match;
+            if (std::regex_search(line, c_match, c_error_pattern)) {
+                event.file_path = c_match[1].str();
+                event.line_number = std::stoi(c_match[2].str());
+                event.column_number = c_match[3].str().empty() ? -1 : std::stoi(c_match[3].str());
+                event.message = c_match[4].str();
+            }
+            
+            events.push_back(event);
+        }
+        // Parse Python test failures (pytest format)
+        else if (line.find("FAILED ") != std::string::npos && line.find("::") != std::string::npos) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "pytest";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.status = ValidationEventStatus::FAIL;
+            event.category = "test";
+            event.severity = "error";
+            event.message = line;
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "python_build";
+            
+            // Extract test name
+            std::regex test_pattern(R"(FAILED\s+([^:]+::[\w_]+))");
+            std::smatch test_match;
+            if (std::regex_search(line, test_match, test_pattern)) {
+                event.test_name = test_match[1].str();
+                // Extract file path
+                size_t sep_pos = event.test_name.find("::");
+                if (sep_pos != std::string::npos) {
+                    event.file_path = event.test_name.substr(0, sep_pos);
+                }
+            }
+            
+            events.push_back(event);
+        }
+        // Parse Python test errors
+        else if (line.find("ERROR ") != std::string::npos && line.find("::") != std::string::npos) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "pytest";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.status = ValidationEventStatus::ERROR;
+            event.category = "test";
+            event.severity = "error";
+            event.message = line;
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "python_build";
+            
+            // Extract test name
+            std::regex test_pattern(R"(ERROR\s+([^:]+::[\w_]+))");
+            std::smatch test_match;
+            if (std::regex_search(line, test_match, test_pattern)) {
+                event.test_name = test_match[1].str();
+                // Extract file path
+                size_t sep_pos = event.test_name.find("::");
+                if (sep_pos != std::string::npos) {
+                    event.file_path = event.test_name.substr(0, sep_pos);
+                }
+            }
+            
+            events.push_back(event);
+        }
+        // Parse assertion errors with file:line info
+        else if (line.find("AssertionError:") != std::string::npos || line.find("TypeError:") != std::string::npos) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "pytest";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.status = ValidationEventStatus::FAIL;
+            event.category = "assertion";
+            event.severity = "error";
+            event.message = line;
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "python_build";
+            
+            // These are usually part of a test failure context
+            if (!current_test.empty()) {
+                event.test_name = current_test;
+            }
+            
+            events.push_back(event);
+        }
+        // Parse file:line test location info
+        else if (std::regex_match(line, std::regex(R"(\s*([^:]+):(\d+):\s+in\s+\w+)"))) {
+            std::regex location_pattern(R"(\s*([^:]+):(\d+):\s+in\s+(\w+))");
+            std::smatch loc_match;
+            if (std::regex_search(line, loc_match, location_pattern)) {
+                ValidationEvent event;
+                event.event_id = event_id++;
+                event.tool_name = "pytest";
+                event.event_type = ValidationEventType::TEST_RESULT;
+                event.status = ValidationEventStatus::INFO;
+                event.category = "traceback";
+                event.severity = "info";
+                event.file_path = loc_match[1].str();
+                event.line_number = std::stoi(loc_match[2].str());
+                event.function_name = loc_match[3].str();
+                event.message = line;
+                event.execution_time = 0.0;
+                event.raw_output = content;
+                event.structured_data = "python_build";
+                
+                events.push_back(event);
+            }
+        }
+        // Parse setup.py command failures
+        else if (line.find("error: command") != std::string::npos && line.find("failed with exit status") != std::string::npos) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "setuptools";
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.status = ValidationEventStatus::ERROR;
+            event.category = "build_command";
+            event.severity = "error";
+            event.message = line;
+            event.line_number = -1;
+            event.column_number = -1;
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "python_build";
+            
+            // Extract command name
+            std::regex cmd_pattern(R"(error: command '([^']+)')");
+            std::smatch cmd_match;
+            if (std::regex_search(line, cmd_match, cmd_pattern)) {
+                event.function_name = cmd_match[1].str();
+            }
+            
+            events.push_back(event);
+        }
+        // Parse C extension warnings
+        else if (line.find("warning:") != std::string::npos && 
+                (line.find(".c:") != std::string::npos || line.find(".cpp:") != std::string::npos)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "setuptools";
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.status = ValidationEventStatus::WARNING;
+            event.category = "compilation";
+            event.severity = "warning";
+            event.message = line;
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "python_build";
+            
+            // Extract file and line info
+            std::regex c_warn_pattern(R"(([^:]+):(\d+):(\d*):?\s*warning:\s*(.+))");
+            std::smatch c_match;
+            if (std::regex_search(line, c_match, c_warn_pattern)) {
+                event.file_path = c_match[1].str();
+                event.line_number = std::stoi(c_match[2].str());
+                event.column_number = c_match[3].str().empty() ? -1 : std::stoi(c_match[3].str());
+                event.message = c_match[4].str();
+            }
+            
+            events.push_back(event);
+        }
+    }
 }
 
 } // namespace duckdb
