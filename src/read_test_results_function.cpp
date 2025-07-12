@@ -2917,7 +2917,6 @@ void ParseCMakeBuild(const std::string& content, std::vector<ValidationEvent>& e
                 event.line_number = std::stoi(cmake_match[2].str());
             }
             
-            // For CMake errors, include the full content to capture multiline error details
             event.message = content;
             event.execution_time = 0.0;
             event.raw_output = content;
@@ -2945,8 +2944,7 @@ void ParseCMakeBuild(const std::string& content, std::vector<ValidationEvent>& e
                 event.line_number = std::stoi(cmake_match[2].str());
             }
             
-            // For CMake warnings, include the full content to capture multiline details
-            event.message = content;
+            event.message = line;
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "cmake_build";
