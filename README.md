@@ -1,86 +1,204 @@
-# DuckHunt
+# Duck Hunt - DuckDB Test Results & Build Output Parser Extension
 
-This repository is based on https://github.com/duckdb/extension-template, check it out if you want to build and ship your own DuckDB extension.
+A comprehensive DuckDB extension for parsing and analyzing test results, build outputs, and DevOps pipeline data from various tools and formats. Perfect for automated development workflows, CI/CD analysis, and agent-driven programming tasks.
 
----
+## Features
 
-This extension, DuckHunt, allow you to ... <extension_goal>.
+Duck Hunt provides powerful SQL-based analysis of development tool outputs through two main table functions:
 
+### Core Functions
+
+- **`read_test_results(file_path, format := 'AUTO')`** - Parse test results and build outputs from files
+- **`parse_test_results(content, format := 'AUTO')`** - Parse test results and build outputs from strings
+
+### Supported Formats (29 Total)
+
+#### Test Frameworks
+- **pytest** (JSON & text output)
+- **Go test** (JSON output) 
+- **Cargo test** (Rust JSON output)
+- **DuckDB test output** (custom format)
+
+#### Linting & Static Analysis Tools
+- **ESLint** (JavaScript/TypeScript)
+- **RuboCop** (Ruby)
+- **SwiftLint** (Swift)
+- **PHPStan** (PHP)
+- **Shellcheck** (Shell scripts)
+- **Stylelint** (CSS/SCSS)
+- **Clippy** (Rust)
+- **Markdownlint** (Markdown)
+- **yamllint** (YAML)
+- **Bandit** (Python security)
+- **SpotBugs** (Java)
+- **ktlint** (Kotlin)
+- **Hadolint** (Dockerfile)
+- **lintr** (R)
+- **sqlfluff** (SQL)
+- **tflint** (Terraform)
+
+#### Build Systems & DevOps Tools
+- **CMake** build output (errors, warnings, configuration issues)
+- **GNU Make** build output (compilation errors, linking issues, target failures)
+- **Python builds** (pip, setuptools, pytest, wheel building)
+- **Node.js builds** (npm, yarn, webpack, jest, eslint)
+- **kube-score** (Kubernetes manifests)
+- **Generic lint** (fallback parser for common error formats)
+
+## Schema
+
+All parsers output a standardized 17-field schema optimized for agent analysis:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `event_id` | BIGINT | Unique identifier for each event |
+| `tool_name` | VARCHAR | Name of the tool that generated the output |
+| `event_type` | VARCHAR | Category of event (TEST_RESULT, BUILD_ERROR, LINT_ISSUE) |
+| `file_path` | VARCHAR | Path to the file with the issue |
+| `line_number` | INTEGER | Line number (-1 if not applicable) |
+| `column_number` | INTEGER | Column number (-1 if not applicable) |
+| `function_name` | VARCHAR | Function/method/test name |
+| `status` | VARCHAR | Status (PASSED, FAILED, ERROR, WARNING, INFO, SKIPPED) |
+| `severity` | VARCHAR | Severity level (error, warning, info, critical) |
+| `category` | VARCHAR | Specific category (compilation, test_failure, lint_error, etc.) |
+| `message` | VARCHAR | Detailed error/warning message |
+| `suggestion` | VARCHAR | Suggested fix or improvement |
+| `error_code` | VARCHAR | Tool-specific error code or rule ID |
+| `test_name` | VARCHAR | Full test identifier |
+| `execution_time` | DOUBLE | Test execution time in seconds |
+| `raw_output` | VARCHAR | Original raw output |
+| `structured_data` | VARCHAR | Parser-specific metadata |
+
+## Usage Examples
+
+### Analyze Build Failures
+```sql
+-- Parse CMake build output to find compilation errors
+SELECT file_path, line_number, message, category
+FROM read_test_results('build.log', 'cmake_build')
+WHERE status = 'ERROR' AND category = 'compilation'
+ORDER BY file_path, line_number;
+```
+
+### Test Results Analysis
+```sql
+-- Analyze Python test failures
+SELECT test_name, message, execution_time
+FROM read_test_results('pytest_output.json', 'pytest_json')
+WHERE status = 'FAILED'
+ORDER BY execution_time DESC;
+```
+
+### Build System Comparison
+```sql
+-- Compare error rates across different build systems
+SELECT tool_name, category, COUNT(*) as error_count
+FROM read_test_results('all_builds.log', 'AUTO')
+WHERE status = 'ERROR'
+GROUP BY tool_name, category
+ORDER BY error_count DESC;
+```
+
+### Linting Issue Summary
+```sql
+-- Get ESLint rule violation summary
+SELECT error_code, COUNT(*) as violations, 
+       AVG(line_number) as avg_line
+FROM read_test_results('eslint_output.json', 'eslint_json')
+WHERE status IN ('ERROR', 'WARNING')
+GROUP BY error_code
+ORDER BY violations DESC;
+```
+
+### Agent Workflow Analysis
+```sql
+-- Find all compilation errors for agent remediation
+SELECT file_path, line_number, column_number, message, suggestion
+FROM parse_test_results(?, 'AUTO')  -- ? = build output from agent
+WHERE event_type = 'BUILD_ERROR' AND category = 'compilation'
+ORDER BY file_path, line_number;
+```
+
+## Auto-Detection
+
+Duck Hunt automatically detects formats based on content patterns when `format := 'AUTO'` (default):
+
+- **JSON formats**: Detected by specific field patterns
+- **Build outputs**: Detected by tool-specific error patterns  
+- **Test outputs**: Detected by result format patterns
 
 ## Building
-### Managing dependencies
-DuckDB extensions uses VCPKG for dependency management. Enabling VCPKG is very simple: follow the [installation instructions](https://vcpkg.io/en/getting-started) or just run the following:
-```shell
-git clone https://github.com/Microsoft/vcpkg.git
-./vcpkg/bootstrap-vcpkg.sh
-export VCPKG_TOOLCHAIN_PATH=`pwd`/vcpkg/scripts/buildsystems/vcpkg.cmake
-```
-Note: VCPKG is only required for extensions that want to rely on it for dependency management. If you want to develop an extension without dependencies, or want to do your own dependency management, just skip this step. Note that the example extension uses VCPKG to build with a dependency for instructive purposes, so when skipping this step the build may not work without removing the dependency.
 
-### Build steps
-Now to build the extension, run:
-```sh
-make
-```
-The main binaries that will be built are:
-```sh
-./build/release/duckdb
-./build/release/test/unittest
-./build/release/extension/duck_hunt/duck_hunt.duckdb_extension
-```
-- `duckdb` is the binary for the duckdb shell with the extension code automatically loaded.
-- `unittest` is the test runner of duckdb. Again, the extension is already linked into the binary.
-- `duck_hunt.duckdb_extension` is the loadable binary as it would be distributed.
+### Prerequisites
+- DuckDB development environment
+- VCPKG for dependency management (optional)
 
-## Running the extension
-To run the extension code, simply start the shell with `./build/release/duckdb`.
+### Build Steps
+```bash
+# Clone and build
+git clone <repository-url>
+cd duck_hunt
+make release
 
-Now we can use the features from the extension directly in DuckDB. The template contains a single scalar function `duck_hunt()` that takes a string arguments and returns a string:
-```
-D select duck_hunt('Jane') as result;
-┌───────────────┐
-│    result     │
-│    varchar    │
-├───────────────┤
-│ DuckHunt Jane 🐥 │
-└───────────────┘
-```
-
-## Running the tests
-Different tests can be created for DuckDB extensions. The primary way of testing DuckDB extensions should be the SQL tests in `./test/sql`. These SQL tests can be run using:
-```sh
+# Run tests
 make test
 ```
 
-### Installing the deployed binaries
-To install your extension binaries from S3, you will need to do two things. Firstly, DuckDB should be launched with the
-`allow_unsigned_extensions` option set to true. How to set this will depend on the client you're using. Some examples:
+### Build Output
+- `./build/release/duckdb` - DuckDB shell with extension loaded
+- `./build/release/extension/duck_hunt/duck_hunt.duckdb_extension` - Loadable extension
+- `./build/release/test/unittest` - Test runner
 
-CLI:
-```shell
-duckdb -unsigned
-```
+## Installation
 
-Python:
-```python
-con = duckdb.connect(':memory:', config={'allow_unsigned_extensions' : 'true'})
-```
-
-NodeJS:
-```js
-db = new duckdb.Database(':memory:', {"allow_unsigned_extensions": "true"});
-```
-
-Secondly, you will need to set the repository endpoint in DuckDB to the HTTP url of your bucket + version of the extension
-you want to install. To do this run the following SQL query in DuckDB:
+### From Source
 ```sql
-SET custom_extension_repository='bucket.s3.eu-west-1.amazonaws.com/<your_extension_name>/latest';
+-- After building
+LOAD './build/release/extension/duck_hunt/duck_hunt.duckdb_extension';
 ```
-Note that the `/latest` path will allow you to install the latest extension version available for your current version of
-DuckDB. To specify a specific version, you can pass the version instead.
 
-After running these steps, you can install and load your extension using the regular INSTALL/LOAD commands in DuckDB:
+### Using Extension
 ```sql
-INSTALL duck_hunt
-LOAD duck_hunt
+-- Enable unsigned extensions if needed
+SET allow_unsigned_extensions = true;
+
+-- Install and load
+INSTALL duck_hunt FROM '<repository-url>';
+LOAD duck_hunt;
 ```
+
+## Use Cases
+
+### DevOps & CI/CD
+- **Build failure analysis**: Parse compilation errors across multiple languages
+- **Test result aggregation**: Combine test outputs from different frameworks
+- **Quality gate enforcement**: SQL queries to check error thresholds
+- **Pipeline debugging**: Analyze build logs to identify bottlenecks
+
+### Agent-Driven Development
+- **Error parsing**: Extract actionable error information for AI agents
+- **Build health monitoring**: Track error trends over time
+- **Automated remediation**: Identify patterns in build failures
+- **Tool integration**: Unified interface for multiple development tools
+
+### Development Analytics
+- **Code quality metrics**: Analyze linting results across projects
+- **Test performance tracking**: Monitor test execution times
+- **Error categorization**: Group and analyze different types of issues
+- **Cross-platform analysis**: Compare build results across environments
+
+## Development
+
+This extension follows DuckDB extension conventions and includes:
+
+- Comprehensive test suite in `test/sql/`
+- Sample data files in `workspace/`
+- Standardized ValidationEvent schema
+- Monadic API design principles
+- Extensive format auto-detection
+
+For contributing guidelines, see `CONTRIBUTING.md`.
+
+## License
+
+[Add your license information here]
