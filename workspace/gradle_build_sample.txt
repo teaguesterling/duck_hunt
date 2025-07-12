@@ -1,0 +1,195 @@
+Parallel execution with configuration on demand is an incubating feature.
+
+> Configure project :
+Project evaluation time: 0.023s
+
+> Task :clean
+> Task :compileJava FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':compileJava'.
+> Compilation failed; see the compiler error output for details.
+
+* Try:
+Run with --stacktrace option to get the stack trace. Run with --info or --debug option to get more log output. Run with --scan to get full insights.
+
+* Get more help at https://help.gradle.org
+
+BUILD FAILED in 2s
+1 actionable task: 1 executed
+
+/home/user/myproject/src/main/java/com/example/Database.java:45: error: cannot find symbol
+  symbol:   class UndefinedClass
+  location: class com.example.Database
+
+/home/user/myproject/src/main/java/com/example/Service.java:67: error: incompatible types: String cannot be converted to int
+  return inputString;
+  ^
+
+/home/user/myproject/src/main/java/com/example/Utils.java:12: error: illegal start of type
+public void { 
+^
+
+3 errors
+
+> Configure project :
+> Task :compileJava
+> Task :processResources
+> Task :classes
+> Task :compileTestJava
+> Task :processTestResources  
+> Task :testClasses
+> Task :test
+
+DatabaseTest > testConnection FAILED
+    java.lang.AssertionError: Connection should not be null
+        at org.junit.Assert.fail(Assert.java:88)
+        at org.junit.Assert.assertTrue(Assert.java:41)
+        at com.example.DatabaseTest.testConnection(DatabaseTest.java:25)
+
+DatabaseTest > testQuery FAILED
+    java.sql.SQLException: No suitable driver found for jdbc:unknown://localhost
+        at java.sql.DriverManager.getConnection(DriverManager.java:689)
+        at com.example.Database.connect(Database.java:34)
+        at com.example.DatabaseTest.testQuery(DatabaseTest.java:45)
+
+ServiceTest > testStringProcessing PASSED
+
+UtilsTest > testStringConversion FAILED
+    java.lang.AssertionError: Expected 'hello' but was 'world'
+        at org.junit.Assert.assertEquals(Assert.java:115)
+        at com.example.UtilsTest.testStringConversion(UtilsTest.java:67)
+
+UtilsTest > testNullHandling PASSED
+UtilsTest > testEdgeCases SKIPPED
+
+DatabaseTest FAILED
+ServiceTest PASSED  
+UtilsTest FAILED
+
+6 tests completed, 3 failed, 1 skipped
+
+> Task :test FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':test'.
+> There were failing tests. See the report at: file:///home/user/myproject/build/reports/tests/test/index.html
+
+BUILD FAILED in 8s
+7 actionable tasks: 7 executed
+
+> Configure project :
+> Task :compileJava
+> Task :processResources
+> Task :classes
+> Task :compileTestJava
+> Task :processTestResources
+> Task :testClasses
+> Task :checkstyleMain
+
+[ant:checkstyle] /home/user/myproject/src/main/java/com/example/MyClass.java:15: Line is longer than 120 characters (found 125). [LineLength]
+[ant:checkstyle] /home/user/myproject/src/main/java/com/example/Service.java:23: Missing a Javadoc comment. [MissingJavadocMethod]
+[ant:checkstyle] /home/user/myproject/src/main/java/com/example/Utils.java:45: '{' at column 1 should be on the previous line. [LeftCurly]
+[ant:checkstyle] /home/user/myproject/src/main/java/com/example/Database.java:67: Name 'DB_URL' must match pattern '^[a-z][a-zA-Z0-9]*$'. [LocalVariableName]
+
+> Task :checkstyleMain FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':checkstyleMain'.
+> Checkstyle rule violations were found. See the report at: file:///home/user/myproject/build/reports/checkstyle/main.html
+> Checkstyle files with violations: 4
+> Checkstyle violations by severity: [error:2, warning:2]
+
+BUILD FAILED in 3s
+6 actionable tasks: 6 executed
+
+> Configure project :
+> Task :compileJava
+> Task :processResources
+> Task :classes
+> Task :compileTestJava 
+> Task :processTestResources
+> Task :testClasses
+> Task :spotbugsMain
+
+The following classes needed for analysis were missing:
+  com.example.UndefinedClass
+
+Bug: High: Null pointer dereference in com.example.Database.executeQuery(String) [NP_ALWAYS_NULL]
+Bug: High: SQL injection vulnerability in com.example.Database.findUser(String) [SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE]  
+Bug: Medium: Dead store to local variable in com.example.Service.processData(String) [DLS_DEAD_LOCAL_STORE]
+Bug: Medium: Method may fail to close stream in com.example.FileHandler.readFile(String) [OS_OPEN_STREAM]
+
+> Task :spotbugsMain FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':spotbugsMain'.
+> SpotBugs rule violations were found. See the report at: file:///home/user/myproject/build/reports/spotbugs/main.html
+
+BUILD FAILED in 5s
+7 actionable tasks: 7 executed
+
+> Configure project :
+> Task :build
+
+BUILD SUCCESSFUL in 12s
+12 actionable tasks: 12 executed
+
+> Configure project :app
+> Task :app:preBuild UP-TO-DATE
+> Task :app:compileDebugJavaWithJavac
+
+/home/user/android-project/app/src/main/java/com/example/myapp/MainActivity.java:25: error: cannot resolve symbol R
+import com.example.myapp.R;
+                        ^
+
+/home/user/android-project/app/src/main/java/com/example/myapp/LoginActivity.java:42: error: incompatible types: int cannot be converted to String
+String userId = getUserId();
+^
+
+> Task :app:compileDebugJavaWithJavac FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileDebugJavaWithJavac'.
+> Compilation failed; see the compiler error output for details.
+
+BUILD FAILED in 6s
+2 actionable tasks: 2 executed
+
+> Configure project :
+> Task :lint
+
+/home/user/android-project/app/src/main/java/com/example/myapp/MainActivity.java:15: Warning: Use of 'Thread.sleep()' should be avoided in Android apps [ThreadSleep]
+    Thread.sleep(1000);
+    ~~~~~~~~~~~~~~~~~~~
+
+/home/user/android-project/app/src/main/res/layout/activity_main.xml:23: Warning: Missing contentDescription attribute on image [ContentDescription]
+    <ImageView
+    ^
+
+/home/user/android-project/app/src/main/java/com/example/myapp/DatabaseHelper.java:67: Error: SQLiteDatabase query methods should use parameter binding to avoid SQL injection [SQLInjection]
+    return db.rawQuery("SELECT * FROM users WHERE id = " + userId, null);
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Lint found 2 errors, 2 warnings
+
+> Task :lint FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':lint'.
+> Lint found errors in the project; aborting build.
+
+BUILD FAILED in 4s
+1 actionable task: 1 executed

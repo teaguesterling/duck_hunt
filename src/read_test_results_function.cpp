@@ -148,6 +148,16 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
         return TestResultFormat::MAVEN_BUILD;
     }
     
+    // Check for Gradle build patterns
+    if ((content.find("> Task :") != std::string::npos) ||
+        (content.find("BUILD SUCCESSFUL") != std::string::npos && content.find("actionable task") != std::string::npos) ||
+        (content.find("BUILD FAILED") != std::string::npos && content.find("actionable task") != std::string::npos) ||
+        (content.find("Gradle") != std::string::npos && content.find("build") != std::string::npos) ||
+        (content.find("[ant:checkstyle]") != std::string::npos) ||
+        (content.find("Execution failed for task") != std::string::npos)) {
+        return TestResultFormat::GRADLE_BUILD;
+    }
+    
     if (content.find("make: ***") != std::string::npos && content.find("Error") != std::string::npos) {
         return TestResultFormat::MAKE_ERROR;
     }
@@ -192,6 +202,7 @@ std::string TestResultFormatToString(TestResultFormat format) {
         case TestResultFormat::NODE_BUILD: return "node_build";
         case TestResultFormat::CARGO_BUILD: return "cargo_build";
         case TestResultFormat::MAVEN_BUILD: return "maven_build";
+        case TestResultFormat::GRADLE_BUILD: return "gradle_build";
         default: return "unknown";
     }
 }
@@ -405,6 +416,9 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
             break;
         case TestResultFormat::MAVEN_BUILD:
             ParseMavenBuild(content, global_state->events);
+            break;
+        case TestResultFormat::GRADLE_BUILD:
+            ParseGradleBuild(content, global_state->events);
             break;
         default:
             // For unknown formats, don't create any events
@@ -3349,6 +3363,9 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
         case TestResultFormat::MAVEN_BUILD:
             ParseMavenBuild(content, global_state->events);
             break;
+        case TestResultFormat::GRADLE_BUILD:
+            ParseGradleBuild(content, global_state->events);
+            break;
         default:
             // For unknown formats, don't create any events
             break;
@@ -4326,6 +4343,265 @@ void ParseMavenBuild(const std::string& content, std::vector<ValidationEvent>& e
                 
                 events.push_back(event);
             }
+        }
+    }
+}
+
+void ParseGradleBuild(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream iss(content);
+    std::string line;
+    int64_t event_id = 1;
+    
+    // Gradle patterns
+    std::regex task_pattern(R"(> Task :([^\s]+)\s+(FAILED|UP-TO-DATE|SKIPPED))");
+    std::regex compile_error_pattern(R"((.+?):(\d+): error: (.+))");
+    std::regex test_failure_pattern(R"((\w+) > (\w+) (FAILED|PASSED|SKIPPED))");
+    std::regex test_summary_pattern(R"((\d+) tests completed(?:, (\d+) failed)?(?:, (\d+) skipped)?)");
+    std::regex checkstyle_pattern(R"(\[ant:checkstyle\] (.+?):(\d+): (.+?) \[(.+?)\])");
+    std::regex spotbugs_pattern(R"(Bug: (High|Medium|Low): (.+?) \[(.+?)\])");
+    std::regex android_lint_pattern(R"((.+?):(\d+): (Error|Warning): (.+?) \[(.+?)\])");
+    std::regex build_result_pattern(R"(BUILD (SUCCESSFUL|FAILED) in (\d+)s)");
+    std::regex execution_failed_pattern(R"(Execution failed for task '([^']+)')");
+    std::regex gradle_error_pattern(R"(\* What went wrong:)");
+    
+    std::string current_task = "";
+    bool in_error_block = false;
+    
+    while (std::getline(iss, line)) {
+        std::smatch match;
+        
+        // Parse task execution results
+        if (std::regex_search(line, match, task_pattern)) {
+            std::string task_name = match[1].str();
+            std::string task_result = match[2].str();
+            current_task = task_name;
+            
+            if (task_result == "FAILED") {
+                ValidationEvent event;
+                event.event_id = event_id++;
+                event.tool_name = "gradle";
+                event.event_type = ValidationEventType::BUILD_ERROR;
+                event.function_name = task_name;
+                event.status = ValidationEventStatus::ERROR;
+                event.severity = "error";
+                event.category = "task_failure";
+                event.message = "Task " + task_name + " failed";
+                event.execution_time = 0.0;
+                event.raw_output = content;
+                event.structured_data = "gradle_build";
+                
+                events.push_back(event);
+            }
+        }
+        // Parse Java compilation errors
+        else if (std::regex_search(line, match, compile_error_pattern)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "gradle-javac";
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.file_path = match[1].str();
+            event.line_number = std::stoi(match[2].str());
+            event.column_number = -1;
+            event.function_name = current_task;
+            event.status = ValidationEventStatus::ERROR;
+            event.severity = "error";
+            event.category = "compilation";
+            event.message = match[3].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "gradle_build";
+            
+            events.push_back(event);
+        }
+        // Parse test results
+        else if (std::regex_search(line, match, test_failure_pattern)) {
+            std::string test_class = match[1].str();
+            std::string test_method = match[2].str();
+            std::string test_result = match[3].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "gradle-test";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.function_name = test_method;
+            event.test_name = test_class + "." + test_method;
+            
+            if (test_result == "FAILED") {
+                event.status = ValidationEventStatus::FAIL;
+                event.severity = "error";
+                event.category = "test_failure";
+                event.message = "Test failed";
+            } else if (test_result == "PASSED") {
+                event.status = ValidationEventStatus::PASS;
+                event.severity = "info";
+                event.category = "test_success";
+                event.message = "Test passed";
+            } else if (test_result == "SKIPPED") {
+                event.status = ValidationEventStatus::SKIP;
+                event.severity = "info";
+                event.category = "test_skipped";
+                event.message = "Test skipped";
+            }
+            
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "gradle_build";
+            
+            events.push_back(event);
+        }
+        // Parse test summaries
+        else if (std::regex_search(line, match, test_summary_pattern)) {
+            int total_tests = std::stoi(match[1].str());
+            int failed_tests = match[2].matched ? std::stoi(match[2].str()) : 0;
+            int skipped_tests = match[3].matched ? std::stoi(match[3].str()) : 0;
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "gradle-test";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.status = (failed_tests > 0) ? ValidationEventStatus::FAIL : ValidationEventStatus::PASS;
+            event.severity = (failed_tests > 0) ? "error" : "info";
+            event.category = "test_summary";
+            event.message = "Tests: " + std::to_string(total_tests) + 
+                           " completed, " + std::to_string(failed_tests) + " failed, " + 
+                           std::to_string(skipped_tests) + " skipped";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "gradle_build";
+            
+            events.push_back(event);
+        }
+        // Parse Checkstyle violations (Gradle format)
+        else if (std::regex_search(line, match, checkstyle_pattern)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "gradle-checkstyle";
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.file_path = match[1].str();
+            event.line_number = std::stoi(match[2].str());
+            event.column_number = -1;
+            event.function_name = current_task;
+            event.status = ValidationEventStatus::WARNING;
+            event.severity = "warning";
+            event.category = "style";
+            event.message = match[3].str();
+            event.error_code = match[4].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "gradle_build";
+            
+            events.push_back(event);
+        }
+        // Parse SpotBugs findings (Gradle format)
+        else if (std::regex_search(line, match, spotbugs_pattern)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "gradle-spotbugs";
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.function_name = current_task;
+            event.severity = match[1].str();
+            std::transform(event.severity.begin(), event.severity.end(), event.severity.begin(), ::tolower);
+            event.status = (event.severity == "high") ? ValidationEventStatus::ERROR : ValidationEventStatus::WARNING;
+            event.category = "static_analysis";
+            event.message = match[2].str();
+            event.error_code = match[3].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "gradle_build";
+            
+            // Map SpotBugs categories
+            if (event.error_code.find("SQL") != std::string::npos) {
+                event.event_type = ValidationEventType::SECURITY_FINDING;
+                event.category = "security";
+            } else if (event.error_code.find("PERFORMANCE") != std::string::npos || 
+                      event.error_code.find("DLS_") != std::string::npos) {
+                event.event_type = ValidationEventType::PERFORMANCE_ISSUE;
+                event.category = "performance";
+            } else {
+                event.event_type = ValidationEventType::LINT_ISSUE;
+            }
+            
+            events.push_back(event);
+        }
+        // Parse Android Lint issues
+        else if (std::regex_search(line, match, android_lint_pattern)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "gradle-android-lint";
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.file_path = match[1].str();
+            event.line_number = std::stoi(match[2].str());
+            event.column_number = -1;
+            event.function_name = current_task;
+            
+            std::string level = match[3].str();
+            if (level == "Error") {
+                event.status = ValidationEventStatus::ERROR;
+                event.severity = "error";
+            } else {
+                event.status = ValidationEventStatus::WARNING;
+                event.severity = "warning";
+            }
+            
+            event.category = "android_lint";
+            event.message = match[4].str();
+            event.error_code = match[5].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "gradle_build";
+            
+            // Map Android-specific categories
+            if (event.error_code.find("Security") != std::string::npos || 
+                event.error_code.find("SQLInjection") != std::string::npos) {
+                event.event_type = ValidationEventType::SECURITY_FINDING;
+                event.category = "security";
+            } else if (event.error_code.find("Performance") != std::string::npos ||
+                      event.error_code.find("ThreadSleep") != std::string::npos) {
+                event.event_type = ValidationEventType::PERFORMANCE_ISSUE;
+                event.category = "performance";
+            }
+            
+            events.push_back(event);
+        }
+        // Parse build results
+        else if (std::regex_search(line, match, build_result_pattern)) {
+            std::string result = match[1].str();
+            int duration = std::stoi(match[2].str());
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "gradle";
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.status = (result == "SUCCESSFUL") ? ValidationEventStatus::PASS : ValidationEventStatus::ERROR;
+            event.severity = (result == "SUCCESSFUL") ? "info" : "error";
+            event.category = "build_result";
+            event.message = "Build " + result;
+            event.execution_time = static_cast<double>(duration);
+            event.raw_output = content;
+            event.structured_data = "gradle_build";
+            
+            events.push_back(event);
+        }
+        // Parse execution failure messages
+        else if (std::regex_search(line, match, execution_failed_pattern)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "gradle";
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.function_name = match[1].str();
+            event.status = ValidationEventStatus::ERROR;
+            event.severity = "error";
+            event.category = "execution_failure";
+            event.message = "Execution failed for task '" + match[1].str() + "'";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "gradle_build";
+            
+            events.push_back(event);
+        }
+        // Track error block context
+        else if (std::regex_search(line, match, gradle_error_pattern)) {
+            in_error_block = true;
         }
     }
 }
