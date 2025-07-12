@@ -41,7 +41,8 @@ enum class TestResultFormat : uint8_t {
     MAVEN_BUILD = 30,
     GRADLE_BUILD = 31,
     MSBUILD = 32,
-    JUNIT_TEXT = 33
+    JUNIT_TEXT = 33,
+    VALGRIND = 34
 };
 
 // Bind data for read_test_results table function
@@ -139,5 +140,6 @@ void ParseMavenBuild(const std::string& content, std::vector<ValidationEvent>& e
 void ParseGradleBuild(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseMSBuild(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseJUnitText(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseValgrind(const std::string& content, std::vector<ValidationEvent>& events);
 
 } // namespace duckdb

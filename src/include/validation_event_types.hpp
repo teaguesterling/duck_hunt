@@ -22,7 +22,12 @@ enum class ValidationEventType : uint8_t {
     TYPE_ERROR = 2,
     SECURITY_FINDING = 3,
     BUILD_ERROR = 4,
-    PERFORMANCE_ISSUE = 5
+    PERFORMANCE_ISSUE = 5,
+    MEMORY_ERROR = 6,
+    MEMORY_LEAK = 7,
+    THREAD_ERROR = 8,
+    PERFORMANCE_METRIC = 9,
+    SUMMARY = 10
 };
 
 // Main validation event structure

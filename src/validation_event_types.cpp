@@ -23,6 +23,11 @@ std::string ValidationEventTypeToString(ValidationEventType type) {
         case ValidationEventType::SECURITY_FINDING: return "security_finding";
         case ValidationEventType::BUILD_ERROR: return "build_error";
         case ValidationEventType::PERFORMANCE_ISSUE: return "performance_issue";
+        case ValidationEventType::MEMORY_ERROR: return "memory_error";
+        case ValidationEventType::MEMORY_LEAK: return "memory_leak";
+        case ValidationEventType::THREAD_ERROR: return "thread_error";
+        case ValidationEventType::PERFORMANCE_METRIC: return "performance_metric";
+        case ValidationEventType::SUMMARY: return "summary";
         default: return "unknown";
     }
 }
@@ -44,6 +49,11 @@ ValidationEventType StringToValidationEventType(const std::string& str) {
     if (str == "security_finding") return ValidationEventType::SECURITY_FINDING;
     if (str == "build_error") return ValidationEventType::BUILD_ERROR;
     if (str == "performance_issue") return ValidationEventType::PERFORMANCE_ISSUE;
+    if (str == "memory_error") return ValidationEventType::MEMORY_ERROR;
+    if (str == "memory_leak") return ValidationEventType::MEMORY_LEAK;
+    if (str == "thread_error") return ValidationEventType::THREAD_ERROR;
+    if (str == "performance_metric") return ValidationEventType::PERFORMANCE_METRIC;
+    if (str == "summary") return ValidationEventType::SUMMARY;
     return ValidationEventType::TEST_RESULT;  // Default
 }
 

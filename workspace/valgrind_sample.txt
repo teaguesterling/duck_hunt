@@ -1,0 +1,229 @@
+==12345== Memcheck, a memory error detector
+==12345== Copyright (C) 2002-2022, and GNU GPL'd, by Julian Seward et al.
+==12345== Using Valgrind-3.19.0 and LibVEX; rerun with -h for copyright info
+==12345== Command: ./my_program arg1 arg2
+==12345== 
+==12345== Invalid read of size 4
+==12345==    at 0x10916A: main (main.c:15)
+==12345==  Address 0x4a47044 is 0 bytes after a block of size 4 alloc'd
+==12345==    at 0x4845828: malloc (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==12345==    at 0x109142: allocate_buffer (utils.c:23)
+==12345==    by 0x109155: main (main.c:12)
+==12345== 
+==12345== Invalid write of size 4
+==12345==    at 0x10917B: main (main.c:16)
+==12345==  Address 0x4a47044 is 0 bytes after a block of size 4 alloc'd
+==12345==    at 0x4845828: malloc (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==12345==    at 0x109142: allocate_buffer (utils.c:23)
+==12345==    by 0x109155: main (main.c:12)
+==12345== 
+==12345== Conditional jump or move depends on uninitialised value(s)
+==12345==    at 0x109190: process_data (data.c:45)
+==12345==    by 0x1091A5: main (main.c:18)
+==12345== 
+==12345== Use of uninitialised value of size 8
+==12345==    at 0x1091B2: calculate_checksum (checksum.c:67)
+==12345==    by 0x1091C5: main (main.c:19)
+==12345== 
+==12345== Invalid free() / delete / delete[] / realloc()
+==12345==    at 0x484A26F: free (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==12345==    at 0x1091D8: cleanup (cleanup.c:34)
+==12345==    by 0x1091E5: main (main.c:22)
+==12345==  Address 0x4a47044 is 0 bytes inside a block of size 4 free'd
+==12345==    at 0x484A26F: free (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==12345==    at 0x1091CB: process_data (data.c:52)
+==12345==    by 0x1091A5: main (main.c:18)
+==12345==  Block was alloc'd at
+==12345==    at 0x4845828: malloc (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==12345==    at 0x109142: allocate_buffer (utils.c:23)
+==12345==    by 0x109155: main (main.c:12)
+==12345== 
+==12345== 40 bytes in 1 blocks are definitely lost in loss record 1 of 3
+==12345==    at 0x4845828: malloc (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==12345==    at 0x1092F8: create_object (object.c:78)
+==12345==    by 0x109305: initialize_system (system.c:45)
+==12345==    by 0x109155: main (main.c:10)
+==12345== 
+==12345== 128 bytes in 4 blocks are possibly lost in loss record 2 of 3
+==12345==    at 0x4845828: malloc (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==12345==    at 0x109322: allocate_array (array.c:156)
+==12345==    by 0x109335: process_items (processor.c:89)
+==12345==    by 0x1091A5: main (main.c:18)
+==12345== 
+==12345== 256 bytes in 8 blocks are still reachable in loss record 3 of 3
+==12345==    at 0x4845828: malloc (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==12345==    at 0x109348: global_init (globals.c:234)
+==12345==    by 0x109145: main (main.c:8)
+==12345== 
+==12345== LEAK SUMMARY:
+==12345==    definitely lost: 40 bytes in 1 blocks
+==12345==    indirectly lost: 0 bytes in 0 blocks
+==12345==      possibly lost: 128 bytes in 4 blocks
+==12345==    still reachable: 256 bytes in 8 blocks
+==12345==         suppressed: 0 bytes in 0 blocks
+==12345== 
+==12345== For lists of detected and suppressed errors, rerun with: -s
+==12345== ERROR SUMMARY: 8 errors from 6 contexts (suppressed: 0 from 0)
+
+==67890== Helgrind, a thread error detector
+==67890== Copyright (C) 2007-2022, and GNU GPL'd, by OpenWorks LLP et al.
+==67890== Using Valgrind-3.19.0 and LibVEX; rerun with -h for copyright info
+==67890== Command: ./threaded_program
+==67890== 
+==67890== Possible data race during read of size 4 at 0x60104C by thread #2
+==67890== Locks held: none
+==67890==    at 0x10A234: worker_thread (worker.c:45)
+==67890==    by 0x4E3F6B9: ??? (in /usr/lib/x86_64-linux-gnu/libpthread-2.31.so)
+==67890==    by 0x484FCE6: ??? (in /usr/libexec/valgrind/vgpreload_helgrind-amd64-linux.so)
+==67890== 
+==67890== This conflicts with a previous write of size 4 by thread #1
+==67890== Locks held: none
+==67890==    at 0x10A1F8: main_processing (main.c:67)
+==67890==    by 0x10A205: main (main.c:78)
+==67890== 
+==67890== Possible data race during write of size 8 at 0x601058 by thread #3
+==67890== Locks held: 1, at address 0x601040
+==67890==    at 0x10A256: update_statistics (stats.c:123)
+==67890==    by 0x10A267: worker_thread (worker.c:52)
+==67890==    by 0x4E3F6B9: ??? (in /usr/lib/x86_64-linux-gnu/libpthread-2.31.so)
+==67890==    by 0x484FCE6: ??? (in /usr/libexec/valgrind/vgpreload_helgrind-amd64-linux.so)
+==67890== 
+==67890== This conflicts with a previous read of size 8 by thread #1
+==67890== Locks held: none
+==67890==    at 0x10A1E5: check_statistics (main.c:45)
+==67890==    by 0x10A205: main (main.c:78)
+==67890== 
+==67890== Lock order "0x601040 before 0x601080" violated
+==67890== 
+==67890== Observed (incorrect) order is: acquisition of lock at 0x601080
+==67890==    at 0x484F7F7: ??? (in /usr/libexec/valgrind/vgpreload_helgrind-amd64-linux.so)
+==67890==    by 0x10A289: process_queue (queue.c:234)
+==67890==    by 0x10A296: worker_thread (worker.c:58)
+==67890==    by 0x4E3F6B9: ??? (in /usr/lib/x86_64-linux-gnu/libpthread-2.31.so)
+==67890==    by 0x484FCE6: ??? (in /usr/libexec/valgrind/vgpreload_helgrind-amd64-linux.so)
+==67890== 
+==67890==  followed by a later acquisition of lock at 0x601040
+==67890==    at 0x484F7F7: ??? (in /usr/libexec/valgrind/vgpreload_helgrind-amd64-linux.so)
+==67890==    by 0x10A2AB: update_global_state (global.c:156)
+==67890==    by 0x10A2B8: process_queue (queue.c:245)
+==67890==    by 0x10A296: worker_thread (worker.c:58)
+==67890==    by 0x4E3F6B9: ??? (in /usr/lib/x86_64-linux-gnu/libpthread-2.31.so)
+==67890==    by 0x484FCE6: ??? (in /usr/libexec/valgrind/vgpreload_helgrind-amd64-linux.so)
+==67890== 
+==67890== Required order was established by a prior acquisition of lock at 0x601040
+==67890==    at 0x484F7F7: ??? (in /usr/libexec/valgrind/vgpreload_helgrind-amd64-linux.so)
+==67890==    at 0x10A1D2: initialize_locks (main.c:23)
+==67890==    by 0x10A205: main (main.c:76)
+==67890== 
+==67890==  followed by a later acquisition of lock at 0x601080
+==67890==    at 0x484F7F7: ??? (in /usr/libexec/valgrind/vgpreload_helgrind-amd64-linux.so)
+==67890==    by 0x10A1E9: setup_queues (main.c:34)
+==67890==    by 0x10A205: main (main.c:77)
+==67890== 
+==67890== For lists of detected and suppressed errors, rerun with: -s
+==67890== ERROR SUMMARY: 4 errors from 4 contexts (suppressed: 12 from 8)
+
+==24680== Cachegrind, a cache and branch-prediction profiler
+==24680== Copyright (C) 2002-2022, and GNU GPL'd, by Nicholas Nethercote et al.
+==24680== Using Valgrind-3.19.0 and LibVEX; rerun with -h for copyright info
+==24680== Command: ./compute_intensive
+==24680== 
+--24680-- warning: L3 cache found, using its data for the LL simulation.
+==24680== 
+==24680== I   refs:      12,345,678
+==24680== I1  misses:         1,234
+==24680== LLi misses:           567
+==24680== I1  miss rate:       0.01%
+==24680== LLi miss rate:       0.00%
+==24680== 
+==24680== D   refs:       8,765,432  (5,432,109 rd + 3,333,323 wr)
+==24680== D1  misses:        98,765  (   65,432 rd +    33,333 wr)
+==24680== LLd misses:        12,345  (    8,765 rd +     3,580 wr)
+==24680== D1  miss rate:        1.1% (      1.2%     +       1.0%  )
+==24680== LLd miss rate:        0.1% (      0.2%     +       0.1%  )
+==24680== 
+==24680== LL refs:          100,000  (   66,666 rd +    33,334 wr)
+==24680== LL misses:         12,912  (    9,332 rd +     3,580 wr)
+==24680== LL miss rate:         0.1% (      0.1%     +       0.1%  )
+==24680== 
+==24680== Branches:       2,468,135  (2,345,678 cond +   122,457 ind)
+==24680== Mispredicts:       24,681  (   22,456 cond +     2,225 ind)
+==24680== Mispred rate:         1.0% (      1.0%     +       1.8%  )
+
+==13579== Massif, a heap profiler
+==13579== Copyright (C) 2003-2022, and GNU GPL'd, by Nicholas Nethercote
+==13579== Using Valgrind-3.19.0 and LibVEX; rerun with -h for copyright info
+==13579== Command: ./memory_intensive
+==13579== 
+==13579== Peak memory usage: 2,048,576 bytes
+==13579== 
+================================================================================
+Command:            ./memory_intensive
+Massif arguments:   (none)
+ms_print arguments: massif.out.13579
+
+    KB
+2,048^                                                                       #
+     |                                                                   ####:
+     |                                                              @@@@@####:
+     |                                                         @@@@@@@@@####:
+     |                                                    @@@@@@@@@@@@@@####:
+     |                                               @@@@@@@@@@@@@@@@@@@####:
+     |                                          @@@@@@@@@@@@@@@@@@@@@@@@####:
+     |                                     @@@@@@@@@@@@@@@@@@@@@@@@@@@@@####:
+     |                                @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@####:
+     |                           @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@####:
+     |                      @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@####:
+     |                 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@####:
+     |            @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@####:
+     |       @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@####:
+     |  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@####:
+   0 +----------------------------------------------------------------------->Mi
+     0                                                                   100.0
+
+Number of snapshots: 25
+ Detailed snapshots: [2, 11, 24]
+
+--------------------------------------------------------------------------------
+  n        time(i)         total(B)   useful-heap(B) extra-heap(B)    stacks(B)
+--------------------------------------------------------------------------------
+  0              0                0                0             0            0
+  1          1,000           16,384           16,000           384            0
+  2          5,000          131,072          128,000         3,072            0
+ 23         95,000        1,048,576        1,024,000        24,576            0
+ 24        100,000        2,048,576        2,000,000        48,576            0
+
+==13579== 
+==13579== Total heap usage: 156 allocs, 145 frees, 2,097,152 bytes allocated
+==13579== 
+
+==97531== DRD, a thread error detector
+==97531== Copyright (C) 2006-2022, and GNU GPL'd, by Bart Van Assche.
+==97531== Using Valgrind-3.19.0 and LibVEX; rerun with -h for copyright info
+==97531== Command: ./race_condition_test
+==97531== 
+==97531== Conflicting store by thread 2 at 0x007feeff8 size 4
+==97531==    at 0x10B567: update_counter (counter.c:45)
+==97531==    by 0x10B574: worker_func (worker.c:78)
+==97531==    by 0x4E3F6B9: start_thread (pthread_create.c:463)
+==97531==    by 0x4F32A5F: clone (clone.S:95)
+==97531== Allocation context: Data segment, offset 0x8
+==97531== Other segment start (thread 1)
+==97531==    at 0x10B534: increment_global (counter.c:23)
+==97531==    by 0x10B541: main (main.c:89)
+==97531== Other segment end (thread 1)
+==97531==    at 0x4E402E8: pthread_create@@GLIBC_2.2.5 (pthread_create.c:647)
+==97531==    by 0x485396C: pthread_create* (drd_pthread_intercepts.c:445)
+==97531==    by 0x10B548: main (main.c:92)
+==97531== 
+==97531== Conflicting load by thread 1 at 0x007feeff8 size 4
+==97531==    at 0x10B555: check_counter (counter.c:67)
+==97531==    by 0x10B562: main (main.c:95)
+==97531== Allocation context: Data segment, offset 0x8
+==97531== Other segment start (thread 2)
+==97531==    (thread finished, call stack no longer available)
+==97531== Other segment end (thread 2)
+==97531==    (thread finished, call stack no longer available)
+==97531== 
+==97531== For lists of detected and suppressed errors, rerun with: -s
+==97531== ERROR SUMMARY: 2 errors from 2 contexts (suppressed: 0 from 0)

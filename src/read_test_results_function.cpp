@@ -103,6 +103,18 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
         return TestResultFormat::DUCKDB_TEST;
     }
     
+    // Check for Valgrind patterns (should be checked early due to unique format)
+    if ((content.find("==") != std::string::npos && content.find("Memcheck") != std::string::npos) ||
+        (content.find("==") != std::string::npos && content.find("Helgrind") != std::string::npos) ||
+        (content.find("==") != std::string::npos && content.find("Cachegrind") != std::string::npos) ||
+        (content.find("==") != std::string::npos && content.find("Massif") != std::string::npos) ||
+        (content.find("==") != std::string::npos && content.find("DRD") != std::string::npos) ||
+        (content.find("Invalid read") != std::string::npos || content.find("Invalid write") != std::string::npos) ||
+        (content.find("definitely lost") != std::string::npos && content.find("bytes") != std::string::npos) ||
+        (content.find("Possible data race") != std::string::npos && content.find("thread") != std::string::npos)) {
+        return TestResultFormat::VALGRIND;
+    }
+    
     // Check for JUnit text patterns (should be checked before pytest since they can contain similar keywords)
     if ((content.find("T E S T S") != std::string::npos && content.find("Tests run:") != std::string::npos) ||
         (content.find("JUnit Jupiter") != std::string::npos && content.find("tests found") != std::string::npos) ||
@@ -226,6 +238,7 @@ std::string TestResultFormatToString(TestResultFormat format) {
         case TestResultFormat::GRADLE_BUILD: return "gradle_build";
         case TestResultFormat::MSBUILD: return "msbuild";
         case TestResultFormat::JUNIT_TEXT: return "junit_text";
+        case TestResultFormat::VALGRIND: return "valgrind";
         default: return "unknown";
     }
 }
@@ -264,6 +277,7 @@ TestResultFormat StringToTestResultFormat(const std::string& str) {
     if (str == "gradle_build") return TestResultFormat::GRADLE_BUILD;
     if (str == "msbuild") return TestResultFormat::MSBUILD;
     if (str == "junit_text") return TestResultFormat::JUNIT_TEXT;
+    if (str == "valgrind") return TestResultFormat::VALGRIND;
     if (str == "unknown") return TestResultFormat::UNKNOWN;
     return TestResultFormat::AUTO;  // Default to auto-detection
 }
@@ -452,6 +466,9 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
             break;
         case TestResultFormat::JUNIT_TEXT:
             ParseJUnitText(content, global_state->events);
+            break;
+        case TestResultFormat::VALGRIND:
+            ParseValgrind(content, global_state->events);
             break;
         default:
             // For unknown formats, don't create any events
@@ -3405,6 +3422,9 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
         case TestResultFormat::JUNIT_TEXT:
             ParseJUnitText(content, global_state->events);
             break;
+        case TestResultFormat::VALGRIND:
+            ParseValgrind(content, global_state->events);
+            break;
         default:
             // For unknown formats, don't create any events
             break;
@@ -5259,6 +5279,329 @@ void ParseJUnitText(const std::string& content, std::vector<ValidationEvent>& ev
         else if (line.empty() || line.find("Running") != std::string::npos) {
             in_stack_trace = false;
             current_test = "";
+        }
+    }
+}
+
+void ParseValgrind(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream stream(content);
+    std::string line;
+    uint64_t event_id = 1;
+    
+    // Track current context
+    std::string current_tool = "Valgrind";
+    std::string current_pid;
+    std::string current_error_type;
+    std::string current_message;
+    std::vector<std::string> stack_trace;
+    bool in_error_block = false;
+    bool in_summary = false;
+    
+    // Regular expressions for different Valgrind patterns
+    std::regex pid_regex(R"(==(\d+)==)");
+    std::regex memcheck_header(R"(==\d+== Memcheck, a memory error detector)");
+    std::regex helgrind_header(R"(==\d+== Helgrind, a thread error detector)");
+    std::regex cachegrind_header(R"(==\d+== Cachegrind, a cache and branch-prediction profiler)");
+    std::regex massif_header(R"(==\d+== Massif, a heap profiler)");
+    std::regex drd_header(R"(==\d+== DRD, a thread error detector)");
+    
+    // Error patterns
+    std::regex invalid_access(R"(==\d+== (Invalid (read|write) of size \d+))");
+    std::regex memory_leak(R"(==\d+== (\d+ bytes .* (definitely|indirectly|possibly) lost))");
+    std::regex uninitialized(R"(==\d+== (Conditional jump .* uninitialised|Use of uninitialised))");
+    std::regex invalid_free(R"(==\d+== (Invalid free\(\)|delete|realloc))");
+    std::regex data_race(R"(==\d+== (Possible data race))");
+    std::regex lock_order(R"(==\d+== (Lock order .* violated))");
+    
+    // Stack trace patterns
+    std::regex stack_frame(R"(==\d+==\s+at 0x[0-9A-F]+: (.+) \(([^:]+):(\d+)\))");
+    std::regex stack_frame_no_line(R"(==\d+==\s+at 0x[0-9A-F]+: (.+))");
+    std::regex error_summary(R"(==\d+== ERROR SUMMARY: (\d+) errors?)");
+    
+    // Cache statistics patterns
+    std::regex cache_stat(R"(==\d+== ([DL1L]+)\s+(refs|misses|miss rate):\s*([0-9,]+|[\d.]+%))");
+    std::regex branch_stat(R"(==\d+== (Branches|Mispredicts|Mispred rate):\s*([0-9,]+|[\d.]+%))");
+    
+    // Heap statistics
+    std::regex heap_usage(R"(==\d+== Total heap usage: (\d+) allocs, (\d+) frees, ([0-9,]+) bytes allocated)");
+    std::regex peak_memory(R"(==\d+== Peak memory usage: ([0-9,]+) bytes)");
+    
+    while (std::getline(stream, line)) {
+        std::smatch match;
+        
+        // Extract PID from Valgrind output
+        if (std::regex_search(line, match, pid_regex)) {
+            current_pid = match[1].str();
+        }
+        
+        // Detect Valgrind tool type
+        if (std::regex_search(line, memcheck_header)) {
+            current_tool = "Memcheck";
+        } else if (std::regex_search(line, helgrind_header)) {
+            current_tool = "Helgrind";
+        } else if (std::regex_search(line, cachegrind_header)) {
+            current_tool = "Cachegrind";
+        } else if (std::regex_search(line, massif_header)) {
+            current_tool = "Massif";
+        } else if (std::regex_search(line, drd_header)) {
+            current_tool = "DRD";
+        }
+        
+        // Memory errors (Memcheck)
+        if (std::regex_search(line, match, invalid_access)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = current_tool;
+            event.event_type = ValidationEventType::MEMORY_ERROR;
+            event.status = ValidationEventStatus::ERROR;
+            event.severity = "error";
+            event.category = "memory_access";
+            event.message = match[1].str();
+            event.error_code = "INVALID_ACCESS";
+            event.raw_output = line;
+            
+            current_error_type = "invalid_access";
+            current_message = event.message;
+            in_error_block = true;
+            stack_trace.clear();
+            
+            events.push_back(event);
+        }
+        
+        // Memory leaks
+        else if (std::regex_search(line, match, memory_leak)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = current_tool;
+            event.event_type = ValidationEventType::MEMORY_LEAK;
+            event.status = ValidationEventStatus::WARNING;
+            event.severity = "warning";
+            event.category = "memory_leak";
+            event.message = match[1].str();
+            event.error_code = "MEMORY_LEAK";
+            event.raw_output = line;
+            
+            current_error_type = "memory_leak";
+            current_message = event.message;
+            in_error_block = true;
+            stack_trace.clear();
+            
+            events.push_back(event);
+        }
+        
+        // Uninitialized value errors
+        else if (std::regex_search(line, match, uninitialized)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = current_tool;
+            event.event_type = ValidationEventType::MEMORY_ERROR;
+            event.status = ValidationEventStatus::ERROR;
+            event.severity = "error";
+            event.category = "uninitialized";
+            event.message = match[1].str();
+            event.error_code = "UNINITIALIZED";
+            event.raw_output = line;
+            
+            current_error_type = "uninitialized";
+            current_message = event.message;
+            in_error_block = true;
+            stack_trace.clear();
+            
+            events.push_back(event);
+        }
+        
+        // Invalid free/delete
+        else if (std::regex_search(line, match, invalid_free)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = current_tool;
+            event.event_type = ValidationEventType::MEMORY_ERROR;
+            event.status = ValidationEventStatus::ERROR;
+            event.severity = "error";
+            event.category = "invalid_free";
+            event.message = match[1].str();
+            event.error_code = "INVALID_FREE";
+            event.raw_output = line;
+            
+            current_error_type = "invalid_free";
+            current_message = event.message;
+            in_error_block = true;
+            stack_trace.clear();
+            
+            events.push_back(event);
+        }
+        
+        // Thread errors (Helgrind/DRD)
+        else if (std::regex_search(line, match, data_race)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = current_tool;
+            event.event_type = ValidationEventType::THREAD_ERROR;
+            event.status = ValidationEventStatus::ERROR;
+            event.severity = "error";
+            event.category = "data_race";
+            event.message = match[1].str();
+            event.error_code = "DATA_RACE";
+            event.raw_output = line;
+            
+            current_error_type = "data_race";
+            current_message = event.message;
+            in_error_block = true;
+            stack_trace.clear();
+            
+            events.push_back(event);
+        }
+        
+        // Lock order violations
+        else if (std::regex_search(line, match, lock_order)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = current_tool;
+            event.event_type = ValidationEventType::THREAD_ERROR;
+            event.status = ValidationEventStatus::ERROR;
+            event.severity = "error";
+            event.category = "lock_order";
+            event.message = match[1].str();
+            event.error_code = "LOCK_ORDER_VIOLATION";
+            event.raw_output = line;
+            
+            current_error_type = "lock_order";
+            current_message = event.message;
+            in_error_block = true;
+            stack_trace.clear();
+            
+            events.push_back(event);
+        }
+        
+        // Stack trace with file and line
+        else if (std::regex_search(line, match, stack_frame)) {
+            if (in_error_block && !events.empty()) {
+                auto& last_event = events.back();
+                if (last_event.file_path.empty()) {
+                    // Use first stack frame for file location
+                    last_event.function_name = match[1].str();
+                    last_event.file_path = match[2].str();
+                    try {
+                        last_event.line_number = std::stoi(match[3].str());
+                    } catch (...) {
+                        last_event.line_number = -1;
+                    }
+                }
+                stack_trace.push_back(line);
+            }
+        }
+        
+        // Stack trace without line info
+        else if (std::regex_search(line, match, stack_frame_no_line)) {
+            if (in_error_block && !events.empty()) {
+                auto& last_event = events.back();
+                if (last_event.function_name.empty()) {
+                    last_event.function_name = match[1].str();
+                }
+                stack_trace.push_back(line);
+            }
+        }
+        
+        // Cache statistics (Cachegrind)
+        else if (std::regex_search(line, match, cache_stat)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = current_tool;
+            event.event_type = ValidationEventType::PERFORMANCE_METRIC;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "cache_analysis";
+            event.message = match[1].str() + " " + match[2].str() + ": " + match[3].str();
+            event.error_code = "CACHE_STAT";
+            event.raw_output = line;
+            events.push_back(event);
+        }
+        
+        // Branch statistics (Cachegrind)
+        else if (std::regex_search(line, match, branch_stat)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = current_tool;
+            event.event_type = ValidationEventType::PERFORMANCE_METRIC;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "branch_analysis";
+            event.message = match[1].str() + ": " + match[2].str();
+            event.error_code = "BRANCH_STAT";
+            event.raw_output = line;
+            events.push_back(event);
+        }
+        
+        // Heap usage summary (Memcheck/Massif)
+        else if (std::regex_search(line, match, heap_usage)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = current_tool;
+            event.event_type = ValidationEventType::PERFORMANCE_METRIC;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "heap_analysis";
+            event.message = "Total heap usage: " + match[1].str() + " allocs, " + 
+                           match[2].str() + " frees, " + match[3].str() + " bytes allocated";
+            event.error_code = "HEAP_SUMMARY";
+            event.raw_output = line;
+            events.push_back(event);
+        }
+        
+        // Peak memory (Massif)
+        else if (std::regex_search(line, match, peak_memory)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = current_tool;
+            event.event_type = ValidationEventType::PERFORMANCE_METRIC;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "memory_usage";
+            event.message = "Peak memory usage: " + match[1].str() + " bytes";
+            event.error_code = "PEAK_MEMORY";
+            event.raw_output = line;
+            events.push_back(event);
+        }
+        
+        // Error summary
+        else if (std::regex_search(line, match, error_summary)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = current_tool;
+            event.event_type = ValidationEventType::SUMMARY;
+            event.status = std::stoi(match[1].str()) > 0 ? ValidationEventStatus::ERROR : ValidationEventStatus::PASS;
+            event.severity = std::stoi(match[1].str()) > 0 ? "error" : "info";
+            event.category = "summary";
+            event.message = "Total errors: " + match[1].str();
+            event.error_code = "ERROR_SUMMARY";
+            event.raw_output = line;
+            in_summary = true;
+            events.push_back(event);
+        }
+        
+        // End of error block detection
+        if (line.find("==") != std::string::npos && line.find("== ") != std::string::npos && 
+            line.length() > 10 && in_error_block) {
+            // Check if this starts a new error or ends current one
+            if (line.find("Invalid") == std::string::npos && 
+                line.find("bytes") == std::string::npos && 
+                line.find("Conditional") == std::string::npos &&
+                line.find("Use of") == std::string::npos &&
+                line.find("Possible data race") == std::string::npos &&
+                line.find("Lock order") == std::string::npos &&
+                !stack_trace.empty()) {
+                // Update last event with complete stack trace
+                if (!events.empty()) {
+                    std::string complete_trace;
+                    for (const auto& trace_line : stack_trace) {
+                        if (!complete_trace.empty()) complete_trace += "\\n";
+                        complete_trace += trace_line;
+                    }
+                    events.back().structured_data = complete_trace;
+                }
+                in_error_block = false;
+                stack_trace.clear();
+            }
         }
     }
 }

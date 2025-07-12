@@ -11,7 +11,7 @@ Duck Hunt provides powerful SQL-based analysis of development tool outputs throu
 - **`read_test_results(file_path, format := 'AUTO')`** - Parse test results and build outputs from files
 - **`parse_test_results(content, format := 'AUTO')`** - Parse test results and build outputs from strings
 
-### Supported Formats (34 Total)
+### Supported Formats (35 Total)
 
 #### Test Frameworks
 - **pytest** (JSON & text output)
@@ -49,6 +49,9 @@ Duck Hunt provides powerful SQL-based analysis of development tool outputs throu
 - **MSBuild** (C#/.NET compilation, xUnit testing, code analyzers)
 - **kube-score** (Kubernetes manifests)
 - **Generic lint** (fallback parser for common error formats)
+
+#### Debugging & Analysis Tools
+- **Valgrind** (Memcheck, Helgrind, Cachegrind, Massif, DRD - memory analysis and thread debugging)
 
 ## Schema
 
@@ -122,6 +125,23 @@ SELECT file_path, line_number, column_number, message, suggestion
 FROM parse_test_results(?, 'AUTO')  -- ? = build output from agent
 WHERE event_type = 'BUILD_ERROR' AND category = 'compilation'
 ORDER BY file_path, line_number;
+```
+
+### Memory Debugging Analysis
+```sql
+-- Analyze Valgrind memory errors for debugging
+SELECT tool_name, category, COUNT(*) as error_count, 
+       GROUP_CONCAT(DISTINCT file_path) as affected_files
+FROM read_test_results('valgrind_output.txt', 'valgrind')
+WHERE event_type IN ('memory_error', 'memory_leak')
+GROUP BY tool_name, category
+ORDER BY error_count DESC;
+
+-- Extract memory leak details with stack traces
+SELECT file_path, function_name, message, structured_data
+FROM read_test_results('valgrind_output.txt', 'valgrind')
+WHERE event_type = 'memory_leak' AND category = 'memory_leak'
+ORDER BY file_path;
 ```
 
 ## Auto-Detection
@@ -206,13 +226,12 @@ For contributing guidelines, see `CONTRIBUTING.md`.
 
 ## Future Work
 
-Duck Hunt currently supports 34 formats across test frameworks, linting tools, and build systems. The following expansions would provide comprehensive coverage of the entire development ecosystem:
+Duck Hunt currently supports 35 formats across test frameworks, linting tools, build systems, and debugging tools. The following expansions would provide comprehensive coverage of the entire development ecosystem:
 
 ### 🔥 High Priority Build Systems
 - **Bazel** (Google's system) - Large-scale projects
 
 ### 🐛 Debugging & Analysis Tools
-- **Valgrind** (memcheck, helgrind, cachegrind) - Memory analysis
 - **AddressSanitizer/ThreadSanitizer** - Fast sanitizer output
 - **GDB/LLDB** - Debugger stack traces and breakpoint logs
 - **Clang Static Analyzer** - Static analysis reports
@@ -257,7 +276,7 @@ Duck Hunt currently supports 34 formats across test frameworks, linting tools, a
 - **PVS-Studio** - Cross-platform analysis
 
 **Target**: ~70+ total formats covering 95% of development tool ecosystem
-**Current**: 34 formats (49% coverage)
+**Current**: 35 formats (50% coverage)
 
 This roadmap would establish Duck Hunt as the definitive tool for agent-driven development workflow analysis across all major programming languages, build systems, and development tools.
 
