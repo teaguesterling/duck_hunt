@@ -1,0 +1,157 @@
+JUnit 4 Execution Output:
+
+-------------------------------------------------------
+ T E S T S
+-------------------------------------------------------
+Running com.example.calculator.CalculatorTest
+Tests run: 4, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.156 sec <<< FAILURE!
+testAddition(com.example.calculator.CalculatorTest)  Time elapsed: 0.023 sec  <<< PASSED!
+testSubtraction(com.example.calculator.CalculatorTest)  Time elapsed: 0.012 sec  <<< FAILURE!
+java.lang.AssertionError: Expected 5 but was 3
+	at org.junit.Assert.fail(Assert.java:88)
+	at org.junit.Assert.failNotEquals(Assert.java:834)
+	at org.junit.Assert.assertEquals(Assert.java:645)
+	at com.example.calculator.CalculatorTest.testSubtraction(CalculatorTest.java:45)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+
+testMultiplication(com.example.calculator.CalculatorTest)  Time elapsed: 0.018 sec  <<< PASSED!
+testDivision(com.example.calculator.CalculatorTest)  Time elapsed: 0.031 sec  <<< PASSED!
+
+Running com.example.service.UserServiceTest
+Tests run: 3, Failures: 0, Errors: 1, Skipped: 1, Time elapsed: 0.267 sec <<< ERROR!
+testCreateUser(com.example.service.UserServiceTest)  Time elapsed: 0.089 sec  <<< PASSED!
+testDeleteUser(com.example.service.UserServiceTest)  Time elapsed: 0.045 sec  <<< ERROR!
+java.lang.NullPointerException: User not found
+	at com.example.service.UserService.deleteUser(UserService.java:67)
+	at com.example.service.UserServiceTest.testDeleteUser(UserServiceTest.java:78)
+
+testUpdateUser(com.example.service.UserServiceTest)  Time elapsed: 0.000 sec  <<< SKIPPED!
+
+Running com.example.database.ConnectionTest
+Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.198 sec
+testDatabaseConnection(com.example.database.ConnectionTest)  Time elapsed: 0.156 sec  <<< PASSED!
+testConnectionPool(com.example.database.ConnectionTest)  Time elapsed: 0.042 sec  <<< PASSED!
+
+-------------------------------------------------------
+JUnit 5 Execution Output:
+
+JUnit Jupiter 5.8.2
+├─ com.example.calculator.CalculatorTest ✓
+│  ├─ testAddition() ✓ (15ms)
+│  ├─ testSubtraction() ✗ (8ms)
+│  │    AssertionFailedError: Expected 5 but was 3
+│  │      at com.example.calculator.CalculatorTest.testSubtraction(CalculatorTest.java:45)
+│  ├─ testMultiplication() ✓ (12ms)
+│  └─ testDivision() ✓ (22ms)
+├─ com.example.service.UserServiceTest ✗
+│  ├─ testCreateUser() ✓ (89ms)
+│  ├─ testDeleteUser() ✗ (45ms)
+│  │    NullPointerException: User not found
+│  │      at com.example.service.UserService.deleteUser(UserService.java:67)
+│  │      at com.example.service.UserServiceTest.testDeleteUser(UserServiceTest.java:78)
+│  └─ testUpdateUser() ↷ SKIPPED (0ms)
+└─ com.example.database.ConnectionTest ✓
+   ├─ testDatabaseConnection() ✓ (156ms)
+   └─ testConnectionPool() ✓ (42ms)
+
+Test run finished after 387ms
+[         9 containers found      ]
+[         0 containers skipped    ]
+[         9 containers successful ]
+[         0 containers aborted    ]
+[         0 containers failed     ]
+[        12 tests found           ]
+[         1 tests skipped         ]
+[        10 tests successful      ]
+[         1 tests failed          ]
+
+-------------------------------------------------------
+Maven Surefire JUnit Output:
+
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.example.calculator.CalculatorTest
+[ERROR] Tests run: 4, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.156 s <<< FAILURE! - in com.example.calculator.CalculatorTest
+[ERROR] testSubtraction(com.example.calculator.CalculatorTest)  Time elapsed: 0.012 s  <<< FAILURE!
+[ERROR] 
+[ERROR] java.lang.AssertionError: Expected 5 but was 3
+[ERROR] 	at org.junit.Assert.fail(Assert.java:88)
+[ERROR] 	at com.example.calculator.CalculatorTest.testSubtraction(CalculatorTest.java:45)
+[ERROR] 
+[INFO] Running com.example.service.UserServiceTest
+[ERROR] Tests run: 3, Failures: 0, Errors: 1, Skipped: 1, Time elapsed: 0.267 s <<< ERROR! - in com.example.service.UserServiceTest
+[ERROR] testDeleteUser(com.example.service.UserServiceTest)  Time elapsed: 0.045 s  <<< ERROR!
+[ERROR] 
+[ERROR] java.lang.NullPointerException: User not found
+[ERROR] 	at com.example.service.UserService.deleteUser(UserService.java:67)
+[ERROR] 	at com.example.service.UserServiceTest.testDeleteUser(UserServiceTest.java:78)
+[ERROR] 
+[INFO] Running com.example.database.ConnectionTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.198 s - in com.example.database.ConnectionTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[ERROR] Failures: 
+[ERROR]   CalculatorTest.testSubtraction:45 Expected 5 but was 3
+[ERROR] 
+[ERROR] Errors: 
+[ERROR]   UserServiceTest.testDeleteUser:78 » NullPointer User not found
+[ERROR] 
+[INFO] Tests run: 9, Failures: 1, Errors: 1, Skipped: 1
+[INFO] 
+[ERROR] There are test failures.
+
+-------------------------------------------------------
+Gradle JUnit Output:
+
+> Task :test
+
+com.example.calculator.CalculatorTest > testAddition PASSED
+com.example.calculator.CalculatorTest > testSubtraction FAILED
+
+    java.lang.AssertionError: Expected 5 but was 3
+        at org.junit.Assert.fail(Assert.java:88)
+        at com.example.calculator.CalculatorTest.testSubtraction(CalculatorTest.java:45)
+
+com.example.calculator.CalculatorTest > testMultiplication PASSED
+com.example.calculator.CalculatorTest > testDivision PASSED
+
+com.example.service.UserServiceTest > testCreateUser PASSED
+com.example.service.UserServiceTest > testDeleteUser FAILED
+
+    java.lang.NullPointerException: User not found
+        at com.example.service.UserService.deleteUser(UserService.java:67)
+        at com.example.service.UserServiceTest.testDeleteUser(UserServiceTest.java:78)
+
+com.example.service.UserServiceTest > testUpdateUser SKIPPED
+
+com.example.database.ConnectionTest > testDatabaseConnection PASSED
+com.example.database.ConnectionTest > testConnectionPool PASSED
+
+9 tests completed, 2 failed, 1 skipped
+
+BUILD FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':test'.
+> There were failing tests. See the report at: file:///path/to/build/reports/tests/test/index.html
+
+-------------------------------------------------------
+TestNG Output (similar patterns):
+
+Running TestSuite
+com.example.calculator.CalculatorTest.testAddition: PASS
+com.example.calculator.CalculatorTest.testSubtraction: FAIL
+java.lang.AssertionError: Expected 5 but was 3
+	at com.example.calculator.CalculatorTest.testSubtraction(CalculatorTest.java:45)
+
+com.example.service.UserServiceTest.testCreateUser: PASS
+com.example.service.UserServiceTest.testDeleteUser: FAIL
+java.lang.NullPointerException: User not found
+	at com.example.service.UserService.deleteUser(UserService.java:67)
+
+Total tests run: 9, Failures: 2, Skips: 1

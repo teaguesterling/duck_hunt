@@ -103,6 +103,16 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
         return TestResultFormat::DUCKDB_TEST;
     }
     
+    // Check for JUnit text patterns (should be checked before pytest since they can contain similar keywords)
+    if ((content.find("T E S T S") != std::string::npos && content.find("Tests run:") != std::string::npos) ||
+        (content.find("JUnit Jupiter") != std::string::npos && content.find("tests found") != std::string::npos) ||
+        (content.find("Running TestSuite") != std::string::npos && content.find("Total tests run:") != std::string::npos) ||
+        (content.find("Time elapsed:") != std::string::npos && content.find("PASSED!") != std::string::npos) ||
+        (content.find("Time elapsed:") != std::string::npos && content.find("FAILURE!") != std::string::npos) ||
+        (content.find(" > ") != std::string::npos && (content.find(" PASSED") != std::string::npos || content.find(" FAILED") != std::string::npos))) {
+        return TestResultFormat::JUNIT_TEXT;
+    }
+    
     if (content.find("PASSED") != std::string::npos && content.find("::") != std::string::npos) {
         return TestResultFormat::PYTEST_TEXT;
     }
@@ -168,6 +178,7 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
         return TestResultFormat::MSBUILD;
     }
     
+    
     if (content.find("make: ***") != std::string::npos && content.find("Error") != std::string::npos) {
         return TestResultFormat::MAKE_ERROR;
     }
@@ -214,6 +225,7 @@ std::string TestResultFormatToString(TestResultFormat format) {
         case TestResultFormat::MAVEN_BUILD: return "maven_build";
         case TestResultFormat::GRADLE_BUILD: return "gradle_build";
         case TestResultFormat::MSBUILD: return "msbuild";
+        case TestResultFormat::JUNIT_TEXT: return "junit_text";
         default: return "unknown";
     }
 }
@@ -248,6 +260,10 @@ TestResultFormat StringToTestResultFormat(const std::string& str) {
     if (str == "python_build") return TestResultFormat::PYTHON_BUILD;
     if (str == "node_build") return TestResultFormat::NODE_BUILD;
     if (str == "cargo_build") return TestResultFormat::CARGO_BUILD;
+    if (str == "maven_build") return TestResultFormat::MAVEN_BUILD;
+    if (str == "gradle_build") return TestResultFormat::GRADLE_BUILD;
+    if (str == "msbuild") return TestResultFormat::MSBUILD;
+    if (str == "junit_text") return TestResultFormat::JUNIT_TEXT;
     if (str == "unknown") return TestResultFormat::UNKNOWN;
     return TestResultFormat::AUTO;  // Default to auto-detection
 }
@@ -433,6 +449,9 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
             break;
         case TestResultFormat::MSBUILD:
             ParseMSBuild(content, global_state->events);
+            break;
+        case TestResultFormat::JUNIT_TEXT:
+            ParseJUnitText(content, global_state->events);
             break;
         default:
             // For unknown formats, don't create any events
@@ -3383,6 +3402,9 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
         case TestResultFormat::MSBUILD:
             ParseMSBuild(content, global_state->events);
             break;
+        case TestResultFormat::JUNIT_TEXT:
+            ParseJUnitText(content, global_state->events);
+            break;
         default:
             // For unknown formats, don't create any events
             break;
@@ -4854,6 +4876,389 @@ void ParseMSBuild(const std::string& content, std::vector<ValidationEvent>& even
                 
                 events.push_back(event);
             }
+        }
+    }
+}
+
+void ParseJUnitText(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream iss(content);
+    std::string line;
+    int64_t event_id = 1;
+    
+    // JUnit text patterns for different output formats
+    std::regex junit4_class_pattern(R"(Running (.+))");
+    std::regex junit4_summary_pattern(R"(Tests run: (\d+), Failures: (\d+), Errors: (\d+), Skipped: (\d+), Time elapsed: ([\d.]+) sec.*?)");
+    std::regex junit4_test_pattern(R"((.+?)\((.+?)\)\s+Time elapsed: ([\d.]+) sec\s+<<< (PASSED!|FAILURE!|ERROR!|SKIPPED!))");
+    std::regex junit4_exception_pattern(R"((.+?): (.+)$)");
+    std::regex junit4_stack_trace_pattern(R"(\s+at (.+?)\.(.+?)\((.+?):(\d+)\))");
+    
+    // JUnit 5 patterns
+    std::regex junit5_header_pattern(R"(JUnit Jupiter ([\d.]+))");
+    std::regex junit5_class_pattern(R"([├└]─ (.+?) [✓✗↷])");
+    std::regex junit5_test_pattern(R"([│\s]+[├└]─ (.+?)\(\) ([✓✗↷]) \((\d+)ms\))");
+    std::regex junit5_summary_pattern(R"(\[\s+(\d+) tests (found|successful|failed|skipped)\s+\])");
+    
+    // Maven Surefire patterns
+    std::regex surefire_class_pattern(R"(\[INFO\] Running (.+))");
+    std::regex surefire_test_pattern(R"(\[ERROR\] (.+?)\((.+?)\)\s+Time elapsed: ([\d.]+) s\s+<<< (FAILURE!|ERROR!))");
+    std::regex surefire_summary_pattern(R"(\[INFO\] Tests run: (\d+), Failures: (\d+), Errors: (\d+), Skipped: (\d+))");
+    std::regex surefire_results_pattern(R"(\[ERROR\] (.+):(\d+) (.+))");
+    
+    // Gradle patterns
+    std::regex gradle_test_pattern(R"((.+?) > (.+?) (PASSED|FAILED|SKIPPED))");
+    std::regex gradle_summary_pattern(R"((\d+) tests completed, (\d+) failed, (\d+) skipped)");
+    
+    // TestNG patterns
+    std::regex testng_test_pattern(R"((.+?)\.(.+?): (PASS|FAIL|SKIP))");
+    std::regex testng_summary_pattern(R"(Total tests run: (\d+), Failures: (\d+), Skips: (\d+))");
+    
+    std::string current_class = "";
+    std::string current_exception = "";
+    std::string current_test = "";
+    bool in_stack_trace = false;
+    
+    while (std::getline(iss, line)) {
+        std::smatch match;
+        
+        // Parse JUnit 4 class execution
+        if (std::regex_search(line, match, junit4_class_pattern)) {
+            current_class = match[1].str();
+            in_stack_trace = false;
+        }
+        // Parse JUnit 4 class summary
+        else if (std::regex_search(line, match, junit4_summary_pattern)) {
+            int tests_run = std::stoi(match[1].str());
+            int failures = std::stoi(match[2].str());
+            int errors = std::stoi(match[3].str());
+            int skipped = std::stoi(match[4].str());
+            double time_elapsed = std::stod(match[5].str());
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "junit4";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.function_name = current_class;
+            event.status = (failures > 0 || errors > 0) ? ValidationEventStatus::FAIL : ValidationEventStatus::PASS;
+            event.severity = (failures > 0 || errors > 0) ? "error" : "info";
+            event.category = "test_summary";
+            event.message = "Tests: " + std::to_string(tests_run) + 
+                           " total, " + std::to_string(tests_run - failures - errors - skipped) + " passed, " +
+                           std::to_string(failures) + " failed, " + 
+                           std::to_string(errors) + " errors, " +
+                           std::to_string(skipped) + " skipped";
+            event.execution_time = time_elapsed;
+            event.raw_output = content;
+            event.structured_data = "junit";
+            
+            events.push_back(event);
+        }
+        // Parse JUnit 4 individual test results
+        else if (std::regex_search(line, match, junit4_test_pattern)) {
+            std::string test_method = match[1].str();
+            std::string test_class = match[2].str();
+            double time_elapsed = std::stod(match[3].str());
+            std::string result = match[4].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "junit4";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.function_name = test_method;
+            event.test_name = test_class + "." + test_method;
+            event.execution_time = time_elapsed;
+            event.raw_output = content;
+            event.structured_data = "junit";
+            
+            if (result == "PASSED!") {
+                event.status = ValidationEventStatus::PASS;
+                event.severity = "info";
+                event.category = "test_success";
+                event.message = "Test passed";
+            } else if (result == "FAILURE!") {
+                event.status = ValidationEventStatus::FAIL;
+                event.severity = "error";
+                event.category = "test_failure";
+                event.message = "Test failed";
+                current_test = event.test_name;
+                in_stack_trace = true;
+            } else if (result == "ERROR!") {
+                event.status = ValidationEventStatus::ERROR;
+                event.severity = "error";
+                event.category = "test_error";
+                event.message = "Test error";
+                current_test = event.test_name;
+                in_stack_trace = true;
+            } else if (result == "SKIPPED!") {
+                event.status = ValidationEventStatus::SKIP;
+                event.severity = "info";
+                event.category = "test_skipped";
+                event.message = "Test skipped";
+            }
+            
+            events.push_back(event);
+        }
+        // Parse JUnit 5 header
+        else if (std::regex_search(line, match, junit5_header_pattern)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "junit5";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "test_framework";
+            event.message = "JUnit Jupiter " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "junit";
+            
+            events.push_back(event);
+        }
+        // Parse JUnit 5 class results
+        else if (std::regex_search(line, match, junit5_class_pattern)) {
+            current_class = match[1].str();
+        }
+        // Parse JUnit 5 test results
+        else if (std::regex_search(line, match, junit5_test_pattern)) {
+            std::string test_method = match[1].str();
+            std::string result_symbol = match[2].str();
+            int time_ms = std::stoi(match[3].str());
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "junit5";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.function_name = test_method;
+            event.test_name = current_class + "." + test_method;
+            event.execution_time = static_cast<double>(time_ms) / 1000.0;
+            event.raw_output = content;
+            event.structured_data = "junit";
+            
+            if (result_symbol == "✓") {
+                event.status = ValidationEventStatus::PASS;
+                event.severity = "info";
+                event.category = "test_success";
+                event.message = "Test passed";
+            } else if (result_symbol == "✗") {
+                event.status = ValidationEventStatus::FAIL;
+                event.severity = "error";
+                event.category = "test_failure";
+                event.message = "Test failed";
+            } else if (result_symbol == "↷") {
+                event.status = ValidationEventStatus::SKIP;
+                event.severity = "info";
+                event.category = "test_skipped";
+                event.message = "Test skipped";
+            }
+            
+            events.push_back(event);
+        }
+        // Parse Maven Surefire class execution
+        else if (std::regex_search(line, match, surefire_class_pattern)) {
+            current_class = match[1].str();
+        }
+        // Parse Maven Surefire test failures
+        else if (std::regex_search(line, match, surefire_test_pattern)) {
+            std::string test_method = match[1].str();
+            std::string test_class = match[2].str();
+            double time_elapsed = std::stod(match[3].str());
+            std::string result = match[4].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "surefire";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.function_name = test_method;
+            event.test_name = test_class + "." + test_method;
+            event.execution_time = time_elapsed;
+            event.raw_output = content;
+            event.structured_data = "junit";
+            
+            if (result == "FAILURE!") {
+                event.status = ValidationEventStatus::FAIL;
+                event.severity = "error";
+                event.category = "test_failure";
+                event.message = "Test failed";
+            } else if (result == "ERROR!") {
+                event.status = ValidationEventStatus::ERROR;
+                event.severity = "error";
+                event.category = "test_error";
+                event.message = "Test error";
+            }
+            
+            events.push_back(event);
+        }
+        // Parse Maven Surefire summary
+        else if (std::regex_search(line, match, surefire_summary_pattern)) {
+            int tests_run = std::stoi(match[1].str());
+            int failures = std::stoi(match[2].str());
+            int errors = std::stoi(match[3].str());
+            int skipped = std::stoi(match[4].str());
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "surefire";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.status = (failures > 0 || errors > 0) ? ValidationEventStatus::FAIL : ValidationEventStatus::PASS;
+            event.severity = (failures > 0 || errors > 0) ? "error" : "info";
+            event.category = "test_summary";
+            event.message = "Tests: " + std::to_string(tests_run) + 
+                           " total, " + std::to_string(tests_run - failures - errors - skipped) + " passed, " +
+                           std::to_string(failures) + " failed, " + 
+                           std::to_string(errors) + " errors, " +
+                           std::to_string(skipped) + " skipped";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "junit";
+            
+            events.push_back(event);
+        }
+        // Parse Gradle test results
+        else if (std::regex_search(line, match, gradle_test_pattern)) {
+            std::string test_class = match[1].str();
+            std::string test_method = match[2].str();
+            std::string result = match[3].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "gradle-test";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.function_name = test_method;
+            event.test_name = test_class + "." + test_method;
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "junit";
+            
+            if (result == "PASSED") {
+                event.status = ValidationEventStatus::PASS;
+                event.severity = "info";
+                event.category = "test_success";
+                event.message = "Test passed";
+            } else if (result == "FAILED") {
+                event.status = ValidationEventStatus::FAIL;
+                event.severity = "error";
+                event.category = "test_failure";
+                event.message = "Test failed";
+            } else if (result == "SKIPPED") {
+                event.status = ValidationEventStatus::SKIP;
+                event.severity = "info";
+                event.category = "test_skipped";
+                event.message = "Test skipped";
+            }
+            
+            events.push_back(event);
+        }
+        // Parse Gradle test summary
+        else if (std::regex_search(line, match, gradle_summary_pattern)) {
+            int total = std::stoi(match[1].str());
+            int failed = std::stoi(match[2].str());
+            int skipped = std::stoi(match[3].str());
+            int passed = total - failed - skipped;
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "gradle-test";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.status = (failed > 0) ? ValidationEventStatus::FAIL : ValidationEventStatus::PASS;
+            event.severity = (failed > 0) ? "error" : "info";
+            event.category = "test_summary";
+            event.message = "Tests: " + std::to_string(total) + 
+                           " total, " + std::to_string(passed) + " passed, " +
+                           std::to_string(failed) + " failed, " + 
+                           std::to_string(skipped) + " skipped";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "junit";
+            
+            events.push_back(event);
+        }
+        // Parse TestNG test results
+        else if (std::regex_search(line, match, testng_test_pattern)) {
+            std::string test_class = match[1].str();
+            std::string test_method = match[2].str();
+            std::string result = match[3].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "testng";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.function_name = test_method;
+            event.test_name = test_class + "." + test_method;
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "junit";
+            
+            if (result == "PASS") {
+                event.status = ValidationEventStatus::PASS;
+                event.severity = "info";
+                event.category = "test_success";
+                event.message = "Test passed";
+            } else if (result == "FAIL") {
+                event.status = ValidationEventStatus::FAIL;
+                event.severity = "error";
+                event.category = "test_failure";
+                event.message = "Test failed";
+            } else if (result == "SKIP") {
+                event.status = ValidationEventStatus::SKIP;
+                event.severity = "info";
+                event.category = "test_skipped";
+                event.message = "Test skipped";
+            }
+            
+            events.push_back(event);
+        }
+        // Parse TestNG summary
+        else if (std::regex_search(line, match, testng_summary_pattern)) {
+            int total = std::stoi(match[1].str());
+            int failures = std::stoi(match[2].str());
+            int skips = std::stoi(match[3].str());
+            int passed = total - failures - skips;
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "testng";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.status = (failures > 0) ? ValidationEventStatus::FAIL : ValidationEventStatus::PASS;
+            event.severity = (failures > 0) ? "error" : "info";
+            event.category = "test_summary";
+            event.message = "Tests: " + std::to_string(total) + 
+                           " total, " + std::to_string(passed) + " passed, " +
+                           std::to_string(failures) + " failed, " + 
+                           std::to_string(skips) + " skipped";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "junit";
+            
+            events.push_back(event);
+        }
+        // Parse exception messages and stack traces
+        else if (in_stack_trace && std::regex_search(line, match, junit4_exception_pattern)) {
+            std::string exception_type = match[1].str();
+            std::string exception_message = match[2].str();
+            
+            // Update the last test event with exception details
+            if (!events.empty() && events.back().test_name == current_test) {
+                events.back().message = exception_type + ": " + exception_message;
+                events.back().error_code = exception_type;
+            }
+        }
+        // Parse stack trace lines for file/line information
+        else if (in_stack_trace && std::regex_search(line, match, junit4_stack_trace_pattern)) {
+            std::string class_name = match[1].str();
+            std::string method_name = match[2].str();
+            std::string file_name = match[3].str();
+            int line_number = std::stoi(match[4].str());
+            
+            // Update the last test event with file/line details
+            if (!events.empty() && events.back().test_name == current_test && events.back().file_path.empty()) {
+                events.back().file_path = file_name;
+                events.back().line_number = line_number;
+                events.back().function_name = method_name;
+            }
+        }
+        // Reset stack trace mode on blank lines or new test patterns
+        else if (line.empty() || line.find("Running") != std::string::npos) {
+            in_stack_trace = false;
+            current_test = "";
         }
     }
 }
