@@ -1,0 +1,146 @@
+Started by user admin
+Running as SYSTEM
+Building in workspace /var/jenkins_home/workspace/my-project
+The recommended git tool is: NONE
+using credential jenkins-github-token
+ > git rev-parse --resolve-git-dir /var/jenkins_home/workspace/my-project/.git # timeout=10
+Fetching changes from the remote Git repository
+ > git config remote.origin.url https://github.com/myorg/my-project.git # timeout=10
+Fetching upstream changes from https://github.com/myorg/my-project.git
+ > git --version # timeout=10
+ > git --version # 'git version 2.39.2'
+ > git fetch --tags --force --progress -- https://github.com/myorg/my-project.git +refs/heads/*:refs/remotes/origin/* # timeout=10
+ > git rev-parse refs/remotes/origin/main^{commit} # timeout=10
+Checking out Revision a1b2c3d4e5f6789012345678901234567890abcd (refs/remotes/origin/main)
+ > git config core.sparsecheckout # timeout=10
+ > git checkout -f a1b2c3d4e5f6789012345678901234567890abcd # timeout=10
+Commit message: "Fix authentication bug in user service"
+ > git rev-list --no-walk a1b2c3d4e5f6789012345678901234567890abcd # timeout=10
+[Pipeline] Start of Pipeline
+[Pipeline] node
+Running on Jenkins in /var/jenkins_home/workspace/my-project
+[Pipeline] {
+[Pipeline] stage
+[Pipeline] { (Checkout)
+[Pipeline] checkout
+The recommended git tool is: NONE
+using credential jenkins-github-token
+Cloning the remote Git repository
+Cloning repository https://github.com/myorg/my-project.git
+ > git init /var/jenkins_home/workspace/my-project # timeout=10
+ > git remote add origin https://github.com/myorg/my-project.git # timeout=10
+ > git config remote.origin.url https://github.com/myorg/my-project.git # timeout=10
+ > git config --add remote.origin.fetch +refs/heads/*:refs/remotes/origin/* # timeout=10
+Avoid second fetch
+ > git rev-parse refs/remotes/origin/main^{commit} # timeout=10
+Checking out Revision a1b2c3d4e5f6789012345678901234567890abcd (refs/remotes/origin/main)
+ > git config core.sparsecheckout # timeout=10
+ > git checkout -f a1b2c3d4e5f6789012345678901234567890abcd # timeout=10
+ > git branch -a -v --no-abbrev # timeout=10
+ > git checkout -b main a1b2c3d4e5f6789012345678901234567890abcd # timeout=10
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Build)
+[Pipeline] sh
++ npm install
+npm WARN deprecated tar@2.2.2: This version of tar is no longer supported
+npm WARN deprecated inflight@1.0.6: This module is not supported
+added 1234 packages from 567 contributors and audited 1890 packages in 23.456s
+found 0 vulnerabilities
+
+[Pipeline] sh
++ npm run build
+> my-project@1.0.0 build /var/jenkins_home/workspace/my-project
+> webpack --mode=production
+
+Hash: a1b2c3d4e5f67890
+Version: webpack 5.88.2
+Time: 2345ms
+Built at: 2025-07-13 14:30:45
+                        Asset       Size  Chunks                         Chunk Names
+                   index.html  564 bytes          [emitted]
+  js/app.a1b2c3d4.bundle.js   123 KiB     0  [emitted] [immutable]  app
+js/vendor.e5f67890.bundle.js   567 KiB     1  [emitted] [immutable]  vendor
+Entrypoint app = js/vendor.e5f67890.bundle.js js/app.a1b2c3d4.bundle.js
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Test)
+[Pipeline] sh
++ npm test
+> my-project@1.0.0 test /var/jenkins_home/workspace/my-project
+> jest --coverage
+
+PASS src/utils/helpers.test.js
+PASS src/components/Button.test.js
+PASS src/components/Header.test.js
+FAIL src/services/auth.test.js
+  ● Auth Service › login › should return token on valid credentials
+    
+    expect(received).toEqual(expected) // deep equality
+    
+    Expected: {"token": "abc123", "user": {"id": 1, "username": "test"}}
+    Received: {"error": "Invalid credentials"}
+    
+      at Object.<anonymous> (src/services/auth.test.js:25:23)
+
+Test Suites: 1 failed, 3 passed, 4 total
+Tests:       1 failed, 23 passed, 24 total
+Snapshots:   0 total
+Time:        3.456 s
+Ran all test suites.
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Deploy)
+[Pipeline] sh
++ echo "Deploying to staging environment..."
+Deploying to staging environment...
++ docker build -t my-project:1.0.0 .
+Sending build context to Docker daemon  15.36MB
+Step 1/8 : FROM node:18-alpine
+ ---> a1b2c3d4e5f6
+Step 2/8 : WORKDIR /app
+ ---> Using cache
+ ---> b2c3d4e5f678
+Step 3/8 : COPY package*.json ./
+ ---> Using cache
+ ---> c3d4e5f67890
+Step 4/8 : RUN npm ci --only=production
+ ---> Using cache
+ ---> d4e5f6789012
+Step 5/8 : COPY . .
+ ---> e5f678901234
+Step 6/8 : EXPOSE 3000
+ ---> Running in f6789012345a
+Removing intermediate container f6789012345a
+ ---> 67890123456b
+Step 7/8 : CMD ["npm", "start"]
+ ---> Running in 78901234567c
+Removing intermediate container 78901234567c
+ ---> 89012345678d
+Step 8/8 : HEALTHCHECK --interval=30s --timeout=3s CMD curl -f http://localhost:3000/health || exit 1
+ ---> Running in 90123456789e
+Removing intermediate container 90123456789e
+ ---> a0123456789f
+Successfully built a0123456789f
+Successfully tagged my-project:1.0.0
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] }
+[Pipeline] // node
+[Pipeline] End of Pipeline
+ERROR: Build step failed with exception
+java.lang.RuntimeException: Test failures detected
+	at org.jenkinsci.plugins.workflow.steps.durable_task.DurableTaskStep$Execution.handleExit(DurableTaskStep.java:547)
+	at org.jenkinsci.plugins.workflow.steps.durable_task.DurableTaskStep$Execution.check(DurableTaskStep.java:507)
+	at org.jenkinsci.plugins.workflow.steps.durable_task.DurableTaskStep$Execution.run(DurableTaskStep.java:455)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:515)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.access$201(ScheduledThreadPoolExecutor.java:180)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:293)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:834)
+Finished: FAILURE

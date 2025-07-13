@@ -1,0 +1,53 @@
+Running with gitlab-runner 13.12.0 (7a6612da)
+  on docker-auto-scale 4e4528ca
+  using docker driver with image ruby:2.7
+Getting source from Git repository
+Fetching changes with git depth set to 50...
+Initialized empty Git repository in /builds/mygroup/myproject/.git/
+Created fresh repository.
+From https://gitlab.example.com/mygroup/myproject
+ * [new branch]      main       -> origin/main
+Checking out c3d7b6f2 as main...
+Skipping Git submodules setup
+Executing "step_script" stage of the job script
+$ echo "Starting build process..."
+Starting build process...
+$ ruby --version
+ruby 2.7.4p191 (2021-07-07 revision a21a3b7d23) [x86_64-linux]
+$ bundle install
+Fetching gem metadata from https://rubygems.org/...........
+Fetching gem metadata from https://rubygems.org/.
+Resolving dependencies...
+Using bundler 2.1.4
+Bundle complete! 5 Gemfile dependencies, 15 gems now installed.
+Use `bundle info [gemname]` to see where a bundled gem is installed.
+$ bundle exec rspec
+..........F.....
+
+Failures:
+
+  1) User#valid? when all attributes are present should be valid
+     Failure/Error: expect(user).to be_valid
+
+       expected #<User id: nil, name: "John Doe", email: "john@example.com"> to be valid, but got errors: Email has already been taken
+
+     # ./spec/models/user_spec.rb:15:in `block (4 levels) in <top (required)>'
+
+Finished in 2.34 seconds (files took 1.23 seconds to load)
+16 examples, 1 failure
+
+Failed examples:
+
+rspec ./spec/models/user_spec.rb:15 # User#valid? when all attributes are present should be valid
+
+$ bundle exec rubocop
+Inspecting 25 files
+..........W..............
+
+Offenses:
+
+app/models/user.rb:12:5: W: Layout/TrailingWhitespace: Trailing whitespace detected.
+    validates :email, presence: true 
+
+25 files inspected, 1 offense detected
+Job succeeded

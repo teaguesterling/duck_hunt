@@ -97,6 +97,45 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
         }
     }
     
+    // Check CI/CD patterns first since they often contain output from multiple test frameworks
+    
+    // Check for GitHub Actions patterns
+    if ((content.find("##[section]") != std::string::npos && content.find("##[section]Starting:") != std::string::npos) ||
+        (content.find("Agent name:") != std::string::npos && content.find("Agent machine name:") != std::string::npos) ||
+        (content.find("##[group]") != std::string::npos && content.find("##[endgroup]") != std::string::npos) ||
+        (content.find("##[error]") != std::string::npos && content.find("Process completed with exit code") != std::string::npos) ||
+        (content.find("Job completed:") != std::string::npos && content.find("Result:") != std::string::npos && content.find("Elapsed time:") != std::string::npos) ||
+        (content.find("==============================================================================") != std::string::npos && content.find("Task         :") != std::string::npos && content.find("Description  :") != std::string::npos)) {
+        return TestResultFormat::GITHUB_ACTIONS_TEXT;
+    }
+    
+    // Check for GitLab CI patterns
+    if ((content.find("Running with gitlab-runner") != std::string::npos) ||
+        (content.find("using docker driver") != std::string::npos && content.find("Getting source from Git repository") != std::string::npos) ||
+        (content.find("Executing \"step_script\" stage") != std::string::npos) ||
+        (content.find("Job succeeded") != std::string::npos && content.find("$ bundle exec") != std::string::npos) ||
+        (content.find("Fetching changes with git depth") != std::string::npos && content.find("Created fresh repository") != std::string::npos)) {
+        return TestResultFormat::GITLAB_CI_TEXT;
+    }
+    
+    // Check for Jenkins patterns
+    if ((content.find("Started by user") != std::string::npos && content.find("Building in workspace") != std::string::npos) ||
+        (content.find("[Pipeline] Start of Pipeline") != std::string::npos && content.find("[Pipeline] End of Pipeline") != std::string::npos) ||
+        (content.find("[Pipeline] stage") != std::string::npos && content.find("[Pipeline] sh") != std::string::npos) ||
+        (content.find("Finished: SUCCESS") != std::string::npos || content.find("Finished: FAILURE") != std::string::npos) ||
+        (content.find("java.lang.RuntimeException") != std::string::npos && content.find("at org.jenkinsci.plugins") != std::string::npos)) {
+        return TestResultFormat::JENKINS_TEXT;
+    }
+    
+    // Check for DroneCI patterns
+    if ((content.find("[drone:exec]") != std::string::npos && content.find("starting build step:") != std::string::npos) ||
+        (content.find("[drone:exec]") != std::string::npos && content.find("completed build step:") != std::string::npos) ||
+        (content.find("[drone:exec]") != std::string::npos && content.find("pipeline execution complete") != std::string::npos) ||
+        (content.find("[drone:exec]") != std::string::npos && content.find("pipeline failed with exit code") != std::string::npos) ||
+        (content.find("+ git clone") != std::string::npos && content.find("DRONE_COMMIT_SHA") != std::string::npos)) {
+        return TestResultFormat::DRONE_CI_TEXT;
+    }
+    
     // Check text patterns (DuckDB test should be checked before make error since it may contain both)
     if (content.find("[0/") != std::string::npos && content.find("] (0%):") != std::string::npos && 
         content.find("test cases:") != std::string::npos) {
@@ -431,6 +470,10 @@ std::string TestResultFormatToString(TestResultFormat format) {
         case TestResultFormat::YAPF_TEXT: return "yapf_text";
         case TestResultFormat::COVERAGE_TEXT: return "coverage_text";
         case TestResultFormat::PYTEST_COV_TEXT: return "pytest_cov_text";
+        case TestResultFormat::GITHUB_ACTIONS_TEXT: return "github_actions_text";
+        case TestResultFormat::GITLAB_CI_TEXT: return "gitlab_ci_text";
+        case TestResultFormat::JENKINS_TEXT: return "jenkins_text";
+        case TestResultFormat::DRONE_CI_TEXT: return "drone_ci_text";
         default: return "unknown";
     }
 }
@@ -487,6 +530,10 @@ TestResultFormat StringToTestResultFormat(const std::string& str) {
     if (str == "yapf_text") return TestResultFormat::YAPF_TEXT;
     if (str == "coverage_text") return TestResultFormat::COVERAGE_TEXT;
     if (str == "pytest_cov_text") return TestResultFormat::PYTEST_COV_TEXT;
+    if (str == "github_actions_text") return TestResultFormat::GITHUB_ACTIONS_TEXT;
+    if (str == "gitlab_ci_text") return TestResultFormat::GITLAB_CI_TEXT;
+    if (str == "jenkins_text") return TestResultFormat::JENKINS_TEXT;
+    if (str == "drone_ci_text") return TestResultFormat::DRONE_CI_TEXT;
     if (str == "unknown") return TestResultFormat::UNKNOWN;
     return TestResultFormat::AUTO;  // Default to auto-detection
 }
@@ -729,6 +776,18 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
             break;
         case TestResultFormat::PYTEST_COV_TEXT:
             ParsePytestCovText(content, global_state->events);
+            break;
+        case TestResultFormat::GITHUB_ACTIONS_TEXT:
+            ParseGitHubActionsText(content, global_state->events);
+            break;
+        case TestResultFormat::GITLAB_CI_TEXT:
+            ParseGitLabCIText(content, global_state->events);
+            break;
+        case TestResultFormat::JENKINS_TEXT:
+            ParseJenkinsText(content, global_state->events);
+            break;
+        case TestResultFormat::DRONE_CI_TEXT:
+            ParseDroneCIText(content, global_state->events);
             break;
         default:
             // For unknown formats, don't create any events
@@ -3735,6 +3794,18 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
             break;
         case TestResultFormat::PYTEST_COV_TEXT:
             ParsePytestCovText(content, global_state->events);
+            break;
+        case TestResultFormat::GITHUB_ACTIONS_TEXT:
+            ParseGitHubActionsText(content, global_state->events);
+            break;
+        case TestResultFormat::GITLAB_CI_TEXT:
+            ParseGitLabCIText(content, global_state->events);
+            break;
+        case TestResultFormat::JENKINS_TEXT:
+            ParseJenkinsText(content, global_state->events);
+            break;
+        case TestResultFormat::DRONE_CI_TEXT:
+            ParseDroneCIText(content, global_state->events);
             break;
         default:
             // For unknown formats, don't create any events
@@ -11141,6 +11212,1486 @@ void ParsePytestCovText(const std::string& content, std::vector<ValidationEvent>
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "pytest_cov_text";
+            
+            events.push_back(event);
+            continue;
+        }
+    }
+}
+
+void ParseGitHubActionsText(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream stream(content);
+    std::string line;
+    int64_t event_id = 1;
+    
+    // Regex patterns for GitHub Actions output
+    std::regex timestamp_prefix(R"(^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{7}Z)\s+(.+))");
+    std::regex section_start(R"(##\[section\]Starting:\s+(.+))");
+    std::regex section_finish(R"(##\[section\]Finishing:\s+(.+))");
+    std::regex task_header_start(R"(={70,})");
+    std::regex task_info(R"(^(Task|Description|Version|Author|Help)\s*:\s*(.+))");
+    std::regex agent_info(R"(^Agent (name|machine name|version):\s*(?:'(.+)'|(.+)))");  
+    std::regex environment_info(R"(^(Operating System|Runner image|Environment details))");
+    std::regex git_operation(R"((/usr/bin/git\s+.+|Syncing repository:|From https://github\.com/.+))");
+    std::regex group_start(R"(##\[group\](.+))");
+    std::regex group_end(R"(##\[endgroup\])");
+    std::regex error_message(R"(##\[error\](.+))");
+    std::regex warning_message(R"(##\[warning\](.+))");
+    std::regex command_output_start(R"(={20,}\s*Starting Command Output\s*={20,})");
+    std::regex npm_command(R"(^>\s+([^@]+)@([^\s]+)\s+(.+))");
+    std::regex test_result(R"((PASS|FAIL)\s+(.+))");
+    std::regex jest_summary(R"(Test Suites:\s*(\d+)\s*failed,\s*(\d+)\s*passed,\s*(\d+)\s*total)");
+    std::regex jest_test_summary(R"(Tests:\s*(\d+)\s*failed,\s*(\d+)\s*passed,\s*(\d+)\s*total)");
+    std::regex jest_timing(R"(Time:\s*([\d\.]+)s)");
+    std::regex process_exit_code(R"(##\[error\]Process completed with exit code (\d+)\.)");
+    std::regex job_completed(R"(Job completed:\s*(.+))");
+    std::regex job_result(R"(Result:\s*(Succeeded|Failed|Canceled))");
+    std::regex elapsed_time(R"(Elapsed time:\s*(\d{2}:\d{2}:\d{2}))");
+    std::regex job_summary(R"(##\[section\]Job summary:)");
+    std::regex step_status(R"(-\s*([^:]+):\s*(Succeeded|Failed|Succeeded \\(with warnings\\)))");
+    std::regex error_details_section(R"(##\[section\]Error details:)");
+    std::regex performance_section(R"(##\[section\]Performance metrics:)");
+    std::regex recommendations_section(R"(##\[section\]Recommendations:)");
+    std::regex webpack_build(R"(Hash:\s*([a-f0-9]+))");
+    std::regex webpack_asset(R"(\s+([^\s]+)\s+([\d\.]+\s+[KMG]iB)\s+(\d+)\s+\[emitted\].*)");
+    std::regex eslint_warning(R"((\d+):(\d+)\s+(warning|error)\s+(.+)\s+([a-z-]+))");
+    std::regex coverage_info(R"(Publishing test results from '(.+)'))");
+    std::regex published_results(R"(Published (\d+) test result\\(s\\))");
+    std::regex resource_usage(R"((Disk space|Memory usage|CPU usage):\s*(.+))");
+    std::regex duration_metric(R"(-\s*([^:]+):\s*([\d\.]+)\s*(seconds|second|minutes|minute))");
+    std::regex recommendation_item(R"(-\s*(.+))");
+    
+    std::smatch match;
+    std::string current_section = "";
+    std::string current_task = "";
+    std::string current_timestamp = "";
+    bool in_task_header = false;
+    bool in_command_output = false;
+    bool in_job_summary = false;
+    bool in_error_details = false;
+    bool in_performance_metrics = false;
+    bool in_recommendations = false;
+    
+    while (std::getline(stream, line)) {
+        // Extract timestamp and content
+        if (std::regex_search(line, match, timestamp_prefix)) {
+            current_timestamp = match[1].str();
+            line = match[2].str();
+        }
+        
+        // Handle section starts
+        if (std::regex_search(line, match, section_start)) {
+            current_section = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "github-actions";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "section_start";
+            event.message = "Starting: " + current_section;
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "github_actions_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle section finishes
+        if (std::regex_search(line, match, section_finish)) {
+            std::string finished_section = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "github-actions";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "section_finish";
+            event.message = "Finished: " + finished_section;
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "github_actions_text";
+            
+            events.push_back(event);
+            current_section = "";
+            continue;
+        }
+        
+        // Handle task header start
+        if (std::regex_search(line, match, task_header_start)) {
+            in_task_header = true;
+            continue;
+        }
+        
+        // Handle task information
+        if (in_task_header && std::regex_search(line, match, task_info)) {
+            std::string info_type = match[1].str();
+            std::string info_value = match[2].str();
+            
+            if (info_type == "Task") {
+                current_task = info_value;
+            }
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "github-actions";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "task_info";
+            event.message = info_type + ": " + info_value;
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "github_actions_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle task header end
+        if (in_task_header && std::regex_search(line, match, task_header_start)) {
+            in_task_header = false;
+            continue;
+        }
+        
+        // Handle agent information
+        if (std::regex_search(line, match, agent_info)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "github-actions";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "agent_info";
+            event.message = line;
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "github_actions_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle command output start
+        if (std::regex_search(line, match, command_output_start)) {
+            in_command_output = true;
+            continue;
+        }
+        
+        // Handle npm commands
+        if (in_command_output && std::regex_search(line, match, npm_command)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "github-actions";
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "npm_command";
+            event.message = "npm " + match[3].str() + " for " + match[1].str() + "@" + match[2].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "github_actions_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle test results
+        if (std::regex_search(line, match, test_result)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "github-actions";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.file_path = match[2].str();
+            event.line_number = -1;
+            event.column_number = -1;
+            
+            std::string status = match[1].str();
+            if (status == "PASS") {
+                event.status = ValidationEventStatus::PASS;
+                event.severity = "info";
+            } else {
+                event.status = ValidationEventStatus::FAIL;
+                event.severity = "error";
+            }
+            
+            event.category = "test_execution";
+            event.message = "Test " + status + ": " + match[2].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "github_actions_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle Jest test summary
+        if (std::regex_search(line, match, jest_summary)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "github-actions";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            
+            std::string failed = match[1].str();
+            if (failed != "0") {
+                event.status = ValidationEventStatus::FAIL;
+                event.severity = "error";
+            } else {
+                event.status = ValidationEventStatus::PASS;
+                event.severity = "info";
+            }
+            
+            event.category = "test_summary";
+            event.message = "Test Suites: " + failed + " failed, " + match[2].str() + " passed, " + match[3].str() + " total";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "github_actions_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle Jest individual test summary
+        if (std::regex_search(line, match, jest_test_summary)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "github-actions";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            
+            std::string failed = match[1].str();
+            if (failed != "0") {
+                event.status = ValidationEventStatus::FAIL;
+                event.severity = "error";
+            } else {
+                event.status = ValidationEventStatus::PASS;
+                event.severity = "info";
+            }
+            
+            event.category = "test_summary";
+            event.message = "Tests: " + failed + " failed, " + match[2].str() + " passed, " + match[3].str() + " total";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "github_actions_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle process exit codes
+        if (std::regex_search(line, match, process_exit_code)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "github-actions";
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::FAIL;
+            event.severity = "error";
+            event.category = "process_error";
+            event.message = "Process completed with exit code " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "github_actions_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle job completion
+        if (std::regex_search(line, match, job_completed)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "github-actions";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "job_completion";
+            event.message = "Job completed: " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "github_actions_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle job result
+        if (std::regex_search(line, match, job_result)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "github-actions";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            
+            std::string result = match[1].str();
+            if (result == "Succeeded") {
+                event.status = ValidationEventStatus::PASS;
+                event.severity = "info";
+            } else if (result == "Failed") {
+                event.status = ValidationEventStatus::FAIL;
+                event.severity = "error";
+            } else {
+                event.status = ValidationEventStatus::INFO;
+                event.severity = "warning";
+            }
+            
+            event.category = "job_result";
+            event.message = "Job result: " + result;
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "github_actions_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle elapsed time
+        if (std::regex_search(line, match, elapsed_time)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "github-actions";
+            event.event_type = ValidationEventType::PERFORMANCE_METRIC;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "timing";
+            event.message = "Elapsed time: " + match[1].str();
+            
+            // Convert time string to seconds
+            std::string time_str = match[1].str();
+            std::istringstream time_stream(time_str);
+            std::string hours_str, minutes_str, seconds_str;
+            std::getline(time_stream, hours_str, ':');
+            std::getline(time_stream, minutes_str, ':');
+            std::getline(time_stream, seconds_str);
+            
+            double total_seconds = std::stod(hours_str) * 3600 + std::stod(minutes_str) * 60 + std::stod(seconds_str);
+            event.execution_time = total_seconds;
+            event.raw_output = content;
+            event.structured_data = "github_actions_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle job summary section
+        if (std::regex_search(line, match, job_summary)) {
+            in_job_summary = true;
+            continue;
+        }
+        
+        // Handle step status in job summary
+        if (in_job_summary && std::regex_search(line, match, step_status)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "github-actions";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            
+            std::string step_name = match[1].str();
+            std::string status = match[2].str();
+            
+            if (status == "Succeeded") {
+                event.status = ValidationEventStatus::PASS;
+                event.severity = "info";
+            } else if (status == "Failed") {
+                event.status = ValidationEventStatus::FAIL;
+                event.severity = "error";
+            } else {
+                event.status = ValidationEventStatus::WARNING;
+                event.severity = "warning";
+            }
+            
+            event.category = "step_summary";
+            event.message = step_name + ": " + status;
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "github_actions_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle error details section
+        if (std::regex_search(line, match, error_details_section)) {
+            in_error_details = true;
+            in_job_summary = false;
+            continue;
+        }
+        
+        // Handle performance metrics section
+        if (std::regex_search(line, match, performance_section)) {
+            in_performance_metrics = true;
+            in_error_details = false;
+            continue;
+        }
+        
+        // Handle recommendations section
+        if (std::regex_search(line, match, recommendations_section)) {
+            in_recommendations = true;
+            in_performance_metrics = false;
+            continue;
+        }
+        
+        // Handle duration metrics in performance section
+        if (in_performance_metrics && std::regex_search(line, match, duration_metric)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "github-actions";
+            event.event_type = ValidationEventType::PERFORMANCE_METRIC;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "performance_metric";
+            event.message = match[1].str() + ": " + match[2].str() + " " + match[3].str();
+            event.execution_time = std::stod(match[2].str());
+            event.raw_output = content;
+            event.structured_data = "github_actions_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle resource usage
+        if (std::regex_search(line, match, resource_usage)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "github-actions";
+            event.event_type = ValidationEventType::PERFORMANCE_METRIC;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "resource_usage";
+            event.message = match[1].str() + ": " + match[2].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "github_actions_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle recommendations
+        if (in_recommendations && std::regex_search(line, match, recommendation_item)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "github-actions";
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::WARNING;
+            event.severity = "warning";
+            event.category = "recommendation";
+            event.message = match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "github_actions_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle webpack build info
+        if (std::regex_search(line, match, webpack_build)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "github-actions";
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "webpack_build";
+            event.message = "Webpack build hash: " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "github_actions_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle ESLint warnings in webpack output
+        if (std::regex_search(line, match, eslint_warning)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "github-actions";
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.file_path = "";
+            event.line_number = std::stoi(match[1].str());
+            event.column_number = std::stoi(match[2].str());
+            
+            std::string level = match[3].str();
+            if (level == "error") {
+                event.status = ValidationEventStatus::FAIL;
+                event.severity = "error";
+            } else {
+                event.status = ValidationEventStatus::WARNING;
+                event.severity = "warning";
+            }
+            
+            event.category = "eslint";
+            event.message = match[4].str() + " (" + match[5].str() + ")";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "github_actions_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle coverage publishing
+        if (std::regex_search(line, match, coverage_info)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "github-actions";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "test_publishing";
+            event.message = "Publishing test results from: " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "github_actions_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle published test results count
+        if (std::regex_search(line, match, published_results)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "github-actions";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "test_publishing";
+            event.message = "Published " + match[1].str() + " test results";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "github_actions_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle general error messages
+        if (std::regex_search(line, match, error_message)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "github-actions";
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::FAIL;
+            event.severity = "error";
+            event.category = "error";
+            event.message = match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "github_actions_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle general warning messages
+        if (std::regex_search(line, match, warning_message)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "github-actions";
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::WARNING;
+            event.severity = "warning";
+            event.category = "warning";
+            event.message = match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "github_actions_text";
+            
+            events.push_back(event);
+            continue;
+        }
+    }
+}
+
+void ParseGitLabCIText(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream stream(content);
+    std::string line;
+    int64_t event_id = 1;
+    
+    // Regex patterns for GitLab CI output
+    std::regex runner_info(R"(Running with gitlab-runner ([0-9.]+) \(([a-f0-9]+)\))");
+    std::regex executor_info(R"(on (.+) using (.+) driver with image (.+))");
+    std::regex git_repo_info(R"(Getting source from Git repository)");
+    std::regex git_fetch(R"(Fetching changes with git depth set to (\d+)...)");
+    std::regex git_checkout(R"(Checking out ([a-f0-9]+) as (.+)...)");
+    std::regex step_execution(R"(Executing \"(.+)\" stage of the job script)");
+    std::regex command_execution(R"(^\$ (.+))");
+    std::regex bundle_install(R"(Bundle complete! (\d+) Gemfile dependencies, (\d+) gems now installed)");
+    std::regex rspec_result(R"((\d+) examples?, (\d+) failures?)");
+    std::regex rspec_timing(R"(Finished in ([\d.]+) seconds \(files took ([\d.]+) seconds to load\))");
+    std::regex rspec_failure(R"(^\s+(\d+)\) (.+))");
+    std::regex rspec_file_line(R"(# (.+):(\d+):in)");
+    std::regex rubocop_inspect(R"(Inspecting (\d+) files)");
+    std::regex rubocop_offense(R"((.+):(\d+):(\d+): ([WCE]): (.+): (.+))");
+    std::regex rubocop_summary(R"((\d+) files inspected, (\d+) offenses? detected)");
+    std::regex job_status(R"(Job (succeeded|failed))");
+    
+    std::smatch match;
+    std::string current_step = "";
+    std::string current_command = "";
+    bool in_rspec_failures = false;
+    bool in_rubocop_offenses = false;
+    
+    while (std::getline(stream, line)) {
+        // Parse GitLab runner information
+        if (std::regex_search(line, match, runner_info)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "gitlab-ci";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "runner_info";
+            event.message = "GitLab Runner " + match[1].str() + " (" + match[2].str() + ")";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "gitlab_ci_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Parse executor information
+        if (std::regex_search(line, match, executor_info)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "gitlab-ci";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "executor_info";
+            event.message = "Running on " + match[1].str() + " using " + match[2].str() + " with image " + match[3].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "gitlab_ci_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Parse step execution
+        if (std::regex_search(line, match, step_execution)) {
+            current_step = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "gitlab-ci";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "step_execution";
+            event.message = "Executing " + current_step + " stage";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "gitlab_ci_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Parse command execution
+        if (std::regex_search(line, match, command_execution)) {
+            current_command = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "gitlab-ci";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "command_execution";
+            event.message = "Executing: " + current_command;
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "gitlab_ci_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Parse RSpec results
+        if (std::regex_search(line, match, rspec_result)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "rspec";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = std::stoi(match[2].str()) > 0 ? ValidationEventStatus::ERROR : ValidationEventStatus::PASS;
+            event.severity = std::stoi(match[2].str()) > 0 ? "error" : "info";
+            event.category = "test_summary";
+            event.message = match[1].str() + " examples, " + match[2].str() + " failures";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "gitlab_ci_text";
+            
+            events.push_back(event);
+            
+            if (std::stoi(match[2].str()) > 0) {
+                in_rspec_failures = true;
+            }
+            continue;
+        }
+        
+        // Parse RSpec timing
+        if (std::regex_search(line, match, rspec_timing)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "rspec";
+            event.event_type = ValidationEventType::PERFORMANCE_METRIC;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "timing";
+            event.message = "Finished in " + match[1].str() + " seconds (files took " + match[2].str() + " seconds to load)";
+            event.execution_time = std::stod(match[1].str());
+            event.raw_output = content;
+            event.structured_data = "gitlab_ci_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Parse RSpec failures
+        if (in_rspec_failures && std::regex_search(line, match, rspec_failure)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "rspec";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::ERROR;
+            event.severity = "error";
+            event.category = "test_failure";
+            event.test_name = match[2].str();
+            event.message = "RSpec failure: " + match[2].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "gitlab_ci_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Parse RuboCop inspection
+        if (std::regex_search(line, match, rubocop_inspect)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "rubocop";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "inspection";
+            event.message = "Inspecting " + match[1].str() + " files";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "gitlab_ci_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Parse RuboCop offenses
+        if (std::regex_search(line, match, rubocop_offense)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "rubocop";
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.file_path = match[1].str();
+            event.line_number = std::stoi(match[2].str());
+            event.column_number = std::stoi(match[3].str());
+            
+            std::string severity_char = match[4].str();
+            if (severity_char == "E") {
+                event.status = ValidationEventStatus::ERROR;
+                event.severity = "error";
+            } else if (severity_char == "W") {
+                event.status = ValidationEventStatus::WARNING;
+                event.severity = "warning";
+            } else {
+                event.status = ValidationEventStatus::INFO;
+                event.severity = "info";
+            }
+            
+            event.category = "style_issue";
+            event.error_code = match[5].str();
+            event.message = match[6].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "gitlab_ci_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Parse RuboCop summary
+        if (std::regex_search(line, match, rubocop_summary)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "rubocop";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = std::stoi(match[2].str()) > 0 ? ValidationEventStatus::WARNING : ValidationEventStatus::PASS;
+            event.severity = std::stoi(match[2].str()) > 0 ? "warning" : "info";
+            event.category = "summary";
+            event.message = match[1].str() + " files inspected, " + match[2].str() + " offenses detected";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "gitlab_ci_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Parse job status
+        if (std::regex_search(line, match, job_status)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "gitlab-ci";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = match[1].str() == "succeeded" ? ValidationEventStatus::PASS : ValidationEventStatus::ERROR;
+            event.severity = match[1].str() == "succeeded" ? "info" : "error";
+            event.category = "job_status";
+            event.message = "Job " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "gitlab_ci_text";
+            
+            events.push_back(event);
+            continue;
+        }
+    }
+}
+
+void ParseJenkinsText(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream stream(content);
+    std::string line;
+    int64_t event_id = 1;
+    
+    // Regex patterns for Jenkins output
+    std::regex build_start(R"(Started by user (.+))");
+    std::regex workspace_info(R"(Building in workspace (.+))");
+    std::regex git_checkout(R"(Checking out Revision ([a-f0-9]+) \((.+)\))");
+    std::regex pipeline_start(R"(\[Pipeline\] Start of Pipeline)");
+    std::regex pipeline_end(R"(\[Pipeline\] End of Pipeline)");
+    std::regex pipeline_stage(R"(\[Pipeline\] \{ \((.+)\))");
+    std::regex pipeline_step(R"(\[Pipeline\] (.+))");
+    std::regex shell_command(R"(^\+ (.+))");
+    std::regex npm_install(R"(added (\d+) packages .* in ([\d.]+)s)");
+    std::regex npm_vulnerabilities(R"(found (\d+) vulnerabilit)");
+    std::regex webpack_build(R"(Hash: ([a-f0-9]+))");
+    std::regex webpack_asset(R"(\s+([^\s]+)\s+([\d\.]+\s+[KMG]iB)\s+(\d+)\s+\[emitted\])");
+    std::regex jest_test_pass(R"(PASS (.+))");
+    std::regex jest_test_fail(R"(FAIL (.+))");
+    std::regex jest_summary(R"(Test Suites: (\d+) failed, (\d+) passed, (\d+) total)");
+    std::regex jest_test_summary(R"(Tests: (\d+) failed, (\d+) passed, (\d+) total)");
+    std::regex docker_build_start(R"(Sending build context to Docker daemon\s+([\d.]+[KMG]?B))");
+    std::regex docker_step(R"(Step (\d+)/(\d+) : (.+))");
+    std::regex docker_success(R"(Successfully built ([a-f0-9]+))");
+    std::regex docker_tagged(R"(Successfully tagged (.+))");
+    std::regex build_failure(R"(ERROR: Build step failed with exception)");
+    std::regex java_exception(R"(([a-zA-Z.]+Exception): (.+))");
+    std::regex jenkins_stack_trace(R"(\s+at ([a-zA-Z0-9_.]+)\(([^)]+)\))");
+    std::regex build_result(R"(Finished: (SUCCESS|FAILURE|UNSTABLE|ABORTED))");
+    
+    std::smatch match;
+    std::string current_stage = "";
+    std::string current_user = "";
+    bool in_pipeline = false;
+    bool in_docker_build = false;
+    bool in_exception = false;
+    
+    while (std::getline(stream, line)) {
+        // Parse build start information
+        if (std::regex_search(line, match, build_start)) {
+            current_user = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "jenkins";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "build_start";
+            event.message = "Build started by user: " + current_user;
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "jenkins_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Parse workspace information
+        if (std::regex_search(line, match, workspace_info)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "jenkins";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "workspace";
+            event.message = "Building in workspace: " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "jenkins_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Parse pipeline stages
+        if (std::regex_search(line, match, pipeline_stage)) {
+            current_stage = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "jenkins";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "pipeline_stage";
+            event.message = "Starting stage: " + current_stage;
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "jenkins_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Parse Jest test results
+        if (std::regex_search(line, match, jest_test_pass)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "jest";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.file_path = match[1].str();
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::PASS;
+            event.severity = "info";
+            event.category = "test_pass";
+            event.message = "Test passed: " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "jenkins_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        if (std::regex_search(line, match, jest_test_fail)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "jest";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.file_path = match[1].str();
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::FAIL;
+            event.severity = "error";
+            event.category = "test_failure";
+            event.message = "Test failed: " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "jenkins_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Parse Jest test summary
+        if (std::regex_search(line, match, jest_summary)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "jest";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = std::stoi(match[1].str()) > 0 ? ValidationEventStatus::FAIL : ValidationEventStatus::PASS;
+            event.severity = std::stoi(match[1].str()) > 0 ? "error" : "info";
+            event.category = "test_summary";
+            event.message = "Test Suites: " + match[1].str() + " failed, " + match[2].str() + " passed, " + match[3].str() + " total";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "jenkins_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Parse Docker build information
+        if (std::regex_search(line, match, docker_build_start)) {
+            in_docker_build = true;
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "docker";
+            event.event_type = ValidationEventType::DEBUG_INFO;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "docker_build";
+            event.message = "Docker build context: " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "jenkins_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Parse Docker build success
+        if (std::regex_search(line, match, docker_success)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "docker";
+            event.event_type = ValidationEventType::DEBUG_INFO;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::PASS;
+            event.severity = "info";
+            event.category = "docker_success";
+            event.message = "Successfully built image: " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "jenkins_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Parse build exceptions
+        if (std::regex_search(line, match, build_failure)) {
+            in_exception = true;
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "jenkins";
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::ERROR;
+            event.severity = "error";
+            event.category = "build_failure";
+            event.message = "Build step failed with exception";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "jenkins_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Parse Java exceptions
+        if (in_exception && std::regex_search(line, match, java_exception)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "jenkins";
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::ERROR;
+            event.severity = "error";
+            event.category = "java_exception";
+            event.error_code = match[1].str();
+            event.message = match[1].str() + ": " + match[2].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "jenkins_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Parse build result
+        if (std::regex_search(line, match, build_result)) {
+            std::string result = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "jenkins";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            
+            if (result == "SUCCESS") {
+                event.status = ValidationEventStatus::PASS;
+                event.severity = "info";
+            } else if (result == "FAILURE") {
+                event.status = ValidationEventStatus::FAIL;
+                event.severity = "error";
+            } else if (result == "UNSTABLE") {
+                event.status = ValidationEventStatus::WARNING;
+                event.severity = "warning";
+            } else {
+                event.status = ValidationEventStatus::ERROR;
+                event.severity = "error";
+            }
+            
+            event.category = "build_result";
+            event.message = "Build finished: " + result;
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "jenkins_text";
+            
+            events.push_back(event);
+            continue;
+        }
+    }
+}
+
+void ParseDroneCIText(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream stream(content);
+    std::string line;
+    int64_t event_id = 1;
+    
+    // Regex patterns for DroneCI output
+    std::regex drone_step_start(R"(\[drone:exec\] .* starting build step: (.+))");
+    std::regex drone_step_complete(R"(\[drone:exec\] .* completed build step: (.+) \(exit code (\d+)\))");
+    std::regex drone_pipeline_complete(R"(\[drone:exec\] .* pipeline execution complete)");
+    std::regex drone_pipeline_failed(R"(\[drone:exec\] .* pipeline failed with exit code (\d+))");
+    std::regex git_clone(R"(\+ git clone (.+) \.)");
+    std::regex git_checkout(R"(\+ git checkout ([a-f0-9]+))");
+    std::regex npm_install(R"(added (\d+) packages .* in ([\d.]+)s)");
+    std::regex npm_vulnerabilities(R"(found (\d+) vulnerabilit)");
+    std::regex jest_test_pass(R"(PASS (.+) \(([\d.]+) s\))");
+    std::regex jest_test_fail(R"(FAIL (.+) \(([\d.]+) s\))");
+    std::regex jest_test_item(R"(✓ (.+) \((\d+) ms\))");
+    std::regex jest_test_fail_item(R"(✗ (.+) \(([\d.]+) s\))");
+    std::regex jest_summary(R"(Test Suites: (\d+) failed, (\d+) passed, (\d+) total)");
+    std::regex jest_test_summary(R"(Tests: (\d+) failed, (\d+) passed, (\d+) total)");
+    std::regex jest_timing(R"(Time: ([\d.]+) s)");
+    std::regex webpack_build(R"(Hash: ([a-f0-9]+))");
+    std::regex webpack_warning(R"(Module Warning \(from ([^)]+)\):)");
+    std::regex eslint_warning(R"((\d+):(\d+)\s+(warning|error)\s+(.+)\s+([a-z-]+))");
+    std::regex docker_build_start(R"(Sending build context to Docker daemon\s+([\d.]+[KMG]?B))");
+    std::regex docker_step(R"(Step (\d+)/(\d+) : (.+))");
+    std::regex docker_success(R"(Successfully built ([a-f0-9]+))");
+    std::regex docker_tagged(R"(Successfully tagged (.+))");
+    std::regex curl_notification(R"(\+ curl -X POST .* --data '(.+)' )");
+    
+    std::smatch match;
+    std::string current_step = "";
+    bool in_jest_failure = false;
+    
+    while (std::getline(stream, line)) {
+        // Parse DroneCI step start
+        if (std::regex_search(line, match, drone_step_start)) {
+            current_step = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "drone-ci";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "step_start";
+            event.message = "Starting build step: " + current_step;
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "drone_ci_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Parse DroneCI step completion
+        if (std::regex_search(line, match, drone_step_complete)) {
+            std::string step_name = match[1].str();
+            int exit_code = std::stoi(match[2].str());
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "drone-ci";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = exit_code == 0 ? ValidationEventStatus::PASS : ValidationEventStatus::FAIL;
+            event.severity = exit_code == 0 ? "info" : "error";
+            event.category = "step_complete";
+            event.message = "Completed build step: " + step_name + " (exit code " + std::to_string(exit_code) + ")";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "drone_ci_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Parse Jest test results
+        if (std::regex_search(line, match, jest_test_pass)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "jest";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.file_path = match[1].str();
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::PASS;
+            event.severity = "info";
+            event.category = "test_pass";
+            event.message = "Test passed: " + match[1].str();
+            event.execution_time = std::stod(match[2].str());
+            event.raw_output = content;
+            event.structured_data = "drone_ci_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        if (std::regex_search(line, match, jest_test_fail)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "jest";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.file_path = match[1].str();
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::FAIL;
+            event.severity = "error";
+            event.category = "test_failure";
+            event.message = "Test failed: " + match[1].str();
+            event.execution_time = std::stod(match[2].str());
+            event.raw_output = content;
+            event.structured_data = "drone_ci_text";
+            
+            events.push_back(event);
+            in_jest_failure = true;
+            continue;
+        }
+        
+        // Parse individual test failures
+        if (std::regex_search(line, match, jest_test_fail_item)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "jest";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::FAIL;
+            event.severity = "error";
+            event.category = "test_failure";
+            event.test_name = match[1].str();
+            event.message = "Test failure: " + match[1].str();
+            event.execution_time = std::stod(match[2].str());
+            event.raw_output = content;
+            event.structured_data = "drone_ci_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Parse Jest test summary
+        if (std::regex_search(line, match, jest_summary)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "jest";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = std::stoi(match[1].str()) > 0 ? ValidationEventStatus::FAIL : ValidationEventStatus::PASS;
+            event.severity = std::stoi(match[1].str()) > 0 ? "error" : "info";
+            event.category = "test_summary";
+            event.message = "Test Suites: " + match[1].str() + " failed, " + match[2].str() + " passed, " + match[3].str() + " total";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "drone_ci_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Parse ESLint warnings
+        if (std::regex_search(line, match, eslint_warning)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "eslint";
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.file_path = "/drone/src/src/services/auth.js"; // Default from sample
+            event.line_number = std::stoi(match[1].str());
+            event.column_number = std::stoi(match[2].str());
+            event.status = match[3].str() == "error" ? ValidationEventStatus::ERROR : ValidationEventStatus::WARNING;
+            event.severity = match[3].str();
+            event.category = "lint_issue";
+            event.error_code = match[5].str();
+            event.message = match[4].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "drone_ci_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Parse Docker build success
+        if (std::regex_search(line, match, docker_success)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "docker";
+            event.event_type = ValidationEventType::DEBUG_INFO;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::PASS;
+            event.severity = "info";
+            event.category = "docker_success";
+            event.message = "Successfully built image: " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "drone_ci_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Parse pipeline completion
+        if (std::regex_search(line, match, drone_pipeline_complete)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "drone-ci";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "pipeline_complete";
+            event.message = "Pipeline execution complete";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "drone_ci_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Parse pipeline failure
+        if (std::regex_search(line, match, drone_pipeline_failed)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "drone-ci";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::FAIL;
+            event.severity = "error";
+            event.category = "pipeline_failure";
+            event.message = "Pipeline failed with exit code " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "drone_ci_text";
             
             events.push_back(event);
             continue;

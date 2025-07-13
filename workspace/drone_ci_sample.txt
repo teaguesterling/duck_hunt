@@ -1,0 +1,147 @@
++ git clone https://github.com/myorg/my-project.git .
+Cloning into '.'...
+remote: Enumerating objects: 1234, done.
+remote: Counting objects: 100% (1234/1234), done.
+remote: Compressing objects: 100% (987/987), done.
+remote: Total 1234 (delta 567), reused 890 (delta 345), pack-reused 0
+Receiving objects: 100% (1234/1234), 4.56 MiB | 12.34 MiB/s, done.
+Resolving deltas: 100% (567/567), done.
++ git checkout a1b2c3d4e5f6789012345678901234567890abcd
+Note: switching to 'a1b2c3d4e5f6789012345678901234567890abcd'.
+
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by switching back to a branch.
+
+If you want to create a new branch to retain commits you create, you may
+do so (now or later) by using -c with the switch command. Example:
+
+  git switch -c <new-branch-name>
+
+Or undo this change:
+
+  git switch -
+
+Turn off this advice by setting config variable advice.detachedHead to false
+
+HEAD is now at a1b2c3d Fix authentication bug in user service
+
+[drone:exec] 2025/07/13 14:30:15 starting build step: install-dependencies
++ npm install --no-fund --no-audit
+added 1234 packages from 567 contributors and audited 1890 packages in 23.456s
+found 0 vulnerabilities
+
+[drone:exec] 2025/07/13 14:30:45 completed build step: install-dependencies (exit code 0)
+
+[drone:exec] 2025/07/13 14:30:45 starting build step: run-tests
++ npm test
+> my-project@1.0.0 test
+> jest --coverage --ci
+
+PASS src/utils/helpers.test.js (1.234 s)
+  ✓ formatDate returns correct format (45 ms)
+  ✓ validateEmail accepts valid emails (23 ms)
+  ✓ validateEmail rejects invalid emails (12 ms)
+
+PASS src/components/Button.test.js (0.987 s)
+  ✓ renders correctly (78 ms)
+  ✓ handles click events (34 ms)
+  ✓ shows loading state (56 ms)
+
+FAIL src/services/auth.test.js (2.345 s)
+  ✗ login should return token on valid credentials (1.234 s)
+  ✗ logout should clear session (0.876 s)
+  ✓ validateToken should return user data (0.235 s)
+
+  ● Auth Service › login › should return token on valid credentials
+
+    HttpError: Request failed with status code 401
+
+      at AuthService.login (src/services/auth.js:15:13)
+      at Object.<anonymous> (src/services/auth.test.js:25:23)
+
+  ● Auth Service › logout › should clear session
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: undefined
+    Received: {"token": "abc123", "user": {"id": 1}}
+
+      at Object.<anonymous> (src/services/auth.test.js:35:23)
+
+Test Suites: 1 failed, 2 passed, 3 total
+Tests:       2 failed, 4 passed, 6 total
+Snapshots:   0 total
+Time:        4.566 s
+Ran all test suites.
+
+[drone:exec] 2025/07/13 14:30:50 completed build step: run-tests (exit code 1)
+
+[drone:exec] 2025/07/13 14:30:50 starting build step: build-application
++ npm run build
+> my-project@1.0.0 build
+> webpack --mode=production
+
+Hash: a1b2c3d4e5f67890
+Version: webpack 5.88.2
+Time: 2345ms
+Built at: 2025-07-13 14:30:52
+                        Asset       Size  Chunks                         Chunk Names
+                   index.html  564 bytes          [emitted]
+  js/app.a1b2c3d4.bundle.js   123 KiB     0  [emitted] [immutable]  app
+js/vendor.e5f67890.bundle.js   567 KiB     1  [emitted] [immutable]  vendor
+Entrypoint app = js/vendor.e5f67890.bundle.js js/app.a1b2c3d4.bundle.js
+
+WARNING in ./src/services/auth.js
+Module Warning (from ./node_modules/eslint-loader/index.js):
+
+/drone/src/src/services/auth.js
+  15:7  warning  'loginAttempts' is assigned a value but never used  no-unused-vars
+
+✖ 1 problem (0 errors, 1 warning)
+
+[drone:exec] 2025/07/13 14:30:53 completed build step: build-application (exit code 0)
+
+[drone:exec] 2025/07/13 14:30:53 starting build step: docker-build
++ docker build -t my-project:${DRONE_COMMIT_SHA} .
+Sending build context to Docker daemon  15.36MB
+Step 1/8 : FROM node:18-alpine
+ ---> a1b2c3d4e5f6
+Step 2/8 : WORKDIR /app
+ ---> Using cache
+ ---> b2c3d4e5f678
+Step 3/8 : COPY package*.json ./
+ ---> Using cache
+ ---> c3d4e5f67890
+Step 4/8 : RUN npm ci --only=production
+ ---> Using cache
+ ---> d4e5f6789012
+Step 5/8 : COPY . .
+ ---> e5f678901234
+Step 6/8 : EXPOSE 3000
+ ---> Running in f6789012345a
+Removing intermediate container f6789012345a
+ ---> 67890123456b
+Step 7/8 : CMD ["npm", "start"]
+ ---> Running in 78901234567c
+Removing intermediate container 78901234567c
+ ---> 89012345678d
+Step 8/8 : HEALTHCHECK --interval=30s --timeout=3s CMD curl -f http://localhost:3000/health || exit 1
+ ---> Running in 90123456789e
+Removing intermediate container 90123456789e
+ ---> a0123456789f
+Successfully built a0123456789f
+Successfully tagged my-project:a1b2c3d4e5f6789012345678901234567890abcd
+
+[drone:exec] 2025/07/13 14:31:05 completed build step: docker-build (exit code 0)
+
+[drone:exec] 2025/07/13 14:31:05 starting build step: notify-slack
++ curl -X POST -H 'Content-type: application/json' \
+    --data '{"text":"Build failed for my-project: 2 test failures"}' \
+    $SLACK_WEBHOOK_URL
+ok
+
+[drone:exec] 2025/07/13 14:31:06 completed build step: notify-slack (exit code 0)
+
+[drone:exec] 2025/07/13 14:31:06 pipeline execution complete
+[drone:exec] 2025/07/13 14:31:06 pipeline failed with exit code 1

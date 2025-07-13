@@ -1,0 +1,245 @@
+2025-07-13T10:30:15.1234567Z ##[section]Starting: Initialize job
+2025-07-13T10:30:15.1234567Z Agent name: 'Hosted Agent'
+2025-07-13T10:30:15.1234567Z Agent machine name: 'fv-az123-456'
+2025-07-13T10:30:15.1234567Z Current agent version: '3.232.0'
+2025-07-13T10:30:15.1234567Z Operating System
+2025-07-13T10:30:15.1234567Z   Ubuntu
+2025-07-13T10:30:15.1234567Z   22.04.3
+2025-07-13T10:30:15.1234567Z   LTS
+2025-07-13T10:30:15.1234567Z Runner image
+2025-07-13T10:30:15.1234567Z   Image: ubuntu-22.04
+2025-07-13T10:30:15.1234567Z   Version: 20240714.1.0
+2025-07-13T10:30:15.1234567Z   Included Software: https://github.com/actions/runner-images/blob/ubuntu22/20240714.1/images/ubuntu/Ubuntu2204-Readme.md
+2025-07-13T10:30:15.1234567Z Runner image provisioner
+2025-07-13T10:30:15.1234567Z   provisioner: template
+2025-07-13T10:30:15.1234567Z ##[section]Finishing: Initialize job
+
+2025-07-13T10:30:16.1234567Z ##[section]Starting: Checkout
+2025-07-13T10:30:16.1234567Z ==============================================================================
+2025-07-13T10:30:16.1234567Z Task         : Checkout
+2025-07-13T10:30:16.1234567Z Description  : Checkout a Git repository at a particular version
+2025-07-13T10:30:16.1234567Z Version      : 4.1.6
+2025-07-13T10:30:16.1234567Z Author       : GitHub
+2025-07-13T10:30:16.1234567Z Help         : https://github.com/actions/checkout
+2025-07-13T10:30:16.1234567Z ==============================================================================
+2025-07-13T10:30:16.2345678Z Syncing repository: myorg/myrepo
+2025-07-13T10:30:16.2345678Z ##[group]Git version
+2025-07-13T10:30:16.2345678Z git version 2.34.1
+2025-07-13T10:30:16.2345678Z ##[endgroup]
+2025-07-13T10:30:16.3456789Z ##[group]Initializing the repository
+2025-07-13T10:30:16.3456789Z /usr/bin/git init /home/runner/work/myrepo/myrepo
+2025-07-13T10:30:16.3456789Z hint: Using 'master' as the name for the initial branch. This default branch name
+2025-07-13T10:30:16.3456789Z hint: is subject to change. To configure the initial branch name to use in all
+2025-07-13T10:30:16.3456789Z hint: of your new repositories, which will suppress this hint, call:
+2025-07-13T10:30:16.3456789Z hint: 
+2025-07-13T10:30:16.3456789Z hint: 	git config --global init.defaultBranch <name>
+2025-07-13T10:30:16.3456789Z hint: 
+2025-07-13T10:30:16.3456789Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2025-07-13T10:30:16.3456789Z hint: 'development'. The just-created branch can be renamed via this command:
+2025-07-13T10:30:16.3456789Z hint: 
+2025-07-13T10:30:16.3456789Z hint: 	git branch -m <name>
+2025-07-13T10:30:16.3456789Z Initialized empty Git repository in /home/runner/work/myrepo/myrepo/.git/
+2025-07-13T10:30:16.3456789Z ##[endgroup]
+2025-07-13T10:30:16.4567890Z ##[group]Disabling automatic garbage collection
+2025-07-13T10:30:16.4567890Z /usr/bin/git config --local gc.auto 0
+2025-07-13T10:30:16.4567890Z ##[endgroup]
+2025-07-13T10:30:16.5678901Z ##[group]Setting up auth
+2025-07-13T10:30:16.5678901Z /usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2025-07-13T10:30:16.5678901Z /usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset 'core.sshCommand' || :"
+2025-07-13T10:30:16.5678901Z /usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2025-07-13T10:30:16.5678901Z /usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset 'http.https://github.com/.extraheader' || :"
+2025-07-13T10:30:16.5678901Z /usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2025-07-13T10:30:16.5678901Z ##[endgroup]
+2025-07-13T10:30:16.6789012Z ##[group]Fetching the repository
+2025-07-13T10:30:16.6789012Z /usr/bin/git -c protocol.version=2 fetch --no-tags --prune --progress --no-recurse-submodules --depth=1 origin +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/*
+2025-07-13T10:30:17.1234567Z remote: Enumerating objects: 1234, done.
+2025-07-13T10:30:17.2345678Z remote: Counting objects: 100% (1234/1234), done.
+2025-07-13T10:30:17.3456789Z remote: Compressing objects: 100% (987/987), done.
+2025-07-13T10:30:17.4567890Z remote: Total 1234 (delta 567), reused 890 (delta 345), pack-reused 0
+2025-07-13T10:30:17.5678901Z Receiving objects: 100% (1234/1234), 4.56 MiB | 12.34 MiB/s, done.
+2025-07-13T10:30:17.6789012Z Resolving deltas: 100% (567/567), done.
+2025-07-13T10:30:17.7890123Z From https://github.com/myorg/myrepo
+2025-07-13T10:30:17.7890123Z  * [new branch]      main       -> origin/main
+2025-07-13T10:30:17.7890123Z  * [new tag]         v1.0.0     -> v1.0.0
+2025-07-13T10:30:17.7890123Z  * [new tag]         v1.1.0     -> v1.1.0
+2025-07-13T10:30:17.7890123Z ##[endgroup]
+2025-07-13T10:30:17.8901234Z ##[group]Determining the checkout info
+2025-07-13T10:30:17.8901234Z ##[endgroup]
+2025-07-13T10:30:17.9012345Z ##[group]Checking out the ref
+2025-07-13T10:30:17.9012345Z /usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2025-07-13T10:30:17.9012345Z Switched to a new branch 'main'
+2025-07-13T10:30:17.9012345Z Branch 'main' set up to track remote branch 'main' from 'origin'.
+2025-07-13T10:30:17.9012345Z ##[endgroup]
+2025-07-13T10:30:18.0123456Z ##[group]/usr/bin/git log --format='%H' -n 1
+2025-07-13T10:30:18.0123456Z a1b2c3d4e5f6789012345678901234567890abcd
+2025-07-13T10:30:18.0123456Z ##[endgroup]
+2025-07-13T10:30:18.1234567Z ##[section]Finishing: Checkout
+
+2025-07-13T10:30:19.1234567Z ##[section]Starting: Setup Node.js environment
+2025-07-13T10:30:19.1234567Z ==============================================================================
+2025-07-13T10:30:19.1234567Z Task         : Setup Node.js environment
+2025-07-13T10:30:19.1234567Z Description  : Setup a Node.js environment and add it to the PATH, additionally providing proxy support
+2025-07-13T10:30:19.1234567Z Version      : 4.0.2
+2025-07-13T10:30:19.1234567Z Author       : GitHub
+2025-07-13T10:30:19.1234567Z Help         : https://github.com/actions/setup-node
+2025-07-13T10:30:19.1234567Z ==============================================================================
+2025-07-13T10:30:19.2345678Z Found in cache @ /opt/hostedtoolcache/node/18.20.3/x64
+2025-07-13T10:30:19.3456789Z Environment details
+2025-07-13T10:30:19.3456789Z   node: v18.20.3
+2025-07-13T10:30:19.3456789Z   npm: 10.7.0
+2025-07-13T10:30:19.3456789Z   yarn: 1.22.19
+2025-07-13T10:30:19.4567890Z ##[section]Finishing: Setup Node.js environment
+
+2025-07-13T10:30:20.1234567Z ##[section]Starting: Install dependencies
+2025-07-13T10:30:20.1234567Z ==============================================================================
+2025-07-13T10:30:20.1234567Z Task         : Bash
+2025-07-13T10:30:20.1234567Z Description  : Run a Bash script
+2025-07-13T10:30:20.1234567Z Version      : 3.232.0
+2025-07-13T10:30:20.1234567Z Author       : Microsoft Corporation
+2025-07-13T10:30:20.1234567Z Help         : https://docs.microsoft.com/azure/devops/pipelines/tasks/utility/bash
+2025-07-13T10:30:20.1234567Z ==============================================================================
+2025-07-13T10:30:20.2345678Z ========================== Starting Command Output ===========================
+2025-07-13T10:30:20.2345678Z /bin/bash --noprofile --norc /home/runner/work/_temp/12345678-9abc-def0-1234-567890abcdef.sh
+2025-07-13T10:30:20.3456789Z 
+2025-07-13T10:30:20.3456789Z > myapp@1.0.0 install
+2025-07-13T10:30:20.3456789Z > npm ci
+2025-07-13T10:30:20.3456789Z 
+2025-07-13T10:30:20.4567890Z npm WARN deprecated core-js@2.6.12: core-js@<3.23.3 is no longer maintained and not recommended for usage due to the number of issues. Because of the V8 engine whims, feature detection in old core-js versions could cause a slowdown up to 100x even if nothing is polyfilled. Some versions have web compatibility issues. Please, upgrade your dependencies to the actual version of core-js.
+2025-07-13T10:30:25.1234567Z 
+2025-07-13T10:30:25.1234567Z added 1234 packages in 4.7s
+2025-07-13T10:30:25.2345678Z 
+2025-07-13T10:30:25.2345678Z 567 packages are looking for funding
+2025-07-13T10:30:25.2345678Z   run `npm fund` for details
+2025-07-13T10:30:25.3456789Z ##[section]Finishing: Install dependencies
+
+2025-07-13T10:30:26.1234567Z ##[section]Starting: Run tests
+2025-07-13T10:30:26.1234567Z ==============================================================================
+2025-07-13T10:30:26.1234567Z Task         : Bash
+2025-07-13T10:30:26.1234567Z Description  : Run a Bash script
+2025-07-13T10:30:26.1234567Z Version      : 3.232.0
+2025-07-13T10:30:26.1234567Z Author       : Microsoft Corporation
+2025-07-13T10:30:26.1234567Z Help         : https://docs.microsoft.com/azure/devops/pipelines/tasks/utility/bash
+2025-07-13T10:30:26.1234567Z ==============================================================================
+2025-07-13T10:30:26.2345678Z ========================== Starting Command Output ===========================
+2025-07-13T10:30:26.2345678Z /bin/bash --noprofile --norc /home/runner/work/_temp/abcdef12-3456-7890-abcd-ef1234567890.sh
+2025-07-13T10:30:26.3456789Z 
+2025-07-13T10:30:26.3456789Z > myapp@1.0.0 test
+2025-07-13T10:30:26.3456789Z > jest --coverage
+2025-07-13T10:30:26.3456789Z 
+2025-07-13T10:30:27.1234567Z PASS src/components/Button.test.js
+2025-07-13T10:30:27.2345678Z PASS src/components/Header.test.js
+2025-07-13T10:30:27.3456789Z PASS src/utils/helpers.test.js
+2025-07-13T10:30:27.4567890Z FAIL src/components/Modal.test.js
+2025-07-13T10:30:27.4567890Z   ● Modal › should close when escape key is pressed
+2025-07-13T10:30:27.4567890Z 
+2025-07-13T10:30:27.4567890Z     expect(received).toBe(expected) // Object.is equality
+2025-07-13T10:30:27.4567890Z 
+2025-07-13T10:30:27.4567890Z     Expected: true
+2025-07-13T10:30:27.4567890Z     Received: false
+2025-07-13T10:30:27.4567890Z 
+2025-07-13T10:30:27.4567890Z       at Object.<anonymous> (src/components/Modal.test.js:45:23)
+2025-07-13T10:30:27.4567890Z 
+2025-07-13T10:30:27.5678901Z 
+2025-07-13T10:30:27.5678901Z Test Suites: 1 failed, 3 passed, 4 total
+2025-07-13T10:30:27.5678901Z Tests:       1 failed, 23 passed, 24 total
+2025-07-13T10:30:27.5678901Z Snapshots:   0 total
+2025-07-13T10:30:27.5678901Z Time:        1.234s
+2025-07-13T10:30:27.5678901Z Ran all test suites.
+2025-07-13T10:30:27.6789012Z ##[error]Process completed with exit code 1.
+2025-07-13T10:30:27.6789012Z ##[section]Finishing: Run tests
+
+2025-07-13T10:30:28.1234567Z ##[section]Starting: Build application
+2025-07-13T10:30:28.1234567Z ==============================================================================
+2025-07-13T10:30:28.1234567Z Task         : Bash
+2025-07-13T10:30:28.1234567Z Description  : Run a Bash script
+2025-07-13T10:30:28.1234567Z Version      : 3.232.0
+2025-07-13T10:30:28.1234567Z Author       : Microsoft Corporation
+2025-07-13T10:30:28.1234567Z Help         : https://docs.microsoft.com/azure/devops/pipelines/tasks/utility/bash
+2025-07-13T10:30:28.1234567Z ==============================================================================
+2025-07-13T10:30:28.2345678Z ========================== Starting Command Output ===========================
+2025-07-13T10:30:28.2345678Z /bin/bash --noprofile --norc /home/runner/work/_temp/fedcba09-8765-4321-fedc-ba0987654321.sh
+2025-07-13T10:30:28.3456789Z 
+2025-07-13T10:30:28.3456789Z > myapp@1.0.0 build
+2025-07-13T10:30:28.3456789Z > webpack --mode=production
+2025-07-13T10:30:28.3456789Z 
+2025-07-13T10:30:28.4567890Z Hash: a1b2c3d4e5f67890
+2025-07-13T10:30:28.4567890Z Version: webpack 5.88.2
+2025-07-13T10:30:28.4567890Z Time: 1234ms
+2025-07-13T10:30:28.4567890Z Built at: 2025-07-13 10:30:28
+2025-07-13T10:30:28.4567890Z                          Asset       Size  Chunks                         Chunk Names
+2025-07-13T10:30:28.4567890Z                     index.html  564 bytes          [emitted]              
+2025-07-13T10:30:28.4567890Z    js/app.a1b2c3d4.bundle.js   123 KiB     0  [emitted] [immutable]  app
+2025-07-13T10:30:28.4567890Z js/vendor.e5f67890.bundle.js   567 KiB     1  [emitted] [immutable]  vendor
+2025-07-13T10:30:28.4567890Z Entrypoint app = js/vendor.e5f67890.bundle.js js/app.a1b2c3d4.bundle.js
+2025-07-13T10:30:28.4567890Z WARNING in ./src/components/Modal.js
+2025-07-13T10:30:28.4567890Z Module Warning (from ./node_modules/eslint-loader/index.js):
+2025-07-13T10:30:28.4567890Z 
+2025-07-13T10:30:28.4567890Z /home/runner/work/myrepo/myrepo/src/components/Modal.js
+2025-07-13T10:30:28.4567890Z   15:7  warning  'closeOnEscape' is defined but never used  no-unused-vars
+2025-07-13T10:30:28.4567890Z 
+2025-07-13T10:30:28.4567890Z ✖ 1 problem (0 errors, 1 warning)
+2025-07-13T10:30:28.5678901Z 
+2025-07-13T10:30:28.5678901Z ##[section]Finishing: Build application
+
+2025-07-13T10:30:29.1234567Z ##[section]Starting: Upload test artifacts
+2025-07-13T10:30:29.1234567Z ==============================================================================
+2025-07-13T10:30:29.1234567Z Task         : Publish Test Results
+2025-07-13T10:30:29.1234567Z Description  : Publish test results to Azure Pipelines
+2025-07-13T10:30:29.1234567Z Version      : 2.232.0
+2025-07-13T10:30:29.1234567Z Author       : Microsoft Corporation
+2025-07-13T10:30:29.1234567Z Help         : https://docs.microsoft.com/azure/devops/pipelines/tasks/test/publish-test-results
+2025-07-13T10:30:29.1234567Z ==============================================================================
+2025-07-13T10:30:29.2345678Z Publishing test results from '/home/runner/work/myrepo/myrepo/coverage/junit.xml'
+2025-07-13T10:30:29.3456789Z Published 24 test result(s)
+2025-07-13T10:30:29.4567890Z ##[section]Finishing: Upload test artifacts
+
+2025-07-13T10:30:30.1234567Z ##[section]Starting: Post-job: Cleanup
+2025-07-13T10:30:30.1234567Z Agent environment resources:
+2025-07-13T10:30:30.1234567Z   Disk space: 12.34 GB available
+2025-07-13T10:30:30.1234567Z   Memory usage: 2.56 GB / 7.00 GB
+2025-07-13T10:30:30.1234567Z   CPU usage: 45%
+2025-07-13T10:30:30.2345678Z Cleaning up task key
+2025-07-13T10:30:30.3456789Z ##[section]Finishing: Post-job: Cleanup
+
+2025-07-13T10:30:31.1234567Z ##[section]Starting: Finalize Job
+2025-07-13T10:30:31.1234567Z Cleaning up orphaned processes
+2025-07-13T10:30:31.2345678Z ##[section]Finishing: Finalize Job
+
+Job completed: July 13, 2025 10:30:31 AM UTC
+Result: Failed
+Elapsed time: 00:01:16
+Agent: Hosted Agent
+Agent pool: Azure Pipelines
+
+##[error]The job was not successful. One or more steps failed.
+##[section]Job summary:
+- Initialize job: Succeeded
+- Checkout: Succeeded
+- Setup Node.js environment: Succeeded  
+- Install dependencies: Succeeded
+- Run tests: Failed
+- Build application: Succeeded (with warnings)
+- Upload test artifacts: Succeeded
+- Post-job: Cleanup: Succeeded
+- Finalize Job: Succeeded
+
+##[section]Error details:
+Step 'Run tests' failed with exit code 1
+- 1 test suite failed (Modal.test.js)
+- 1 test failed: "Modal › should close when escape key is pressed"
+- 23 tests passed
+- Build completed with 1 warning: 'closeOnEscape' is defined but never used
+
+##[section]Performance metrics:
+- Total duration: 1 minute 16 seconds
+- Checkout time: 2.7 seconds
+- Dependencies install: 4.7 seconds
+- Test execution: 1.2 seconds
+- Build time: 1.2 seconds
+- Disk usage: 690 MB
+- Peak memory: 2.56 GB
+
+##[section]Recommendations:
+- Fix failing test in Modal.test.js
+- Remove unused variable 'closeOnEscape' in Modal.js
+- Consider optimizing dependency installation time
