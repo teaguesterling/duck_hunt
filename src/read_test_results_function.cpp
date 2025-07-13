@@ -115,6 +115,56 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
         return TestResultFormat::VALGRIND;
     }
     
+    // Check for GDB/LLDB patterns (should be checked early due to unique format)
+    if ((content.find("GNU gdb") != std::string::npos || content.find("(gdb)") != std::string::npos) ||
+        (content.find("lldb") != std::string::npos && content.find("target create") != std::string::npos) ||
+        (content.find("Program received signal") != std::string::npos && content.find("Segmentation fault") != std::string::npos) ||
+        (content.find("Process") != std::string::npos && content.find("stopped") != std::string::npos && content.find("EXC_BAD_ACCESS") != std::string::npos) ||
+        (content.find("frame #") != std::string::npos && content.find("0x") != std::string::npos) ||
+        (content.find("breakpoint") != std::string::npos && content.find("hit count") != std::string::npos) ||
+        (content.find("(lldb)") != std::string::npos) ||
+        (content.find("Reading symbols from") != std::string::npos && content.find("Starting program:") != std::string::npos)) {
+        return TestResultFormat::GDB_LLDB;
+    }
+    
+    // Check for Mocha/Chai text patterns (should be checked before RSpec since they can share similar symbols)
+    if ((content.find("passing") != std::string::npos && content.find("failing") != std::string::npos) ||
+        (content.find("Error:") != std::string::npos && content.find("at Context.<anonymous>") != std::string::npos) ||
+        (content.find("AssertionError:") != std::string::npos && content.find("at Context.<anonymous>") != std::string::npos) ||
+        (content.find("at Test.Runnable.run") != std::string::npos && content.find("node_modules/mocha") != std::string::npos) ||
+        (content.find("✓") != std::string::npos && content.find("✗") != std::string::npos && content.find("(") != std::string::npos && content.find("ms)") != std::string::npos)) {
+        return TestResultFormat::MOCHA_CHAI_TEXT;
+    }
+    
+    // Check for Google Test patterns (should be checked before other C++ test frameworks)
+    if ((content.find("[==========]") != std::string::npos && content.find("Running") != std::string::npos && content.find("tests from") != std::string::npos) ||
+        (content.find("[ RUN      ]") != std::string::npos && content.find("[       OK ]") != std::string::npos) ||
+        (content.find("[  FAILED  ]") != std::string::npos && content.find("ms total") != std::string::npos) ||
+        (content.find("[  PASSED  ]") != std::string::npos && content.find("tests.") != std::string::npos) ||
+        (content.find("[----------]") != std::string::npos && content.find("Global test environment") != std::string::npos)) {
+        return TestResultFormat::GTEST_TEXT;
+    }
+    
+    // Check for NUnit/xUnit patterns (should be checked before other .NET test frameworks)
+    if ((content.find("NUnit") != std::string::npos && content.find("Test Count:") != std::string::npos && content.find("Passed:") != std::string::npos) ||
+        (content.find("Test Run Summary") != std::string::npos && content.find("Overall result:") != std::string::npos) ||
+        (content.find("xUnit.net") != std::string::npos && content.find("VSTest Adapter") != std::string::npos) ||
+        (content.find("[PASS]") != std::string::npos && content.find("[FAIL]") != std::string::npos && content.find(".Tests.") != std::string::npos) ||
+        (content.find("Starting:") != std::string::npos && content.find("Finished:") != std::string::npos && content.find("==>") != std::string::npos) ||
+        (content.find("Total tests:") != std::string::npos && content.find("Failed:") != std::string::npos && content.find("Skipped:") != std::string::npos)) {
+        return TestResultFormat::NUNIT_XUNIT_TEXT;
+    }
+    
+    // Check for RSpec text patterns (should be checked after Mocha/Chai since they can contain similar keywords)
+    if ((content.find("Finished in") != std::string::npos && content.find("examples") != std::string::npos) ||
+        (content.find("Randomized with seed") != std::string::npos && content.find("failures") != std::string::npos) ||
+        (content.find("Failed examples:") != std::string::npos && content.find("rspec") != std::string::npos) ||
+        (content.find("✓") != std::string::npos && content.find("✗") != std::string::npos) ||
+        (content.find("pending:") != std::string::npos && content.find("PENDING:") != std::string::npos) ||
+        (content.find("Failure/Error:") != std::string::npos && content.find("expected") != std::string::npos)) {
+        return TestResultFormat::RSPEC_TEXT;
+    }
+    
     // Check for JUnit text patterns (should be checked before pytest since they can contain similar keywords)
     if ((content.find("T E S T S") != std::string::npos && content.find("Tests run:") != std::string::npos) ||
         (content.find("JUnit Jupiter") != std::string::npos && content.find("tests found") != std::string::npos) ||
@@ -239,6 +289,11 @@ std::string TestResultFormatToString(TestResultFormat format) {
         case TestResultFormat::MSBUILD: return "msbuild";
         case TestResultFormat::JUNIT_TEXT: return "junit_text";
         case TestResultFormat::VALGRIND: return "valgrind";
+        case TestResultFormat::GDB_LLDB: return "gdb_lldb";
+        case TestResultFormat::RSPEC_TEXT: return "rspec_text";
+        case TestResultFormat::MOCHA_CHAI_TEXT: return "mocha_chai_text";
+        case TestResultFormat::GTEST_TEXT: return "gtest_text";
+        case TestResultFormat::NUNIT_XUNIT_TEXT: return "nunit_xunit_text";
         default: return "unknown";
     }
 }
@@ -278,6 +333,11 @@ TestResultFormat StringToTestResultFormat(const std::string& str) {
     if (str == "msbuild") return TestResultFormat::MSBUILD;
     if (str == "junit_text") return TestResultFormat::JUNIT_TEXT;
     if (str == "valgrind") return TestResultFormat::VALGRIND;
+    if (str == "gdb_lldb") return TestResultFormat::GDB_LLDB;
+    if (str == "rspec_text") return TestResultFormat::RSPEC_TEXT;
+    if (str == "mocha_chai_text") return TestResultFormat::MOCHA_CHAI_TEXT;
+    if (str == "gtest_text") return TestResultFormat::GTEST_TEXT;
+    if (str == "nunit_xunit_text") return TestResultFormat::NUNIT_XUNIT_TEXT;
     if (str == "unknown") return TestResultFormat::UNKNOWN;
     return TestResultFormat::AUTO;  // Default to auto-detection
 }
@@ -469,6 +529,21 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
             break;
         case TestResultFormat::VALGRIND:
             ParseValgrind(content, global_state->events);
+            break;
+        case TestResultFormat::GDB_LLDB:
+            ParseGdbLldb(content, global_state->events);
+            break;
+        case TestResultFormat::RSPEC_TEXT:
+            ParseRSpecText(content, global_state->events);
+            break;
+        case TestResultFormat::MOCHA_CHAI_TEXT:
+            ParseMochaChai(content, global_state->events);
+            break;
+        case TestResultFormat::GTEST_TEXT:
+            ParseGoogleTest(content, global_state->events);
+            break;
+        case TestResultFormat::NUNIT_XUNIT_TEXT:
+            ParseNUnitXUnit(content, global_state->events);
             break;
         default:
             // For unknown formats, don't create any events
@@ -3425,6 +3500,21 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
         case TestResultFormat::VALGRIND:
             ParseValgrind(content, global_state->events);
             break;
+        case TestResultFormat::GDB_LLDB:
+            ParseGdbLldb(content, global_state->events);
+            break;
+        case TestResultFormat::RSPEC_TEXT:
+            ParseRSpecText(content, global_state->events);
+            break;
+        case TestResultFormat::MOCHA_CHAI_TEXT:
+            ParseMochaChai(content, global_state->events);
+            break;
+        case TestResultFormat::GTEST_TEXT:
+            ParseGoogleTest(content, global_state->events);
+            break;
+        case TestResultFormat::NUNIT_XUNIT_TEXT:
+            ParseNUnitXUnit(content, global_state->events);
+            break;
         default:
             // For unknown formats, don't create any events
             break;
@@ -5602,6 +5692,1385 @@ void ParseValgrind(const std::string& content, std::vector<ValidationEvent>& eve
                 in_error_block = false;
                 stack_trace.clear();
             }
+        }
+    }
+}
+
+void ParseGdbLldb(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream stream(content);
+    std::string line;
+    uint64_t event_id = 1;
+    
+    // Track current context
+    std::string current_debugger = "GDB";
+    std::string current_program;
+    std::string current_frame;
+    std::vector<std::string> stack_trace;
+    bool in_backtrace = false;
+    bool in_register_dump = false;
+    
+    // Regular expressions for GDB/LLDB patterns
+    std::regex gdb_header(R"(GNU gdb \(.*\) ([\d.]+))");
+    std::regex lldb_header(R"(lldb.*version ([\d.]+))");
+    std::regex program_start(R"(Starting program: (.+))");
+    std::regex target_create(R"(target create \"(.+)\")");
+    
+    // Signal/crash patterns
+    std::regex signal_received(R"(Program received signal (\w+), (.+))");
+    std::regex exc_bad_access(R"(stop reason = EXC_BAD_ACCESS \(code=(\d+), address=(0x[0-9a-fA-F]+)\))");
+    std::regex segfault_location(R"(0x([0-9a-fA-F]+) in (.+) \(.*\) at (.+):(\d+))");
+    std::regex lldb_crash_frame(R"(frame #\d+: (0x[0-9a-fA-F]+) .+`(.+) at (.+):(\d+):(\d+))");
+    
+    // Backtrace patterns
+    std::regex gdb_frame(R"(#(\d+)\s+(0x[0-9a-fA-F]+) in (.+) \(.*\) at (.+):(\d+))");
+    std::regex gdb_frame_no_file(R"(#(\d+)\s+(0x[0-9a-fA-F]+) in (.+))");
+    std::regex lldb_frame(R"(\* frame #(\d+): (0x[0-9a-fA-F]+) .+`(.+) at (.+):(\d+):(\d+))");
+    std::regex lldb_frame_simple(R"(frame #(\d+): (0x[0-9a-fA-F]+) .+`(.+))");
+    
+    // Breakpoint patterns
+    std::regex breakpoint_hit(R"(Breakpoint (\d+), (.+) \(.*\) at (.+):(\d+))");
+    std::regex lldb_breakpoint_hit(R"(stop reason = breakpoint (\d+)\.(\d+))");
+    std::regex breakpoint_set(R"(Breakpoint (\d+):.*where = .+`(.+) \+ \d+ at (.+):(\d+))");
+    
+    // Register and memory patterns
+    std::regex register_line(R"((\w+)\s+(0x[0-9a-fA-F]+))");
+    std::regex memory_access(R"(Cannot access memory at address (0x[0-9a-fA-F]+))");
+    
+    // Thread patterns
+    std::regex thread_info(R"(\* thread #(\d+).*tid = (0x[0-9a-fA-F]+))");
+    std::regex gdb_thread_info(R"(\* (\d+)\s+Thread (0x[0-9a-fA-F]+) \(LWP (\d+)\))");
+    
+    // Watchpoint patterns
+    std::regex watchpoint_hit(R"(Hardware watchpoint (\d+): (.+))");
+    std::regex watchpoint_set(R"(Watchpoint (\d+): addr = (0x[0-9a-fA-F]+))");
+    
+    while (std::getline(stream, line)) {
+        std::smatch match;
+        
+        // Detect debugger type
+        if (std::regex_search(line, match, gdb_header)) {
+            current_debugger = "GDB";
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = current_debugger;
+            event.event_type = ValidationEventType::DEBUG_INFO;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "debugger_startup";
+            event.message = "GDB version " + match[1].str() + " started";
+            event.error_code = "DEBUGGER_START";
+            event.raw_output = line;
+            events.push_back(event);
+        } else if (std::regex_search(line, match, lldb_header)) {
+            current_debugger = "LLDB";
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = current_debugger;
+            event.event_type = ValidationEventType::DEBUG_INFO;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "debugger_startup";
+            event.message = "LLDB version " + match[1].str() + " started";
+            event.error_code = "DEBUGGER_START";
+            event.raw_output = line;
+            events.push_back(event);
+        }
+        
+        // Program startup
+        else if (std::regex_search(line, match, program_start)) {
+            current_program = match[1].str();
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = current_debugger;
+            event.event_type = ValidationEventType::DEBUG_EVENT;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "program_start";
+            event.message = "Started program: " + current_program;
+            event.error_code = "PROGRAM_START";
+            event.raw_output = line;
+            events.push_back(event);
+        } else if (std::regex_search(line, match, target_create)) {
+            current_program = match[1].str();
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = current_debugger;
+            event.event_type = ValidationEventType::DEBUG_EVENT;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "target_create";
+            event.message = "Target created: " + current_program;
+            event.error_code = "TARGET_CREATE";
+            event.raw_output = line;
+            events.push_back(event);
+        }
+        
+        // Signal/crash detection
+        else if (std::regex_search(line, match, signal_received)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = current_debugger;
+            event.event_type = ValidationEventType::CRASH_SIGNAL;
+            event.status = ValidationEventStatus::ERROR;
+            event.severity = "error";
+            event.category = "signal_crash";
+            event.message = "Signal " + match[1].str() + ": " + match[2].str();
+            event.error_code = match[1].str();
+            event.raw_output = line;
+            events.push_back(event);
+        } else if (std::regex_search(line, match, exc_bad_access)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = current_debugger;
+            event.event_type = ValidationEventType::CRASH_SIGNAL;
+            event.status = ValidationEventStatus::ERROR;
+            event.severity = "error";
+            event.category = "memory_access";
+            event.message = "EXC_BAD_ACCESS at address " + match[2].str();
+            event.error_code = "EXC_BAD_ACCESS";
+            event.raw_output = line;
+            events.push_back(event);
+        }
+        
+        // Crash location detection
+        else if (std::regex_search(line, match, segfault_location)) {
+            if (!events.empty() && events.back().event_type == ValidationEventType::CRASH_SIGNAL) {
+                auto& last_event = events.back();
+                last_event.function_name = match[2].str();
+                last_event.file_path = match[3].str();
+                try {
+                    last_event.line_number = std::stoi(match[4].str());
+                } catch (...) {
+                    last_event.line_number = -1;
+                }
+            }
+        } else if (std::regex_search(line, match, lldb_crash_frame)) {
+            if (!events.empty() && events.back().event_type == ValidationEventType::CRASH_SIGNAL) {
+                auto& last_event = events.back();
+                last_event.function_name = match[2].str();
+                last_event.file_path = match[3].str();
+                try {
+                    last_event.line_number = std::stoi(match[4].str());
+                    last_event.column_number = std::stoi(match[5].str());
+                } catch (...) {
+                    last_event.line_number = -1;
+                    last_event.column_number = -1;
+                }
+            }
+        }
+        
+        // Backtrace parsing
+        else if (line.find("(gdb) bt") != std::string::npos || line.find("(lldb) bt") != std::string::npos) {
+            in_backtrace = true;
+            stack_trace.clear();
+        } else if (std::regex_search(line, match, gdb_frame)) {
+            if (in_backtrace) {
+                stack_trace.push_back(line);
+                if (stack_trace.size() == 1 && !events.empty()) {
+                    // First frame - update crash event with location details
+                    auto& last_event = events.back();
+                    if (last_event.file_path.empty()) {
+                        last_event.function_name = match[3].str();
+                        last_event.file_path = match[4].str();
+                        try {
+                            last_event.line_number = std::stoi(match[5].str());
+                        } catch (...) {
+                            last_event.line_number = -1;
+                        }
+                    }
+                }
+            }
+        } else if (std::regex_search(line, match, gdb_frame_no_file)) {
+            if (in_backtrace) {
+                stack_trace.push_back(line);
+            }
+        } else if (std::regex_search(line, match, lldb_frame)) {
+            if (in_backtrace) {
+                stack_trace.push_back(line);
+                if (stack_trace.size() == 1 && !events.empty()) {
+                    auto& last_event = events.back();
+                    if (last_event.file_path.empty()) {
+                        last_event.function_name = match[3].str();
+                        last_event.file_path = match[4].str();
+                        try {
+                            last_event.line_number = std::stoi(match[5].str());
+                            last_event.column_number = std::stoi(match[6].str());
+                        } catch (...) {
+                            last_event.line_number = -1;
+                            last_event.column_number = -1;
+                        }
+                    }
+                }
+            }
+        } else if (std::regex_search(line, match, lldb_frame_simple)) {
+            if (in_backtrace) {
+                stack_trace.push_back(line);
+            }
+        }
+        
+        // Breakpoint events
+        else if (std::regex_search(line, match, breakpoint_hit)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = current_debugger;
+            event.event_type = ValidationEventType::DEBUG_EVENT;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "breakpoint_hit";
+            event.function_name = match[2].str();
+            event.file_path = match[3].str();
+            try {
+                event.line_number = std::stoi(match[4].str());
+            } catch (...) {
+                event.line_number = -1;
+            }
+            event.message = "Breakpoint " + match[1].str() + " hit at " + match[2].str();
+            event.error_code = "BREAKPOINT_HIT";
+            event.raw_output = line;
+            events.push_back(event);
+        } else if (std::regex_search(line, match, lldb_breakpoint_hit)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = current_debugger;
+            event.event_type = ValidationEventType::DEBUG_EVENT;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "breakpoint_hit";
+            event.message = "Breakpoint " + match[1].str() + "." + match[2].str() + " hit";
+            event.error_code = "BREAKPOINT_HIT";
+            event.raw_output = line;
+            events.push_back(event);
+        } else if (std::regex_search(line, match, breakpoint_set)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = current_debugger;
+            event.event_type = ValidationEventType::DEBUG_EVENT;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "breakpoint_set";
+            event.function_name = match[2].str();
+            event.file_path = match[3].str();
+            try {
+                event.line_number = std::stoi(match[4].str());
+            } catch (...) {
+                event.line_number = -1;
+            }
+            event.message = "Breakpoint " + match[1].str() + " set at " + match[2].str();
+            event.error_code = "BREAKPOINT_SET";
+            event.raw_output = line;
+            events.push_back(event);
+        }
+        
+        // Watchpoint events
+        else if (std::regex_search(line, match, watchpoint_hit)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = current_debugger;
+            event.event_type = ValidationEventType::DEBUG_EVENT;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "watchpoint_hit";
+            event.message = "Watchpoint " + match[1].str() + " hit: " + match[2].str();
+            event.error_code = "WATCHPOINT_HIT";
+            event.raw_output = line;
+            events.push_back(event);
+        } else if (std::regex_search(line, match, watchpoint_set)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = current_debugger;
+            event.event_type = ValidationEventType::DEBUG_EVENT;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "watchpoint_set";
+            event.message = "Watchpoint " + match[1].str() + " set at address " + match[2].str();
+            event.error_code = "WATCHPOINT_SET";
+            event.raw_output = line;
+            events.push_back(event);
+        }
+        
+        // Memory access errors
+        else if (std::regex_search(line, match, memory_access)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = current_debugger;
+            event.event_type = ValidationEventType::MEMORY_ERROR;
+            event.status = ValidationEventStatus::ERROR;
+            event.severity = "error";
+            event.category = "memory_access";
+            event.message = "Cannot access memory at address " + match[1].str();
+            event.error_code = "MEMORY_ACCESS_ERROR";
+            event.raw_output = line;
+            events.push_back(event);
+        }
+        
+        // Thread information
+        else if (std::regex_search(line, match, thread_info)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = current_debugger;
+            event.event_type = ValidationEventType::DEBUG_INFO;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "thread_info";
+            event.message = "Thread #" + match[1].str() + " (TID: " + match[2].str() + ")";
+            event.error_code = "THREAD_INFO";
+            event.raw_output = line;
+            events.push_back(event);
+        } else if (std::regex_search(line, match, gdb_thread_info)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = current_debugger;
+            event.event_type = ValidationEventType::DEBUG_INFO;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "thread_info";
+            event.message = "Thread " + match[1].str() + " (LWP: " + match[3].str() + ")";
+            event.error_code = "THREAD_INFO";
+            event.raw_output = line;
+            events.push_back(event);
+        }
+        
+        // End backtrace when we see a new command prompt
+        if ((line.find("(gdb)") != std::string::npos || line.find("(lldb)") != std::string::npos) && 
+            line.find("bt") == std::string::npos) {
+            if (in_backtrace && !stack_trace.empty()) {
+                // Add stack trace to the last crash event
+                if (!events.empty()) {
+                    std::string complete_trace;
+                    for (const auto& trace_line : stack_trace) {
+                        if (!complete_trace.empty()) complete_trace += "\\n";
+                        complete_trace += trace_line;
+                    }
+                    // Find the most recent crash or debug event to attach the stack trace
+                    for (auto it = events.rbegin(); it != events.rend(); ++it) {
+                        if (it->event_type == ValidationEventType::CRASH_SIGNAL ||
+                            it->event_type == ValidationEventType::DEBUG_EVENT) {
+                            it->structured_data = complete_trace;
+                            break;
+                        }
+                    }
+                }
+                in_backtrace = false;
+                stack_trace.clear();
+            }
+        }
+    }
+}
+
+void ParseRSpecText(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream stream(content);
+    std::string line;
+    int64_t event_id = 1;
+    
+    // Regex patterns for RSpec output
+    std::regex test_passed(R"(\s*✓\s*(.+))");
+    std::regex test_failed(R"(\s*✗\s*(.+))");
+    std::regex test_pending(R"(\s*pending:\s*(.+)\s*\(PENDING:\s*(.+)\))");
+    std::regex context_start(R"(^([A-Z][A-Za-z0-9_:]+)\s*$)");
+    std::regex nested_context(R"(^\s+(#\w+|.+)\s*$)");
+    std::regex failure_error(R"(Failure/Error:\s*(.+))");
+    std::regex expected_pattern(R"(\s*expected\s*(.+))");
+    std::regex got_pattern(R"(\s*got:\s*(.+))");
+    std::regex file_line_pattern(R"(# (.+):(\d+):in)");
+    std::regex summary_pattern(R"(Finished in (.+) seconds .* (\d+) examples?, (\d+) failures?(, (\d+) pending)?)");;
+    std::regex failed_example(R"(rspec (.+):(\d+) # (.+))");
+    
+    std::string current_context;
+    std::string current_method;
+    std::string current_failure_file;
+    int current_failure_line = -1;
+    std::string current_failure_message;
+    bool in_failure_section = false;
+    bool in_failed_examples = false;
+    
+    while (std::getline(stream, line)) {
+        std::smatch match;
+        
+        // Skip empty lines and dividers
+        if (line.empty() || line.find("Failures:") != std::string::npos ||
+            line.find("Failed examples:") != std::string::npos) {
+            if (line.find("Failures:") != std::string::npos) {
+                in_failure_section = true;
+            }
+            if (line.find("Failed examples:") != std::string::npos) {
+                in_failed_examples = true;
+            }
+            continue;
+        }
+        
+        // Parse failed example references
+        if (in_failed_examples && std::regex_search(line, match, failed_example)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "RSpec";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.status = ValidationEventStatus::FAIL;
+            event.severity = "error";
+            event.category = "test_failure";
+            event.file_path = match[1].str();
+            event.line_number = std::stoi(match[2].str());
+            event.test_name = match[3].str();
+            event.message = "Test failed: " + match[3].str();
+            event.raw_output = line;
+            events.push_back(event);
+            continue;
+        }
+        
+        // Parse test context (class/module names)
+        if (std::regex_match(line, match, context_start)) {
+            current_context = match[1].str();
+            continue;
+        }
+        
+        // Parse nested context (method names or descriptions)
+        if (!current_context.empty() && std::regex_match(line, match, nested_context)) {
+            current_method = match[1].str();
+            // Remove leading # if present
+            if (current_method.substr(0, 1) == "#") {
+                current_method = current_method.substr(1);
+            }
+            continue;
+        }
+        
+        // Parse passed tests
+        if (std::regex_search(line, match, test_passed)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "RSpec";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.status = ValidationEventStatus::PASS;
+            event.severity = "info";
+            event.category = "test_success";
+            if (!current_context.empty()) {
+                event.function_name = current_context;
+                if (!current_method.empty()) {
+                    event.function_name += "::" + current_method;
+                }
+            }
+            event.test_name = match[1].str();
+            event.message = "Test passed: " + match[1].str();
+            event.raw_output = line;
+            events.push_back(event);
+        }
+        
+        // Parse failed tests
+        else if (std::regex_search(line, match, test_failed)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "RSpec";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.status = ValidationEventStatus::FAIL;
+            event.severity = "error";
+            event.category = "test_failure";
+            if (!current_context.empty()) {
+                event.function_name = current_context;
+                if (!current_method.empty()) {
+                    event.function_name += "::" + current_method;
+                }
+            }
+            event.test_name = match[1].str();
+            event.message = "Test failed: " + match[1].str();
+            event.raw_output = line;
+            events.push_back(event);
+        }
+        
+        // Parse pending tests
+        else if (std::regex_search(line, match, test_pending)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "RSpec";
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.status = ValidationEventStatus::SKIP;
+            event.severity = "warning";
+            event.category = "test_pending";
+            if (!current_context.empty()) {
+                event.function_name = current_context;
+                if (!current_method.empty()) {
+                    event.function_name += "::" + current_method;
+                }
+            }
+            event.test_name = match[1].str();
+            event.message = "Test pending: " + match[2].str();
+            event.raw_output = line;
+            events.push_back(event);
+        }
+        
+        // Parse failure details
+        else if (std::regex_search(line, match, failure_error)) {
+            current_failure_message = match[1].str();
+        }
+        
+        // Parse expected/got patterns for better error details
+        else if (std::regex_search(line, match, expected_pattern)) {
+            if (!current_failure_message.empty()) {
+                current_failure_message += " | Expected: " + match[1].str();
+            }
+        }
+        else if (std::regex_search(line, match, got_pattern)) {
+            if (!current_failure_message.empty()) {
+                current_failure_message += " | Got: " + match[1].str();
+            }
+        }
+        
+        // Parse file and line information
+        else if (std::regex_search(line, match, file_line_pattern)) {
+            current_failure_file = match[1].str();
+            current_failure_line = std::stoi(match[2].str());
+            
+            // Update the most recent failed test event with file/line info
+            for (auto it = events.rbegin(); it != events.rend(); ++it) {
+                if (it->tool_name == "RSpec" && it->status == ValidationEventStatus::FAIL && 
+                    it->file_path.empty()) {
+                    it->file_path = current_failure_file;
+                    it->line_number = current_failure_line;
+                    if (!current_failure_message.empty()) {
+                        it->message = current_failure_message;
+                    }
+                    break;
+                }
+            }
+        }
+        
+        // Parse summary
+        else if (std::regex_search(line, match, summary_pattern)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "RSpec";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "test_summary";
+            
+            std::string execution_time = match[1].str();
+            int total_examples = std::stoi(match[2].str());
+            int failures = std::stoi(match[3].str());
+            int pending = 0;
+            if (match[5].matched) {
+                pending = std::stoi(match[5].str());
+            }
+            
+            event.message = "Test run completed: " + std::to_string(total_examples) + 
+                          " examples, " + std::to_string(failures) + " failures, " + 
+                          std::to_string(pending) + " pending";
+            event.execution_time = std::stod(execution_time);
+            event.raw_output = line;
+            events.push_back(event);
+        }
+    }
+}
+
+void ParseMochaChai(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream stream(content);
+    std::string line;
+    int64_t event_id = 1;
+    
+    // Regex patterns for Mocha/Chai output
+    std::regex test_passed(R"(\s*✓\s*(.+)\s*\((\d+)ms\))");
+    std::regex test_failed(R"(\s*✗\s*(.+))");
+    std::regex test_pending(R"(\s*-\s*(.+)\s*\(pending\))");
+    std::regex context_start(R"(^\s*([A-Z][A-Za-z0-9\s]+)\s*$)");
+    std::regex nested_context(R"(^\s{2,}([a-z][A-Za-z0-9\s]+)\s*$)");
+    std::regex error_line(R"((Error|AssertionError):\s*(.+))");
+    std::regex file_line(R"(\s*at\s+Context\.<anonymous>\s+\((.+):(\d+):(\d+)\))");
+    std::regex test_stack(R"(\s*at\s+Test\.Runnable\.run\s+\((.+):(\d+):(\d+)\))");
+    std::regex summary_line(R"(\s*(\d+)\s+passing\s*\(([0-9.]+s)\))");
+    std::regex failing_line(R"(\s*(\d+)\s+failing)");
+    std::regex pending_line(R"(\s*(\d+)\s+pending)");
+    std::regex failed_example_start(R"(\s*(\d+)\)\s+(.+))");
+    std::regex expected_got_line(R"(\s*\+(.+))");
+    std::regex actual_line(R"(\s*-(.+))");
+    
+    std::string current_context;
+    std::string current_nested_context;
+    std::string current_test_name;
+    std::string current_error_message;
+    std::string current_file_path;
+    int current_line_number = 0;
+    int current_column = 0;
+    int64_t current_execution_time = 0;
+    std::vector<std::string> stack_trace;
+    bool in_failure_details = false;
+    int failure_number = 0;
+    
+    while (std::getline(stream, line)) {
+        std::smatch match;
+        
+        // Check for test passed
+        if (std::regex_match(line, match, test_passed)) {
+            std::string test_name = match[1].str();
+            std::string time_str = match[2].str();
+            current_execution_time = std::stoll(time_str);
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.severity = "info";
+            event.message = "Test passed: " + test_name;
+            event.test_name = current_context + " " + current_nested_context + " " + test_name;
+            event.status = ValidationEventStatus::PASS;
+            event.file_path = current_file_path;
+            event.line_number = current_line_number;
+            event.column_number = current_column;
+            event.execution_time = current_execution_time;
+            event.tool_name = "mocha";
+            event.category = "mocha_chai_text";
+            event.raw_output = line;
+            event.function_name = current_context;
+            event.structured_data = "{}";
+            
+            events.push_back(event);
+            
+            // Reset for next test
+            current_file_path = "";
+            current_line_number = 0;
+            current_column = 0;
+            current_execution_time = 0;
+        }
+        // Check for test failed
+        else if (std::regex_match(line, match, test_failed)) {
+            current_test_name = match[1].str();
+        }
+        // Check for test pending
+        else if (std::regex_match(line, match, test_pending)) {
+            std::string test_name = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.severity = "warning";
+            event.message = "Test pending: " + test_name;
+            event.test_name = current_context + " " + current_nested_context + " " + test_name;
+            event.status = ValidationEventStatus::SKIP;
+            event.file_path = "";
+            event.line_number = 0;
+            event.column_number = 0;
+            event.execution_time = 0;
+            event.tool_name = "mocha";
+            event.category = "mocha_chai_text";
+            event.raw_output = line;
+            event.function_name = current_context;
+            event.structured_data = "{}";
+            
+            events.push_back(event);
+        }
+        // Check for context start
+        else if (std::regex_match(line, match, context_start)) {
+            current_context = match[1].str();
+            current_nested_context = "";
+        }
+        // Check for nested context
+        else if (std::regex_match(line, match, nested_context)) {
+            current_nested_context = match[1].str();
+        }
+        // Check for error messages
+        else if (std::regex_match(line, match, error_line)) {
+            current_error_message = match[1].str() + ": " + match[2].str();
+        }
+        // Check for file and line information
+        else if (std::regex_match(line, match, file_line)) {
+            current_file_path = match[1].str();
+            current_line_number = std::stoi(match[2].str());
+            current_column = std::stoi(match[3].str());
+            
+            // If we have a failed test, create the event now
+            if (!current_test_name.empty() && !current_error_message.empty()) {
+                ValidationEvent event;
+                event.event_id = event_id++;
+                event.event_type = ValidationEventType::TEST_RESULT;
+                event.severity = "error";
+                event.message = current_error_message;
+                event.test_name = current_context + " " + current_nested_context + " " + current_test_name;
+                event.status = ValidationEventStatus::FAIL;
+                event.file_path = current_file_path;
+                event.line_number = current_line_number;
+                event.column_number = current_column;
+                event.execution_time = 0;
+                event.tool_name = "mocha";
+                event.category = "mocha_chai_text";
+                event.raw_output = line;
+                event.function_name = current_context;
+                event.structured_data = "{}";
+                
+                events.push_back(event);
+                
+                // Reset for next test
+                current_test_name = "";
+                current_error_message = "";
+                current_file_path = "";
+                current_line_number = 0;
+                current_column = 0;
+            }
+        }
+        // Check for failed example start (in failure summary)
+        else if (std::regex_match(line, match, failed_example_start)) {
+            failure_number = std::stoi(match[1].str());
+            std::string full_test_name = match[2].str();
+            in_failure_details = true;
+            
+            // Extract context and test name from full name
+            size_t last_space = full_test_name.rfind(' ');
+            if (last_space != std::string::npos) {
+                current_context = full_test_name.substr(0, last_space);
+                current_test_name = full_test_name.substr(last_space + 1);
+            } else {
+                current_test_name = full_test_name;
+            }
+        }
+        // Check for summary lines
+        else if (std::regex_match(line, match, summary_line)) {
+            int passing_count = std::stoi(match[1].str());
+            std::string total_time = match[2].str();
+            
+            ValidationEvent summary_event;
+            summary_event.event_id = event_id++;
+            summary_event.event_type = ValidationEventType::SUMMARY;
+            summary_event.severity = "info";
+            summary_event.message = "Test execution completed with " + std::to_string(passing_count) + " passing tests";
+            summary_event.test_name = "";
+            summary_event.status = ValidationEventStatus::INFO;
+            summary_event.file_path = "";
+            summary_event.line_number = 0;
+            summary_event.column_number = 0;
+            summary_event.execution_time = 0;
+            summary_event.tool_name = "mocha";
+            summary_event.category = "mocha_chai_text";
+            summary_event.raw_output = line;
+            summary_event.function_name = "";
+            summary_event.structured_data = "{\"passing_tests\": " + std::to_string(passing_count) + ", \"total_time\": \"" + total_time + "\"}";
+            
+            events.push_back(summary_event);
+        }
+        else if (std::regex_match(line, match, failing_line)) {
+            int failing_count = std::stoi(match[1].str());
+            
+            ValidationEvent summary_event;
+            summary_event.event_id = event_id++;
+            summary_event.event_type = ValidationEventType::SUMMARY;
+            summary_event.severity = "error";
+            summary_event.message = "Test execution completed with " + std::to_string(failing_count) + " failing tests";
+            summary_event.test_name = "";
+            summary_event.status = ValidationEventStatus::FAIL;
+            summary_event.file_path = "";
+            summary_event.line_number = 0;
+            summary_event.column_number = 0;
+            summary_event.execution_time = 0;
+            summary_event.tool_name = "mocha";
+            summary_event.category = "mocha_chai_text";
+            summary_event.raw_output = line;
+            summary_event.function_name = "";
+            summary_event.structured_data = "{\"failing_tests\": " + std::to_string(failing_count) + "}";
+            
+            events.push_back(summary_event);
+        }
+        else if (std::regex_match(line, match, pending_line)) {
+            int pending_count = std::stoi(match[1].str());
+            
+            ValidationEvent summary_event;
+            summary_event.event_id = event_id++;
+            summary_event.event_type = ValidationEventType::SUMMARY;
+            summary_event.severity = "warning";
+            summary_event.message = "Test execution completed with " + std::to_string(pending_count) + " pending tests";
+            summary_event.test_name = "";
+            summary_event.status = ValidationEventStatus::WARNING;
+            summary_event.file_path = "";
+            summary_event.line_number = 0;
+            summary_event.column_number = 0;
+            summary_event.execution_time = 0;
+            summary_event.tool_name = "mocha";
+            summary_event.category = "mocha_chai_text";
+            summary_event.raw_output = line;
+            summary_event.function_name = "";
+            summary_event.structured_data = "{\"pending_tests\": " + std::to_string(pending_count) + "}";
+            
+            events.push_back(summary_event);
+        }
+        
+        // Always add stack trace lines when we encounter them
+        if (std::regex_match(line, match, test_stack) || std::regex_match(line, match, file_line)) {
+            stack_trace.push_back(line);
+        }
+        
+        // Clear stack trace after processing failure details
+        if (in_failure_details && line.empty()) {
+            in_failure_details = false;
+            stack_trace.clear();
+        }
+    }
+}
+
+void ParseGoogleTest(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream stream(content);
+    std::string line;
+    int64_t event_id = 1;
+    
+    // Regex patterns for Google Test output
+    std::regex test_run_start(R"(\[\s*RUN\s*\]\s*(.+))");
+    std::regex test_passed(R"(\[\s*OK\s*\]\s*(.+)\s*\((\d+)\s*ms\))");
+    std::regex test_failed(R"(\[\s*FAILED\s*\]\s*(.+)\s*\((\d+)\s*ms\))");
+    std::regex test_skipped(R"(\[\s*SKIPPED\s*\]\s*(.+)\s*\((\d+)\s*ms\))");
+    std::regex test_suite_start(R"(\[----------\]\s*(\d+)\s*tests from\s*(.+))");
+    std::regex test_suite_end(R"(\[----------\]\s*(\d+)\s*tests from\s*(.+)\s*\((\d+)\s*ms total\))");
+    std::regex test_summary_start(R"(\[==========\]\s*(\d+)\s*tests from\s*(\d+)\s*test suites ran\.\s*\((\d+)\s*ms total\))");
+    std::regex tests_passed_summary(R"(\[\s*PASSED\s*\]\s*(\d+)\s*tests\.)");
+    std::regex tests_failed_summary(R"(\[\s*FAILED\s*\]\s*(\d+)\s*tests,\s*listed below:)");
+    std::regex failed_test_list(R"(\[\s*FAILED\s*\]\s*(.+))");
+    std::regex failure_detail(R"((.+):\s*(.+):(\d+):\s*Failure)");
+    std::regex global_env_setup(R"(\[----------\]\s*Global test environment set-up)");
+    std::regex global_env_teardown(R"(\[----------\]\s*Global test environment tear-down)");
+    
+    std::string current_test_suite;
+    std::string current_test_name;
+    bool in_failure_details = false;
+    std::vector<std::string> failure_lines;
+    
+    while (std::getline(stream, line)) {
+        std::smatch match;
+        
+        // Check for test run start
+        if (std::regex_match(line, match, test_run_start)) {
+            current_test_name = match[1].str();
+        }
+        // Check for test passed
+        else if (std::regex_match(line, match, test_passed)) {
+            std::string test_name = match[1].str();
+            std::string time_str = match[2].str();
+            int64_t execution_time = std::stoll(time_str);
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.severity = "info";
+            event.message = "Test passed: " + test_name;
+            event.test_name = test_name;
+            event.status = ValidationEventStatus::PASS;
+            event.file_path = "";
+            event.line_number = 0;
+            event.column_number = 0;
+            event.execution_time = execution_time;
+            event.tool_name = "gtest";
+            event.category = "gtest_text";
+            event.raw_output = line;
+            event.function_name = current_test_suite;
+            event.structured_data = "{}";
+            
+            events.push_back(event);
+        }
+        // Check for test failed
+        else if (std::regex_match(line, match, test_failed)) {
+            std::string test_name = match[1].str();
+            std::string time_str = match[2].str();
+            int64_t execution_time = std::stoll(time_str);
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.severity = "error";
+            event.message = "Test failed: " + test_name;
+            event.test_name = test_name;
+            event.status = ValidationEventStatus::FAIL;
+            event.file_path = "";
+            event.line_number = 0;
+            event.column_number = 0;
+            event.execution_time = execution_time;
+            event.tool_name = "gtest";
+            event.category = "gtest_text";
+            event.raw_output = line;
+            event.function_name = current_test_suite;
+            event.structured_data = "{}";
+            
+            events.push_back(event);
+        }
+        // Check for test skipped
+        else if (std::regex_match(line, match, test_skipped)) {
+            std::string test_name = match[1].str();
+            std::string time_str = match[2].str();
+            int64_t execution_time = std::stoll(time_str);
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.severity = "warning";
+            event.message = "Test skipped: " + test_name;
+            event.test_name = test_name;
+            event.status = ValidationEventStatus::SKIP;
+            event.file_path = "";
+            event.line_number = 0;
+            event.column_number = 0;
+            event.execution_time = execution_time;
+            event.tool_name = "gtest";
+            event.category = "gtest_text";
+            event.raw_output = line;
+            event.function_name = current_test_suite;
+            event.structured_data = "{}";
+            
+            events.push_back(event);
+        }
+        // Check for test suite start
+        else if (std::regex_match(line, match, test_suite_start)) {
+            current_test_suite = match[2].str();
+        }
+        // Check for test suite end
+        else if (std::regex_match(line, match, test_suite_end)) {
+            std::string suite_name = match[2].str();
+            std::string total_time = match[3].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SUMMARY;
+            event.severity = "info";
+            event.message = "Test suite completed: " + suite_name + " (" + total_time + " ms total)";
+            event.test_name = "";
+            event.status = ValidationEventStatus::INFO;
+            event.file_path = "";
+            event.line_number = 0;
+            event.column_number = 0;
+            event.execution_time = std::stoll(total_time);
+            event.tool_name = "gtest";
+            event.category = "gtest_text";
+            event.raw_output = line;
+            event.function_name = suite_name;
+            event.structured_data = "{\"suite_name\": \"" + suite_name + "\", \"total_time_ms\": " + total_time + "}";
+            
+            events.push_back(event);
+        }
+        // Check for overall test summary
+        else if (std::regex_match(line, match, test_summary_start)) {
+            std::string total_tests = match[1].str();
+            std::string total_suites = match[2].str();
+            std::string total_time = match[3].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SUMMARY;
+            event.severity = "info";
+            event.message = "Test execution completed: " + total_tests + " tests from " + total_suites + " test suites";
+            event.test_name = "";
+            event.status = ValidationEventStatus::INFO;
+            event.file_path = "";
+            event.line_number = 0;
+            event.column_number = 0;
+            event.execution_time = std::stoll(total_time);
+            event.tool_name = "gtest";
+            event.category = "gtest_text";
+            event.raw_output = line;
+            event.function_name = "";
+            event.structured_data = "{\"total_tests\": " + total_tests + ", \"total_suites\": " + total_suites + ", \"total_time_ms\": " + total_time + "}";
+            
+            events.push_back(event);
+        }
+        // Check for passed tests summary
+        else if (std::regex_match(line, match, tests_passed_summary)) {
+            std::string passed_count = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SUMMARY;
+            event.severity = "info";
+            event.message = "Tests passed: " + passed_count + " tests";
+            event.test_name = "";
+            event.status = ValidationEventStatus::PASS;
+            event.file_path = "";
+            event.line_number = 0;
+            event.column_number = 0;
+            event.execution_time = 0;
+            event.tool_name = "gtest";
+            event.category = "gtest_text";
+            event.raw_output = line;
+            event.function_name = "";
+            event.structured_data = "{\"passed_tests\": " + passed_count + "}";
+            
+            events.push_back(event);
+        }
+        // Check for failed tests summary
+        else if (std::regex_match(line, match, tests_failed_summary)) {
+            std::string failed_count = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SUMMARY;
+            event.severity = "error";
+            event.message = "Tests failed: " + failed_count + " tests";
+            event.test_name = "";
+            event.status = ValidationEventStatus::FAIL;
+            event.file_path = "";
+            event.line_number = 0;
+            event.column_number = 0;
+            event.execution_time = 0;
+            event.tool_name = "gtest";
+            event.category = "gtest_text";
+            event.raw_output = line;
+            event.function_name = "";
+            event.structured_data = "{\"failed_tests\": " + failed_count + "}";
+            
+            events.push_back(event);
+        }
+        // Check for failure details (file paths and line numbers)
+        else if (std::regex_match(line, match, failure_detail)) {
+            std::string test_name = match[1].str();
+            std::string file_path = match[2].str();
+            std::string line_str = match[3].str();
+            int line_number = 0;
+            
+            try {
+                line_number = std::stoi(line_str);
+            } catch (...) {
+                // If parsing line number fails, keep it as 0
+            }
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.severity = "error";
+            event.message = "Test failure details: " + test_name;
+            event.test_name = test_name;
+            event.status = ValidationEventStatus::FAIL;
+            event.file_path = file_path;
+            event.line_number = line_number;
+            event.column_number = 0;
+            event.execution_time = 0;
+            event.tool_name = "gtest";
+            event.category = "gtest_text";
+            event.raw_output = line;
+            event.function_name = current_test_suite;
+            event.structured_data = "{\"file_path\": \"" + file_path + "\", \"line_number\": " + std::to_string(line_number) + "}";
+            
+            events.push_back(event);
+        }
+    }
+}
+
+void ParseNUnitXUnit(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream stream(content);
+    std::string line;
+    int64_t event_id = 1;
+    
+    // Regex patterns for NUnit/xUnit output
+    std::regex nunit_header(R"(NUnit\s+([\d\.]+))");
+    std::regex nunit_summary(R"(Test Count:\s*(\d+),\s*Passed:\s*(\d+),\s*Failed:\s*(\d+),\s*Warnings:\s*(\d+),\s*Inconclusive:\s*(\d+),\s*Skipped:\s*(\d+))");
+    std::regex nunit_overall_result(R"(Overall result:\s*(\w+))");
+    std::regex nunit_duration(R"(Duration:\s*([\d\.]+)\s*seconds)");
+    std::regex nunit_failed_test(R"(\d+\)\s*(.+))");
+    std::regex nunit_test_source(R"(Source:\s*(.+):line\s*(\d+))");
+    std::regex nunit_test_assertion(R"(Expected:\s*(.+)\s*But was:\s*(.+))");
+    
+    std::regex xunit_header(R"(xUnit\.net VSTest Adapter\s+v([\d\.]+))");
+    std::regex xunit_test_start(R"(Starting:\s*(.+))");
+    std::regex xunit_test_finish(R"(Finished:\s*(.+))");
+    std::regex xunit_test_pass(R"(\s*(.+)\s*\[PASS\])");
+    std::regex xunit_test_fail(R"(\s*(.+)\s*\[FAIL\])");
+    std::regex xunit_test_skip(R"(\s*(.+)\s*\[SKIP\])");
+    std::regex xunit_assertion_failure(R"(Assert\.(\w+)\(\)\s*Failure)");
+    std::regex xunit_stack_trace(R"(at\s+(.+)\s+in\s+(.+):line\s+(\d+))");
+    std::regex xunit_total_summary(R"(Total tests:\s*(\d+))");
+    std::regex xunit_passed_summary(R"(Passed:\s*(\d+))");
+    std::regex xunit_failed_summary(R"(Failed:\s*(\d+))");
+    std::regex xunit_skipped_summary(R"(Skipped:\s*(\d+))");
+    std::regex xunit_time_summary(R"(Time:\s*([\d\.]+)s)");
+    
+    std::string current_test_suite;
+    std::string current_framework = "unknown";
+    bool in_failed_tests_section = false;
+    bool in_skipped_tests_section = false;
+    bool in_xunit_test_failure = false;
+    std::vector<std::string> failure_details;
+    
+    while (std::getline(stream, line)) {
+        std::smatch match;
+        
+        // Detect NUnit vs xUnit framework
+        if (std::regex_search(line, match, nunit_header)) {
+            current_framework = "nunit";
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::DEBUG_INFO;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "NUnit version " + match[1].str();
+            event.tool_name = "nunit";
+            event.category = "nunit_xunit_text";
+            event.raw_output = line;
+            event.execution_time = 0;
+            
+            events.push_back(event);
+        }
+        else if (std::regex_search(line, match, xunit_header)) {
+            current_framework = "xunit";
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::DEBUG_INFO;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "xUnit.net VSTest Adapter version " + match[1].str();
+            event.tool_name = "xunit";
+            event.category = "nunit_xunit_text";
+            event.raw_output = line;
+            event.execution_time = 0;
+            
+            events.push_back(event);
+        }
+        // NUnit Test Summary
+        else if (std::regex_search(line, match, nunit_summary)) {
+            int total_tests = std::stoi(match[1].str());
+            int passed = std::stoi(match[2].str());
+            int failed = std::stoi(match[3].str());
+            int warnings = std::stoi(match[4].str());
+            int inconclusive = std::stoi(match[5].str());
+            int skipped = std::stoi(match[6].str());
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SUMMARY;
+            event.severity = failed > 0 ? "error" : "info";
+            event.status = failed > 0 ? ValidationEventStatus::FAIL : ValidationEventStatus::PASS;
+            event.message = "Test summary: " + std::to_string(total_tests) + " total, " + 
+                          std::to_string(passed) + " passed, " + std::to_string(failed) + " failed, " +
+                          std::to_string(skipped) + " skipped";
+            event.tool_name = "nunit";
+            event.category = "nunit_xunit_text";
+            event.raw_output = line;
+            event.execution_time = 0;
+            
+            events.push_back(event);
+        }
+        // NUnit Overall Result
+        else if (std::regex_search(line, match, nunit_overall_result)) {
+            std::string result = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.severity = (result == "Failed") ? "error" : "info";
+            event.status = (result == "Failed") ? ValidationEventStatus::FAIL : ValidationEventStatus::PASS;
+            event.message = "Overall test result: " + result;
+            event.tool_name = "nunit";
+            event.category = "nunit_xunit_text";
+            event.raw_output = line;
+            event.execution_time = 0;
+            
+            events.push_back(event);
+        }
+        // NUnit Duration
+        else if (std::regex_search(line, match, nunit_duration)) {
+            double duration_seconds = std::stod(match[1].str());
+            int64_t duration_ms = static_cast<int64_t>(duration_seconds * 1000);
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::PERFORMANCE_METRIC;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "Test execution time: " + match[1].str() + " seconds";
+            event.execution_time = duration_ms;
+            event.tool_name = "nunit";
+            event.category = "nunit_xunit_text";
+            event.raw_output = line;
+            
+            events.push_back(event);
+        }
+        // xUnit Test Suite Start
+        else if (std::regex_search(line, match, xunit_test_start)) {
+            current_test_suite = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::DEBUG_INFO;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "Starting test suite: " + current_test_suite;
+            event.function_name = current_test_suite;
+            event.tool_name = "xunit";
+            event.category = "nunit_xunit_text";
+            event.raw_output = line;
+            event.execution_time = 0;
+            
+            events.push_back(event);
+        }
+        // xUnit Test Suite Finish
+        else if (std::regex_search(line, match, xunit_test_finish)) {
+            std::string test_suite = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::DEBUG_INFO;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "Finished test suite: " + test_suite;
+            event.function_name = test_suite;
+            event.tool_name = "xunit";
+            event.category = "nunit_xunit_text";
+            event.raw_output = line;
+            event.execution_time = 0;
+            
+            events.push_back(event);
+        }
+        // xUnit Test Pass
+        else if (std::regex_search(line, match, xunit_test_pass)) {
+            std::string test_name = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.severity = "info";
+            event.status = ValidationEventStatus::PASS;
+            event.message = "Test passed: " + test_name;
+            event.test_name = test_name;
+            event.function_name = current_test_suite;
+            event.tool_name = "xunit";
+            event.category = "nunit_xunit_text";
+            event.raw_output = line;
+            event.execution_time = 0;
+            
+            events.push_back(event);
+        }
+        // xUnit Test Fail
+        else if (std::regex_search(line, match, xunit_test_fail)) {
+            std::string test_name = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.severity = "error";
+            event.status = ValidationEventStatus::FAIL;
+            event.message = "Test failed: " + test_name;
+            event.test_name = test_name;
+            event.function_name = current_test_suite;
+            event.tool_name = "xunit";
+            event.category = "nunit_xunit_text";
+            event.raw_output = line;
+            event.execution_time = 0;
+            
+            events.push_back(event);
+            in_xunit_test_failure = true;
+        }
+        // xUnit Test Skip
+        else if (std::regex_search(line, match, xunit_test_skip)) {
+            std::string test_name = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.severity = "warning";
+            event.status = ValidationEventStatus::SKIP;
+            event.message = "Test skipped: " + test_name;
+            event.test_name = test_name;
+            event.function_name = current_test_suite;
+            event.tool_name = "xunit";
+            event.category = "nunit_xunit_text";
+            event.raw_output = line;
+            event.execution_time = 0;
+            
+            events.push_back(event);
+        }
+        // xUnit Stack Trace
+        else if (std::regex_search(line, match, xunit_stack_trace)) {
+            std::string method = match[1].str();
+            std::string file_path = match[2].str();
+            std::string line_number = match[3].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::DEBUG_INFO;
+            event.severity = "error";
+            event.status = ValidationEventStatus::FAIL;
+            event.message = "Stack trace: " + method;
+            event.file_path = file_path;
+            event.line_number = std::stoll(line_number);
+            event.function_name = method;
+            event.tool_name = "xunit";
+            event.category = "nunit_xunit_text";
+            event.raw_output = line;
+            event.execution_time = 0;
+            event.structured_data = "{\"file_path\": \"" + file_path + "\", \"line_number\": " + line_number + "}";
+            
+            events.push_back(event);
+        }
+        // NUnit Test Source (file and line)
+        else if (std::regex_search(line, match, nunit_test_source)) {
+            std::string source_path = match[1].str();
+            std::string line_number = match[2].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::DEBUG_INFO;
+            event.severity = "error";
+            event.status = ValidationEventStatus::FAIL;
+            event.message = "Test failure location";
+            event.file_path = source_path;
+            event.line_number = std::stoll(line_number);
+            event.tool_name = "nunit";
+            event.category = "nunit_xunit_text";
+            event.raw_output = line;
+            event.execution_time = 0;
+            event.structured_data = "{\"file_path\": \"" + source_path + "\", \"line_number\": " + line_number + "}";
+            
+            events.push_back(event);
+        }
+        // xUnit Total Summary
+        else if (std::regex_search(line, match, xunit_total_summary)) {
+            int total_tests = std::stoi(match[1].str());
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SUMMARY;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "xUnit test summary: " + std::to_string(total_tests) + " total tests";
+            event.tool_name = "xunit";
+            event.category = "nunit_xunit_text";
+            event.raw_output = line;
+            event.execution_time = 0;
+            
+            events.push_back(event);
+        }
+        // Check for section markers
+        else if (line.find("Failed Tests - Failures:") != std::string::npos) {
+            in_failed_tests_section = true;
+        }
+        else if (line.find("Skipped Tests:") != std::string::npos) {
+            in_skipped_tests_section = true;
+            in_failed_tests_section = false;
+        }
+        // Handle assertion failures in xUnit
+        else if (in_xunit_test_failure && std::regex_search(line, match, xunit_assertion_failure)) {
+            std::string assertion_type = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::DEBUG_INFO;
+            event.severity = "error";
+            event.status = ValidationEventStatus::FAIL;
+            event.message = "Assertion failure: " + assertion_type;
+            event.tool_name = "xunit";
+            event.category = "nunit_xunit_text";
+            event.raw_output = line;
+            event.execution_time = 0;
+            
+            events.push_back(event);
+        }
+        // Handle NUnit assertion details
+        else if (in_failed_tests_section && std::regex_search(line, match, nunit_test_assertion)) {
+            std::string expected = match[1].str();
+            std::string actual = match[2].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::DEBUG_INFO;
+            event.severity = "error";
+            event.status = ValidationEventStatus::FAIL;
+            event.message = "Assertion failure - Expected: " + expected + ", But was: " + actual;
+            event.tool_name = "nunit";
+            event.category = "nunit_xunit_text";
+            event.raw_output = line;
+            event.execution_time = 0;
+            
+            events.push_back(event);
+        }
+        
+        // Reset failure context when we encounter an empty line
+        if (line.empty()) {
+            in_xunit_test_failure = false;
         }
     }
 }

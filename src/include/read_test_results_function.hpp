@@ -42,7 +42,12 @@ enum class TestResultFormat : uint8_t {
     GRADLE_BUILD = 31,
     MSBUILD = 32,
     JUNIT_TEXT = 33,
-    VALGRIND = 34
+    VALGRIND = 34,
+    GDB_LLDB = 35,
+    RSPEC_TEXT = 36,
+    MOCHA_CHAI_TEXT = 37,
+    GTEST_TEXT = 38,
+    NUNIT_XUNIT_TEXT = 39
 };
 
 // Bind data for read_test_results table function
@@ -141,5 +146,10 @@ void ParseGradleBuild(const std::string& content, std::vector<ValidationEvent>& 
 void ParseMSBuild(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseJUnitText(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseValgrind(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseGdbLldb(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseRSpecText(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseMochaChai(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseGoogleTest(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseNUnitXUnit(const std::string& content, std::vector<ValidationEvent>& events);
 
 } // namespace duckdb

@@ -1,0 +1,44 @@
+[==========] Running 8 tests from 3 test suites.
+[----------] Global test environment set-up.
+[----------] 3 tests from StringUtilsTest
+[ RUN      ] StringUtilsTest.ToUpperCase
+[       OK ] StringUtilsTest.ToUpperCase (1 ms)
+[ RUN      ] StringUtilsTest.ToLowerCase
+[       OK ] StringUtilsTest.ToLowerCase (0 ms)
+[ RUN      ] StringUtilsTest.Split
+[  FAILED  ] StringUtilsTest.Split (2 ms)
+[----------] 3 tests from StringUtilsTest (3 ms total)
+
+[----------] 3 tests from MathUtilsTest
+[ RUN      ] MathUtilsTest.Add
+[       OK ] MathUtilsTest.Add (0 ms)
+[ RUN      ] MathUtilsTest.Multiply
+[       OK ] MathUtilsTest.Multiply (1 ms)
+[ RUN      ] MathUtilsTest.Divide
+[  FAILED  ] MathUtilsTest.Divide (0 ms)
+[----------] 3 tests from MathUtilsTest (1 ms total)
+
+[----------] 2 tests from DatabaseTest
+[ RUN      ] DatabaseTest.Connect
+[       OK ] DatabaseTest.Connect (15 ms)
+[ RUN      ] DatabaseTest.QueryPerformance
+[  SKIPPED ] DatabaseTest.QueryPerformance (0 ms)
+[----------] 2 tests from DatabaseTest (15 ms total)
+
+[----------] Global test environment tear-down
+[==========] 8 tests from 3 test suites ran. (19 ms total)
+[  PASSED  ] 5 tests.
+[  FAILED  ] 2 tests, listed below:
+[  FAILED  ] StringUtilsTest.Split
+[  FAILED  ] MathUtilsTest.Divide
+
+ 2 FAILED TESTS
+
+StringUtilsTest.Split: /path/to/test/string_utils_test.cpp:45: Failure
+Expected equality of these values:
+  result.size()
+    Which is: 2
+  3
+
+MathUtilsTest.Divide: /path/to/test/math_utils_test.cpp:78: Failure
+Expected: (result) != (0), actual: 0 vs 0

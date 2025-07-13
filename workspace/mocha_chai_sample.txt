@@ -1,0 +1,62 @@
+  Authentication Service
+    signup
+      ✓ should create a new user with valid data (156ms)
+      ✗ should reject invalid email format
+        Error: expected 422 but got 201
+            at Context.<anonymous> (test/auth.test.js:45:32)
+            at processImmediate (node:internal/timers:476:26)
+
+    login
+      ✓ should authenticate with correct credentials (89ms)
+      ✓ should return JWT token on successful login (67ms)
+      ✗ should reject invalid credentials
+        AssertionError: expected 401 but got 200
+            at Context.<anonymous> (test/auth.test.js:78:45)
+            at Test.Runnable.run (node_modules/mocha/lib/runnable.js:364:13)
+
+  Payment Processing
+    processPayment
+      ✓ should handle credit card payments (234ms)
+      ✗ should validate amount is positive
+        AssertionError: Expected amount to be positive
+        + expected - actual
+        
+        +true
+        -false
+        
+            at Context.<anonymous> (test/payment.test.js:67:28)
+            at Test.Runnable.run (node_modules/mocha/lib/runnable.js:364:13)
+
+    refundPayment
+      ✓ should process refunds correctly (178ms)
+      ✓ should update payment status (45ms)
+
+  Database Operations
+    - should connect to database (pending)
+    - should handle connection failures (pending)
+      ✓ should execute queries correctly (234ms)
+
+
+  8 passing (1.2s)
+  3 failing
+  2 pending
+
+  1) Authentication Service signup should reject invalid email format:
+     Error: expected 422 but got 201
+      at Context.<anonymous> (test/auth.test.js:45:32)
+      at processImmediate (node:internal/timers:476:26)
+
+  2) Authentication Service login should reject invalid credentials:
+     AssertionError: expected 401 but got 200
+      at Context.<anonymous> (test/auth.test.js:78:45)
+      at Test.Runnable.run (node_modules/mocha/lib/runnable.js:364:13)
+
+  3) Payment Processing processPayment should validate amount is positive:
+     AssertionError: Expected amount to be positive
+     + expected - actual
+     
+     +true
+     -false
+     
+      at Context.<anonymous> (test/payment.test.js:67:28)
+      at Test.Runnable.run (node_modules/mocha/lib/runnable.js:364:13)

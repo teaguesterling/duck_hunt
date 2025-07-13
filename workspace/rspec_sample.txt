@@ -1,0 +1,63 @@
+Running via Spring preloader in process 12345
+Randomized with seed 54321
+
+UserSpec
+  #validate_email
+    ✓ should accept valid email addresses
+    ✗ should reject invalid email addresses
+      Failure/Error: expect(user.errors[:email]).to be_empty
+      
+        expected [] to be empty
+        
+      # ./spec/models/user_spec.rb:25:in `block (3 levels) in <top (required)>'
+
+  #save
+    ✓ should save valid user to database
+    pending: should handle validation failures (PENDING: Not implemented yet)
+
+PaymentProcessor
+  #process_payment
+    ✓ should process credit card payments
+    ✗ should handle payment failures
+      Failure/Error: expect(response.status).to eq('failed')
+      
+        expected: "failed"
+             got: "success"
+        
+        (compared using ==)
+        
+      # ./spec/services/payment_processor_spec.rb:42:in `block (3 levels) in <top (required)>'
+    ✓ should validate payment amounts
+
+DatabaseHelper
+  #cleanup
+    ✓ cleans up test data correctly
+
+Failures:
+
+  1) UserSpec#validate_email should reject invalid email addresses
+     Failure/Error: expect(user.errors[:email]).to be_empty
+     
+       expected [] to be empty
+       
+     # ./spec/models/user_spec.rb:25:in `block (3 levels) in <top (required)>'
+
+  2) PaymentProcessor#process_payment should handle payment failures
+     Failure/Error: expect(response.status).to eq('failed')
+     
+       expected: "failed"
+            got: "success"
+       
+       (compared using ==)
+       
+     # ./spec/services/payment_processor_spec.rb:42:in `block (3 levels) in <top (required)>'
+
+Finished in 2.47 seconds (files took 1.23 seconds to load)
+7 examples, 2 failures, 1 pending
+
+Failed examples:
+
+rspec ./spec/models/user_spec.rb:23 # UserSpec#validate_email should reject invalid email addresses
+rspec ./spec/services/payment_processor_spec.rb:40 # PaymentProcessor#process_payment should handle payment failures
+
+Randomized with seed 54321

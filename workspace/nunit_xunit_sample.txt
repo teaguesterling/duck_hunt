@@ -1,0 +1,81 @@
+NUnit 3.13.2
+Copyright (c) 2021 Charlie Poole, Rob Prouse
+
+Runtime Environment
+   OS Version: Microsoft Windows NT 10.0.19044.0
+   .NET Runtime: .NET 6.0.11
+
+Test Run Summary
+  Overall result: Failed
+  Test Count: 15, Passed: 11, Failed: 3, Warnings: 0, Inconclusive: 0, Skipped: 1
+  Not run: 0, Invalid: 0
+  Start time: 2024-01-15 14:30:21Z
+  End time: 2024-01-15 14:30:25Z
+  Duration: 3.942 seconds
+
+Results (nunit3) saved as TestResults.xml
+Results (nunit3) saved as TestResults.trx
+
+Tests run: 15
+Passed: 11
+Failed: 3
+Skipped: 1
+Total time: 3.942 Seconds
+
+Failed Tests - Failures:
+
+1) MyApp.Tests.AuthenticationTests.ValidatePasswordComplexity
+   Password complexity validation should reject weak passwords
+   Source: C:\Projects\MyApp\tests\AuthenticationTests.cs:line 156
+     Expected: False
+     But was:  True
+     at MyApp.Tests.AuthenticationTests.ValidatePasswordComplexity() in C:\Projects\MyApp\tests\AuthenticationTests.cs:line 156
+
+2) MyApp.Tests.DatabaseTests.ConnectionPoolingTest
+   Connection pooling should reuse connections efficiently
+   Source: C:\Projects\MyApp\tests\DatabaseTests.cs:line 89
+     System.InvalidOperationException : Connection pool exhausted
+       at MyApp.Data.ConnectionManager.GetConnection() in C:\Projects\MyApp\src\Data\ConnectionManager.cs:line 42
+       at MyApp.Tests.DatabaseTests.ConnectionPoolingTest() in C:\Projects\MyApp\tests\DatabaseTests.cs:line 89
+
+3) MyApp.Tests.PaymentTests.ProcessRefund
+   Refund processing should handle partial refunds correctly
+   Source: C:\Projects\MyApp\tests\PaymentTests.cs:line 201
+     Expected: 25.50
+     But was:  25.00
+     at MyApp.Tests.PaymentTests.ProcessRefund() in C:\Projects\MyApp\tests\PaymentTests.cs:line 201
+
+Skipped Tests:
+
+1) MyApp.Tests.IntegrationTests.ExternalApiTest
+   Skipped due to external service unavailable
+   Source: C:\Projects\MyApp\tests\IntegrationTests.cs:line 45
+
+xUnit.net VSTest Adapter v2.4.3+1b45f5407d (64-bit .NET 6.0.11)
+  Discovering: MyApp.xUnit.Tests
+  Discovered:  MyApp.xUnit.Tests
+  Starting:    MyApp.xUnit.Tests
+    MyApp.xUnit.Tests.UserServiceTests.CreateUser_ValidInput_ReturnsUser [PASS]
+    MyApp.xUnit.Tests.UserServiceTests.CreateUser_EmptyName_ThrowsException [PASS] 
+    MyApp.xUnit.Tests.OrderTests.CalculateTotal_WithDiscount_ReturnsCorrectAmount [PASS]
+    MyApp.xUnit.Tests.OrderTests.CalculateTotal_WithoutDiscount_ReturnsBaseAmount [PASS]
+    MyApp.xUnit.Tests.ValidationTests.ValidateEmail_ValidFormat_ReturnsTrue [PASS]
+    MyApp.xUnit.Tests.ValidationTests.ValidateEmail_InvalidFormat_ReturnsFalse [FAIL]
+      Assert.False() Failure
+      Expected: False
+      Actual:   True
+      Stack Trace:
+        at MyApp.xUnit.Tests.ValidationTests.ValidateEmail_InvalidFormat_ReturnsFalse() in C:\Projects\MyApp\xunit.tests\ValidationTests.cs:line 78
+    MyApp.xUnit.Tests.CacheTests.GetFromCache_ValidKey_ReturnsValue [PASS]
+    MyApp.xUnit.Tests.CacheTests.GetFromCache_ExpiredKey_ReturnsNull [SKIP]
+      Reason: Cache service temporarily disabled for testing
+  Finished:    MyApp.xUnit.Tests
+  ==> MyApp.xUnit.Tests [FAIL]
+
+Total tests: 8
+      Passed: 6
+      Failed: 1
+      Skipped: 1
+      Time: 1.234s
+
+Test execution completed.
