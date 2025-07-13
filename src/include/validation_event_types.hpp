@@ -27,7 +27,10 @@ enum class ValidationEventType : uint8_t {
     MEMORY_LEAK = 7,
     THREAD_ERROR = 8,
     PERFORMANCE_METRIC = 9,
-    SUMMARY = 10
+    SUMMARY = 10,
+    DEBUG_EVENT = 11,
+    CRASH_SIGNAL = 12,
+    DEBUG_INFO = 13
 };
 
 // Main validation event structure

@@ -28,6 +28,9 @@ std::string ValidationEventTypeToString(ValidationEventType type) {
         case ValidationEventType::THREAD_ERROR: return "thread_error";
         case ValidationEventType::PERFORMANCE_METRIC: return "performance_metric";
         case ValidationEventType::SUMMARY: return "summary";
+        case ValidationEventType::DEBUG_EVENT: return "debug_event";
+        case ValidationEventType::CRASH_SIGNAL: return "crash_signal";
+        case ValidationEventType::DEBUG_INFO: return "debug_info";
         default: return "unknown";
     }
 }
@@ -54,6 +57,9 @@ ValidationEventType StringToValidationEventType(const std::string& str) {
     if (str == "thread_error") return ValidationEventType::THREAD_ERROR;
     if (str == "performance_metric") return ValidationEventType::PERFORMANCE_METRIC;
     if (str == "summary") return ValidationEventType::SUMMARY;
+    if (str == "debug_event") return ValidationEventType::DEBUG_EVENT;
+    if (str == "crash_signal") return ValidationEventType::CRASH_SIGNAL;
+    if (str == "debug_info") return ValidationEventType::DEBUG_INFO;
     return ValidationEventType::TEST_RESULT;  // Default
 }
 

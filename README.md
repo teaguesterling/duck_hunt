@@ -11,7 +11,7 @@ Duck Hunt provides powerful SQL-based analysis of development tool outputs throu
 - **`read_test_results(file_path, format := 'AUTO')`** - Parse test results and build outputs from files
 - **`parse_test_results(content, format := 'AUTO')`** - Parse test results and build outputs from strings
 
-### Supported Formats (35 Total)
+### Supported Formats (36 Total)
 
 #### Test Frameworks
 - **pytest** (JSON & text output)
@@ -52,6 +52,7 @@ Duck Hunt provides powerful SQL-based analysis of development tool outputs throu
 
 #### Debugging & Analysis Tools
 - **Valgrind** (Memcheck, Helgrind, Cachegrind, Massif, DRD - memory analysis and thread debugging)
+- **GDB/LLDB** (Debugger output - crashes, breakpoints, stack traces, memory errors)
 
 ## Schema
 
@@ -144,6 +145,29 @@ WHERE event_type = 'memory_leak' AND category = 'memory_leak'
 ORDER BY file_path;
 ```
 
+### Debugger Output Analysis
+```sql
+-- Analyze GDB/LLDB crashes and debugging events
+SELECT tool_name, event_type, COUNT(*) as event_count,
+       GROUP_CONCAT(DISTINCT category) as categories
+FROM read_test_results('gdb_output.txt', 'gdb_lldb')
+WHERE event_type IN ('crash_signal', 'debug_event')
+GROUP BY tool_name, event_type
+ORDER BY event_count DESC;
+
+-- Extract crash details with stack traces
+SELECT file_path, line_number, function_name, message, error_code
+FROM read_test_results('debugger.log', 'gdb_lldb')
+WHERE event_type = 'crash_signal'
+ORDER BY file_path, line_number;
+
+-- Find all breakpoint hits for debugging workflow
+SELECT function_name, file_path, line_number, message
+FROM read_test_results('debug_session.txt', 'auto')
+WHERE category = 'breakpoint_hit'
+ORDER BY event_id;
+```
+
 ## Auto-Detection
 
 Duck Hunt automatically detects formats based on content patterns when `format := 'AUTO'` (default):
@@ -226,14 +250,13 @@ For contributing guidelines, see `CONTRIBUTING.md`.
 
 ## Future Work
 
-Duck Hunt currently supports 35 formats across test frameworks, linting tools, build systems, and debugging tools. The following expansions would provide comprehensive coverage of the entire development ecosystem:
+Duck Hunt currently supports 36 formats across test frameworks, linting tools, build systems, and debugging tools. The following expansions would provide comprehensive coverage of the entire development ecosystem:
 
 ### 🔥 High Priority Build Systems
 - **Bazel** (Google's system) - Large-scale projects
 
 ### 🐛 Debugging & Analysis Tools
 - **AddressSanitizer/ThreadSanitizer** - Fast sanitizer output
-- **GDB/LLDB** - Debugger stack traces and breakpoint logs
 - **Clang Static Analyzer** - Static analysis reports
 - **perf** - Linux performance profiling output
 
@@ -276,7 +299,7 @@ Duck Hunt currently supports 35 formats across test frameworks, linting tools, b
 - **PVS-Studio** - Cross-platform analysis
 
 **Target**: ~70+ total formats covering 95% of development tool ecosystem
-**Current**: 35 formats (50% coverage)
+**Current**: 36 formats (51% coverage)
 
 This roadmap would establish Duck Hunt as the definitive tool for agent-driven development workflow analysis across all major programming languages, build systems, and development tools.
 

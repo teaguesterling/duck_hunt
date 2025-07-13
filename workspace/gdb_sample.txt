@@ -1,0 +1,256 @@
+GNU gdb (Ubuntu 12.1-0ubuntu1~22.04) 12.1
+Copyright (C) 2022 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "x86_64-linux-gnu".
+Type "show configuration" for configuration details.
+For bug reporting instructions, please see:
+<https://www.gnu.org/software/gdb/bugs/>.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+Reading symbols from ./my_program...
+(gdb) run arg1 arg2 arg3
+Starting program: /home/user/project/my_program arg1 arg2 arg3
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+
+Program received signal SIGSEGV, Segmentation fault.
+0x000055555555516a in process_data (data=0x0) at src/processor.c:45
+45	    int result = data->value * 2;
+(gdb) bt
+#0  0x000055555555516a in process_data (data=0x0) at src/processor.c:45
+#1  0x0000555555555198 in main_loop () at src/main.c:78
+#2  0x00005555555551c2 in main (argc=4, argv=0x7fffffffe088) at src/main.c:12
+(gdb) info registers
+rax            0x0                 0
+rbx            0x7fffffffe088      140737488347272
+rcx            0x7ffff7e1a9a0      140737352009120
+rdx            0x4                 4
+rsi            0x7fffffffe088      140737488347272
+rdi            0x0                 0
+rbp            0x7fffffffdfa0      0x7fffffffdfa0
+rsp            0x7fffffffdf90      0x7fffffffdf90
+r8             0x0                 0
+r9             0x7ffff7fe0d50      140737353940304
+r10            0x7ffff7fe0d50      140737353940304
+r11            0x202               514
+r12            0x0                 0
+r13            0x7fffffffe098      140737488347288
+r14            0x0                 0
+r15            0x0                 0
+rip            0x55555555516a      0x55555555516a <process_data+26>
+eflags         0x10246             [ PF ZF IF RF ]
+cs             0x33                51
+ss             0x2b                43
+ds             0x0                 0
+es             0x0                 0
+fs             0x0                 0
+gs             0x0                 0
+(gdb) p data
+$1 = (struct data_t *) 0x0
+(gdb) p *data
+Cannot access memory at address 0x0
+(gdb) list
+40	void process_data(struct data_t* data) {
+41	    if (!data) {
+42	        fprintf(stderr, "Error: null data pointer\n");
+43	        return;
+44	    }
+45	    int result = data->value * 2;
+46	    printf("Result: %d\n", result);
+47	}
+48	
+49	int main_loop() {
+50	    struct data_t* data = load_data();
+(gdb) info breakpoints
+Num     Type           Disp Enb Address            What
+1       breakpoint     keep y   0x0000555555555160 in process_data at src/processor.c:40
+        breakpoint already hit 1 time
+2       breakpoint     keep y   0x0000555555555180 in main_loop at src/main.c:75
+        breakpoint already hit 1 time
+3       breakpoint     keep y   0x00005555555551b0 in main at src/main.c:10
+        breakpoint already hit 1 time
+(gdb) continue
+Continuing.
+
+Breakpoint 2, main_loop () at src/main.c:75
+75	    while (running) {
+(gdb) step
+76	        struct data_t* data = load_data();
+(gdb) step
+load_data () at src/loader.c:23
+23	    if (file_handle == NULL) {
+(gdb) step
+24	        return NULL;
+(gdb) step
+main_loop () at src/main.c:77
+77	        if (data == NULL) {
+(gdb) print data
+$2 = (struct data_t *) 0x0
+(gdb) finish
+Run till exit from #0  main_loop () at src/main.c:77
+0x00005555555551c2 in main (argc=4, argv=0x7fffffffe088) at src/main.c:12
+12	    return main_loop();
+Value returned is $3 = -1
+(gdb) info threads
+  Id   Target Id                                   Frame 
+* 1    Thread 0x7ffff7fe0740 (LWP 12345) "my_program" main (argc=4, argv=0x7fffffffe088) at src/main.c:12
+  2    Thread 0x7ffff79e0700 (LWP 12346) "worker"     worker_thread (arg=0x0) at src/worker.c:34
+  3    Thread 0x7ffff71df700 (LWP 12347) "monitor"    monitor_thread (arg=0x555555558000) at src/monitor.c:89
+(gdb) thread 2
+[Switching to thread 2 (Thread 0x7ffff79e0700 (LWP 12346))]
+#0  worker_thread (arg=0x0) at src/worker.c:34
+34	    pthread_mutex_lock(&work_mutex);
+(gdb) bt
+#0  worker_thread (arg=0x0) at src/worker.c:34
+#1  0x00007ffff7f8b609 in start_thread (arg=<optimized out>) at pthread_create.c:477
+#2  0x00007ffff7eb0353 in clone () at ../sysdeps/unix/sysv/linux/x86_64/clone.S:95
+(gdb) watch *0x555555558000
+Hardware watchpoint 4: *0x555555558000
+(gdb) info watchpoints
+Num     Type           Disp Enb Address            What
+4       hw watchpoint  keep y                      *0x555555558000
+(gdb) disassemble
+Dump of assembler code for function worker_thread:
+=> 0x00007ffff79e0740 <+0>:     push   %rbp
+   0x00007ffff79e0741 <+1>:     mov    %rsp,%rbp
+   0x00007ffff79e0744 <+4>:     sub    $0x10,%rsp
+   0x00007ffff79e0748 <+8>:     mov    %rdi,-0x8(%rbp)
+   0x00007ffff79e074c <+12>:    lea    0x200d2d(%rip),%rdi        # 0x555555558480 <work_mutex>
+   0x00007ffff79e0753 <+19>:    callq  0x555555555050 <pthread_mutex_lock@plt>
+   0x00007ffff79e0758 <+24>:    nop
+   0x00007ffff79e0759 <+25>:    leave  
+   0x00007ffff79e075a <+26>:    retq   
+End of assembler dump.
+(gdb) x/16x $rsp
+0x7fffffffdf80:	0x55555000	0x00005555	0xffffdfa0	0x00007fff
+0x7fffffffdf90:	0x555551c2	0x00005555	0x00000004	0x00000000
+0x7fffffffdfa0:	0xfffffe08	0x00007fff	0x555551b0	0x00005555
+0x7fffffffdfb0:	0xfffffe08	0x00007fff	0xf7e03c87	0x00007fff
+(gdb) info locals
+arg = 0x0
+(gdb) set variable arg = 0x555555558000
+(gdb) print arg
+$4 = (void *) 0x555555558000
+(gdb) quit
+A debugging session is active.
+
+	Inferior 1 [process 12345] will be killed.
+
+Quit anyway? (y or n) y
+
+LLDB Output:
+lldb ./my_program
+(lldb) target create "./my_program"
+Current executable set to '/home/user/project/my_program' (x86_64).
+(lldb) settings set target.run-args arg1 arg2 arg3
+(lldb) run
+Process 54321 launched: '/home/user/project/my_program' (x86_64)
+Process 54321 stopped
+* thread #1, queue = 'com.apple.main-thread', stop reason = EXC_BAD_ACCESS (code=1, address=0x0)
+    frame #0: 0x0000000100001234 my_program`process_data(data=0x0000000000000000) at processor.c:45:21
+   42  	    if (!data) {
+   43  	        fprintf(stderr, "Error: null data pointer\n");
+   44  	        return;
+   45  -> 	    int result = data->value * 2;
+   46  	    printf("Result: %d\n", result);
+   47  	}
+   48  	
+   49  	int main_loop() {
+(lldb) bt
+* thread #1, queue = 'com.apple.main-thread'
+  * frame #0: 0x0000000100001234 my_program`process_data(data=0x0000000000000000) at processor.c:45:21
+    frame #1: 0x0000000100001298 my_program`main_loop at main.c:78:5
+    frame #2: 0x00000001000012c2 my_program`main(argc=4, argv=0x00007ff7bfeff088) at main.c:12:12
+    frame #3: 0x00007ff81c0a0f3d libdyld.dylib`start + 1
+    frame #4: 0x00007ff81c0a0f3d libdyld.dylib`start + 1
+(lldb) register read
+General Purpose Registers:
+       rax = 0x0000000000000000
+       rbx = 0x00007ff7bfeff088
+       rcx = 0x00007ff81c1a09a0
+       rdx = 0x0000000000000004
+       rsi = 0x00007ff7bfeff088
+       rdi = 0x0000000000000000
+       rbp = 0x00007ff7bfefffa0
+       rsp = 0x00007ff7bfefff90
+        r8 = 0x0000000000000000
+        r9 = 0x00007ff81c1e0d50
+       r10 = 0x00007ff81c1e0d50
+       r11 = 0x0000000000000202
+       r12 = 0x0000000000000000
+       r13 = 0x00007ff7bfeff098
+       r14 = 0x0000000000000000
+       r15 = 0x0000000000000000
+       rip = 0x0000000100001234
+    rflags = 0x0000000000010246
+        cs = 0x000000000000002b
+        fs = 0x0000000000000000
+        gs = 0x0000000000000000
+(lldb) memory read --size 4 --format x --count 16 $rsp
+0x7ff7bfefff90: 0x555551c2 0x00005555 0x00000004 0x00000000
+0x7ff7bfefffa0: 0xfffffe08 0x00007ff7 0x555551b0 0x00005555
+0x7ff7bfeffab0: 0xfffffe08 0x00007ff7 0xf7e03c87 0x00007ff7
+0x7ff7bfeffac0: 0x00000000 0x00000000 0x00000000 0x00000000
+(lldb) expression data
+(struct data_t *) $0 = 0x0000000000000000
+(lldb) breakpoint set --file main.c --line 10
+Breakpoint 1: where = my_program`main + 12 at main.c:10:5, address = 0x0000000100001250
+(lldb) breakpoint set --name process_data
+Breakpoint 2: where = my_program`process_data + 20 at processor.c:40:1, address = 0x0000000100001200
+(lldb) breakpoint list
+Current breakpoints:
+1: file = 'main.c', line = 10, exact_match = 0, locations = 1, resolved = 1, hit count = 0
+  1.1: where = my_program`main + 12 at main.c:10:5, address = 0x0000000100001250, resolved, hit count = 0
+
+2: name = 'process_data', locations = 1, resolved = 1, hit count = 0
+  2.1: where = my_program`process_data + 20 at processor.c:40:1, address = 0x0000000100001200, resolved, hit count = 0
+
+(lldb) continue
+Process 54321 resuming
+Process 54321 stopped
+* thread #1, queue = 'com.apple.main-thread', stop reason = breakpoint 2.1
+    frame #0: 0x0000000100001200 my_program`process_data(data=0x0000000000000000) at processor.c:40:1
+   37  	}
+   38  	
+   39  	void process_data(struct data_t* data) {
+-> 40  	    if (!data) {
+   41  	        fprintf(stderr, "Error: null data pointer\n");
+   42  	        return;
+   43  	    }
+(lldb) step
+Process 54321 stopped
+* thread #1, queue = 'com.apple.main-thread', stop reason = step in
+    frame #0: 0x0000000100001210 my_program`process_data(data=0x0000000000000000) at processor.c:41:9
+   38  	
+   39  	void process_data(struct data_t* data) {
+   40  	    if (!data) {
+-> 41  	        fprintf(stderr, "Error: null data pointer\n");
+   42  	        return;
+   43  	    }
+   44  	    int result = data->value * 2;
+(lldb) thread list
+Process 54321 stopped
+* thread #1: tid = 0x1d03, 0x0000000100001210 my_program`process_data + 36 at processor.c:41:9, queue = 'com.apple.main-thread', stop reason = step in
+  thread #2: tid = 0x1d04, 0x00007ff81c195a9e libsystem_kernel.dylib`__psynch_cvwait + 10, queue = 'com.apple.worker-queue'
+  thread #3: tid = 0x1d05, 0x00007ff81c195a9e libsystem_kernel.dylib`__psynch_cvwait + 10, queue = 'com.apple.monitor-queue'
+(lldb) watchpoint set variable global_counter
+Watchpoint created: Watchpoint 1: addr = 0x100004000 size = 4 state = enabled type = w
+    declare @ '/home/user/project/src/globals.c:15'
+    watchpoint spec = 'global_counter'
+    new value: 0
+(lldb) watchpoint list
+Number of supported hardware watchpoints: 4
+Watchpoint 1: addr = 0x100004000 size = 4 state = enabled type = w
+    declare @ '/home/user/project/src/globals.c:15'
+    watchpoint spec = 'global_counter'
+    new value: 0
+(lldb) frame variable
+(struct data_t *) data = 0x0000000000000000
+(lldb) quit
+Quitting LLDB will kill one or more processes. Do you really want to proceed: [Y/n] y
