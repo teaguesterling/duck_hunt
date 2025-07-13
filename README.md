@@ -11,13 +11,17 @@ Duck Hunt provides powerful SQL-based analysis of development tool outputs throu
 - **`read_test_results(file_path, format := 'AUTO')`** - Parse test results and build outputs from files
 - **`parse_test_results(content, format := 'AUTO')`** - Parse test results and build outputs from strings
 
-### Supported Formats (36 Total)
+### Supported Formats (40 Total)
 
-#### Test Frameworks
+#### Test Frameworks (9 Total)
 - **pytest** (JSON & text output)
 - **Go test** (JSON output) 
 - **Cargo test** (Rust JSON output)
 - **JUnit** (Java text output - JUnit 4/5, TestNG, Surefire, Gradle test results)
+- **RSpec** (Ruby text output - examples, failures, pending tests, execution times)
+- **Mocha/Chai** (JavaScript text output - context parsing, assertion failures, summary statistics)
+- **Google Test** (C++ console output - test suites, individual results, failure details)
+- **NUnit/xUnit** (C#/.NET console output - dual framework support, test summaries, stack traces)
 - **DuckDB test output** (custom format)
 
 #### Linting & Static Analysis Tools
@@ -96,6 +100,26 @@ SELECT test_name, message, execution_time
 FROM read_test_results('pytest_output.json', 'pytest_json')
 WHERE status = 'FAILED'
 ORDER BY execution_time DESC;
+
+-- Analyze RSpec test failures across Ruby test suites
+SELECT test_name, message, file_path, line_number
+FROM read_test_results('rspec_output.txt', 'rspec_text')
+WHERE status = 'FAIL'
+ORDER BY file_path, line_number;
+
+-- Monitor Google Test performance across C++ test suites
+SELECT function_name, AVG(execution_time) as avg_time, COUNT(*) as test_count
+FROM read_test_results('gtest_output.txt', 'gtest_text')
+WHERE status = 'PASS'
+GROUP BY function_name
+ORDER BY avg_time DESC;
+
+-- Analyze .NET test results from NUnit and xUnit frameworks
+SELECT tool_name, status, COUNT(*) as test_count, 
+       AVG(execution_time) as avg_execution_time
+FROM read_test_results('nunit_xunit_output.txt', 'nunit_xunit_text')
+GROUP BY tool_name, status
+ORDER BY tool_name, status;
 ```
 
 ### Build System Comparison
@@ -117,6 +141,26 @@ FROM read_test_results('eslint_output.json', 'eslint_json')
 WHERE status IN ('ERROR', 'WARNING')
 GROUP BY error_code
 ORDER BY violations DESC;
+```
+
+### Multi-Framework Test Analysis
+```sql
+-- Compare test performance across different frameworks and languages
+SELECT tool_name, 
+       COUNT(*) as total_tests,
+       SUM(CASE WHEN status = 'PASS' THEN 1 ELSE 0 END) as passed,
+       SUM(CASE WHEN status = 'FAIL' THEN 1 ELSE 0 END) as failed,
+       AVG(execution_time) as avg_execution_time
+FROM read_test_results('all_test_outputs/*.txt', 'AUTO')
+WHERE event_type = 'TEST_RESULT'
+GROUP BY tool_name
+ORDER BY total_tests DESC;
+
+-- Analyze JavaScript test suites (Mocha/Chai) for performance bottlenecks
+SELECT function_name, test_name, execution_time, message
+FROM read_test_results('mocha_output.txt', 'mocha_chai_text')
+WHERE status = 'PASS' AND execution_time > 1000  -- Tests taking > 1 second
+ORDER BY execution_time DESC;
 ```
 
 ### Agent Workflow Analysis
@@ -250,7 +294,7 @@ For contributing guidelines, see `CONTRIBUTING.md`.
 
 ## Future Work
 
-Duck Hunt currently supports 36 formats across test frameworks, linting tools, build systems, and debugging tools. The following expansions would provide comprehensive coverage of the entire development ecosystem:
+Duck Hunt currently supports 40 formats across test frameworks, linting tools, build systems, and debugging tools. The following expansions would provide comprehensive coverage of the entire development ecosystem:
 
 ### 🔥 High Priority Build Systems
 - **Bazel** (Google's system) - Large-scale projects
@@ -259,12 +303,6 @@ Duck Hunt currently supports 36 formats across test frameworks, linting tools, b
 - **AddressSanitizer/ThreadSanitizer** - Fast sanitizer output
 - **Clang Static Analyzer** - Static analysis reports
 - **perf** - Linux performance profiling output
-
-### 🧪 Additional Test Frameworks  
-- **RSpec** (Ruby) - Text output parsing
-- **Mocha/Chai** (JavaScript) - Text output parsing
-- **Google Test** (C++) - Console output parsing
-- **NUnit/xUnit** (C#/.NET) - Console output parsing
 
 ### 🔍 Linting & Code Quality
 - **SonarQube** - Multi-language analysis (XML/JSON)
@@ -299,9 +337,9 @@ Duck Hunt currently supports 36 formats across test frameworks, linting tools, b
 - **PVS-Studio** - Cross-platform analysis
 
 **Target**: ~70+ total formats covering 95% of development tool ecosystem
-**Current**: 36 formats (51% coverage)
+**Current**: 40 formats (57% coverage)
 
-This roadmap would establish Duck Hunt as the definitive tool for agent-driven development workflow analysis across all major programming languages, build systems, and development tools.
+With comprehensive test framework coverage now complete across Ruby, JavaScript, C++, and C#/.NET ecosystems, Duck Hunt provides robust parsing for 9 major test frameworks. This roadmap would establish Duck Hunt as the definitive tool for agent-driven development workflow analysis across all major programming languages, build systems, and development tools.
 
 ## License
 
