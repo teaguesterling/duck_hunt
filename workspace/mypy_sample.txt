@@ -1,0 +1,26 @@
+src/main.py:15: error: Incompatible return value type (got "str", expected "int")  [return-value]
+src/main.py:22: error: Argument 1 to "process_data" has incompatible type "str"; expected "List[int]"  [arg-type]
+src/main.py:28: error: "str" has no attribute "nonexistent_method"  [attr-defined]
+src/main.py:35: error: Too many arguments for "calculate_sum"  [call-arg]
+src/main.py:42: error: Name 'undefined_variable' is not defined  [name-defined]
+src/main.py:48: error: Incompatible types in assignment (expression has type "float", variable has type "int")  [assignment]
+
+utils/helpers.py:10: error: Cannot determine type of 'config'  [has-type]
+utils/helpers.py:18: note: Revealed type is "builtins.dict[builtins.str, Any]"
+utils/helpers.py:25: error: Argument 2 to "validate_input" has incompatible type "int"; expected "str"  [arg-type]
+utils/helpers.py:32: warning: Unused "type: ignore" comment  [unused-ignore]
+utils/helpers.py:38: error: Missing return statement  [return]
+
+config/settings.py:8: error: Module has no attribute "nonexistent_function"  [attr-defined]
+config/settings.py:15: error: Incompatible default for argument "timeout" (default has type "str", argument has type "int")  [assignment]
+config/settings.py:22: error: "None" not callable  [misc]
+config/settings.py:28: note: In function "setup_logging":
+config/settings.py:28: error: Argument 1 to "info" of "Logger" has incompatible type "int"; expected "str"  [arg-type]
+
+tests/test_api.py:12: error: Cannot find implementation or library stub for module named "nonexistent_module"  [import]
+tests/test_api.py:18: error: Incompatible types in assignment (expression has type "Optional[str]", variable has type "str")  [assignment]
+tests/test_api.py:25: error: Item "None" of "Optional[DataProcessor]" has no attribute "process"  [union-attr]
+tests/test_api.py:32: warning: Function is missing a return type annotation  [no-untyped-def]
+tests/test_api.py:38: error: Need type annotation for "results" (hint: "results: List[<type>] = ...")  [var-annotated]
+
+Found 19 errors in 4 files (checked 4 files)

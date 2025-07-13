@@ -1,0 +1,130 @@
+Sending build context to Docker daemon  2.048kB
+Step 1/8 : FROM node:16-alpine
+ ---> 6c0e1a1b1b1a
+Step 2/8 : WORKDIR /app
+ ---> Running in 7d8e1a1b1b1a
+Removing intermediate container 7d8e1a1b1b1a
+ ---> 8e9f1a1b1b1a
+Step 3/8 : COPY package*.json ./
+ ---> 9f0g1a1b1b1a
+Step 4/8 : RUN npm install
+ ---> Running in a1b2c3d4e5f6
+npm WARN deprecated tar@2.2.2: This version of tar is no longer supported, and will not receive security updates. Please upgrade asap.
+npm WARN deprecated request@2.88.2: request has been deprecated, see https://github.com/request/request/issues/3142
+
+> node-sass@4.14.1 postinstall /app/node_modules/node-sass
+> node scripts/postinstall.js
+
+Binary found at /app/node_modules/node-sass/vendor/linux-x64-72/binding.node
+Testing binary
+Binary is fine
+npm WARN myapp@1.0.0 No repository field.
+npm WARN myapp@1.0.0 No license field.
+
+audited 1337 packages in 2.456s
+found 5 vulnerabilities (2 moderate, 3 high)
+  run `npm audit fix` to fix them, or `npm audit` for details
+Removing intermediate container a1b2c3d4e5f6
+ ---> b2c3d4e5f6g7
+Step 5/8 : COPY . .
+ ---> c3d4e5f6g7h8
+Step 6/8 : RUN npm run build
+ ---> Running in d4e5f6g7h8i9
+> myapp@1.0.0 build /app
+> webpack --mode production
+
+Hash: 1234567890abcdef
+Version: webpack 4.46.0
+Time: 3456ms
+Built at: 01/01/2024 12:34:56
+    Asset      Size  Chunks             Chunk Names
+bundle.js  1.23 MB       0  [emitted]  main
+   [0] ./src/index.js 1.45 kB {0} [built]
+   [1] ./src/components/App.js 2.34 kB {0} [built]
+   [2] ./node_modules/react/index.js 190 bytes {0} [built]
+   + 347 hidden modules
+WARNING in ./src/components/App.js
+Module not found: Error: Can't resolve './missing-component' in '/app/src/components'
+ @ ./src/components/App.js 5:0-42 23:4-21
+ @ ./src/index.js
+
+ERROR in ./src/utils/helper.js
+Module not found: Error: Can't resolve 'nonexistent-module' in '/app/src/utils'
+ @ ./src/utils/helper.js 1:0-35
+ @ ./src/components/App.js
+ @ ./src/index.js
+
+Child html-webpack-plugin for "index.html":
+     1 asset
+    Entrypoint undefined = index.html
+    [0] ./node_modules/html-webpack-plugin/lib/loader.js!./src/index.html 456 bytes {0} [built]
+
+npm ERR! code ELIFECYCLE
+npm ERR! errno 2
+npm ERR! myapp@1.0.0 build: `webpack --mode production`
+npm ERR! Exit status 2
+npm ERR! 
+npm ERR! Failed at the myapp@1.0.0 build script.
+npm ERR! This is probably not a problem with npm. There is likely additional logging output above.
+
+npm ERR! A complete log of this run can be found in:
+npm ERR!     /root/.npm/_logs/2024-01-01T12_34_56_789Z-debug.log
+The command '/bin/sh -c npm run build' returned a non-zero code: 2
+
+SECURITY SCANNING:
+Run security scan on image: myapp:latest...
+✗ High severity vulnerability found in node:16-alpine
+  Vulnerability: CVE-2023-12345
+  Package: openssl@1.1.1k-r0
+  Severity: HIGH
+  Fixed Version: 1.1.1l-r0
+  Description: OpenSSL contains a critical vulnerability
+
+✗ Medium severity vulnerability found in node:16-alpine  
+  Vulnerability: CVE-2023-67890
+  Package: curl@7.79.1-r0
+  Severity: MEDIUM
+  Fixed Version: 7.80.0-r0
+  Description: curl contains a memory corruption vulnerability
+
+2 vulnerabilities found
+
+CACHING INFORMATION:
+ ---> Using cache
+ ---> Cache miss: package.json changed
+ ---> 12345678
+Step 7/8 : EXPOSE 3000
+ ---> Running in e5f6g7h8i9j0
+Removing intermediate container e5f6g7h8i9j0
+ ---> f6g7h8i9j0k1
+Step 8/8 : CMD ["npm", "start"]
+ ---> Running in g7h8i9j0k1l2
+Removing intermediate container g7h8i9j0k1l2
+ ---> h8i9j0k1l2m3
+Successfully built h8i9j0k1l2m3
+Successfully tagged myapp:latest
+
+BUILDKIT OUTPUT:
+[+] Building 45.2s (14/14) FINISHED
+ => [internal] load build definition from Dockerfile                           0.1s
+ => => transferring dockerfile: 234B                                           0.0s
+ => [internal] load .dockerignore                                              0.1s
+ => => transferring context: 2B                                                0.0s
+ => [internal] load metadata for docker.io/library/node:16-alpine@sha256:1234  1.2s
+ => [auth] library/node:pull token for registry-1.docker.io                   0.0s
+ => [1/8] FROM docker.io/library/node:16-alpine@sha256:1234567890abcdef        0.0s
+ => [internal] load build context                                              0.2s
+ => => transferring context: 12.34kB                                           0.1s
+ => CACHED [2/8] WORKDIR /app                                                  0.0s
+ => [3/8] COPY package*.json ./                                                0.1s
+ => [4/8] RUN npm install                                                      15.4s
+ => [5/8] COPY . .                                                             0.3s
+ => [6/8] RUN npm run build                                                    25.8s
+ => [7/8] EXPOSE 3000                                                          0.1s
+ => [8/8] CMD ["npm", "start"]                                                 0.1s
+ => exporting to image                                                         1.9s
+ => => exporting layers                                                        1.8s
+ => => writing image sha256:h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7b8c9d0e1f2   0.0s
+ => => naming to docker.io/library/myapp:latest                               0.0s
+
+Use 'docker scan myapp:latest' for vulnerability scanning.

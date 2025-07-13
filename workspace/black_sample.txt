@@ -1,0 +1,58 @@
+would reformat /home/user/project/src/main.py
+would reformat /home/user/project/utils/helpers.py
+would reformat /home/user/project/config/settings.py
+
+Oh no! 💥 💔 💥
+3 files would be reformatted, 7 files would be left unchanged.
+
+--- /home/user/project/src/main.py	(original)
++++ /home/user/project/src/main.py	(formatted)
+@@ -1,10 +1,12 @@
+ import os
+ import sys
++
++
+ def process_data(data):
+-    result = [x for x in data if x>0]
+-    return result
++    result = [x for x in data if x > 0]
++    return result
++
+ 
+-def calculate_metrics(values,weights):
++def calculate_metrics(values, weights):
+     if len(values) != len(weights):
+         raise ValueError("Lists must have same length")
+-    return sum(v*w for v,w in zip(values,weights))
++    return sum(v * w for v, w in zip(values, weights))
+
+--- /home/user/project/utils/helpers.py	(original)
++++ /home/user/project/utils/helpers.py	(formatted)
+@@ -5,8 +5,10 @@
+ 
+ 
+ class DataProcessor:
+-    def __init__(self,config=None):
++    def __init__(self, config=None):
+         self.config = config or {}
++
+     def validate_input(self, data):
+-        return isinstance(data,dict) and 'key' in data
+-    def transform(self,data):
++        return isinstance(data, dict) and "key" in data
++
++    def transform(self, data):
+         return {k.upper(): v for k, v in data.items()}
+
+--- /home/user/project/config/settings.py	(original)
++++ /home/user/project/config/settings.py	(formatted)
+@@ -1,6 +1,7 @@
+ import os
++
+ # Configuration settings
+-DATABASE_URL = os.getenv('DATABASE_URL','sqlite:///default.db')
+-API_KEYS = {'service1':'key1','service2':'key2'}
++DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///default.db")
++API_KEYS = {"service1": "key1", "service2": "key2"}
+ 
+-TIMEOUT_SETTINGS = {'connect':30,'read':60,'write':30}

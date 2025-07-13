@@ -1,0 +1,31 @@
+./src/main.py:1:1: F401 'os' imported but unused
+./src/main.py:8:9: E131 continuation line unaligned for hanging indent
+./src/main.py:15:1: F811 redefinition of function 'process_data' from line 12
+./src/main.py:22:80: E501 line too long (89 > 79 characters)
+./src/main.py:28:1: F841 local variable 'temp' is assigned to but never used
+./src/main.py:35:17: E225 missing whitespace around operator
+./src/main.py:42:1: F401 'sys' imported but unused
+./src/main.py:48:5: E303 too many blank lines (3)
+./src/main.py:55:12: W503 line break before binary operator
+./src/main.py:62:1: F821 undefined name 'undefined_var'
+
+./utils/helpers.py:1:1: F401 'json' imported but unused
+./utils/helpers.py:10:25: E231 missing whitespace after ','
+./utils/helpers.py:18:1: F811 redefinition of unused function 'helper_func' from line 15
+./utils/helpers.py:25:45: E203 whitespace before ':'
+./utils/helpers.py:32:1: W292 no newline at end of file
+./utils/helpers.py:28:80: E501 line too long (95 > 79 characters)
+
+./config/settings.py:3:1: F401 'logging' imported but unused
+./config/settings.py:12:1: E302 expected 2 blank lines, found 1
+./config/settings.py:20:16: F821 undefined name 'DATABASE_CONFIG'
+./config/settings.py:27:1: C901 'complex_function' is too complex (12)
+./config/settings.py:35:22: E711 comparison to None should be 'if cond is None:'
+./config/settings.py:42:15: W601 .has_key() is deprecated, use 'in'
+
+./tests/test_api.py:5:1: F401 'pytest' imported but unused
+./tests/test_api.py:12:80: E501 line too long (85 > 79 characters)
+./tests/test_api.py:18:9: E128 continuation line under-indented for visual indent
+./tests/test_api.py:25:1: F841 local variable 'result' is assigned to but never used
+./tests/test_api.py:32:17: E226 missing whitespace around arithmetic operator
+./tests/test_api.py:38:1: W293 blank line contains whitespace

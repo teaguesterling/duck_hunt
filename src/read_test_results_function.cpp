@@ -175,6 +175,65 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
         return TestResultFormat::JUNIT_TEXT;
     }
     
+    // Check for Python linting tools (should be checked before pytest since they can contain similar keywords)
+    
+    // Check for Pylint patterns
+    if ((content.find("************* Module") != std::string::npos && content.find("Your code has been rated") != std::string::npos) ||
+        (content.find("C:") != std::string::npos && content.find("W:") != std::string::npos && content.find("E:") != std::string::npos && content.find("(") != std::string::npos && content.find(")") != std::string::npos) ||
+        (content.find("missing-module-docstring") != std::string::npos || content.find("invalid-name") != std::string::npos || content.find("unused-argument") != std::string::npos) ||
+        (content.find("Global evaluation") != std::string::npos && content.find("Raw metrics") != std::string::npos)) {
+        return TestResultFormat::PYLINT_TEXT;
+    }
+    
+    // Check for Flake8 patterns
+    if ((content.find("F401") != std::string::npos || content.find("E131") != std::string::npos || content.find("W503") != std::string::npos) ||
+        (content.find(".py:") != std::string::npos && content.find(":") != std::string::npos && (content.find(" F") != std::string::npos || content.find(" E") != std::string::npos || content.find(" W") != std::string::npos || content.find(" C") != std::string::npos)) ||
+        (content.find("imported but unused") != std::string::npos || content.find("line too long") != std::string::npos || content.find("continuation line") != std::string::npos)) {
+        return TestResultFormat::FLAKE8_TEXT;
+    }
+    
+    // Check for Black patterns
+    if ((content.find("would reformat") != std::string::npos && content.find("Oh no!") != std::string::npos && content.find("💥") != std::string::npos) ||
+        (content.find("files would be reformatted") != std::string::npos && content.find("files would be left unchanged") != std::string::npos) ||
+        (content.find("All done!") != std::string::npos && content.find("✨") != std::string::npos && content.find("🍰") != std::string::npos) ||
+        (content.find("--- ") != std::string::npos && content.find("+++ ") != std::string::npos && content.find("(original)") != std::string::npos && content.find("(formatted)") != std::string::npos)) {
+        return TestResultFormat::BLACK_TEXT;
+    }
+    
+    // Check for mypy patterns
+    if ((content.find(": error:") != std::string::npos && content.find("[") != std::string::npos && content.find("]") != std::string::npos) ||
+        (content.find(": warning:") != std::string::npos && content.find("[") != std::string::npos && content.find("]") != std::string::npos) ||
+        (content.find(": note:") != std::string::npos && content.find("Revealed type") != std::string::npos) ||
+        (content.find("Found") != std::string::npos && content.find("error") != std::string::npos && content.find("files") != std::string::npos && content.find("checked") != std::string::npos) ||
+        (content.find("Success: no issues found") != std::string::npos) ||
+        (content.find("return-value") != std::string::npos || content.find("arg-type") != std::string::npos || content.find("attr-defined") != std::string::npos)) {
+        return TestResultFormat::MYPY_TEXT;
+    }
+    
+    // Check for Docker build patterns
+    if ((content.find("Sending build context to Docker daemon") != std::string::npos && content.find("Step") != std::string::npos && content.find("FROM") != std::string::npos) ||
+        (content.find("Successfully built") != std::string::npos && content.find("Successfully tagged") != std::string::npos) ||
+        (content.find("[+] Building") != std::string::npos && content.find("FINISHED") != std::string::npos) ||
+        (content.find("=> [internal] load build definition from Dockerfile") != std::string::npos) ||
+        (content.find("The command") != std::string::npos && content.find("returned a non-zero code:") != std::string::npos) ||
+        (content.find("SECURITY SCANNING:") != std::string::npos && content.find("vulnerability found") != std::string::npos) ||
+        (content.find("Step") != std::string::npos && content.find("RUN") != std::string::npos && content.find("---> Running in") != std::string::npos)) {
+        return TestResultFormat::DOCKER_BUILD;
+    }
+    
+    // Check for Bazel build patterns
+    if ((content.find("INFO: Analyzed") != std::string::npos && content.find("targets") != std::string::npos) ||
+        (content.find("INFO: Found") != std::string::npos && content.find("targets") != std::string::npos) ||
+        (content.find("INFO: Build completed") != std::string::npos && content.find("total actions") != std::string::npos) ||
+        (content.find("PASSED: //") != std::string::npos || content.find("FAILED: //") != std::string::npos) ||
+        (content.find("ERROR: /workspace/") != std::string::npos && content.find("BUILD:") != std::string::npos) ||
+        (content.find("Starting local Bazel server") != std::string::npos && content.find("connecting to it") != std::string::npos) ||
+        (content.find("Loading:") != std::string::npos && content.find("packages loaded") != std::string::npos) ||
+        (content.find("Analyzing:") != std::string::npos && content.find("targets") != std::string::npos && content.find("configured") != std::string::npos) ||
+        (content.find("TIMEOUT: //") != std::string::npos || content.find("FLAKY: //") != std::string::npos || content.find("SKIPPED: //") != std::string::npos)) {
+        return TestResultFormat::BAZEL_BUILD;
+    }
+    
     if (content.find("PASSED") != std::string::npos && content.find("::") != std::string::npos) {
         return TestResultFormat::PYTEST_TEXT;
     }
@@ -294,6 +353,12 @@ std::string TestResultFormatToString(TestResultFormat format) {
         case TestResultFormat::MOCHA_CHAI_TEXT: return "mocha_chai_text";
         case TestResultFormat::GTEST_TEXT: return "gtest_text";
         case TestResultFormat::NUNIT_XUNIT_TEXT: return "nunit_xunit_text";
+        case TestResultFormat::PYLINT_TEXT: return "pylint_text";
+        case TestResultFormat::FLAKE8_TEXT: return "flake8_text";
+        case TestResultFormat::BLACK_TEXT: return "black_text";
+        case TestResultFormat::MYPY_TEXT: return "mypy_text";
+        case TestResultFormat::DOCKER_BUILD: return "docker_build";
+        case TestResultFormat::BAZEL_BUILD: return "bazel_build";
         default: return "unknown";
     }
 }
@@ -338,6 +403,12 @@ TestResultFormat StringToTestResultFormat(const std::string& str) {
     if (str == "mocha_chai_text") return TestResultFormat::MOCHA_CHAI_TEXT;
     if (str == "gtest_text") return TestResultFormat::GTEST_TEXT;
     if (str == "nunit_xunit_text") return TestResultFormat::NUNIT_XUNIT_TEXT;
+    if (str == "pylint_text") return TestResultFormat::PYLINT_TEXT;
+    if (str == "flake8_text") return TestResultFormat::FLAKE8_TEXT;
+    if (str == "black_text") return TestResultFormat::BLACK_TEXT;
+    if (str == "mypy_text") return TestResultFormat::MYPY_TEXT;
+    if (str == "docker_build") return TestResultFormat::DOCKER_BUILD;
+    if (str == "bazel_build") return TestResultFormat::BAZEL_BUILD;
     if (str == "unknown") return TestResultFormat::UNKNOWN;
     return TestResultFormat::AUTO;  // Default to auto-detection
 }
@@ -544,6 +615,24 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
             break;
         case TestResultFormat::NUNIT_XUNIT_TEXT:
             ParseNUnitXUnit(content, global_state->events);
+            break;
+        case TestResultFormat::PYLINT_TEXT:
+            ParsePylintText(content, global_state->events);
+            break;
+        case TestResultFormat::FLAKE8_TEXT:
+            ParseFlake8Text(content, global_state->events);
+            break;
+        case TestResultFormat::BLACK_TEXT:
+            ParseBlackText(content, global_state->events);
+            break;
+        case TestResultFormat::MYPY_TEXT:
+            ParseMypyText(content, global_state->events);
+            break;
+        case TestResultFormat::DOCKER_BUILD:
+            ParseDockerBuild(content, global_state->events);
+            break;
+        case TestResultFormat::BAZEL_BUILD:
+            ParseBazelBuild(content, global_state->events);
             break;
         default:
             // For unknown formats, don't create any events
@@ -3514,6 +3603,24 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
             break;
         case TestResultFormat::NUNIT_XUNIT_TEXT:
             ParseNUnitXUnit(content, global_state->events);
+            break;
+        case TestResultFormat::PYLINT_TEXT:
+            ParsePylintText(content, global_state->events);
+            break;
+        case TestResultFormat::FLAKE8_TEXT:
+            ParseFlake8Text(content, global_state->events);
+            break;
+        case TestResultFormat::BLACK_TEXT:
+            ParseBlackText(content, global_state->events);
+            break;
+        case TestResultFormat::MYPY_TEXT:
+            ParseMypyText(content, global_state->events);
+            break;
+        case TestResultFormat::DOCKER_BUILD:
+            ParseDockerBuild(content, global_state->events);
+            break;
+        case TestResultFormat::BAZEL_BUILD:
+            ParseBazelBuild(content, global_state->events);
             break;
         default:
             // For unknown formats, don't create any events
@@ -7071,6 +7178,1183 @@ void ParseNUnitXUnit(const std::string& content, std::vector<ValidationEvent>& e
         // Reset failure context when we encounter an empty line
         if (line.empty()) {
             in_xunit_test_failure = false;
+        }
+    }
+}
+
+void ParsePylintText(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream stream(content);
+    std::string line;
+    int64_t event_id = 1;
+    
+    // Regex patterns for Pylint output
+    std::regex pylint_module_header(R"(\*+\s*Module\s+(.+))");
+    std::regex pylint_message(R"(([CWERF]):\s*(\d+),\s*(\d+):\s*(.+?)\s+\(([^)]+)\))");  // C:  1, 0: message (code)
+    std::regex pylint_message_simple(R"(([CWERF]):\s*(\d+),\s*(\d+):\s*(.+))");  // C:  1, 0: message
+    std::regex pylint_rating(R"(Your code has been rated at ([\d\.-]+)/10)");
+    std::regex pylint_statistics(R"((\d+)\s+statements\s+analysed)");
+    
+    std::string current_module;
+    
+    while (std::getline(stream, line)) {
+        std::smatch match;
+        
+        // Check for module header
+        if (std::regex_search(line, match, pylint_module_header)) {
+            current_module = match[1].str();
+            continue;
+        }
+        
+        // Check for Pylint message with error code
+        if (std::regex_search(line, match, pylint_message)) {
+            std::string severity_char = match[1].str();
+            std::string line_str = match[2].str();
+            std::string column_str = match[3].str();
+            std::string message = match[4].str();
+            std::string error_code = match[5].str();
+            
+            int64_t line_number = 0;
+            int64_t column_number = 0;
+            
+            try {
+                line_number = std::stoi(line_str);
+                column_number = std::stoi(column_str);
+            } catch (...) {
+                // If parsing fails, keep as 0
+            }
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            
+            // Map Pylint severity to ValidationEventStatus
+            if (severity_char == "E" || severity_char == "F") {
+                event.severity = "error";
+                event.status = ValidationEventStatus::ERROR;
+                event.event_type = ValidationEventType::BUILD_ERROR;
+            } else if (severity_char == "W") {
+                event.severity = "warning";
+                event.status = ValidationEventStatus::WARNING;
+            } else if (severity_char == "C" || severity_char == "R") {
+                event.severity = "info";
+                event.status = ValidationEventStatus::INFO;
+            } else {
+                event.severity = "warning";
+                event.status = ValidationEventStatus::WARNING;
+            }
+            
+            event.message = message;
+            event.file_path = current_module.empty() ? "unknown" : current_module;
+            event.line_number = line_number;
+            event.column_number = column_number;
+            event.error_code = error_code;
+            event.tool_name = "pylint";
+            event.category = "code_quality";
+            event.raw_output = line;
+            event.structured_data = "{\"severity_char\": \"" + severity_char + "\", \"error_code\": \"" + error_code + "\"}";
+            
+            events.push_back(event);
+        }
+        // Check for Pylint message without explicit error code
+        else if (std::regex_search(line, match, pylint_message_simple)) {
+            std::string severity_char = match[1].str();
+            std::string line_str = match[2].str();
+            std::string column_str = match[3].str();
+            std::string message = match[4].str();
+            
+            int64_t line_number = 0;
+            int64_t column_number = 0;
+            
+            try {
+                line_number = std::stoi(line_str);
+                column_number = std::stoi(column_str);
+            } catch (...) {
+                // If parsing fails, keep as 0
+            }
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            
+            // Map Pylint severity to ValidationEventStatus
+            if (severity_char == "E" || severity_char == "F") {
+                event.severity = "error";
+                event.status = ValidationEventStatus::ERROR;
+                event.event_type = ValidationEventType::BUILD_ERROR;
+            } else if (severity_char == "W") {
+                event.severity = "warning";
+                event.status = ValidationEventStatus::WARNING;
+            } else if (severity_char == "C" || severity_char == "R") {
+                event.severity = "info";
+                event.status = ValidationEventStatus::INFO;
+            } else {
+                event.severity = "warning";
+                event.status = ValidationEventStatus::WARNING;
+            }
+            
+            event.message = message;
+            event.file_path = current_module.empty() ? "unknown" : current_module;
+            event.line_number = line_number;
+            event.column_number = column_number;
+            event.tool_name = "pylint";
+            event.category = "code_quality";
+            event.raw_output = line;
+            event.structured_data = "{\"severity_char\": \"" + severity_char + "\"}";
+            
+            events.push_back(event);
+        }
+        // Check for rating information
+        else if (std::regex_search(line, match, pylint_rating)) {
+            std::string rating = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SUMMARY;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "Code quality rating: " + rating + "/10";
+            event.tool_name = "pylint";
+            event.category = "code_quality";
+            event.raw_output = line;
+            event.structured_data = "{\"rating\": \"" + rating + "\"}";
+            
+            events.push_back(event);
+        }
+    }
+}
+
+void ParseFlake8Text(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream stream(content);
+    std::string line;
+    int64_t event_id = 1;
+    
+    // Regex pattern for Flake8 output: file.py:line:column: error_code message
+    std::regex flake8_message(R"(([^:]+):(\d+):(\d+):\s*([FEWC]\d+)\s*(.+))");
+    
+    while (std::getline(stream, line)) {
+        std::smatch match;
+        
+        if (std::regex_search(line, match, flake8_message)) {
+            std::string file_path = match[1].str();
+            std::string line_str = match[2].str();
+            std::string column_str = match[3].str();
+            std::string error_code = match[4].str();
+            std::string message = match[5].str();
+            
+            int64_t line_number = 0;
+            int64_t column_number = 0;
+            
+            try {
+                line_number = std::stoi(line_str);
+                column_number = std::stoi(column_str);
+            } catch (...) {
+                // If parsing fails, keep as 0
+            }
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            
+            // Map Flake8 error codes to severity
+            if (error_code.front() == 'F') {
+                // F codes are pyflakes errors (logical errors)
+                event.severity = "error";
+                event.status = ValidationEventStatus::ERROR;
+                event.event_type = ValidationEventType::BUILD_ERROR;
+            } else if (error_code.front() == 'E') {
+                // E codes are PEP 8 errors (style errors)
+                event.severity = "error";
+                event.status = ValidationEventStatus::ERROR;
+            } else if (error_code.front() == 'W') {
+                // W codes are PEP 8 warnings
+                event.severity = "warning";
+                event.status = ValidationEventStatus::WARNING;
+            } else if (error_code.front() == 'C') {
+                // C codes are complexity warnings
+                event.severity = "warning";
+                event.status = ValidationEventStatus::WARNING;
+            } else {
+                event.severity = "warning";
+                event.status = ValidationEventStatus::WARNING;
+            }
+            
+            event.message = message;
+            event.file_path = file_path;
+            event.line_number = line_number;
+            event.column_number = column_number;
+            event.error_code = error_code;
+            event.tool_name = "flake8";
+            event.category = "style_guide";
+            event.raw_output = line;
+            event.structured_data = "{\"error_code\": \"" + error_code + "\", \"error_type\": \"" + std::string(1, error_code.front()) + "\"}";
+            
+            events.push_back(event);
+        }
+    }
+}
+
+void ParseBlackText(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream stream(content);
+    std::string line;
+    int64_t event_id = 1;
+    
+    // Regex patterns for Black output
+    std::regex would_reformat(R"(would reformat (.+))");
+    std::regex reformat_summary(R"((\d+) files? would be reformatted, (\d+) files? would be left unchanged)");
+    std::regex all_done_summary(R"(All done! ✨ 🍰 ✨)");
+    std::regex diff_header(R"(--- (.+)\s+\(original\))");
+    
+    bool in_diff_mode = false;
+    std::string current_file;
+    
+    while (std::getline(stream, line)) {
+        std::smatch match;
+        
+        // Check for "would reformat" messages
+        if (std::regex_search(line, match, would_reformat)) {
+            std::string file_path = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "File would be reformatted by Black";
+            event.file_path = file_path;
+            event.tool_name = "black";
+            event.category = "code_formatting";
+            event.raw_output = line;
+            event.structured_data = "{\"action\": \"would_reformat\"}";
+            
+            events.push_back(event);
+        }
+        // Check for reformat summary
+        else if (std::regex_search(line, match, reformat_summary)) {
+            std::string reformat_count = match[1].str();
+            std::string unchanged_count = match[2].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.severity = "warning";
+            event.status = ValidationEventStatus::WARNING;
+            event.message = reformat_count + " files would be reformatted, " + unchanged_count + " files would be left unchanged";
+            event.tool_name = "black";
+            event.category = "code_formatting";
+            event.raw_output = line;
+            event.structured_data = "{\"reformat_count\": " + reformat_count + ", \"unchanged_count\": " + unchanged_count + "}";
+            
+            events.push_back(event);
+        }
+        // Check for "All done!" success message
+        else if (std::regex_search(line, match, all_done_summary)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SUMMARY;
+            event.severity = "info";
+            event.status = ValidationEventStatus::PASS;
+            event.message = "Black formatting check completed successfully";
+            event.tool_name = "black";
+            event.category = "code_formatting";
+            event.raw_output = line;
+            event.structured_data = "{\"action\": \"success\"}";
+            
+            events.push_back(event);
+        }
+        // Check for diff header (unified diff mode)
+        else if (std::regex_search(line, match, diff_header)) {
+            current_file = match[1].str();
+            in_diff_mode = true;
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "Black would apply formatting changes";
+            event.file_path = current_file;
+            event.tool_name = "black";
+            event.category = "code_formatting";
+            event.raw_output = line;
+            event.structured_data = "{\"action\": \"diff_start\", \"file\": \"" + current_file + "\"}";
+            
+            events.push_back(event);
+        }
+        // Handle diff content (lines starting with + or -)
+        else if (in_diff_mode && (line.front() == '+' || line.front() == '-') && line.size() > 1) {
+            // Skip pure markers like +++/---
+            if (line.substr(0, 3) != "+++" && line.substr(0, 3) != "---") {
+                ValidationEvent event;
+                event.event_id = event_id++;
+                event.event_type = ValidationEventType::LINT_ISSUE;
+                event.severity = "info";
+                event.status = ValidationEventStatus::INFO;
+                
+                if (line.front() == '+') {
+                    event.message = "Black would add: " + line.substr(1);
+                } else {
+                    event.message = "Black would remove: " + line.substr(1);
+                }
+                
+                event.file_path = current_file;
+                event.tool_name = "black";
+                event.category = "code_formatting";
+                event.raw_output = line;
+                event.structured_data = "{\"action\": \"diff_line\", \"type\": \"" + std::string(1, line.front()) + "\"}";
+                
+                events.push_back(event);
+            }
+        }
+        // Reset diff mode on empty lines or when encountering new files
+        else if (line.empty() || line.find("would reformat") != std::string::npos) {
+            in_diff_mode = false;
+            current_file.clear();
+        }
+    }
+}
+
+void ParseMypyText(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream stream(content);
+    std::string line;
+    int64_t event_id = 1;
+    
+    // Regex patterns for mypy output
+    std::regex mypy_message(R"(([^:]+):(\d+):\s*(error|warning|note):\s*(.+?)\s*\[([^\]]+)\])");
+    std::regex mypy_message_no_code(R"(([^:]+):(\d+):\s*(error|warning|note):\s*(.+))");
+    std::regex mypy_summary(R"(Found (\d+) errors? in (\d+) files? \(checked (\d+) files?\))");
+    std::regex mypy_success(R"(Success: no issues found in (\d+) source files?)");
+    std::regex mypy_revealed_type(R"((.+):(\d+):\s*note:\s*Revealed type is \"(.+)\")");
+    
+    while (std::getline(stream, line)) {
+        std::smatch match;
+        
+        // Check for mypy message with error code
+        if (std::regex_search(line, match, mypy_message)) {
+            std::string file_path = match[1].str();
+            std::string line_str = match[2].str();
+            std::string severity = match[3].str();
+            std::string message = match[4].str();
+            std::string error_code = match[5].str();
+            
+            int64_t line_number = 0;
+            
+            try {
+                line_number = std::stoi(line_str);
+            } catch (...) {
+                // If parsing fails, keep as 0
+            }
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            
+            // Map mypy severity to ValidationEventStatus
+            if (severity == "error") {
+                event.event_type = ValidationEventType::BUILD_ERROR;
+                event.severity = "error";
+                event.status = ValidationEventStatus::ERROR;
+            } else if (severity == "warning") {
+                event.event_type = ValidationEventType::LINT_ISSUE;
+                event.severity = "warning";
+                event.status = ValidationEventStatus::WARNING;
+            } else if (severity == "note") {
+                event.event_type = ValidationEventType::LINT_ISSUE;
+                event.severity = "info";
+                event.status = ValidationEventStatus::INFO;
+            } else {
+                event.event_type = ValidationEventType::LINT_ISSUE;
+                event.severity = "warning";
+                event.status = ValidationEventStatus::WARNING;
+            }
+            
+            event.message = message;
+            event.file_path = file_path;
+            event.line_number = line_number;
+            event.error_code = error_code;
+            event.tool_name = "mypy";
+            event.category = "type_checking";
+            event.raw_output = line;
+            event.structured_data = "{\"error_code\": \"" + error_code + "\", \"severity\": \"" + severity + "\"}";
+            
+            events.push_back(event);
+        }
+        // Check for mypy message without error code
+        else if (std::regex_search(line, match, mypy_message_no_code)) {
+            std::string file_path = match[1].str();
+            std::string line_str = match[2].str();
+            std::string severity = match[3].str();
+            std::string message = match[4].str();
+            
+            int64_t line_number = 0;
+            
+            try {
+                line_number = std::stoi(line_str);
+            } catch (...) {
+                // If parsing fails, keep as 0
+            }
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            
+            // Map mypy severity to ValidationEventStatus
+            if (severity == "error") {
+                event.event_type = ValidationEventType::BUILD_ERROR;
+                event.severity = "error";
+                event.status = ValidationEventStatus::ERROR;
+            } else if (severity == "warning") {
+                event.event_type = ValidationEventType::LINT_ISSUE;
+                event.severity = "warning";
+                event.status = ValidationEventStatus::WARNING;
+            } else if (severity == "note") {
+                event.event_type = ValidationEventType::LINT_ISSUE;
+                event.severity = "info";
+                event.status = ValidationEventStatus::INFO;
+            } else {
+                event.event_type = ValidationEventType::LINT_ISSUE;
+                event.severity = "warning";
+                event.status = ValidationEventStatus::WARNING;
+            }
+            
+            event.message = message;
+            event.file_path = file_path;
+            event.line_number = line_number;
+            event.tool_name = "mypy";
+            event.category = "type_checking";
+            event.raw_output = line;
+            event.structured_data = "{\"severity\": \"" + severity + "\"}";
+            
+            events.push_back(event);
+        }
+        // Check for summary with errors
+        else if (std::regex_search(line, match, mypy_summary)) {
+            std::string error_count = match[1].str();
+            std::string file_count = match[2].str();
+            std::string checked_count = match[3].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.severity = "error";
+            event.status = ValidationEventStatus::ERROR;
+            event.message = "Found " + error_count + " errors in " + file_count + " files (checked " + checked_count + " files)";
+            event.tool_name = "mypy";
+            event.category = "type_checking";
+            event.raw_output = line;
+            event.structured_data = "{\"error_count\": " + error_count + ", \"file_count\": " + file_count + ", \"checked_count\": " + checked_count + "}";
+            
+            events.push_back(event);
+        }
+        // Check for success message
+        else if (std::regex_search(line, match, mypy_success)) {
+            std::string checked_count = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SUMMARY;
+            event.severity = "info";
+            event.status = ValidationEventStatus::PASS;
+            event.message = "Success: no issues found in " + checked_count + " source files";
+            event.tool_name = "mypy";
+            event.category = "type_checking";
+            event.raw_output = line;
+            event.structured_data = "{\"checked_count\": " + checked_count + "}";
+            
+            events.push_back(event);
+        }
+    }
+}
+
+void ParseDockerBuild(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream stream(content);
+    std::string line;
+    int64_t event_id = 1;
+    
+    // Regex patterns for Docker build output
+    std::regex docker_step(R"(Step (\d+/\d+) : (.+))");
+    std::regex docker_image_id(R"( ---> ([a-f0-9]{12}))");
+    std::regex docker_running_in(R"( ---> Running in ([a-f0-9]{12}))");
+    std::regex docker_removing(R"(Removing intermediate container ([a-f0-9]{12}))");
+    std::regex docker_successfully_built(R"(Successfully built ([a-f0-9]{12}))");
+    std::regex docker_successfully_tagged(R"(Successfully tagged (.+))");
+    std::regex docker_error_command(R"(The command '(.+)' returned a non-zero code: (\d+))");
+    std::regex docker_npm_err(R"(npm ERR! (.+))");
+    std::regex docker_buildkit_step(R"(=> \[([^\]]+)\] (.+))");
+    std::regex docker_buildkit_timing(R"(\[(\+)\] Building ([\d\.]+)s \((\d+/\d+)\) FINISHED)");
+    std::regex docker_security_vuln(R"(✗ (High|Medium|Low|Critical) severity vulnerability found in (.+))");
+    std::regex docker_cve(R"(Vulnerability: (CVE-\d{4}-\d{4,}))");
+    std::regex docker_package_vuln(R"(Package: (.+))");
+    std::regex docker_webpack_error(R"(ERROR in (.+))");
+    std::regex docker_webpack_warning(R"(WARNING in (.+))");
+    std::regex docker_module_not_found(R"(Module not found: Error: Can't resolve '(.+)' in '(.+)')");
+    
+    std::string current_step;
+    std::string current_container;
+    std::string current_vulnerability_package;
+    std::string current_cve;
+    bool in_security_scan = false;
+    bool in_npm_error = false;
+    
+    while (std::getline(stream, line)) {
+        std::smatch match;
+        
+        // Check for security scanning section
+        if (line.find("SECURITY SCANNING:") != std::string::npos) {
+            in_security_scan = true;
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SECURITY_FINDING;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "Docker security scan initiated";
+            event.tool_name = "docker";
+            event.category = "security";
+            event.raw_output = line;
+            event.structured_data = "{\"action\": \"security_scan_start\"}";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Check for Docker step
+        if (std::regex_search(line, match, docker_step)) {
+            current_step = match[1].str();
+            std::string command = match[2].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "Docker step: " + command;
+            event.tool_name = "docker";
+            event.category = "build_step";
+            event.raw_output = line;
+            event.structured_data = "{\"step\": \"" + current_step + "\", \"command\": \"" + command + "\"}";
+            
+            events.push_back(event);
+        }
+        // Check for Docker container running
+        else if (std::regex_search(line, match, docker_running_in)) {
+            current_container = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::DEBUG_EVENT;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "Running in container " + current_container;
+            event.tool_name = "docker";
+            event.category = "container";
+            event.raw_output = line;
+            event.structured_data = "{\"container_id\": \"" + current_container + "\", \"action\": \"running\"}";
+            
+            events.push_back(event);
+        }
+        // Check for successful build
+        else if (std::regex_search(line, match, docker_successfully_built)) {
+            std::string image_id = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SUMMARY;
+            event.severity = "info";
+            event.status = ValidationEventStatus::PASS;
+            event.message = "Docker image built successfully";
+            event.tool_name = "docker";
+            event.category = "build_success";
+            event.raw_output = line;
+            event.structured_data = "{\"image_id\": \"" + image_id + "\", \"action\": \"build_success\"}";
+            
+            events.push_back(event);
+        }
+        // Check for successful tagging
+        else if (std::regex_search(line, match, docker_successfully_tagged)) {
+            std::string tag = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SUMMARY;
+            event.severity = "info";
+            event.status = ValidationEventStatus::PASS;
+            event.message = "Docker image tagged successfully: " + tag;
+            event.tool_name = "docker";
+            event.category = "build_success";
+            event.raw_output = line;
+            event.structured_data = "{\"tag\": \"" + tag + "\", \"action\": \"tag_success\"}";
+            
+            events.push_back(event);
+        }
+        // Check for command errors
+        else if (std::regex_search(line, match, docker_error_command)) {
+            std::string command = match[1].str();
+            std::string exit_code = match[2].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.severity = "error";
+            event.status = ValidationEventStatus::ERROR;
+            event.message = "Docker command failed: " + command;
+            event.error_code = "exit_" + exit_code;
+            event.tool_name = "docker";
+            event.category = "build_error";
+            event.raw_output = line;
+            event.structured_data = "{\"command\": \"" + command + "\", \"exit_code\": " + exit_code + "}";
+            
+            events.push_back(event);
+        }
+        // Check for npm errors
+        else if (std::regex_search(line, match, docker_npm_err)) {
+            std::string error_msg = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.severity = "error";
+            event.status = ValidationEventStatus::ERROR;
+            event.message = "npm error: " + error_msg;
+            event.tool_name = "npm";
+            event.category = "package_error";
+            event.raw_output = line;
+            event.structured_data = "{\"error_message\": \"" + error_msg + "\", \"tool\": \"npm\"}";
+            
+            events.push_back(event);
+        }
+        // Check for webpack errors
+        else if (std::regex_search(line, match, docker_webpack_error)) {
+            std::string file_path = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.severity = "error";
+            event.status = ValidationEventStatus::ERROR;
+            event.message = "Webpack error in file";
+            event.file_path = file_path;
+            event.tool_name = "webpack";
+            event.category = "build_error";
+            event.raw_output = line;
+            event.structured_data = "{\"file\": \"" + file_path + "\", \"tool\": \"webpack\"}";
+            
+            events.push_back(event);
+        }
+        // Check for webpack warnings
+        else if (std::regex_search(line, match, docker_webpack_warning)) {
+            std::string file_path = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.severity = "warning";
+            event.status = ValidationEventStatus::WARNING;
+            event.message = "Webpack warning in file";
+            event.file_path = file_path;
+            event.tool_name = "webpack";
+            event.category = "build_warning";
+            event.raw_output = line;
+            event.structured_data = "{\"file\": \"" + file_path + "\", \"tool\": \"webpack\"}";
+            
+            events.push_back(event);
+        }
+        // Check for module not found errors
+        else if (std::regex_search(line, match, docker_module_not_found)) {
+            std::string module = match[1].str();
+            std::string path = match[2].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.severity = "error";
+            event.status = ValidationEventStatus::ERROR;
+            event.message = "Module not found: " + module;
+            event.file_path = path;
+            event.error_code = "MODULE_NOT_FOUND";
+            event.tool_name = "webpack";
+            event.category = "dependency_error";
+            event.raw_output = line;
+            event.structured_data = "{\"missing_module\": \"" + module + "\", \"path\": \"" + path + "\"}";
+            
+            events.push_back(event);
+        }
+        // Check for security vulnerabilities
+        else if (in_security_scan && std::regex_search(line, match, docker_security_vuln)) {
+            std::string severity = match[1].str();
+            std::string package = match[2].str();
+            current_vulnerability_package = package;
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SECURITY_FINDING;
+            
+            // Map security severity
+            if (severity == "Critical" || severity == "High") {
+                event.severity = "error";
+                event.status = ValidationEventStatus::ERROR;
+            } else if (severity == "Medium") {
+                event.severity = "warning";
+                event.status = ValidationEventStatus::WARNING;
+            } else {
+                event.severity = "info";
+                event.status = ValidationEventStatus::INFO;
+            }
+            
+            event.message = severity + " severity vulnerability found in " + package;
+            event.tool_name = "docker_scan";
+            event.category = "security";
+            event.raw_output = line;
+            event.structured_data = "{\"severity\": \"" + severity + "\", \"package\": \"" + package + "\"}";
+            
+            events.push_back(event);
+        }
+        // Check for CVE information
+        else if (in_security_scan && std::regex_search(line, match, docker_cve)) {
+            current_cve = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SECURITY_FINDING;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "CVE identified: " + current_cve;
+            event.error_code = current_cve;
+            event.tool_name = "docker_scan";
+            event.category = "security";
+            event.raw_output = line;
+            event.structured_data = "{\"cve\": \"" + current_cve + "\", \"package\": \"" + current_vulnerability_package + "\"}";
+            
+            events.push_back(event);
+        }
+        // Check for BuildKit output
+        else if (std::regex_search(line, match, docker_buildkit_step)) {
+            std::string step_name = match[1].str();
+            std::string step_desc = match[2].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::DEBUG_EVENT;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "BuildKit step: " + step_desc;
+            event.tool_name = "docker_buildkit";
+            event.category = "build_step";
+            event.raw_output = line;
+            event.structured_data = "{\"step_name\": \"" + step_name + "\", \"description\": \"" + step_desc + "\"}";
+            
+            events.push_back(event);
+        }
+        // Check for BuildKit completion
+        else if (std::regex_search(line, match, docker_buildkit_timing)) {
+            std::string duration = match[2].str();
+            std::string steps = match[3].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SUMMARY;
+            event.severity = "info";
+            event.status = ValidationEventStatus::PASS;
+            event.message = "BuildKit build completed in " + duration + "s";
+            event.tool_name = "docker_buildkit";
+            event.category = "build_success";
+            event.raw_output = line;
+            event.structured_data = "{\"duration\": \"" + duration + "\", \"steps\": \"" + steps + "\"}";
+            
+            events.push_back(event);
+        }
+        
+        // Reset security scan flag when we encounter regular Docker output
+        if (in_security_scan && line.find("CACHING INFORMATION:") != std::string::npos) {
+            in_security_scan = false;
+        }
+    }
+}
+
+void ParseBazelBuild(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream stream(content);
+    std::string line;
+    int64_t event_id = 1;
+    
+    // Regex patterns for Bazel build output
+    std::regex bazel_analyzed(R"(INFO: Analyzed (\d+) targets? \((\d+) packages? loaded, (\d+) targets? configured\)\.)");
+    std::regex bazel_found(R"(INFO: Found (\d+) targets?\.\.\.)");
+    std::regex bazel_build_completed(R"(INFO: Build completed successfully, (\d+) total actions)");
+    std::regex bazel_build_elapsed(R"(INFO: Elapsed time: ([\d\.]+)s, Critical Path: ([\d\.]+)s)");
+    std::regex bazel_test_passed(R"(PASSED: (//[^/\s]+(?:/[^/\s]+)*:[^/\s]+) \(([\d\.]+)s\))");
+    std::regex bazel_test_failed(R"(FAILED: (//[^/\s]+(?:/[^/\s]+)*:[^/\s]+) \(([\d\.]+)s\) \[(\d+)/(\d+) attempts\])");
+    std::regex bazel_test_timeout(R"(TIMEOUT: (//[^/\s]+(?:/[^/\s]+)*:[^/\s]+) \(([\d\.]+)s TIMEOUT\))");
+    std::regex bazel_test_flaky(R"(FLAKY: (//[^/\s]+(?:/[^/\s]+)*:[^/\s]+) passed in (\d+) out of (\d+) attempts)");
+    std::regex bazel_test_skipped(R"(SKIPPED: (//[^/\s]+(?:/[^/\s]+)*:[^/\s]+) \(SKIPPED\))");
+    std::regex bazel_compilation_error(R"(ERROR: ([^:]+):(\d+):(\d+): (.+) failed \(Exit (\d+)\): (.+))");
+    std::regex bazel_build_error(R"(ERROR: ([^:]+):(\d+):(\d+): (.+))");
+    std::regex bazel_linking_error(R"(ERROR: ([^:]+):(\d+):(\d+): Linking of rule '([^']+)' failed \(Exit (\d+)\): (.+))");
+    std::regex bazel_warning(R"(WARNING: (.+))");
+    std::regex bazel_fail_msg(R"(FAIL (.+):(\d+): (.+))");
+    std::regex bazel_loading(R"(Loading: (\d+) packages? loaded)");
+    std::regex bazel_analyzing(R"(Analyzing: (\d+) targets? \((\d+) packages? loaded, (\d+) targets? configured\))");
+    std::regex bazel_action_info(R"(INFO: From (.+):)");
+    std::regex bazel_up_to_date(R"(Target (//[^/\s]+(?:/[^/\s]+)*:[^/\s]+) up-to-date:)");
+    std::regex bazel_test_summary(R"(Total: (\d+) tests?, (\d+) passed, (\d+) failed(?:, (\d+) timeout)?(?:, (\d+) flaky)?(?:, (\d+) skipped)?)");
+    
+    std::string current_target;
+    std::string current_action;
+    bool in_test_suite = false;
+    
+    while (std::getline(stream, line)) {
+        std::smatch match;
+        
+        // Check for test suite header
+        if (line.find("==== Test Suite:") != std::string::npos) {
+            in_test_suite = true;
+            continue;
+        }
+        
+        // Check for analysis phase
+        if (std::regex_search(line, match, bazel_analyzed)) {
+            int targets = std::stoi(match[1].str());
+            int packages = std::stoi(match[2].str());
+            int configured = std::stoi(match[3].str());
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SUMMARY;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "Analyzed " + std::to_string(targets) + " targets (" + 
+                           std::to_string(packages) + " packages loaded, " + 
+                           std::to_string(configured) + " targets configured)";
+            event.tool_name = "bazel";
+            event.category = "analysis";
+            event.raw_output = line;
+            event.structured_data = "{\"targets\": " + std::to_string(targets) + 
+                                   ", \"packages\": " + std::to_string(packages) + 
+                                   ", \"configured\": " + std::to_string(configured) + "}";
+            
+            events.push_back(event);
+        }
+        // Check for build completion
+        else if (std::regex_search(line, match, bazel_build_completed)) {
+            int actions = std::stoi(match[1].str());
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SUMMARY;
+            event.severity = "info";
+            event.status = ValidationEventStatus::PASS;
+            event.message = "Build completed successfully with " + std::to_string(actions) + " total actions";
+            event.tool_name = "bazel";
+            event.category = "build_success";
+            event.raw_output = line;
+            event.structured_data = "{\"total_actions\": " + std::to_string(actions) + "}";
+            
+            events.push_back(event);
+        }
+        // Check for elapsed time
+        else if (std::regex_search(line, match, bazel_build_elapsed)) {
+            double elapsed = std::stod(match[1].str());
+            double critical_path = std::stod(match[2].str());
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::PERFORMANCE_METRIC;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "Build timing - Elapsed: " + match[1].str() + "s, Critical Path: " + match[2].str() + "s";
+            event.tool_name = "bazel";
+            event.category = "performance";
+            event.execution_time = elapsed;
+            event.raw_output = line;
+            event.structured_data = "{\"elapsed_time\": " + match[1].str() + 
+                                   ", \"critical_path_time\": " + match[2].str() + "}";
+            
+            events.push_back(event);
+        }
+        // Check for passed tests
+        else if (std::regex_search(line, match, bazel_test_passed)) {
+            std::string target = match[1].str();
+            double duration = std::stod(match[2].str());
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.severity = "info";
+            event.status = ValidationEventStatus::PASS;
+            event.message = "Test passed";
+            event.test_name = target;
+            event.tool_name = "bazel";
+            event.category = "test_result";
+            event.execution_time = duration;
+            event.raw_output = line;
+            event.structured_data = "{\"target\": \"" + target + "\", \"duration\": " + match[2].str() + "}";
+            
+            events.push_back(event);
+        }
+        // Check for failed tests
+        else if (std::regex_search(line, match, bazel_test_failed)) {
+            std::string target = match[1].str();
+            double duration = std::stod(match[2].str());
+            int current_attempt = std::stoi(match[3].str());
+            int total_attempts = std::stoi(match[4].str());
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.severity = "error";
+            event.status = ValidationEventStatus::FAIL;
+            event.message = "Test failed (" + std::to_string(current_attempt) + "/" + std::to_string(total_attempts) + " attempts)";
+            event.test_name = target;
+            event.tool_name = "bazel";
+            event.category = "test_result";
+            event.execution_time = duration;
+            event.raw_output = line;
+            event.structured_data = "{\"target\": \"" + target + "\", \"duration\": " + match[2].str() + 
+                                   ", \"current_attempt\": " + std::to_string(current_attempt) + 
+                                   ", \"total_attempts\": " + std::to_string(total_attempts) + "}";
+            
+            events.push_back(event);
+        }
+        // Check for timeout tests
+        else if (std::regex_search(line, match, bazel_test_timeout)) {
+            std::string target = match[1].str();
+            double duration = std::stod(match[2].str());
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.severity = "warning";
+            event.status = ValidationEventStatus::ERROR;
+            event.message = "Test exceeded maximum time limit";
+            event.test_name = target;
+            event.tool_name = "bazel";
+            event.category = "test_timeout";
+            event.execution_time = duration;
+            event.raw_output = line;
+            event.structured_data = "{\"target\": \"" + target + "\", \"duration\": " + match[2].str() + ", \"reason\": \"timeout\"}";
+            
+            events.push_back(event);
+        }
+        // Check for flaky tests
+        else if (std::regex_search(line, match, bazel_test_flaky)) {
+            std::string target = match[1].str();
+            int passed_attempts = std::stoi(match[2].str());
+            int total_attempts = std::stoi(match[3].str());
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.severity = "warning";
+            event.status = ValidationEventStatus::WARNING;
+            event.message = "Test is flaky - passed " + std::to_string(passed_attempts) + " out of " + std::to_string(total_attempts) + " attempts";
+            event.test_name = target;
+            event.tool_name = "bazel";
+            event.category = "test_flaky";
+            event.raw_output = line;
+            event.structured_data = "{\"target\": \"" + target + "\", \"passed_attempts\": " + std::to_string(passed_attempts) + 
+                                   ", \"total_attempts\": " + std::to_string(total_attempts) + "}";
+            
+            events.push_back(event);
+        }
+        // Check for skipped tests
+        else if (std::regex_search(line, match, bazel_test_skipped)) {
+            std::string target = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.severity = "info";
+            event.status = ValidationEventStatus::SKIP;
+            event.message = "Test skipped";
+            event.test_name = target;
+            event.tool_name = "bazel";
+            event.category = "test_result";
+            event.raw_output = line;
+            event.structured_data = "{\"target\": \"" + target + "\", \"reason\": \"skipped\"}";
+            
+            events.push_back(event);
+        }
+        // Check for compilation errors
+        else if (std::regex_search(line, match, bazel_compilation_error)) {
+            std::string file_path = match[1].str();
+            int line_num = std::stoi(match[2].str());
+            int col_num = std::stoi(match[3].str());
+            std::string rule_name = match[4].str();
+            int exit_code = std::stoi(match[5].str());
+            std::string error_msg = match[6].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.severity = "error";
+            event.status = ValidationEventStatus::ERROR;
+            event.message = rule_name + " failed: " + error_msg;
+            event.file_path = file_path;
+            event.line_number = line_num;
+            event.column_number = col_num;
+            event.error_code = "exit_" + std::to_string(exit_code);
+            event.tool_name = "bazel";
+            event.category = "compilation_error";
+            event.raw_output = line;
+            event.structured_data = "{\"rule\": \"" + rule_name + "\", \"exit_code\": " + std::to_string(exit_code) + 
+                                   ", \"error\": \"" + error_msg + "\"}";
+            
+            events.push_back(event);
+        }
+        // Check for linking errors
+        else if (std::regex_search(line, match, bazel_linking_error)) {
+            std::string file_path = match[1].str();
+            int line_num = std::stoi(match[2].str());
+            int col_num = std::stoi(match[3].str());
+            std::string rule_name = match[4].str();
+            int exit_code = std::stoi(match[5].str());
+            std::string error_msg = match[6].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.severity = "error";
+            event.status = ValidationEventStatus::ERROR;
+            event.message = "Linking failed for " + rule_name + ": " + error_msg;
+            event.file_path = file_path;
+            event.line_number = line_num;
+            event.column_number = col_num;
+            event.error_code = "link_exit_" + std::to_string(exit_code);
+            event.tool_name = "bazel";
+            event.category = "linking_error";
+            event.raw_output = line;
+            event.structured_data = "{\"rule\": \"" + rule_name + "\", \"exit_code\": " + std::to_string(exit_code) + 
+                                   ", \"error\": \"" + error_msg + "\"}";
+            
+            events.push_back(event);
+        }
+        // Check for general build errors
+        else if (std::regex_search(line, match, bazel_build_error)) {
+            std::string file_path = match[1].str();
+            int line_num = std::stoi(match[2].str());
+            int col_num = std::stoi(match[3].str());
+            std::string error_msg = match[4].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.severity = "error";
+            event.status = ValidationEventStatus::ERROR;
+            event.message = error_msg;
+            event.file_path = file_path;
+            event.line_number = line_num;
+            event.column_number = col_num;
+            event.tool_name = "bazel";
+            event.category = "build_error";
+            event.raw_output = line;
+            event.structured_data = "{\"error\": \"" + error_msg + "\"}";
+            
+            events.push_back(event);
+        }
+        // Check for warnings
+        else if (std::regex_search(line, match, bazel_warning)) {
+            std::string warning_msg = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.severity = "warning";
+            event.status = ValidationEventStatus::WARNING;
+            event.message = warning_msg;
+            event.tool_name = "bazel";
+            event.category = "build_warning";
+            event.raw_output = line;
+            event.structured_data = "{\"warning\": \"" + warning_msg + "\"}";
+            
+            events.push_back(event);
+        }
+        // Check for test failures with details
+        else if (std::regex_search(line, match, bazel_fail_msg)) {
+            std::string file_path = match[1].str();
+            int line_num = std::stoi(match[2].str());
+            std::string failure_msg = match[3].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.severity = "error";
+            event.status = ValidationEventStatus::FAIL;
+            event.message = failure_msg;
+            event.file_path = file_path;
+            event.line_number = line_num;
+            event.tool_name = "bazel";
+            event.category = "test_failure";
+            event.raw_output = line;
+            event.structured_data = "{\"failure_message\": \"" + failure_msg + "\"}";
+            
+            events.push_back(event);
+        }
+        // Check for loading phase
+        else if (std::regex_search(line, match, bazel_loading)) {
+            int packages = std::stoi(match[1].str());
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::DEBUG_EVENT;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "Loading packages: " + std::to_string(packages) + " loaded";
+            event.tool_name = "bazel";
+            event.category = "loading";
+            event.raw_output = line;
+            event.structured_data = "{\"packages_loaded\": " + std::to_string(packages) + "}";
+            
+            events.push_back(event);
+        }
+        // Check for analyzing phase
+        else if (std::regex_search(line, match, bazel_analyzing)) {
+            int targets = std::stoi(match[1].str());
+            int packages = std::stoi(match[2].str());
+            int configured = std::stoi(match[3].str());
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::DEBUG_EVENT;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "Analyzing " + std::to_string(targets) + " targets (" + 
+                           std::to_string(packages) + " packages loaded, " + 
+                           std::to_string(configured) + " targets configured)";
+            event.tool_name = "bazel";
+            event.category = "analyzing";
+            event.raw_output = line;
+            event.structured_data = "{\"targets\": " + std::to_string(targets) + 
+                                   ", \"packages\": " + std::to_string(packages) + 
+                                   ", \"configured\": " + std::to_string(configured) + "}";
+            
+            events.push_back(event);
+        }
+        // Check for test summary
+        else if (std::regex_search(line, match, bazel_test_summary)) {
+            int total = std::stoi(match[1].str());
+            int passed = std::stoi(match[2].str());
+            int failed = std::stoi(match[3].str());
+            int timeout = match[4].matched ? std::stoi(match[4].str()) : 0;
+            int flaky = match[5].matched ? std::stoi(match[5].str()) : 0;
+            int skipped = match[6].matched ? std::stoi(match[6].str()) : 0;
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SUMMARY;
+            event.severity = (failed > 0) ? "error" : "info";
+            event.status = (failed > 0) ? ValidationEventStatus::FAIL : ValidationEventStatus::PASS;
+            event.message = "Test Summary: " + std::to_string(total) + " tests, " + 
+                           std::to_string(passed) + " passed, " + std::to_string(failed) + " failed" +
+                           (timeout > 0 ? ", " + std::to_string(timeout) + " timeout" : "") +
+                           (flaky > 0 ? ", " + std::to_string(flaky) + " flaky" : "") +
+                           (skipped > 0 ? ", " + std::to_string(skipped) + " skipped" : "");
+            event.tool_name = "bazel";
+            event.category = "test_summary";
+            event.raw_output = line;
+            event.structured_data = "{\"total\": " + std::to_string(total) + 
+                                   ", \"passed\": " + std::to_string(passed) + 
+                                   ", \"failed\": " + std::to_string(failed) + 
+                                   ", \"timeout\": " + std::to_string(timeout) + 
+                                   ", \"flaky\": " + std::to_string(flaky) + 
+                                   ", \"skipped\": " + std::to_string(skipped) + "}";
+            
+            events.push_back(event);
         }
     }
 }

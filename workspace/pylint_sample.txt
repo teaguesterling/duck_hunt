@@ -1,0 +1,67 @@
+************* Module sample_module
+C:  1, 0: Missing module docstring (missing-module-docstring)
+C:  5, 4: Variable name "badName" doesn't conform to snake_case naming style (invalid-name)
+C: 10, 0: Missing function or method docstring (missing-function-docstring)
+W: 15, 8: Unused argument 'unused_param' (unused-argument)
+W: 22, 0: Redefining built-in 'type' (redefined-builtin)
+E: 28, 12: Instance of 'str' has no 'nonexistent_method' member (no-member)
+R: 35, 0: Too many arguments (6/5) (too-many-arguments)
+R: 40, 0: Too few public methods (1/2) (too-few-public-methods)
+
+************* Module utils.helpers
+C:  1, 0: Missing module docstring (missing-module-docstring)
+W: 12, 4: Unused variable 'temp_var' (unused-variable)
+E: 18, 0: Unable to import 'nonexistent_module' (import-error)
+F: 25, 8: 'undefined_function' is not defined (undefined-variable)
+
+************* Module config.settings
+C:  3, 0: Standard import "os" should be placed before "numpy" (wrong-import-order)
+C: 15, 8: Constant name "api_key" doesn't conform to UPPER_CASE naming style (invalid-name)
+W: 22, 0: Line too long (95/80) (line-too-long)
+E: 30, 16: Undefined variable 'DATABASE_URL' (undefined-variable)
+
+************* Module tests.test_main
+W:  5, 0: Unused import sys (unused-import)
+W: 12, 4: Consider using enumerate instead of iterating with range and len (consider-using-enumerate)
+R: 20, 0: Method could be a function (no-self-use)
+R: 28, 0: Too many local variables (18/15) (too-many-locals)
+
+--------------------------------------------------------------------
+Your code has been rated at 6.67/10 (previous run: 6.41/10, +0.26)
+
+Global evaluation
+-----------------
+Your code has been rated at 6.67/10
+
+Raw metrics
+-----------
+
+|type      |number |%     |previous |difference |
+|----------|-------|------|---------|-----------|
+|code      |125    |78.61 |119      |+6.00      |
+|docstring |8      |5.03  |7        |+1.00      |
+|comment   |15     |9.43  |16       |-1.00      |
+|empty     |11     |6.92  |10       |+1.00      |
+
+Messages
+--------
+
+|message id                 |occurrences |
+|---------------------------|------------|
+|missing-module-docstring   |3           |
+|invalid-name               |2           |
+|unused-argument            |1           |
+|missing-function-docstring |1           |
+|redefined-builtin          |1           |
+|no-member                  |1           |
+|too-many-arguments         |1           |
+|too-few-public-methods     |1           |
+|unused-variable            |1           |
+|import-error               |1           |
+|undefined-variable         |2           |
+|wrong-import-order         |1           |
+|line-too-long              |1           |
+|unused-import              |1           |
+|consider-using-enumerate   |1           |
+|no-self-use                |1           |
+|too-many-locals            |1           |

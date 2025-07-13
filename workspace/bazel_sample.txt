@@ -1,0 +1,90 @@
+INFO: Analyzed 145 targets (0 packages loaded, 0 targets configured).
+INFO: Found 145 targets...
+INFO: Elapsed time: 0.125s, Critical Path: 0.02s
+INFO: 1 process: 1 internal.
+INFO: Build completed successfully, 145 total actions
+PASSED: //src/test:unit_test (3.2s)
+PASSED: //src/test:integration_test (5.1s)
+FAILED: //src/test:broken_test (0.8s) [0/3 attempts]
+FAIL src/test/broken_test.cc:42: Expected: (result) == (expected), actual: 5 vs. 10
+INFO: Build completed, 1 test FAILED, 2 PASSED
+
+WARNING: //src/main:app depends on deprecated target //third_party/old_lib:legacy
+WARNING: Definition of cc_library rule //src/util:helper changed, discarding analysis cache
+
+ERROR: /workspace/src/BUILD:15:1: C++ compilation of rule '//src/main:app' failed (Exit 1): gcc failed: error executing command
+/usr/bin/gcc -U_FORTIFY_SOURCE -fstack-protector -Wall -Wunused-but-set-parameter src/main/app.cc
+src/main/app.cc:25:5: error: 'undefined_function' was not declared in this scope
+   25 |     undefined_function();
+      |     ^~~~~~~~~~~~~~~~~~
+Target //src/main:app failed to build
+
+ERROR: /workspace/src/main/BUILD:8:1: Linking of rule '//src/main:binary' failed (Exit 1): gcc failed: error executing command
+/usr/bin/gcc -Wl,-no-as-needed -Wl,-z,relro,-z,now -B/usr/bin -pass-exit-codes -Wl,--gc-sections
+/usr/bin/ld: build-runfiles/main/src/main/app.o: in function `main':
+app.cc:(.text+0x12): undefined reference to `missing_symbol'
+collect2: error: ld returned 1 exit status
+
+TIMEOUT: //src/slow:timeout_test (300.1s TIMEOUT)
+Test exceeded maximum time limit of 300s
+
+FLAKY: //src/flaky:unstable_test passed in 1 out of 3 attempts
+src/flaky/unstable_test.cc:18: warning: comparison of integer expressions of different signedness
+
+INFO: From Executing genrule //src/proto:generate_proto:
+protoc --proto_path=src/proto --cpp_out=bazel-out/k8-fastbuild/bin/src/proto src/proto/message.proto
+src/proto/message.proto:12:5: warning: field "deprecated_field" is deprecated.
+
+INFO: From Building external/com_google_absl/absl/container/btree.h:
+external/com_google_absl/absl/container/btree.h:150: warning: 'template<class> class std::auto_ptr' is deprecated
+
+INFO: From Compiling src/main/app.cc:
+src/main/app.cc:35: warning: unused variable 'temp'
+
+ERROR: /workspace/WORKSPACE:23:1: name 'http_archive' is not defined
+ERROR: error loading package 'src/main': Extension file 'build_extensions.bzl' has errors
+
+INFO: From Testing //src/test:performance_test:
+==================== Test output for //src/test:performance_test:
+Benchmark                     Time           CPU Iterations
+BM_FastFunction            2.45 ns      2.44 ns  285636364
+BM_SlowFunction           1245 ms      1243 ms          1
+Memory usage: 150.2 MB peak
+
+SKIPPED: //src/disabled:skip_test (SKIPPED)
+Test disabled due to configuration
+
+INFO: From Action src/main/app.o:
+Target //src/main:app up-to-date:
+  bazel-bin/src/main/app
+
+INFO: Build Event Protocol: writing to /tmp/bazel_events.json
+
+Starting local Bazel server and connecting to it...
+Loading: 0 packages loaded
+    currently loading: @rules_cc//cc/private/toolchain
+Loading: 45 packages loaded
+    currently loading: src/external/com_google_googletest
+Analyzing: 145 targets (67 packages loaded, 0 targets configured)
+    currently loading: @local_config_cc//
+Analyzing: 145 targets (145 packages loaded, 125 targets configured)
+INFO: Analyzed 145 targets (145 packages loaded, 145 targets configured).
+
+====================================
+==== Test Suite: //src/test:all ====
+====================================
+Running test: //src/test:unit_test
+Running test: //src/test:integration_test
+Running test: //src/test:performance_test
+
+Results:
+  PASSED: //src/test:unit_test
+  PASSED: //src/test:integration_test  
+  FAILED: //src/test:broken_test
+  TIMEOUT: //src/slow:timeout_test
+  FLAKY: //src/flaky:unstable_test
+  SKIPPED: //src/disabled:skip_test
+
+Total: 6 tests, 2 passed, 1 failed, 1 timeout, 1 flaky, 1 skipped
+
+INFO: Build completed, 1 test FAILED, 2 PASSED, 1 TIMEOUT, 1 FLAKY, 1 SKIPPED

@@ -47,7 +47,13 @@ enum class TestResultFormat : uint8_t {
     RSPEC_TEXT = 36,
     MOCHA_CHAI_TEXT = 37,
     GTEST_TEXT = 38,
-    NUNIT_XUNIT_TEXT = 39
+    NUNIT_XUNIT_TEXT = 39,
+    PYLINT_TEXT = 40,
+    FLAKE8_TEXT = 41,
+    BLACK_TEXT = 42,
+    MYPY_TEXT = 43,
+    DOCKER_BUILD = 44,
+    BAZEL_BUILD = 45
 };
 
 // Bind data for read_test_results table function
@@ -151,5 +157,11 @@ void ParseRSpecText(const std::string& content, std::vector<ValidationEvent>& ev
 void ParseMochaChai(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseGoogleTest(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseNUnitXUnit(const std::string& content, std::vector<ValidationEvent>& events);
+void ParsePylintText(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseFlake8Text(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseBlackText(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseMypyText(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseDockerBuild(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseBazelBuild(const std::string& content, std::vector<ValidationEvent>& events);
 
 } // namespace duckdb
