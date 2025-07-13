@@ -1,0 +1,115 @@
+[main]	INFO	profile include tests: None
+[main]	INFO	profile exclude tests: None
+[main]	INFO	cli include tests: None
+[main]	INFO	cli exclude tests: None
+[main]	INFO	running on Python 3.9.7
+
+Run started:2024-01-15 10:30:45.123456
+
+Test results:
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.7.5/plugins/b101_assert_used.html
+   Location: ./src/main.py:23:4
+   22	def validate_user_input(user_input):
+   23	    assert user_input is not None, "User input cannot be None"
+   24	    return process_input(user_input)
+
+--------------------------------------------------
+>> Issue: [B602:subprocess_popen_with_shell_equals_true] subprocess call with shell=True identified, security issue.
+   Severity: High   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.7.5/plugins/b602_subprocess_popen_with_shell_equals_true.html
+   Location: ./src/utils/system.py:45:8
+   44	def execute_command(cmd):
+   45	    proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+   46	    return proc.communicate()
+
+--------------------------------------------------
+>> Issue: [B108:hardcoded_tmp_directory] Probable insecure usage of temp file/directory.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-377 (https://cwe.mitre.org/data/definitions/377.html)
+   More Info: https://bandit.readthedocs.io/en/1.7.5/plugins/b108_hardcoded_tmp_directory.html
+   Location: ./src/file_handler.py:12:15
+   11	def create_temp_file():
+   12	    temp_path = "/tmp/myapp_data.txt"
+   13	    with open(temp_path, 'w') as f:
+
+--------------------------------------------------
+>> Issue: [B506:yaml_load] Use of unsafe yaml load. Allows instantiation of arbitrary objects. Consider yaml.safe_load().
+   Severity: Medium   Confidence: High
+   CWE: CWE-20 (https://cwe.mitre.org/data/definitions/20.html)
+   More Info: https://bandit.readthedocs.io/en/1.7.5/plugins/b506_yaml_load.html
+   Location: ./src/config/loader.py:8:12
+   7	def load_config(file_path):
+   8	    data = yaml.load(open(file_path))
+   9	    return data
+
+--------------------------------------------------
+>> Issue: [B301:pickle] Pickle and modules that wrap it can be unsafe when used to deserialize untrusted data, possible security risk.
+   Severity: Medium   Confidence: High
+   CWE: CWE-502 (https://cwe.mitre.org/data/definitions/502.html)
+   More Info: https://bandit.readthedocs.io/en/1.7.5/plugins/b301_pickle.html
+   Location: ./src/serializer.py:15:8
+   14	def deserialize_data(data):
+   15	    obj = pickle.loads(data)
+   16	    return obj
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'admin123'
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.7.5/plugins/b105_hardcoded_password_string.html
+   Location: ./src/auth.py:5:15
+   4	class DatabaseConfig:
+   5	    password = "admin123"
+   6	    username = "admin"
+
+--------------------------------------------------
+>> Issue: [B113:request_without_timeout] Requests call without timeout
+   Severity: Medium   Confidence: Low
+   CWE: CWE-400 (https://cwe.mitre.org/data/definitions/400.html)
+   More Info: https://bandit.readthedocs.io/en/1.7.5/plugins/b113_request_without_timeout.html
+   Location: ./src/api/client.py:22:12
+   21	def fetch_data(url):
+   22	    resp = requests.get(url)
+   23	    return resp.json()
+
+--------------------------------------------------
+>> Issue: [B322:input] The input method in Python 2 will read from standard input, evaluate and run the resulting string as python source code. This is similar, though in many ways worse, than using eval. On Python 2, use raw_input instead, on Python 3, input is safe.
+   Severity: High   Confidence: High
+   CWE: CWE-20 (https://cwe.mitre.org/data/definitions/20.html)
+   More Info: https://bandit.readthedocs.io/en/1.7.5/plugins/b322_input.html
+   Location: ./src/legacy/input_handler.py:10:12
+   9	def get_user_command():
+   10	    cmd = input("Enter command: ")
+   11	    return cmd
+
+--------------------------------------------------
+
+Code scanned:
+	Total lines of code: 1847
+	Total lines skipped (#nosec): 23
+
+Run metrics:
+	Total issues (by severity):
+		Undefined: 0
+		Low: 1
+		Medium: 5
+		High: 2
+	Total issues (by confidence):
+		Undefined: 0
+		Low: 1
+		Medium: 2
+		High: 5
+
+Files skipped (0):
+
+[bandit]	INFO	Bandit security scan completed successfully.
+[bandit]	INFO	Found 8 issues with security implications.
+[bandit]	WARNING	2 high severity issues found - review immediately.
+[bandit]	WARNING	5 medium severity issues found.
+[bandit]	INFO	1 low severity issue found.
+[bandit]	INFO	Lines of code analyzed: 1847
+[bandit]	INFO	Total execution time: 2.34 seconds

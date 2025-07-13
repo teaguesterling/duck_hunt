@@ -1,0 +1,192 @@
+Name                      Stmts   Miss  Cover   Missing
+-------------------------------------------------------
+src/__init__.py               0      0   100%
+src/main.py                  45      2    96%   23, 67
+src/utils.py                 32      8    75%   12-15, 28, 45-47
+src/models/__init__.py        1      0   100%
+src/models/user.py           28      3    89%   45, 52, 78
+src/models/product.py        52     12    77%   23-25, 67-72, 89, 95
+src/views.py                 67     15    78%   12, 23-28, 45, 67-73
+tests/__init__.py             0      0   100%
+tests/test_main.py           34      0   100%
+tests/test_utils.py          28      1    96%   45
+tests/test_models.py         42      2    95%   23, 67
+-------------------------------------------------------
+TOTAL                       329     43    87%
+
+Coverage report generated in 1.23 seconds
+
+coverage run --source=src -m pytest tests/
+..................................................
+=============================== 50 passed in 2.34s ===============================
+
+Name                      Stmts   Miss  Cover
+--------------------------------------------
+src/__init__.py               0      0   100%
+src/main.py                  45      2    96%
+src/utils.py                 32      8    75%
+src/models/__init__.py        1      0   100%
+src/models/user.py           28      3    89%
+src/models/product.py        52     12    77%
+src/views.py                 67     15    78%
+tests/__init__.py             0      0   100%
+tests/test_main.py           34      0   100%
+tests/test_utils.py          28      1    96%
+tests/test_models.py         42      2    95%
+--------------------------------------------
+TOTAL                       329     43    87%
+
+coverage html
+Wrote HTML report to htmlcov/index.html
+
+coverage xml
+Wrote XML report to coverage.xml
+
+coverage json
+Wrote JSON report to coverage.json
+
+coverage report --show-missing
+Name                      Stmts   Miss  Cover   Missing
+-------------------------------------------------------
+src/main.py                  45      2    96%   23, 67
+src/utils.py                 32      8    75%   12-15, 28, 45-47
+src/models/user.py           28      3    89%   45, 52, 78
+src/models/product.py        52     12    77%   23-25, 67-72, 89, 95
+src/views.py                 67     15    78%   12, 23-28, 45, 67-73
+tests/test_utils.py          28      1    96%   45
+tests/test_models.py         42      2    95%   23, 67
+-------------------------------------------------------
+TOTAL                       329     43    87%
+
+coverage report --precision=2
+Name                      Stmts   Miss  Cover
+--------------------------------------------
+src/main.py                  45      2   95.56%
+src/utils.py                 32      8   75.00%
+src/models/user.py           28      3   89.29%
+src/models/product.py        52     12   76.92%
+src/views.py                 67     15   77.61%
+tests/test_utils.py          28      1   96.43%
+tests/test_models.py         42      2   95.24%
+--------------------------------------------
+TOTAL                       329     43   86.93%
+
+coverage report --fail-under=90
+Name                      Stmts   Miss  Cover
+--------------------------------------------
+src/main.py                  45      2    96%
+src/utils.py                 32      8    75%
+src/models/user.py           28      3    89%
+src/models/product.py        52     12    77%
+src/views.py                 67     15    78%
+tests/test_utils.py          28      1    96%
+tests/test_models.py         42      2    95%
+--------------------------------------------
+TOTAL                       329     43    87%
+
+Coverage failure: total of 87% is below --fail-under=90%
+
+coverage report --skip-covered
+Name                      Stmts   Miss  Cover   Missing
+-------------------------------------------------------
+src/main.py                  45      2    96%   23, 67
+src/utils.py                 32      8    75%   12-15, 28, 45-47
+src/models/user.py           28      3    89%   45, 52, 78
+src/models/product.py        52     12    77%   23-25, 67-72, 89, 95
+src/views.py                 67     15    78%   12, 23-28, 45, 67-73
+tests/test_utils.py          28      1    96%   45
+tests/test_models.py         42      2    95%   23, 67
+-------------------------------------------------------
+TOTAL                       329     43    87%
+
+coverage debug sys
+-- sys -----------------------------------------------
+version: 3.9.7 (default, Oct 13 2021, 06:44:56) 
+platform: linux
+implementation: CPython
+executable: /usr/bin/python3.9
+fs_encoding: utf-8
+
+version_info: 3.9.7.final.0
+prefix: /usr
+exec_prefix: /usr
+
+coverage: 7.2.3
+cover_pylib: False
+data_suffix: False
+parallel: False
+concurrency: thread
+tracer: CTracer
+plugins.file_tracers: []
+plugins.configurers: []
+plugins.context_switchers: []
+config_files: .coveragerc
+config_file: .coveragerc
+data_file: .coverage
+source: ['src']
+
+coverage combine
+Combined data file .coverage.hostname.12345.678901
+Combined data file .coverage.hostname.12346.678902
+Wrote combined data to .coverage
+
+# Branch coverage
+coverage run --branch --source=src -m pytest tests/
+..................................................
+=============================== 50 passed in 2.45s ===============================
+
+Name                      Stmts   Miss Branch BrPart  Cover   Missing
+---------------------------------------------------------------------
+src/main.py                  45      2     12      1    94%   23, 67->exit
+src/utils.py                 32      8     10      3    68%   12-15, 28, 45-47, 15->18
+src/models/user.py           28      3      8      1    86%   45, 52, 78, 45->48
+src/models/product.py        52     12     18      4    73%   23-25, 67-72, 89, 95, 23->26, 67->70
+src/views.py                 67     15     22      6    71%   12, 23-28, 45, 67-73, 23->26, 45->48
+tests/test_utils.py          28      1      6      0    95%   45
+tests/test_models.py         42      2      8      1    93%   23, 67, 23->26
+---------------------------------------------------------------------
+TOTAL                       294     43     84     16    82%
+
+coverage erase
+Erased .coverage
+
+# Error cases
+coverage: No data to report.
+
+coverage: CoverageWarning: No data was collected. (no-data-collected)
+
+coverage report --include="nonexistent/*"
+No data to report.
+
+coverage report --omit="*/__init__.py"
+Name                      Stmts   Miss  Cover
+--------------------------------------------
+src/main.py                  45      2    96%
+src/utils.py                 32      8    75%
+src/models/user.py           28      3    89%
+src/models/product.py        52     12    77%
+src/views.py                 67     15    78%
+tests/test_main.py           34      0   100%
+tests/test_utils.py          28      1    96%
+tests/test_models.py         42      2    95%
+--------------------------------------------
+TOTAL                       328     43    87%
+
+# Context tracking
+coverage run --context=mycontext --source=src -m pytest tests/
+Context 'mycontext' recorded
+
+# Delta coverage
+coverage report --diff=HEAD~1
+Name                      Stmts   Miss  Cover   Missing
+-------------------------------------------------------
+src/main.py                  45      2    96%   23, 67
+src/utils.py                 32      8    75%   12-15, 28, 45-47
+-------------------------------------------------------
+TOTAL                        77     10    87%
+
+Total coverage: 87.01%
+Files changed: 2
+Lines added: 15
+Lines covered: 12
+Percentage covered: 80.00%

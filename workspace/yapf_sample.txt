@@ -1,0 +1,179 @@
+--- a/src/main.py (original)
++++ b/src/main.py (reformatted)
+@@ -1,15 +1,15 @@
+ import os
+-import sys,json
++import sys, json
+ from typing import Dict
+ 
+ 
+-def process_data(x,y,z):
+-    if(x>y):
+-        return x+y
+-    elif x<y :
++def process_data(x, y, z):
++    if (x > y):
++        return x + y
++    elif x < y:
+         return y
+     else:
+-        return z  
++        return z
+ 
+ 
+ class DataProcessor:
+@@ -17,24 +17,27 @@
+         self.data = data
+ 
+     def process(self):
+-        result=[]
+-        for item in self.data :
+-            if item!= None:
++        result = []
++        for item in self.data:
++            if item != None:
+                 result.append(item)
+         return result
+ 
+-    def validate(self,value):
+-        return value!=None and len(value)>0
++    def validate(self, value):
++        return value != None and len(value) > 0
+ 
+ 
+ # Multiple issues on one line
+-x=1;y=2;z=3
++x = 1
++y = 2
++z = 3
+ 
+ # Trailing whitespace and multiple newlines
+-data={"key1":"value1","key2":"value2"}  
++data = {"key1": "value1", "key2": "value2"}
+ 
+ 
+ 
+ 
+ 
+ print("Done")
+
+--- a/src/utils.py (original)
++++ b/src/utils.py (reformatted)
+@@ -1,8 +1,8 @@
+-def helper(a,b,c=None):
+-    if c==None:
+-        return a+b
+-    return a+b+c
++def helper(a, b, c=None):
++    if c == None:
++        return a + b
++    return a + b + c
+ 
+-result=helper(1,2)
++
++result = helper(1, 2)
+
+Reformatted src/main.py
+Reformatted src/utils.py
+
+yapf --diff --style=google /path/to/project/
+--- a/views.py (original)
++++ b/views.py (reformatted)
+@@ -10,7 +10,7 @@
+     return render_template('index.html')
+ 
+ 
+-def process_form(data,options={}):
++def process_form(data, options=None):
+     """Process form data with validation"""
+-    if not data or len(data)==0:
++    if not data or len(data) == 0:
+         return None
+     
+-    config={'timeout':30,'retries':3}
++    config = {'timeout': 30, 'retries': 3}
+     config.update(options or {})
+     
+     return validated_data
+
+yapf --in-place --recursive /path/to/project/
+Reformatted /path/to/project/main.py
+Reformatted /path/to/project/utils.py
+Reformatted /path/to/project/views.py
+
+yapf --style=pep8 --parallel /path/to/project/
+Reformatted /path/to/project/models.py
+Reformatted /path/to/project/serializers.py
+5 files reformatted, 3 files left unchanged.
+
+# Check mode output
+yapf --diff --check /path/to/project/
+--- a/bad_formatting.py (original)
++++ b/bad_formatting.py (reformatted)
+@@ -1,5 +1,5 @@
+-import os,sys
++import os, sys
+ from typing import List
+ 
+-def test(x,y):
+-    return x+y
++def test(x, y):
++    return x + y
+
+ERROR: Files would be reformatted but yapf was run with --check.
+
+yapf --style='{based_on_style: pep8, indent_width: 2}' /path/to/project/
+--- a/custom_style.py (original)
++++ b/custom_style.py (reformatted)
+@@ -1,8 +1,8 @@
+ class Example:
+-    def __init__(self):
+-        self.data = {}
++  def __init__(self):
++    self.data = {}
+ 
+-    def process(self):
+-        return self.data
++  def process(self):
++    return self.data
+
+Reformatted custom_style.py
+
+# Verbose output
+yapf --diff --verbose /path/to/project/
+Processing /path/to/project/main.py
+--- a/main.py (original)
++++ b/main.py (reformatted)
+@@ -1,3 +1,3 @@
+-x=1+2
++x = 1 + 2
+ 
+ print(x)
+Processing /path/to/project/utils.py
+Processing /path/to/project/models.py
+--- a/models.py (original)
++++ b/models.py (reformatted)
+@@ -1,5 +1,5 @@
+ class User:
+-    def __init__(self,name,email):
++    def __init__(self, name, email):
+         self.name = name
+         self.email = email
+
+# Configuration and summary
+Style configuration: google
+Line length: 79
+Indent width: 4
+Files processed: 25
+Files reformatted: 8
+Files with no changes: 17
+Total execution time: 0.85s
+
+# Error cases
+yapf: error: unrecognized arguments: --invalid-option
+
+ERROR: /path/to/project/syntax_error.py:15:1: invalid syntax
+
+WARNING: /path/to/project/encoding_issue.py: cannot determine encoding
+
+INFO: /path/to/project/already_perfect.py: no changes needed

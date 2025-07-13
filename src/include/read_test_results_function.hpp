@@ -53,7 +53,12 @@ enum class TestResultFormat : uint8_t {
     BLACK_TEXT = 42,
     MYPY_TEXT = 43,
     DOCKER_BUILD = 44,
-    BAZEL_BUILD = 45
+    BAZEL_BUILD = 45,
+    ISORT_TEXT = 46,
+    BANDIT_TEXT = 47,
+    AUTOPEP8_TEXT = 48,
+    YAPF_TEXT = 49,
+    COVERAGE_TEXT = 50
 };
 
 // Bind data for read_test_results table function
@@ -163,5 +168,10 @@ void ParseBlackText(const std::string& content, std::vector<ValidationEvent>& ev
 void ParseMypyText(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseDockerBuild(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseBazelBuild(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseIsortText(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseBanditText(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseAutopep8Text(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseYapfText(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseCoverageText(const std::string& content, std::vector<ValidationEvent>& events);
 
 } // namespace duckdb

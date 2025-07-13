@@ -1,0 +1,160 @@
+--- original/src/main.py
++++ fixed/src/main.py
+@@ -1,15 +1,15 @@
+ import os
+-import sys,json
++import sys, json
+ from typing import Dict
+ 
+ 
+-def process_data(x,y,z):
+-    if(x>y):
+-        return x+y
+-    elif x<y :
++def process_data(x, y, z):
++    if (x > y):
++        return x + y
++    elif x < y:
+         return y
+     else:
+-        return z  
++        return z
+ 
+ 
+ class DataProcessor:
+@@ -17,24 +17,27 @@
+         self.data = data
+ 
+     def process(self):
+-        result=[]
+-        for item in self.data :
+-            if item!= None:
++        result = []
++        for item in self.data:
++            if item is not None:
+                 result.append(item)
+         return result
+ 
+-    def validate(self,value):
+-        return value!=None and len(value)>0
++    def validate(self, value):
++        return value is not None and len(value) > 0
+ 
+ 
+ # Multiple issues on one line
+-x=1;y=2;z=3
++x = 1
++y = 2
++z = 3
+ 
+ # Trailing whitespace and multiple newlines
+-data={"key1":"value1","key2":"value2"}  
++data = {"key1": "value1", "key2": "value2"}
+ 
+ 
+ 
+ 
+ 
+ print("Done")
+
+--- original/src/utils.py
++++ fixed/src/utils.py
+@@ -1,8 +1,8 @@
+-def helper(a,b,c=None):
+-    if c==None:
+-        return a+b
+-    return a+b+c
++def helper(a, b, c=None):
++    if c is None:
++        return a + b
++    return a + b + c
+ 
+-result=helper(1,2)
++
++result = helper(1, 2)
+
+ERROR: /path/to/project/syntax_error.py:15:1: E999 SyntaxError: invalid syntax
+
+WARNING: /path/to/project/incomplete.py:22:80: E501 line too long (85 > 79 characters)
+
+INFO: /path/to/project/good_file.py: no changes needed
+
+autopep8 --diff --max-line-length=120 /path/to/project/
+--- original/views.py
++++ fixed/views.py
+@@ -10,7 +10,7 @@
+     return render_template('index.html')
+ 
+ 
+-def process_form(data,options={}):
++def process_form(data, options=None):
+     """Process form data with validation"""
+-    if not data or len(data)==0:
++    if not data or len(data) == 0:
+         return None
+     
+-    config={'timeout':30,'retries':3}
++    config = {'timeout': 30, 'retries': 3}
+     config.update(options or {})
+     
+     return validated_data
+
+autopep8 --aggressive --aggressive /path/to/project/aggressive_fixes.py
+--- original/aggressive_fixes.py
++++ fixed/aggressive_fixes.py
+@@ -5,12 +5,12 @@
+ 
+ 
+ def complex_function():
+-    # This will be more aggressively reformatted
+-    data={'items':[1,2,3,4,5],'metadata':{'created':'2024-01-01','version':1.0}}
++    # This will be more aggressively reformatted 
++    data = {'items': [1, 2, 3, 4, 5], 'metadata': {'created': '2024-01-01', 'version': 1.0}}
+     
+-    result=[]
+-    for item in data['items']:
+-        if item%2==0:
++    result = []
++    for item in data['items']:
++        if item % 2 == 0:
+             result.append(item)
+     
+     return result
+
+autopep8 --in-place --recursive /path/to/project/
+fixed /path/to/project/main.py
+fixed /path/to/project/utils.py
+fixed /path/to/project/views.py
+fixed 3 files
+
+autopep8 --select=E1,E2 --ignore=E501 /path/to/project/
+--- original/selective.py
++++ fixed/selective.py
+@@ -1,5 +1,5 @@
+-import os,sys
++import os, sys
+ from typing import List
+ 
+-def test(x,y):
+-    return x+y
++def test(x, y):
++    return x + y
+
+# Configuration applied
+Applied configuration:
+  aggressive: 2
+  max-line-length: 120
+  select: E1,E2,E3,E4,W1,W2,W3
+  ignore: E501,W503
+
+# Summary statistics
+Files processed: 15
+Files modified: 8
+Files with errors: 1
+Total fixes applied: 127
+Execution time: 0.45s
+
+# Error details
+ERROR: /path/to/project/broken_syntax.py:45:12: SyntaxError: unexpected EOF while parsing
+WARNING: /path/to/project/encoding_issues.py: could not determine file encoding
+INFO: /path/to/project/already_formatted.py: already formatted correctly

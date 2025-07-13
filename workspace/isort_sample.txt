@@ -1,0 +1,89 @@
+ERROR: /path/to/project/src/main.py Imports are incorrectly sorted and/or formatted.
+ERROR: /path/to/project/src/utils/helpers.py Imports are incorrectly sorted and/or formatted.
+ERROR: /path/to/project/tests/test_main.py Imports are incorrectly sorted and/or formatted.
+
+Fixing /path/to/project/src/main.py
+Fixing /path/to/project/src/utils/helpers.py
+Fixing /path/to/project/tests/test_main.py
+
+--- /path/to/project/src/main.py:before	2024-01-15 10:30:45.123456
++++ /path/to/project/src/main.py:after	2024-01-15 10:30:45.234567
+@@ -1,8 +1,8 @@
+ import sys
+-import requests
+-import os
+ import json
++import os
+ from typing import Dict, List
++import requests
+ 
+ from myproject.utils import helper_function
+ from myproject.models import User
+
+--- /path/to/project/src/utils/helpers.py:before	2024-01-15 10:30:45.345678
++++ /path/to/project/src/utils/helpers.py:after	2024-01-15 10:30:45.456789
+@@ -1,6 +1,6 @@
+-from myproject.models import User, Product
+-import json
+ import os
++import json
++from myproject.models import User, Product
+ 
+ def process_data():
+     pass
+
+Skipped 5 files
+Successfully formatted 12 files, 3 files reformatted.
+
+import-order-style: google
+line-length: 88
+profile: black
+known_first_party: myproject,tests
+multi_line_output: 3
+include_trailing_comma: True
+force_grid_wrap: 0
+use_parentheses: True
+ensure_newline_before_comments: True
+
+All done! ✨ 🍰 ✨
+15 files would be reformatted, 3 files would be left unchanged.
+
+isort --check-only --diff /path/to/project/
+ERROR: isort found an import in the wrong position.
+File: /path/to/project/bad_imports.py
+Line: 5
+Expected: import os to be before import requests
+Actual: import requests is before import os
+
+File: /path/to/project/another_file.py
+Line: 3
+Expected: from typing import Dict to be in typing imports section
+Actual: from typing import Dict is mixed with standard library imports
+
+ERROR: Some files have incorrectly sorted imports.
+To fix them, run: isort /path/to/project/
+
+isort --verbose /path/to/project/
+Parsing /path/to/project/main.py
+Parsing /path/to/project/utils.py
+Parsing /path/to/project/models.py
+Placing imports for /path/to/project/main.py
+Placing imports for /path/to/project/utils.py
+Placing imports for /path/to/project/models.py
+Successfully formatted 3 files.
+
+ERROR: /path/to/project/syntax_error.py Unable to parse file. SyntaxError: invalid syntax
+WARNING: /path/to/project/encoding_issue.py Unable to determine encoding.
+ERROR: Permission denied: /path/to/project/readonly_file.py
+
+isort --line-length=120 --profile=django /path/to/project/
+Reformatted /path/to/project/views.py
+Reformatted /path/to/project/models.py
+2 files reformatted, 8 files left unchanged.
+
+# Summary Report
+Files processed: 45
+Files reformatted: 8
+Files with errors: 2
+Files skipped: 3
+Total execution time: 1.23s

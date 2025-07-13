@@ -185,6 +185,28 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
         return TestResultFormat::PYLINT_TEXT;
     }
     
+    // Check for yapf patterns (must be before autopep8 since both use similar diff formats)
+    if ((content.find("--- a/") != std::string::npos && content.find("+++ b/") != std::string::npos && content.find("(original)") != std::string::npos && content.find("(reformatted)") != std::string::npos) ||
+        (content.find("Reformatted ") != std::string::npos && content.find(".py") != std::string::npos) ||
+        (content.find("yapf --") != std::string::npos) ||
+        (content.find("Style configuration:") != std::string::npos && content.find("Line length:") != std::string::npos) ||
+        (content.find("Files reformatted:") != std::string::npos && content.find("Files with no changes:") != std::string::npos) ||
+        (content.find("Processing /") != std::string::npos && content.find("--verbose") != std::string::npos) ||
+        (content.find("ERROR: Files would be reformatted but yapf was run with --check") != std::string::npos)) {
+        return TestResultFormat::YAPF_TEXT;
+    }
+    
+    // Check for autopep8 patterns (must be after yapf since both use diff formats)
+    if ((content.find("--- original/") != std::string::npos && content.find("+++ fixed/") != std::string::npos) ||
+        (content.find("fixed ") != std::string::npos && content.find(" files") != std::string::npos) ||
+        (content.find("ERROR:") != std::string::npos && content.find(": E999 SyntaxError:") != std::string::npos) ||
+        (content.find("autopep8 --") != std::string::npos && content.find("--") != std::string::npos) ||
+        (content.find("Applied configuration:") != std::string::npos && content.find("aggressive:") != std::string::npos) ||
+        (content.find("Files processed:") != std::string::npos && content.find("Files modified:") != std::string::npos) ||
+        (content.find("Total fixes applied:") != std::string::npos)) {
+        return TestResultFormat::AUTOPEP8_TEXT;
+    }
+    
     // Check for Flake8 patterns
     if ((content.find("F401") != std::string::npos || content.find("E131") != std::string::npos || content.find("W503") != std::string::npos) ||
         (content.find(".py:") != std::string::npos && content.find(":") != std::string::npos && (content.find(" F") != std::string::npos || content.find(" E") != std::string::npos || content.find(" W") != std::string::npos || content.find(" C") != std::string::npos)) ||
@@ -232,6 +254,40 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
         (content.find("Analyzing:") != std::string::npos && content.find("targets") != std::string::npos && content.find("configured") != std::string::npos) ||
         (content.find("TIMEOUT: //") != std::string::npos || content.find("FLAKY: //") != std::string::npos || content.find("SKIPPED: //") != std::string::npos)) {
         return TestResultFormat::BAZEL_BUILD;
+    }
+    
+    // Check for isort patterns  
+    if ((content.find("Imports are incorrectly sorted") != std::string::npos) ||
+        (content.find("Fixing") != std::string::npos && content.find(".py") != std::string::npos) ||
+        (content.find("files reformatted") != std::string::npos && content.find("files left unchanged") != std::string::npos) ||
+        (content.find("import-order-style:") != std::string::npos || content.find("profile:") != std::string::npos) ||
+        (content.find("ERROR: isort found an import in the wrong position") != std::string::npos) ||
+        (content.find("Parsing") != std::string::npos && content.find(".py") != std::string::npos && content.find("Placing imports") != std::string::npos) ||
+        (content.find("would be reformatted") != std::string::npos && content.find("would be left unchanged") != std::string::npos)) {
+        return TestResultFormat::ISORT_TEXT;
+    }
+    
+    // Check for coverage.py patterns
+    if ((content.find("Name") != std::string::npos && content.find("Stmts") != std::string::npos && content.find("Miss") != std::string::npos && content.find("Cover") != std::string::npos) ||
+        (content.find("coverage run") != std::string::npos && content.find("--source=") != std::string::npos) ||
+        (content.find("Coverage report generated") != std::string::npos) ||
+        (content.find("coverage html") != std::string::npos || content.find("coverage xml") != std::string::npos || content.find("coverage json") != std::string::npos) ||
+        (content.find("Wrote HTML report to") != std::string::npos || content.find("Wrote XML report to") != std::string::npos || content.find("Wrote JSON report to") != std::string::npos) ||
+        (content.find("TOTAL") != std::string::npos && content.find("-------") != std::string::npos && content.find("%") != std::string::npos) ||
+        (content.find("Coverage failure:") != std::string::npos && content.find("--fail-under=") != std::string::npos) ||
+        (content.find("Branch") != std::string::npos && content.find("BrPart") != std::string::npos)) {
+        return TestResultFormat::COVERAGE_TEXT;
+    }
+    
+    // Check for bandit text patterns
+    if ((content.find("Test results:") != std::string::npos && content.find(">> Issue:") != std::string::npos && content.find("Severity:") != std::string::npos) ||
+        (content.find("[bandit]") != std::string::npos && content.find("security scan") != std::string::npos) ||
+        (content.find("Total issues (by severity):") != std::string::npos && content.find("Total issues (by confidence):") != std::string::npos) ||
+        (content.find("Code scanned:") != std::string::npos && content.find("Total lines of code:") != std::string::npos) ||
+        (content.find("More Info: https://bandit.readthedocs.io") != std::string::npos) ||
+        (content.find("CWE:") != std::string::npos && content.find("https://cwe.mitre.org") != std::string::npos) ||
+        (content.find("running on Python") != std::string::npos && content.find("[main]") != std::string::npos)) {
+        return TestResultFormat::BANDIT_TEXT;
     }
     
     if (content.find("PASSED") != std::string::npos && content.find("::") != std::string::npos) {
@@ -359,6 +415,11 @@ std::string TestResultFormatToString(TestResultFormat format) {
         case TestResultFormat::MYPY_TEXT: return "mypy_text";
         case TestResultFormat::DOCKER_BUILD: return "docker_build";
         case TestResultFormat::BAZEL_BUILD: return "bazel_build";
+        case TestResultFormat::ISORT_TEXT: return "isort_text";
+        case TestResultFormat::BANDIT_TEXT: return "bandit_text";
+        case TestResultFormat::AUTOPEP8_TEXT: return "autopep8_text";
+        case TestResultFormat::YAPF_TEXT: return "yapf_text";
+        case TestResultFormat::COVERAGE_TEXT: return "coverage_text";
         default: return "unknown";
     }
 }
@@ -409,6 +470,11 @@ TestResultFormat StringToTestResultFormat(const std::string& str) {
     if (str == "mypy_text") return TestResultFormat::MYPY_TEXT;
     if (str == "docker_build") return TestResultFormat::DOCKER_BUILD;
     if (str == "bazel_build") return TestResultFormat::BAZEL_BUILD;
+    if (str == "isort_text") return TestResultFormat::ISORT_TEXT;
+    if (str == "bandit_text") return TestResultFormat::BANDIT_TEXT;
+    if (str == "autopep8_text") return TestResultFormat::AUTOPEP8_TEXT;
+    if (str == "yapf_text") return TestResultFormat::YAPF_TEXT;
+    if (str == "coverage_text") return TestResultFormat::COVERAGE_TEXT;
     if (str == "unknown") return TestResultFormat::UNKNOWN;
     return TestResultFormat::AUTO;  // Default to auto-detection
 }
@@ -633,6 +699,21 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
             break;
         case TestResultFormat::BAZEL_BUILD:
             ParseBazelBuild(content, global_state->events);
+            break;
+        case TestResultFormat::ISORT_TEXT:
+            ParseIsortText(content, global_state->events);
+            break;
+        case TestResultFormat::BANDIT_TEXT:
+            ParseBanditText(content, global_state->events);
+            break;
+        case TestResultFormat::AUTOPEP8_TEXT:
+            ParseAutopep8Text(content, global_state->events);
+            break;
+        case TestResultFormat::YAPF_TEXT:
+            ParseYapfText(content, global_state->events);
+            break;
+        case TestResultFormat::COVERAGE_TEXT:
+            ParseCoverageText(content, global_state->events);
             break;
         default:
             // For unknown formats, don't create any events
@@ -3621,6 +3702,21 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
             break;
         case TestResultFormat::BAZEL_BUILD:
             ParseBazelBuild(content, global_state->events);
+            break;
+        case TestResultFormat::ISORT_TEXT:
+            ParseIsortText(content, global_state->events);
+            break;
+        case TestResultFormat::BANDIT_TEXT:
+            ParseBanditText(content, global_state->events);
+            break;
+        case TestResultFormat::AUTOPEP8_TEXT:
+            ParseAutopep8Text(content, global_state->events);
+            break;
+        case TestResultFormat::YAPF_TEXT:
+            ParseYapfText(content, global_state->events);
+            break;
+        case TestResultFormat::COVERAGE_TEXT:
+            ParseCoverageText(content, global_state->events);
             break;
         default:
             // For unknown formats, don't create any events
@@ -8355,6 +8451,2113 @@ void ParseBazelBuild(const std::string& content, std::vector<ValidationEvent>& e
                                    ", \"skipped\": " + std::to_string(skipped) + "}";
             
             events.push_back(event);
+        }
+    }
+}
+
+void ParseIsortText(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream stream(content);
+    std::string line;
+    int64_t event_id = 1;
+    
+    // Regex patterns for isort output
+    std::regex isort_error(R"(ERROR: ([^:]+\.py) Imports are incorrectly sorted and/or formatted\.)");
+    std::regex isort_fixing(R"(Fixing ([^:]+\.py))");
+    std::regex isort_diff_header(R"(--- ([^:]+\.py):before\s+(.+))");
+    std::regex isort_parse_error(R"(ERROR: ([^:]+\.py) (.+))");
+    std::regex isort_warning(R"(WARNING: ([^:]+\.py) (.+))");
+    std::regex isort_summary(R"(Successfully formatted (\d+) files?, (\d+) files? reformatted\.)");
+    std::regex isort_dry_run(R"((\d+) files? would be reformatted, (\d+) files? would be left unchanged\.)");
+    std::regex isort_config_setting(R"(([^:]+):\s*(.+))");
+    std::regex isort_verbose_parsing(R"(Parsing ([^:]+\.py))");
+    std::regex isort_verbose_placing(R"(Placing imports for ([^:]+\.py))");
+    std::regex isort_check_error(R"(ERROR: isort found an import in the wrong position\.)");
+    std::regex isort_file_line(R"(File: ([^:]+\.py))");
+    std::regex isort_line_number(R"(Line: (\d+))");
+    std::regex isort_expected(R"(Expected: (.+))");
+    std::regex isort_actual(R"(Actual: (.+))");
+    std::regex isort_skipped(R"(Skipped (\d+) files?)");
+    std::regex isort_permission_denied(R"(ERROR: Permission denied: ([^:]+\.py))");
+    std::regex isort_syntax_error(R"(ERROR: ([^:]+\.py) Unable to parse file\. (.+))");
+    std::regex isort_encoding_warning(R"(WARNING: ([^:]+\.py) Unable to determine encoding\.)");
+    std::regex isort_execution_time(R"(Total execution time: ([\d\.]+)s)");
+    std::regex isort_final_summary(R"(Files processed: (\d+))");
+    
+    std::string current_file;
+    std::string current_error_context;
+    bool in_diff_section = false;
+    bool in_config_section = false;
+    bool in_check_mode = false;
+    int current_line_number = -1;
+    
+    while (std::getline(stream, line)) {
+        std::smatch match;
+        
+        // Check for configuration section
+        if (line.find("import-order-style:") != std::string::npos || 
+            line.find("profile:") != std::string::npos ||
+            line.find("line-length:") != std::string::npos) {
+            in_config_section = true;
+        }
+        
+        // Check for diff section
+        if (line.find("---") != std::string::npos && line.find(":before") != std::string::npos) {
+            in_diff_section = true;
+        } else if (line.find("+++") != std::string::npos && line.find(":after") != std::string::npos) {
+            in_diff_section = true;
+        } else if (in_diff_section && line.empty()) {
+            in_diff_section = false;
+        }
+        
+        // Parse import sorting errors
+        if (std::regex_search(line, match, isort_error)) {
+            std::string file_path = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.severity = "error";
+            event.status = ValidationEventStatus::ERROR;
+            event.message = "Imports are incorrectly sorted and/or formatted";
+            event.file_path = file_path;
+            event.tool_name = "isort";
+            event.category = "import_order";
+            event.error_code = "IMPORT_ORDER";
+            event.raw_output = line;
+            event.structured_data = "{\"file\": \"" + file_path + "\", \"issue\": \"incorrect_import_order\"}";
+            
+            events.push_back(event);
+        }
+        // Parse fixing messages
+        else if (std::regex_search(line, match, isort_fixing)) {
+            std::string file_path = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "Fixing import order";
+            event.file_path = file_path;
+            event.tool_name = "isort";
+            event.category = "import_fix";
+            event.raw_output = line;
+            event.structured_data = "{\"file\": \"" + file_path + "\", \"action\": \"fixing_imports\"}";
+            
+            events.push_back(event);
+        }
+        // Parse verbose parsing messages
+        else if (std::regex_search(line, match, isort_verbose_parsing)) {
+            std::string file_path = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::DEBUG_EVENT;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "Parsing Python file";
+            event.file_path = file_path;
+            event.tool_name = "isort";
+            event.category = "parsing";
+            event.raw_output = line;
+            event.structured_data = "{\"file\": \"" + file_path + "\", \"action\": \"parsing\"}";
+            
+            events.push_back(event);
+        }
+        // Parse verbose placing messages
+        else if (std::regex_search(line, match, isort_verbose_placing)) {
+            std::string file_path = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::DEBUG_EVENT;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "Placing imports";
+            event.file_path = file_path;
+            event.tool_name = "isort";
+            event.category = "placing";
+            event.raw_output = line;
+            event.structured_data = "{\"file\": \"" + file_path + "\", \"action\": \"placing_imports\"}";
+            
+            events.push_back(event);
+        }
+        // Parse check-only mode errors
+        else if (std::regex_search(line, match, isort_check_error)) {
+            in_check_mode = true;
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.severity = "error";
+            event.status = ValidationEventStatus::ERROR;
+            event.message = "Import found in wrong position";
+            event.tool_name = "isort";
+            event.category = "import_position";
+            event.error_code = "WRONG_POSITION";
+            event.raw_output = line;
+            event.structured_data = "{\"check_mode\": true, \"issue\": \"wrong_import_position\"}";
+            
+            events.push_back(event);
+        }
+        // Parse file context in check mode
+        else if (in_check_mode && std::regex_search(line, match, isort_file_line)) {
+            current_file = match[1].str();
+        }
+        // Parse line number in check mode
+        else if (in_check_mode && std::regex_search(line, match, isort_line_number)) {
+            current_line_number = std::stoi(match[1].str());
+        }
+        // Parse expected vs actual in check mode
+        else if (in_check_mode && std::regex_search(line, match, isort_expected)) {
+            std::string expected = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "Expected: " + expected;
+            event.file_path = current_file;
+            event.line_number = current_line_number;
+            event.tool_name = "isort";
+            event.category = "import_expectation";
+            event.raw_output = line;
+            event.structured_data = "{\"file\": \"" + current_file + "\", \"expected\": \"" + expected + "\"}";
+            
+            events.push_back(event);
+        }
+        else if (in_check_mode && std::regex_search(line, match, isort_actual)) {
+            std::string actual = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.severity = "warning";
+            event.status = ValidationEventStatus::WARNING;
+            event.message = "Actual: " + actual;
+            event.file_path = current_file;
+            event.line_number = current_line_number;
+            event.tool_name = "isort";
+            event.category = "import_actual";
+            event.raw_output = line;
+            event.structured_data = "{\"file\": \"" + current_file + "\", \"actual\": \"" + actual + "\"}";
+            
+            events.push_back(event);
+        }
+        // Parse parse/syntax errors
+        else if (std::regex_search(line, match, isort_parse_error) || 
+                 std::regex_search(line, match, isort_syntax_error)) {
+            std::string file_path = match[1].str();
+            std::string error_msg = match[2].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.severity = "error";
+            event.status = ValidationEventStatus::ERROR;
+            event.message = error_msg;
+            event.file_path = file_path;
+            event.tool_name = "isort";
+            event.category = "parse_error";
+            event.error_code = "PARSE_ERROR";
+            event.raw_output = line;
+            event.structured_data = "{\"file\": \"" + file_path + "\", \"error\": \"" + error_msg + "\"}";
+            
+            events.push_back(event);
+        }
+        // Parse permission errors
+        else if (std::regex_search(line, match, isort_permission_denied)) {
+            std::string file_path = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.severity = "error";
+            event.status = ValidationEventStatus::ERROR;
+            event.message = "Permission denied";
+            event.file_path = file_path;
+            event.tool_name = "isort";
+            event.category = "permission_error";
+            event.error_code = "PERMISSION_DENIED";
+            event.raw_output = line;
+            event.structured_data = "{\"file\": \"" + file_path + "\", \"error\": \"permission_denied\"}";
+            
+            events.push_back(event);
+        }
+        // Parse encoding warnings
+        else if (std::regex_search(line, match, isort_encoding_warning)) {
+            std::string file_path = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.severity = "warning";
+            event.status = ValidationEventStatus::WARNING;
+            event.message = "Unable to determine encoding";
+            event.file_path = file_path;
+            event.tool_name = "isort";
+            event.category = "encoding_warning";
+            event.raw_output = line;
+            event.structured_data = "{\"file\": \"" + file_path + "\", \"warning\": \"encoding_issue\"}";
+            
+            events.push_back(event);
+        }
+        // Parse success summary
+        else if (std::regex_search(line, match, isort_summary)) {
+            int formatted = std::stoi(match[1].str());
+            int reformatted = std::stoi(match[2].str());
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SUMMARY;
+            event.severity = "info";
+            event.status = ValidationEventStatus::PASS;
+            event.message = "Successfully formatted " + std::to_string(formatted) + " files, " + 
+                           std::to_string(reformatted) + " files reformatted";
+            event.tool_name = "isort";
+            event.category = "format_summary";
+            event.raw_output = line;
+            event.structured_data = "{\"formatted\": " + std::to_string(formatted) + 
+                                   ", \"reformatted\": " + std::to_string(reformatted) + "}";
+            
+            events.push_back(event);
+        }
+        // Parse dry-run summary
+        else if (std::regex_search(line, match, isort_dry_run)) {
+            int would_reformat = std::stoi(match[1].str());
+            int unchanged = std::stoi(match[2].str());
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SUMMARY;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = std::to_string(would_reformat) + " files would be reformatted, " + 
+                           std::to_string(unchanged) + " files would be left unchanged";
+            event.tool_name = "isort";
+            event.category = "dry_run_summary";
+            event.raw_output = line;
+            event.structured_data = "{\"would_reformat\": " + std::to_string(would_reformat) + 
+                                   ", \"unchanged\": " + std::to_string(unchanged) + ", \"dry_run\": true}";
+            
+            events.push_back(event);
+        }
+        // Parse skipped files
+        else if (std::regex_search(line, match, isort_skipped)) {
+            int skipped = std::stoi(match[1].str());
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SUMMARY;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "Skipped " + std::to_string(skipped) + " files";
+            event.tool_name = "isort";
+            event.category = "skipped_files";
+            event.raw_output = line;
+            event.structured_data = "{\"skipped\": " + std::to_string(skipped) + "}";
+            
+            events.push_back(event);
+        }
+        // Parse execution time
+        else if (std::regex_search(line, match, isort_execution_time)) {
+            double exec_time = std::stod(match[1].str());
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::PERFORMANCE_METRIC;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "Total execution time: " + match[1].str() + "s";
+            event.tool_name = "isort";
+            event.category = "performance";
+            event.execution_time = exec_time;
+            event.raw_output = line;
+            event.structured_data = "{\"execution_time\": " + match[1].str() + "}";
+            
+            events.push_back(event);
+        }
+        // Parse configuration settings
+        else if (in_config_section && std::regex_search(line, match, isort_config_setting)) {
+            std::string setting = match[1].str();
+            std::string value = match[2].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::DEBUG_EVENT;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "Configuration: " + setting + " = " + value;
+            event.tool_name = "isort";
+            event.category = "configuration";
+            event.raw_output = line;
+            event.structured_data = "{\"setting\": \"" + setting + "\", \"value\": \"" + value + "\"}";
+            
+            events.push_back(event);
+        }
+        
+        // Reset check mode context when we hit an empty line after check details
+        if (in_check_mode && line.empty()) {
+            in_check_mode = false;
+            current_file.clear();
+            current_line_number = -1;
+        }
+        
+        // Reset config section when we hit "All done!" or similar
+        if (line.find("All done!") != std::string::npos || 
+            line.find("files would be reformatted") != std::string::npos) {
+            in_config_section = false;
+        }
+    }
+}
+
+void ParseBanditText(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream stream(content);
+    std::string line;
+    int64_t event_id = 1;
+    
+    // Regex patterns for bandit text output
+    std::regex bandit_issue_header(R"(>> Issue: \[([^:]+):([^\]]+)\] (.+))");
+    std::regex bandit_severity(R"(Severity: (Low|Medium|High)\s+Confidence: (Low|Medium|High))");
+    std::regex bandit_cwe(R"(CWE: (CWE-\d+) \(([^)]+)\))");
+    std::regex bandit_more_info(R"(More Info: (https://bandit\.readthedocs\.io[^\s]+))");
+    std::regex bandit_location(R"(Location: ([^:]+):(\d+):(\d+))");
+    std::regex bandit_info_log(R"(\[main\]\s+(INFO|WARNING|ERROR)\s+(.+))");
+    std::regex bandit_run_started(R"(Run started:(.+))");
+    std::regex bandit_total_lines(R"(Total lines of code: (\d+))");
+    std::regex bandit_skipped_lines(R"(Total lines skipped \(#nosec\): (\d+))");
+    std::regex bandit_severity_summary(R"((Low|Medium|High|Undefined): (\d+))");
+    std::regex bandit_confidence_summary(R"((Low|Medium|High|Undefined): (\d+))");
+    std::regex bandit_files_skipped(R"(Files skipped \((\d+)\):)");
+    std::regex bandit_final_log(R"(\[bandit\]\s+(INFO|WARNING|ERROR)\s+(.+))");
+    std::regex bandit_issues_found(R"(Found (\d+) issues with security implications)");
+    std::regex bandit_execution_time(R"(Total execution time: ([\d\.]+) seconds)");
+    std::regex bandit_python_version(R"(running on Python ([\d\.]+))");
+    
+    std::string current_test_id;
+    std::string current_test_name;
+    std::string current_severity;
+    std::string current_confidence;
+    std::string current_file;
+    std::string current_cwe;
+    std::string current_more_info;
+    int current_line = -1;
+    int current_column = -1;
+    bool in_issue_block = false;
+    bool in_severity_summary = false;
+    bool in_confidence_summary = false;
+    
+    while (std::getline(stream, line)) {
+        std::smatch match;
+        
+        // Parse issue header
+        if (std::regex_search(line, match, bandit_issue_header)) {
+            current_test_id = match[1].str();
+            current_test_name = match[2].str();
+            std::string description = match[3].str();
+            in_issue_block = true;
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SECURITY_FINDING;
+            event.severity = "unknown";  // Will be updated when we parse severity line
+            event.status = ValidationEventStatus::WARNING;
+            event.message = description;
+            event.tool_name = "bandit";
+            event.category = "security";
+            event.error_code = current_test_id;
+            event.test_name = current_test_name;
+            event.raw_output = line;
+            event.structured_data = "{\"test_id\": \"" + current_test_id + "\", \"test_name\": \"" + current_test_name + "\", \"description\": \"" + description + "\"}";
+            
+            events.push_back(event);
+        }
+        // Parse severity and confidence
+        else if (in_issue_block && std::regex_search(line, match, bandit_severity)) {
+            current_severity = match[1].str();
+            current_confidence = match[2].str();
+            
+            // Update the last event with severity information
+            if (!events.empty()) {
+                auto& last_event = events.back();
+                last_event.severity = current_severity == "High" ? "error" : 
+                                     current_severity == "Medium" ? "warning" : "info";
+                last_event.status = current_severity == "High" ? ValidationEventStatus::ERROR :
+                                   current_severity == "Medium" ? ValidationEventStatus::WARNING : ValidationEventStatus::INFO;
+                
+                // Update structured data with severity and confidence
+                last_event.structured_data = "{\"test_id\": \"" + current_test_id + 
+                                             "\", \"test_name\": \"" + current_test_name + 
+                                             "\", \"severity\": \"" + current_severity + 
+                                             "\", \"confidence\": \"" + current_confidence + "\"}";
+            }
+        }
+        // Parse CWE information
+        else if (in_issue_block && std::regex_search(line, match, bandit_cwe)) {
+            current_cwe = match[1].str();
+            std::string cwe_url = match[2].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SECURITY_FINDING;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "CWE reference: " + current_cwe;
+            event.tool_name = "bandit";
+            event.category = "cwe_reference";
+            event.error_code = current_cwe;
+            event.raw_output = line;
+            event.structured_data = "{\"cwe\": \"" + current_cwe + "\", \"url\": \"" + cwe_url + "\"}";
+            
+            events.push_back(event);
+        }
+        // Parse more info URL
+        else if (in_issue_block && std::regex_search(line, match, bandit_more_info)) {
+            current_more_info = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::DEBUG_EVENT;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "More information available";
+            event.tool_name = "bandit";
+            event.category = "documentation";
+            event.suggestion = current_more_info;
+            event.raw_output = line;
+            event.structured_data = "{\"more_info\": \"" + current_more_info + "\"}";
+            
+            events.push_back(event);
+        }
+        // Parse location
+        else if (in_issue_block && std::regex_search(line, match, bandit_location)) {
+            current_file = match[1].str();
+            current_line = std::stoi(match[2].str());
+            current_column = std::stoi(match[3].str());
+            
+            // Update the first event in this block with location information
+            if (!events.empty()) {
+                for (auto& event : events) {
+                    if (event.error_code == current_test_id && event.file_path.empty()) {
+                        event.file_path = current_file;
+                        event.line_number = current_line;
+                        event.column_number = current_column;
+                        break;
+                    }
+                }
+            }
+        }
+        // Parse main info logs
+        else if (std::regex_search(line, match, bandit_info_log)) {
+            std::string log_level = match[1].str();
+            std::string log_message = match[2].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::DEBUG_EVENT;
+            event.severity = log_level == "ERROR" ? "error" : 
+                            log_level == "WARNING" ? "warning" : "info";
+            event.status = log_level == "ERROR" ? ValidationEventStatus::ERROR :
+                          log_level == "WARNING" ? ValidationEventStatus::WARNING : ValidationEventStatus::INFO;
+            event.message = log_message;
+            event.tool_name = "bandit";
+            event.category = "initialization";
+            event.raw_output = line;
+            event.structured_data = "{\"log_level\": \"" + log_level + "\", \"message\": \"" + log_message + "\"}";
+            
+            events.push_back(event);
+        }
+        // Parse run started
+        else if (std::regex_search(line, match, bandit_run_started)) {
+            std::string timestamp = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::DEBUG_EVENT;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "Security scan started";
+            event.tool_name = "bandit";
+            event.category = "scan_start";
+            event.raw_output = line;
+            event.structured_data = "{\"timestamp\": \"" + timestamp + "\", \"action\": \"scan_start\"}";
+            
+            events.push_back(event);
+        }
+        // Parse Python version
+        else if (std::regex_search(line, match, bandit_python_version)) {
+            std::string python_version = match[1].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::DEBUG_EVENT;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "Running on Python " + python_version;
+            event.tool_name = "bandit";
+            event.category = "environment";
+            event.raw_output = line;
+            event.structured_data = "{\"python_version\": \"" + python_version + "\"}";
+            
+            events.push_back(event);
+        }
+        // Parse total lines of code
+        else if (std::regex_search(line, match, bandit_total_lines)) {
+            int total_lines = std::stoi(match[1].str());
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SUMMARY;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "Total lines of code analyzed: " + std::to_string(total_lines);
+            event.tool_name = "bandit";
+            event.category = "code_metrics";
+            event.raw_output = line;
+            event.structured_data = "{\"total_lines\": " + std::to_string(total_lines) + "}";
+            
+            events.push_back(event);
+        }
+        // Parse skipped lines
+        else if (std::regex_search(line, match, bandit_skipped_lines)) {
+            int skipped_lines = std::stoi(match[1].str());
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SUMMARY;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "Lines skipped (#nosec): " + std::to_string(skipped_lines);
+            event.tool_name = "bandit";
+            event.category = "code_metrics";
+            event.raw_output = line;
+            event.structured_data = "{\"skipped_lines\": " + std::to_string(skipped_lines) + "}";
+            
+            events.push_back(event);
+        }
+        // Parse severity summary
+        else if (line.find("Total issues (by severity):") != std::string::npos) {
+            in_severity_summary = true;
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SUMMARY;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "Security issues summary by severity";
+            event.tool_name = "bandit";
+            event.category = "severity_summary";
+            event.raw_output = line;
+            event.structured_data = "{\"summary_type\": \"severity\"}";
+            
+            events.push_back(event);
+        }
+        else if (in_severity_summary && std::regex_search(line, match, bandit_severity_summary)) {
+            std::string severity_level = match[1].str();
+            int count = std::stoi(match[2].str());
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SUMMARY;
+            event.severity = severity_level == "High" ? "error" : 
+                            severity_level == "Medium" ? "warning" : "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = severity_level + " severity issues: " + std::to_string(count);
+            event.tool_name = "bandit";
+            event.category = "severity_count";
+            event.raw_output = line;
+            event.structured_data = "{\"severity\": \"" + severity_level + "\", \"count\": " + std::to_string(count) + "}";
+            
+            events.push_back(event);
+        }
+        // Parse confidence summary
+        else if (line.find("Total issues (by confidence):") != std::string::npos) {
+            in_confidence_summary = true;
+            in_severity_summary = false;
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SUMMARY;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "Security issues summary by confidence";
+            event.tool_name = "bandit";
+            event.category = "confidence_summary";
+            event.raw_output = line;
+            event.structured_data = "{\"summary_type\": \"confidence\"}";
+            
+            events.push_back(event);
+        }
+        else if (in_confidence_summary && std::regex_search(line, match, bandit_confidence_summary)) {
+            std::string confidence_level = match[1].str();
+            int count = std::stoi(match[2].str());
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SUMMARY;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = confidence_level + " confidence issues: " + std::to_string(count);
+            event.tool_name = "bandit";
+            event.category = "confidence_count";
+            event.raw_output = line;
+            event.structured_data = "{\"confidence\": \"" + confidence_level + "\", \"count\": " + std::to_string(count) + "}";
+            
+            events.push_back(event);
+        }
+        // Parse final bandit logs
+        else if (std::regex_search(line, match, bandit_final_log)) {
+            std::string log_level = match[1].str();
+            std::string log_message = match[2].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SUMMARY;
+            event.severity = log_level == "ERROR" ? "error" : 
+                            log_level == "WARNING" ? "warning" : "info";
+            event.status = log_level == "ERROR" ? ValidationEventStatus::ERROR :
+                          log_level == "WARNING" ? ValidationEventStatus::WARNING : ValidationEventStatus::PASS;
+            event.message = log_message;
+            event.tool_name = "bandit";
+            event.category = "scan_completion";
+            event.raw_output = line;
+            event.structured_data = "{\"log_level\": \"" + log_level + "\", \"message\": \"" + log_message + "\"}";
+            
+            events.push_back(event);
+        }
+        // Parse issues found count
+        else if (std::regex_search(line, match, bandit_issues_found)) {
+            int issues_count = std::stoi(match[1].str());
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::SUMMARY;
+            event.severity = issues_count > 0 ? "warning" : "info";
+            event.status = issues_count > 0 ? ValidationEventStatus::WARNING : ValidationEventStatus::PASS;
+            event.message = "Found " + std::to_string(issues_count) + " security issues";
+            event.tool_name = "bandit";
+            event.category = "issues_summary";
+            event.raw_output = line;
+            event.structured_data = "{\"issues_found\": " + std::to_string(issues_count) + "}";
+            
+            events.push_back(event);
+        }
+        // Parse execution time
+        else if (std::regex_search(line, match, bandit_execution_time)) {
+            double exec_time = std::stod(match[1].str());
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.event_type = ValidationEventType::PERFORMANCE_METRIC;
+            event.severity = "info";
+            event.status = ValidationEventStatus::INFO;
+            event.message = "Security scan completed in " + match[1].str() + " seconds";
+            event.tool_name = "bandit";
+            event.category = "performance";
+            event.execution_time = exec_time;
+            event.raw_output = line;
+            event.structured_data = "{\"execution_time\": " + match[1].str() + "}";
+            
+            events.push_back(event);
+        }
+        
+        // Reset issue block when we hit the separator
+        if (line.find("--------------------------------------------------") != std::string::npos) {
+            in_issue_block = false;
+        }
+        
+        // Reset summary flags when appropriate
+        if (line.find("Files skipped") != std::string::npos) {
+            in_severity_summary = false;
+            in_confidence_summary = false;
+        }
+    }
+}
+
+void ParseAutopep8Text(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream stream(content);
+    std::string line;
+    int64_t event_id = 1;
+    
+    // Regex patterns for autopep8 output
+    std::regex diff_start(R"(--- original/(.+))");
+    std::regex diff_fixed(R"(\+\+\+ fixed/(.+))");
+    std::regex error_pattern(R"(ERROR: ([^:]+\.py):(\d+):(\d+): (E\d+) (.+))");
+    std::regex warning_pattern(R"(WARNING: ([^:]+\.py):(\d+):(\d+): (E\d+) (.+))");
+    std::regex info_pattern(R"(INFO: ([^:]+\.py): (.+))");
+    std::regex fixed_pattern(R"(fixed ([^:]+\.py))");
+    std::regex autopep8_cmd(R"(autopep8 (--[^\s]+.+))");
+    std::regex config_line(R"(Applied configuration:)");
+    std::regex summary_files_processed(R"(Files processed: (\d+))");
+    std::regex summary_files_modified(R"(Files modified: (\d+))");
+    std::regex summary_files_errors(R"(Files with errors: (\d+))");
+    std::regex summary_fixes_applied(R"(Total fixes applied: (\d+))");
+    std::regex summary_execution_time(R"(Execution time: ([\d\.]+)s)");
+    std::regex syntax_error(R"(ERROR: ([^:]+\.py):(\d+):(\d+): SyntaxError: (.+))");
+    std::regex encoding_error(R"(WARNING: ([^:]+\.py): could not determine file encoding)");
+    std::regex already_formatted(R"(INFO: ([^:]+\.py): already formatted correctly)");
+    
+    std::smatch match;
+    std::string current_file;
+    bool in_diff = false;
+    bool in_config = false;
+    
+    while (std::getline(stream, line)) {
+        // Handle diff sections
+        if (std::regex_search(line, match, diff_start)) {
+            current_file = match[1].str();
+            in_diff = true;
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "autopep8";
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.file_path = current_file;
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "formatting";
+            event.message = "File formatting changes detected";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "autopep8_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle error patterns (E999 syntax errors)
+        if (std::regex_search(line, match, error_pattern)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "autopep8";
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.file_path = match[1].str();
+            event.line_number = std::stoi(match[2].str());
+            event.column_number = std::stoi(match[3].str());
+            event.status = ValidationEventStatus::ERROR;
+            event.severity = "error";
+            event.category = "syntax";
+            event.message = match[5].str();
+            event.error_code = match[4].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "autopep8_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle warning patterns (line too long)
+        if (std::regex_search(line, match, warning_pattern)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "autopep8";
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.file_path = match[1].str();
+            event.line_number = std::stoi(match[2].str());
+            event.column_number = std::stoi(match[3].str());
+            event.status = ValidationEventStatus::WARNING;
+            event.severity = "warning";
+            event.category = "style";
+            event.message = match[5].str();
+            event.error_code = match[4].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "autopep8_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle info patterns (no changes needed)
+        if (std::regex_search(line, match, info_pattern)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "autopep8";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = match[1].str();
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "formatting";
+            event.message = match[2].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "autopep8_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle fixed file patterns
+        if (std::regex_search(line, match, fixed_pattern)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "autopep8";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = match[1].str();
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "formatting";
+            event.message = "File formatting applied";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "autopep8_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle command patterns
+        if (std::regex_search(line, match, autopep8_cmd)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "autopep8";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "configuration";
+            event.message = "Command: autopep8 " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "autopep8_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle configuration section
+        if (std::regex_search(line, match, config_line)) {
+            in_config = true;
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "autopep8";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "configuration";
+            event.message = "Configuration applied";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "autopep8_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle summary statistics
+        if (std::regex_search(line, match, summary_files_processed)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "autopep8";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "summary";
+            event.message = "Files processed: " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "autopep8_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        if (std::regex_search(line, match, summary_files_modified)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "autopep8";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "summary";
+            event.message = "Files modified: " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "autopep8_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        if (std::regex_search(line, match, summary_files_errors)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "autopep8";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::ERROR;
+            event.severity = "error";
+            event.category = "summary";
+            event.message = "Files with errors: " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "autopep8_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        if (std::regex_search(line, match, summary_fixes_applied)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "autopep8";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "summary";
+            event.message = "Total fixes applied: " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "autopep8_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        if (std::regex_search(line, match, summary_execution_time)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "autopep8";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "performance";
+            event.message = "Execution time: " + match[1].str() + "s";
+            event.execution_time = std::stod(match[1].str());
+            event.raw_output = content;
+            event.structured_data = "autopep8_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle syntax errors
+        if (std::regex_search(line, match, syntax_error)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "autopep8";
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.file_path = match[1].str();
+            event.line_number = std::stoi(match[2].str());
+            event.column_number = std::stoi(match[3].str());
+            event.status = ValidationEventStatus::ERROR;
+            event.severity = "error";
+            event.category = "syntax";
+            event.message = match[4].str();
+            event.error_code = "SyntaxError";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "autopep8_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle encoding errors
+        if (std::regex_search(line, match, encoding_error)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "autopep8";
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.file_path = match[1].str();
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::WARNING;
+            event.severity = "warning";
+            event.category = "encoding";
+            event.message = "Could not determine file encoding";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "autopep8_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle already formatted files
+        if (std::regex_search(line, match, already_formatted)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "autopep8";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = match[1].str();
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "formatting";
+            event.message = "Already formatted correctly";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "autopep8_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Configuration line continuation
+        if (in_config && line.find(":") != std::string::npos && line.find(" ") == 0) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "autopep8";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "configuration";
+            event.message = line.substr(2); // Remove leading spaces
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "autopep8_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // End configuration section when we hit an empty line
+        if (in_config && line.empty()) {
+            in_config = false;
+        }
+    }
+}
+
+void ParseYapfText(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream stream(content);
+    std::string line;
+    int64_t event_id = 1;
+    
+    // Regex patterns for yapf output
+    std::regex diff_start_yapf(R"(--- a/(.+) \(original\))");
+    std::regex diff_fixed_yapf(R"(\+\+\+ b/(.+) \(reformatted\))");
+    std::regex reformatted_file(R"(Reformatted (.+))");
+    std::regex yapf_command(R"(yapf (--[^\s]+.+))");
+    std::regex processing_verbose(R"(Processing (.+))");
+    std::regex style_config(R"(Style configuration: (.+))");
+    std::regex line_length_config(R"(Line length: (\d+))");
+    std::regex indent_width_config(R"(Indent width: (\d+))");
+    std::regex files_processed(R"(Files processed: (\d+))");
+    std::regex files_reformatted(R"(Files reformatted: (\d+))");
+    std::regex files_no_changes(R"(Files with no changes: (\d+))");
+    std::regex execution_time(R"(Total execution time: ([\d\.]+)s)");
+    std::regex check_error(R"(ERROR: Files would be reformatted but yapf was run with --check)");
+    std::regex yapf_error(R"(yapf: error: (.+))");
+    std::regex syntax_error(R"(ERROR: ([^:]+\.py):(\d+):(\d+): (.+))");
+    std::regex encoding_warning(R"(WARNING: ([^:]+\.py): cannot determine encoding)");
+    std::regex info_no_changes(R"(INFO: ([^:]+\.py): no changes needed)");
+    std::regex files_left_unchanged(R"((\d+) files reformatted, (\d+) files left unchanged\.)");
+    
+    std::smatch match;
+    std::string current_file;
+    bool in_diff = false;
+    bool in_config = false;
+    
+    while (std::getline(stream, line)) {
+        // Handle yapf diff sections
+        if (std::regex_search(line, match, diff_start_yapf)) {
+            current_file = match[1].str();
+            in_diff = true;
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "yapf";
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.file_path = current_file;
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "formatting";
+            event.message = "File formatting changes detected";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "yapf_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle reformatted file patterns
+        if (std::regex_search(line, match, reformatted_file)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "yapf";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = match[1].str();
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "formatting";
+            event.message = "File reformatted";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "yapf_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle yapf command patterns
+        if (std::regex_search(line, match, yapf_command)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "yapf";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "configuration";
+            event.message = "Command: yapf " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "yapf_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle verbose processing
+        if (std::regex_search(line, match, processing_verbose)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "yapf";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = match[1].str();
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "processing";
+            event.message = "Processing file";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "yapf_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle style configuration
+        if (std::regex_search(line, match, style_config)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "yapf";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "configuration";
+            event.message = "Style configuration: " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "yapf_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle line length configuration
+        if (std::regex_search(line, match, line_length_config)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "yapf";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "configuration";
+            event.message = "Line length: " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "yapf_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle indent width configuration
+        if (std::regex_search(line, match, indent_width_config)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "yapf";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "configuration";
+            event.message = "Indent width: " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "yapf_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle summary statistics
+        if (std::regex_search(line, match, files_processed)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "yapf";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "summary";
+            event.message = "Files processed: " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "yapf_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        if (std::regex_search(line, match, files_reformatted)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "yapf";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "summary";
+            event.message = "Files reformatted: " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "yapf_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        if (std::regex_search(line, match, files_no_changes)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "yapf";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "summary";
+            event.message = "Files with no changes: " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "yapf_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        if (std::regex_search(line, match, execution_time)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "yapf";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "performance";
+            event.message = "Execution time: " + match[1].str() + "s";
+            event.execution_time = std::stod(match[1].str());
+            event.raw_output = content;
+            event.structured_data = "yapf_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle combined summary (e.g., "5 files reformatted, 3 files left unchanged.")
+        if (std::regex_search(line, match, files_left_unchanged)) {
+            ValidationEvent event1;
+            event1.event_id = event_id++;
+            event1.tool_name = "yapf";
+            event1.event_type = ValidationEventType::SUMMARY;
+            event1.file_path = "";
+            event1.line_number = -1;
+            event1.column_number = -1;
+            event1.status = ValidationEventStatus::INFO;
+            event1.severity = "info";
+            event1.category = "summary";
+            event1.message = "Files reformatted: " + match[1].str();
+            event1.execution_time = 0.0;
+            event1.raw_output = content;
+            event1.structured_data = "yapf_text";
+            
+            ValidationEvent event2;
+            event2.event_id = event_id++;
+            event2.tool_name = "yapf";
+            event2.event_type = ValidationEventType::SUMMARY;
+            event2.file_path = "";
+            event2.line_number = -1;
+            event2.column_number = -1;
+            event2.status = ValidationEventStatus::INFO;
+            event2.severity = "info";
+            event2.category = "summary";
+            event2.message = "Files left unchanged: " + match[2].str();
+            event2.execution_time = 0.0;
+            event2.raw_output = content;
+            event2.structured_data = "yapf_text";
+            
+            events.push_back(event1);
+            events.push_back(event2);
+            continue;
+        }
+        
+        // Handle check mode error
+        if (std::regex_search(line, match, check_error)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "yapf";
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::ERROR;
+            event.severity = "error";
+            event.category = "check_mode";
+            event.message = "Files would be reformatted but yapf was run with --check";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "yapf_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle yapf errors
+        if (std::regex_search(line, match, yapf_error)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "yapf";
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::ERROR;
+            event.severity = "error";
+            event.category = "command_error";
+            event.message = match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "yapf_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle syntax errors
+        if (std::regex_search(line, match, syntax_error)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "yapf";
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.file_path = match[1].str();
+            event.line_number = std::stoi(match[2].str());
+            event.column_number = std::stoi(match[3].str());
+            event.status = ValidationEventStatus::ERROR;
+            event.severity = "error";
+            event.category = "syntax";
+            event.message = match[4].str();
+            event.error_code = "SyntaxError";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "yapf_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle encoding warnings
+        if (std::regex_search(line, match, encoding_warning)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "yapf";
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.file_path = match[1].str();
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::WARNING;
+            event.severity = "warning";
+            event.category = "encoding";
+            event.message = "Cannot determine encoding";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "yapf_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle info messages (no changes needed)
+        if (std::regex_search(line, match, info_no_changes)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "yapf";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = match[1].str();
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "formatting";
+            event.message = "No changes needed";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "yapf_text";
+            
+            events.push_back(event);
+            continue;
+        }
+    }
+}
+
+void ParseCoverageText(const std::string& content, std::vector<ValidationEvent>& events) {
+    std::istringstream stream(content);
+    std::string line;
+    int64_t event_id = 1;
+    
+    // Regex patterns for coverage.py output
+    std::regex coverage_header(R"(Name\s+Stmts\s+Miss\s+Cover(?:\s+Missing)?)");
+    std::regex coverage_branch_header(R"(Name\s+Stmts\s+Miss\s+Branch\s+BrPart\s+Cover(?:\s+Missing)?)");
+    std::regex separator_line(R"(^-+$)");
+    std::regex coverage_row(R"(^([^\s]+(?:\.[^\s]+)*)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
+    std::regex coverage_branch_row(R"(^([^\s]+(?:\.[^\s]+)*)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
+    std::regex total_row(R"(^TOTAL\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
+    std::regex total_branch_row(R"(^TOTAL\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
+    std::regex coverage_run(R"(coverage run (.+))");
+    std::regex coverage_command(R"(coverage (html|xml|json|report|erase|combine|debug))");
+    std::regex report_generated(R"(Coverage report generated in ([\d\.]+) seconds)");
+    std::regex wrote_report(R"(Wrote (HTML|XML|JSON) report to (.+))");
+    std::regex coverage_failure(R"(Coverage failure: total of (\d+%|\d+\.\d+%) is below --fail-under=(\d+%))");
+    std::regex no_data(R"(coverage: No data to report\.)");
+    std::regex no_data_collected(R"(coverage: CoverageWarning: No data was collected\. \(no-data-collected\))");
+    std::regex context_recorded(R"(Context '(.+)' recorded)");
+    std::regex combined_data(R"(Combined data file (.+))");
+    std::regex wrote_combined(R"(Wrote combined data to (.+))");
+    std::regex erased_coverage(R"(Erased (.coverage))");
+    std::regex precision_info(R"(coverage report --precision=(\d+))");
+    std::regex fail_under_info(R"(coverage report --fail-under=(\d+))");
+    std::regex skip_covered_info(R"(coverage report --skip-covered)");
+    std::regex show_missing_info(R"(coverage report --show-missing)");
+    std::regex debug_info(R"(-- (sys|data|config) -)");
+    std::regex version_info(R"(version: (.+))");
+    std::regex platform_info(R"(platform: (.+))");
+    std::regex implementation_info(R"(implementation: (.+))");
+    std::regex executable_info(R"(executable: (.+))");
+    std::regex config_files_info(R"(config_files: (.+))");
+    std::regex data_file_info(R"(data_file: (.+))");
+    std::regex source_info(R"(source: \[(.+)\])");
+    std::regex delta_coverage(R"(coverage report --diff=(.+))");
+    std::regex delta_summary(R"(Total coverage: ([\d\.]+%))");
+    std::regex files_changed(R"(Files changed: (\d+))");
+    std::regex lines_added(R"(Lines added: (\d+))");
+    std::regex lines_covered(R"(Lines covered: (\d+))");
+    std::regex percentage_covered(R"(Percentage covered: ([\d\.]+%))");
+    
+    std::smatch match;
+    bool in_coverage_table = false;
+    bool in_branch_table = false;
+    bool in_debug_section = false;
+    
+    while (std::getline(stream, line)) {
+        // Handle coverage table headers
+        if (std::regex_search(line, match, coverage_header)) {
+            in_coverage_table = true;
+            in_branch_table = false;
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "coverage";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "report_header";
+            event.message = "Coverage report table started";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "coverage_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle branch coverage table headers
+        if (std::regex_search(line, match, coverage_branch_header)) {
+            in_coverage_table = true;
+            in_branch_table = true;
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "coverage";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "report_header";
+            event.message = "Branch coverage report table started";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "coverage_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle separator lines
+        if (std::regex_search(line, match, separator_line)) {
+            continue; // Skip separator lines
+        }
+        
+        // Handle branch coverage rows
+        if (in_branch_table && std::regex_search(line, match, coverage_branch_row)) {
+            std::string file_path = match[1].str();
+            std::string stmts = match[2].str();
+            std::string miss = match[3].str();
+            std::string branch = match[4].str();
+            std::string br_part = match[5].str();
+            std::string cover = match[6].str();
+            std::string missing = match[7].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "coverage";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = file_path;
+            event.line_number = -1;
+            event.column_number = -1;
+            
+            // Set status based on coverage percentage
+            double coverage_pct = std::stod(cover.substr(0, cover.length() - 1));
+            if (coverage_pct >= 90.0) {
+                event.status = ValidationEventStatus::INFO;
+                event.severity = "info";
+            } else if (coverage_pct >= 70.0) {
+                event.status = ValidationEventStatus::WARNING;
+                event.severity = "warning";
+            } else {
+                event.status = ValidationEventStatus::ERROR;
+                event.severity = "error";
+            }
+            
+            event.category = "branch_coverage";
+            event.message = "Stmts: " + stmts + ", Miss: " + miss + ", Branch: " + branch + ", BrPart: " + br_part + ", Cover: " + cover;
+            if (!missing.empty()) {
+                event.suggestion = "Missing lines: " + missing;
+            }
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "coverage_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle regular coverage rows
+        if (in_coverage_table && !in_branch_table && std::regex_search(line, match, coverage_row)) {
+            std::string file_path = match[1].str();
+            std::string stmts = match[2].str();
+            std::string miss = match[3].str();
+            std::string cover = match[4].str();
+            std::string missing = match[5].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "coverage";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = file_path;
+            event.line_number = -1;
+            event.column_number = -1;
+            
+            // Set status based on coverage percentage
+            double coverage_pct = std::stod(cover.substr(0, cover.length() - 1));
+            if (coverage_pct >= 90.0) {
+                event.status = ValidationEventStatus::INFO;
+                event.severity = "info";
+            } else if (coverage_pct >= 70.0) {
+                event.status = ValidationEventStatus::WARNING;
+                event.severity = "warning";
+            } else {
+                event.status = ValidationEventStatus::ERROR;
+                event.severity = "error";
+            }
+            
+            event.category = "line_coverage";
+            event.message = "Stmts: " + stmts + ", Miss: " + miss + ", Cover: " + cover;
+            if (!missing.empty()) {
+                event.suggestion = "Missing lines: " + missing;
+            }
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "coverage_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle TOTAL rows for branch coverage
+        if (in_branch_table && std::regex_search(line, match, total_branch_row)) {
+            in_coverage_table = false;
+            in_branch_table = false;
+            
+            std::string stmts = match[1].str();
+            std::string miss = match[2].str();
+            std::string branch = match[3].str();
+            std::string br_part = match[4].str();
+            std::string cover = match[5].str();
+            std::string missing = match[6].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "coverage";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            
+            // Set status based on coverage percentage
+            double coverage_pct = std::stod(cover.substr(0, cover.length() - 1));
+            if (coverage_pct >= 90.0) {
+                event.status = ValidationEventStatus::INFO;
+                event.severity = "info";
+            } else if (coverage_pct >= 70.0) {
+                event.status = ValidationEventStatus::WARNING;
+                event.severity = "warning";
+            } else {
+                event.status = ValidationEventStatus::ERROR;
+                event.severity = "error";
+            }
+            
+            event.category = "total_branch_coverage";
+            event.message = "Total branch coverage: " + cover + " (Stmts: " + stmts + ", Miss: " + miss + ", Branch: " + branch + ", BrPart: " + br_part + ")";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "coverage_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle TOTAL rows for regular coverage
+        if (in_coverage_table && !in_branch_table && std::regex_search(line, match, total_row)) {
+            in_coverage_table = false;
+            
+            std::string stmts = match[1].str();
+            std::string miss = match[2].str();
+            std::string cover = match[3].str();
+            std::string missing = match[4].str();
+            
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "coverage";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            
+            // Set status based on coverage percentage
+            double coverage_pct = std::stod(cover.substr(0, cover.length() - 1));
+            if (coverage_pct >= 90.0) {
+                event.status = ValidationEventStatus::INFO;
+                event.severity = "info";
+            } else if (coverage_pct >= 70.0) {
+                event.status = ValidationEventStatus::WARNING;
+                event.severity = "warning";
+            } else {
+                event.status = ValidationEventStatus::ERROR;
+                event.severity = "error";
+            }
+            
+            event.category = "total_coverage";
+            event.message = "Total coverage: " + cover + " (Stmts: " + stmts + ", Miss: " + miss + ")";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "coverage_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle coverage run commands
+        if (std::regex_search(line, match, coverage_run)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "coverage";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "command";
+            event.message = "Coverage run: " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "coverage_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle coverage commands
+        if (std::regex_search(line, match, coverage_command)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "coverage";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "command";
+            event.message = "Coverage command: " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "coverage_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle report generation
+        if (std::regex_search(line, match, report_generated)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "coverage";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "performance";
+            event.message = "Coverage report generated";
+            event.execution_time = std::stod(match[1].str());
+            event.raw_output = content;
+            event.structured_data = "coverage_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle report writing
+        if (std::regex_search(line, match, wrote_report)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "coverage";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = match[2].str();
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "output";
+            event.message = "Wrote " + match[1].str() + " report to " + match[2].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "coverage_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle coverage failure
+        if (std::regex_search(line, match, coverage_failure)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "coverage";
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::ERROR;
+            event.severity = "error";
+            event.category = "threshold";
+            event.message = "Coverage failure: total of " + match[1].str() + " is below --fail-under=" + match[2].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "coverage_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle no data cases
+        if (std::regex_search(line, match, no_data)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "coverage";
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::WARNING;
+            event.severity = "warning";
+            event.category = "no_data";
+            event.message = "No data to report";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "coverage_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        if (std::regex_search(line, match, no_data_collected)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "coverage";
+            event.event_type = ValidationEventType::LINT_ISSUE;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::WARNING;
+            event.severity = "warning";
+            event.category = "no_data";
+            event.message = "No data was collected";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "coverage_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle context recording
+        if (std::regex_search(line, match, context_recorded)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "coverage";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "context";
+            event.message = "Context '" + match[1].str() + "' recorded";
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "coverage_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle data combination
+        if (std::regex_search(line, match, combined_data)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "coverage";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = match[1].str();
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "combine";
+            event.message = "Combined data file: " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "coverage_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        if (std::regex_search(line, match, wrote_combined)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "coverage";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = match[1].str();
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "combine";
+            event.message = "Wrote combined data to " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "coverage_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle coverage erase
+        if (std::regex_search(line, match, erased_coverage)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "coverage";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = match[1].str();
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "cleanup";
+            event.message = "Erased " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "coverage_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle delta coverage summary
+        if (std::regex_search(line, match, delta_summary)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "coverage";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "delta_coverage";
+            event.message = "Total coverage: " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "coverage_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        // Handle delta metrics
+        if (std::regex_search(line, match, files_changed)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "coverage";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "delta_metrics";
+            event.message = "Files changed: " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "coverage_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        if (std::regex_search(line, match, lines_added)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "coverage";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "delta_metrics";
+            event.message = "Lines added: " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "coverage_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        if (std::regex_search(line, match, lines_covered)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "coverage";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "delta_metrics";
+            event.message = "Lines covered: " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "coverage_text";
+            
+            events.push_back(event);
+            continue;
+        }
+        
+        if (std::regex_search(line, match, percentage_covered)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "coverage";
+            event.event_type = ValidationEventType::SUMMARY;
+            event.file_path = "";
+            event.line_number = -1;
+            event.column_number = -1;
+            event.status = ValidationEventStatus::INFO;
+            event.severity = "info";
+            event.category = "delta_metrics";
+            event.message = "Percentage covered: " + match[1].str();
+            event.execution_time = 0.0;
+            event.raw_output = content;
+            event.structured_data = "coverage_text";
+            
+            events.push_back(event);
+            continue;
         }
     }
 }
