@@ -63,7 +63,9 @@ enum class TestResultFormat : uint8_t {
     GITHUB_ACTIONS_TEXT = 52,
     GITLAB_CI_TEXT = 53,
     JENKINS_TEXT = 54,
-    DRONE_CI_TEXT = 55
+    DRONE_CI_TEXT = 55,
+    TERRAFORM_TEXT = 56,
+    ANSIBLE_TEXT = 57
 };
 
 // Bind data for read_test_results table function
@@ -183,5 +185,7 @@ void ParseGitHubActionsText(const std::string& content, std::vector<ValidationEv
 void ParseGitLabCIText(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseJenkinsText(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseDroneCIText(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseTerraformText(const std::string& content, std::vector<ValidationEvent>& events);
+void ParseAnsibleText(const std::string& content, std::vector<ValidationEvent>& events);
 
 } // namespace duckdb
