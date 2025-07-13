@@ -1,0 +1,199 @@
+================================= test session starts =================================
+platform linux -- Python 3.9.7, pytest-7.1.2, pluggy-1.0.0
+rootdir: /home/user/project
+plugins: cov-4.0.0
+collected 15 items
+
+tests/test_main.py::test_main_function PASSED                               [  6%]
+tests/test_main.py::test_error_handling PASSED                             [ 13%]
+tests/test_utils.py::test_helper_function PASSED                           [ 20%]
+tests/test_utils.py::test_validation FAILED                                [ 26%]
+tests/test_utils.py::test_edge_cases PASSED                                [ 33%]
+tests/test_models.py::test_user_creation PASSED                            [ 40%]
+tests/test_models.py::test_user_validation PASSED                          [ 46%]
+tests/test_models.py::test_product_model PASSED                            [ 53%]
+tests/test_integration.py::test_full_workflow PASSED                       [ 60%]
+tests/test_integration.py::test_error_scenarios PASSED                     [ 66%]
+tests/test_integration.py::test_performance SKIPPED                        [ 73%]
+tests/test_edge_cases.py::test_boundary_conditions PASSED                  [ 80%]
+tests/test_edge_cases.py::test_null_handling PASSED                        [ 86%]
+tests/test_edge_cases.py::test_memory_limits PASSED                        [ 93%]
+tests/test_security.py::test_sql_injection PASSED                          [100%]
+
+=================================== FAILURES ===================================
+_______________________________ test_validation _______________________________
+
+    def test_validation():
+        result = validate_input("invalid_data")
+>       assert result is True
+E       AssertionError: assert False is True
+
+tests/test_utils.py:45: AssertionError
+
+========================== short test summary info ==========================
+FAILED tests/test_utils.py::test_validation - AssertionError: assert False is True
+
+----------- coverage: platform linux, python 3.9.7-final-0 -----------
+Name                      Stmts   Miss  Cover
+--------------------------------------------
+src/__init__.py               0      0   100%
+src/main.py                  45      2    96%
+src/utils.py                 32      8    75%
+src/models/__init__.py        1      0   100%
+src/models/user.py           28      3    89%
+src/models/product.py        52     12    77%
+src/views.py                 67     15    78%
+--------------------------------------------
+TOTAL                       225     40    82%
+
+Required test coverage of 85% not met. Total coverage: 82.22%
+
+==================== 1 failed, 13 passed, 1 skipped in 4.25s ====================
+
+# With detailed coverage output
+pytest --cov=src --cov-report=term-missing tests/
+
+================================= test session starts =================================
+platform linux -- Python 3.9.7, pytest-7.1.2, pluggy-1.0.0
+rootdir: /home/user/project
+plugins: cov-4.0.0
+collected 15 items
+
+tests/test_main.py::test_main_function PASSED                               [  6%]
+tests/test_main.py::test_error_handling PASSED                             [ 13%]
+tests/test_utils.py::test_helper_function PASSED                           [ 20%]
+tests/test_utils.py::test_validation FAILED                                [ 26%]
+tests/test_utils.py::test_edge_cases PASSED                                [ 33%]
+tests/test_models.py::test_user_creation PASSED                            [ 40%]
+tests/test_models.py::test_user_validation PASSED                          [ 46%]
+tests/test_models.py::test_product_model PASSED                            [ 53%]
+tests/test_integration.py::test_full_workflow PASSED                       [ 60%]
+tests/test_integration.py::test_error_scenarios PASSED                     [ 66%]
+tests/test_integration.py::test_performance SKIPPED                        [ 73%]
+tests/test_edge_cases.py::test_boundary_conditions PASSED                  [ 80%]
+tests/test_edge_cases.py::test_null_handling PASSED                        [ 86%]
+tests/test_edge_cases.py::test_memory_limits PASSED                        [ 93%]
+tests/test_security.py::test_sql_injection PASSED                          [100%]
+
+=================================== FAILURES ===================================
+_______________________________ test_validation _______________________________
+
+    def test_validation():
+        result = validate_input("invalid_data")
+>       assert result is True
+E       AssertionError: assert False is True
+
+tests/test_utils.py:45: AssertionError
+
+========================== short test summary info ==========================
+FAILED tests/test_utils.py::test_validation - AssertionError: assert False is True
+
+----------- coverage: platform linux, python 3.9.7-final-0 -----------
+Name                      Stmts   Miss  Cover   Missing
+-------------------------------------------------------
+src/__init__.py               0      0   100%
+src/main.py                  45      2    96%   23, 67
+src/utils.py                 32      8    75%   12-15, 28, 45-47
+src/models/__init__.py        1      0   100%
+src/models/user.py           28      3    89%   45, 52, 78
+src/models/product.py        52     12    77%   23-25, 67-72, 89, 95
+src/views.py                 67     15    78%   12, 23-28, 45, 67-73
+-------------------------------------------------------
+TOTAL                       225     40    82%
+
+Coverage threshold check failed. Expected: >= 85%, got: 82.22%
+
+==================== 1 failed, 13 passed, 1 skipped in 4.25s ====================
+
+# With branch coverage
+pytest --cov=src --cov-branch --cov-report=term-missing tests/
+
+================================= test session starts =================================
+platform linux -- Python 3.9.7, pytest-7.1.2, pluggy-1.0.0
+rootdir: /home/user/project
+plugins: cov-4.0.0
+collected 15 items
+
+tests/test_main.py::test_main_function PASSED                               [  6%]
+tests/test_main.py::test_error_handling PASSED                             [ 13%]
+tests/test_utils.py::test_helper_function PASSED                           [ 20%]
+tests/test_utils.py::test_validation FAILED                                [ 26%]
+tests/test_utils.py::test_edge_cases PASSED                                [ 33%]
+tests/test_models.py::test_user_creation PASSED                            [ 40%]
+tests/test_models.py::test_user_validation PASSED                          [ 46%]
+tests/test_models.py::test_product_model PASSED                            [ 53%]
+tests/test_integration.py::test_full_workflow PASSED                       [ 60%]
+tests/test_integration.py::test_error_scenarios PASSED                     [ 66%]
+tests/test_integration.py::test_performance SKIPPED                        [ 73%]
+tests/test_edge_cases.py::test_boundary_conditions PASSED                  [ 80%]
+tests/test_edge_cases.py::test_null_handling PASSED                        [ 86%]
+tests/test_edge_cases.py::test_memory_limits PASSED                        [ 93%]
+tests/test_security.py::test_sql_injection PASSED                          [100%]
+
+=================================== FAILURES ===================================
+_______________________________ test_validation _______________________________
+
+    def test_validation():
+        result = validate_input("invalid_data")
+>       assert result is True
+E       AssertionError: assert False is True
+
+tests/test_utils.py:45: AssertionError
+
+========================== short test summary info ==========================
+FAILED tests/test_utils.py::test_validation - AssertionError: assert False is True
+
+----------- coverage: platform linux, python 3.9.7-final-0 -----------
+Name                      Stmts   Miss Branch BrPart  Cover   Missing
+---------------------------------------------------------------------
+src/__init__.py               0      0      0      0   100%
+src/main.py                  45      2     12      1    94%   23, 67->exit
+src/utils.py                 32      8     10      3    68%   12-15, 28, 45-47, 15->18
+src/models/__init__.py        1      0      0      0   100%
+src/models/user.py           28      3      8      1    86%   45, 52, 78, 45->48
+src/models/product.py        52     12     18      4    73%   23-25, 67-72, 89, 95, 23->26, 67->70
+src/views.py                 67     15     22      6    71%   12, 23-28, 45, 67-73, 23->26, 45->48
+---------------------------------------------------------------------
+TOTAL                       225     40     70     15    77%
+
+Coverage threshold check failed. Expected: >= 85%, got: 77.33%
+
+==================== 1 failed, 13 passed, 1 skipped in 4.25s ====================
+
+# XML output generation
+pytest --cov=src --cov-report=xml tests/
+Coverage XML written to coverage.xml
+
+# HTML output generation
+pytest --cov=src --cov-report=html tests/
+Coverage HTML written to dir htmlcov
+
+# Configuration from setup.cfg or pyproject.toml
+[tool:pytest]
+addopts = --cov=src --cov-report=term-missing --cov-fail-under=85
+
+pytest tests/ --cov-config=.coveragerc
+Using coverage configuration from .coveragerc
+
+# Multiple coverage formats
+pytest --cov=src --cov-report=term --cov-report=html --cov-report=xml tests/
+
+# Show context information
+pytest --cov=src --cov-context=test tests/
+
+# Coverage with specific source paths
+pytest --cov=src/models --cov=src/utils --cov-report=term-missing tests/
+
+# Append coverage data
+pytest --cov=src --cov-append tests/
+
+# No coverage warnings
+pytest --cov=src --disable-warnings tests/
+
+# Parallel coverage collection
+pytest --cov=src --cov-report=term-missing -n auto tests/
+Coverage data collected in parallel mode
+
+# Configuration warnings
+pytest-cov: Coverage data was not found for source '/home/user/project/src/missing.py'
+pytest-cov: Module '/home/user/project/tests/conftest.py' was never imported.

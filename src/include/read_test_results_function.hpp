@@ -58,7 +58,8 @@ enum class TestResultFormat : uint8_t {
     BANDIT_TEXT = 47,
     AUTOPEP8_TEXT = 48,
     YAPF_TEXT = 49,
-    COVERAGE_TEXT = 50
+    COVERAGE_TEXT = 50,
+    PYTEST_COV_TEXT = 51
 };
 
 // Bind data for read_test_results table function
@@ -173,5 +174,6 @@ void ParseBanditText(const std::string& content, std::vector<ValidationEvent>& e
 void ParseAutopep8Text(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseYapfText(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseCoverageText(const std::string& content, std::vector<ValidationEvent>& events);
+void ParsePytestCovText(const std::string& content, std::vector<ValidationEvent>& events);
 
 } // namespace duckdb
