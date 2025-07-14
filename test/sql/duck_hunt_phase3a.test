@@ -1,0 +1,100 @@
+# name: test/sql/duck_hunt_phase3a.test
+# description: Test Phase 3A multi-file processing and pipeline intelligence
+# group: [duck_hunt]
+
+require duck_hunt
+
+# Test single file processing with metadata (backward compatibility)
+query IIIIII
+SELECT source_file, build_id, environment, file_index, COUNT(*) as events, 
+       COUNT(CASE WHEN status = 'PASS' THEN 1 END) as passes
+FROM read_test_results('workspace/ansible_sample.txt', 'auto') 
+GROUP BY source_file, build_id, environment, file_index;
+----
+workspace/ansible_sample.txt	NULL	NULL	0	106	12
+
+# Test multi-file glob pattern processing
+query IIIIII
+SELECT source_file LIKE '%build-123%' as is_build_123, 
+       source_file LIKE '%build-456%' as is_build_456,
+       build_id, environment, file_index, COUNT(*) as events
+FROM read_test_results('workspace/builds/**/*.txt', 'auto') 
+GROUP BY source_file, build_id, environment, file_index 
+ORDER BY file_index;
+----
+false	true	456	NULL	0	25
+true	false	123	NULL	1	106
+
+# Test environment detection from file paths
+query IIIIII  
+SELECT environment, COUNT(DISTINCT source_file) as files_processed,
+       COUNT(*) as total_events,
+       COUNT(CASE WHEN status = 'FAIL' THEN 1 END) as failures,
+       COUNT(CASE WHEN status = 'PASS' THEN 1 END) as passes,
+       ROUND(100.0 * COUNT(CASE WHEN status = 'PASS' THEN 1 END) / 
+             (COUNT(CASE WHEN status = 'PASS' THEN 1 END) + COUNT(CASE WHEN status = 'FAIL' THEN 1 END)), 1) as pass_rate_pct
+FROM read_test_results('workspace/ci-logs/**/*.txt', 'pytest_text')
+WHERE environment IS NOT NULL
+GROUP BY environment
+ORDER BY environment;
+----
+prod	1	2	0	2	100.0
+staging	1	4	1	2	66.7
+
+# Test pipeline aggregation by build ID  
+query IIIIII
+WITH pipeline_summary AS (
+    SELECT 
+        build_id,
+        COUNT(DISTINCT source_file) as files_processed,
+        COUNT(*) as total_events,
+        COUNT(CASE WHEN status = 'FAIL' THEN 1 END) as failures,
+        COUNT(CASE WHEN status = 'PASS' THEN 1 END) as passes
+    FROM read_test_results('workspace/builds/**/*.txt', 'auto')
+    WHERE build_id IS NOT NULL
+    GROUP BY build_id
+)
+SELECT 
+    build_id,
+    files_processed,
+    total_events,
+    failures,
+    passes,
+    CASE 
+        WHEN failures = 0 THEN 'SUCCESS'
+        WHEN failures > 0 AND passes > failures THEN 'MOSTLY_PASS'
+        ELSE 'FAILURE'
+    END as pipeline_status
+FROM pipeline_summary
+ORDER BY build_id;
+----
+123	1	106	2	12	MOSTLY_PASS
+456	1	25	0	3	SUCCESS
+
+# Test file index ordering and processing sequence
+query III
+SELECT file_index, 
+       source_file LIKE '%terraform%' as is_terraform,
+       source_file LIKE '%ansible%' as is_ansible
+FROM read_test_results('workspace/builds/**/*.txt', 'auto')
+GROUP BY file_index, source_file
+ORDER BY file_index;
+----
+0	true	false
+1	false	true
+
+# Test metadata column schema  
+query I
+SELECT COUNT(*) FROM (
+    SELECT source_file, build_id, environment, file_index, event_type, status
+    FROM read_test_results('workspace/ci-logs/staging/pytest-results.txt', 'pytest_text')
+    LIMIT 1
+);
+----
+1
+
+# Test empty results for non-existent patterns
+query I
+SELECT COUNT(*) FROM read_test_results('workspace/nonexistent/**/*.txt', 'auto');
+----
+0

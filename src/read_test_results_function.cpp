@@ -922,8 +922,8 @@ void PopulateDataChunkFromEvents(DataChunk &output, const std::vector<Validation
         output.SetValue(col++, i, Value(event.structured_data));
         // Phase 3A: Multi-file processing metadata
         output.SetValue(col++, i, Value(event.source_file));
-        output.SetValue(col++, i, Value(event.build_id));
-        output.SetValue(col++, i, Value(event.environment));
+        output.SetValue(col++, i, event.build_id.empty() ? Value() : Value(event.build_id));
+        output.SetValue(col++, i, event.environment.empty() ? Value() : Value(event.environment));
         output.SetValue(col++, i, event.file_index == -1 ? Value() : Value::BIGINT(event.file_index));
     }
 }
@@ -3696,14 +3696,21 @@ unique_ptr<FunctionData> ParseTestResultsBind(ClientContext &context, TableFunct
         LogicalType::VARCHAR,  // test_name
         LogicalType::DOUBLE,   // execution_time
         LogicalType::VARCHAR,  // raw_output
-        LogicalType::VARCHAR   // structured_data
+        LogicalType::VARCHAR,  // structured_data
+        // Phase 3A: Multi-file processing metadata
+        LogicalType::VARCHAR,  // source_file
+        LogicalType::VARCHAR,  // build_id
+        LogicalType::VARCHAR,  // environment
+        LogicalType::BIGINT    // file_index
     };
     
     names = {
         "event_id", "tool_name", "event_type", "file_path", "line_number",
         "column_number", "function_name", "status", "severity", "category",
         "message", "suggestion", "error_code", "test_name", "execution_time",
-        "raw_output", "structured_data"
+        "raw_output", "structured_data",
+        // Phase 3A: Multi-file processing metadata
+        "source_file", "build_id", "environment", "file_index"
     };
     
     return std::move(bind_data);
