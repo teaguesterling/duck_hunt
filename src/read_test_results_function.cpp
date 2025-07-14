@@ -10,10 +10,227 @@
 #include <regex>
 #include <sstream>
 #include <map>
+#include <algorithm>
+#include <cctype>
+#include <functional>
 
 namespace duckdb {
 
 using namespace duckdb_yyjson;
+
+// Phase 3B: Error Pattern Analysis Functions
+
+// Normalize error message for fingerprinting by removing variable content
+std::string NormalizeErrorMessage(const std::string& message) {
+    std::string normalized = message;
+    
+    // Convert to lowercase for case-insensitive comparison
+    std::transform(normalized.begin(), normalized.end(), normalized.begin(), ::tolower);
+    
+    // Remove file paths (anything that looks like a path)
+    normalized = std::regex_replace(normalized, std::regex(R"([/\\][\w/\\.-]+\.(cpp|hpp|py|js|java|go|rs|rb|php|c|h)[:\s])"), " <file> ");
+    normalized = std::regex_replace(normalized, std::regex(R"(/[\w/.-]+/)"), "/<path>/");
+    normalized = std::regex_replace(normalized, std::regex(R"(\\[\w\\.-]+\\)"), "\\<path>\\");
+    
+    // Remove timestamps
+    normalized = std::regex_replace(normalized, std::regex(R"(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2})"), "<timestamp>");
+    normalized = std::regex_replace(normalized, std::regex(R"(\d{2}:\d{2}:\d{2})"), "<time>");
+    
+    // Remove line and column numbers
+    normalized = std::regex_replace(normalized, std::regex(R"(:(\d+):(\d+):)"), ":<line>:<col>:");
+    normalized = std::regex_replace(normalized, std::regex(R"(line\s+\d+)"), "line <num>");
+    normalized = std::regex_replace(normalized, std::regex(R"(column\s+\d+)"), "column <num>");
+    
+    // Remove numeric IDs and memory addresses
+    normalized = std::regex_replace(normalized, std::regex(R"(0x[0-9a-fA-F]+)"), "<addr>");
+    normalized = std::regex_replace(normalized, std::regex(R"(\b\d{6,}\b)"), "<id>");
+    
+    // Remove variable names in quotes
+    normalized = std::regex_replace(normalized, std::regex(R"('[\w.-]+')"), "'<var>'");
+    normalized = std::regex_replace(normalized, std::regex(R"("[\w.-]+")"), "\"<var>\"");
+    
+    // Remove specific values but keep structure
+    normalized = std::regex_replace(normalized, std::regex(R"(\b\d+\.\d+\b)"), "<decimal>");
+    normalized = std::regex_replace(normalized, std::regex(R"(\b\d+\b)"), "<num>");
+    
+    // Normalize whitespace
+    normalized = std::regex_replace(normalized, std::regex(R"(\s+)"), " ");
+    
+    // Trim whitespace
+    auto start = normalized.find_first_not_of(" \t");
+    auto end = normalized.find_last_not_of(" \t");
+    if (start != std::string::npos && end != std::string::npos) {
+        normalized = normalized.substr(start, end - start + 1);
+    }
+    
+    return normalized;
+}
+
+// Generate a fingerprint for an error based on normalized message and context
+std::string GenerateErrorFingerprint(const ValidationEvent& event) {
+    std::string normalized = NormalizeErrorMessage(event.message);
+    
+    // Create a composite fingerprint including tool and category context
+    std::string fingerprint_source = event.tool_name + ":" + event.category + ":" + normalized;
+    
+    // Simple hash - in production, consider using a proper hash function
+    std::hash<std::string> hasher;
+    size_t hash_value = hasher(fingerprint_source);
+    
+    // Convert to hex string for readability
+    std::stringstream ss;
+    ss << std::hex << hash_value;
+    
+    return event.tool_name + "_" + event.category + "_" + ss.str();
+}
+
+// Calculate similarity between two error messages using simple edit distance approach
+double CalculateMessageSimilarity(const std::string& msg1, const std::string& msg2) {
+    std::string norm1 = NormalizeErrorMessage(msg1);
+    std::string norm2 = NormalizeErrorMessage(msg2);
+    
+    if (norm1.empty() && norm2.empty()) return 1.0;
+    if (norm1.empty() || norm2.empty()) return 0.0;
+    if (norm1 == norm2) return 1.0;
+    
+    // Simple Levenshtein distance approximation
+    size_t len1 = norm1.length();
+    size_t len2 = norm2.length();
+    size_t max_len = std::max(len1, len2);
+    
+    // Count common substrings for a simple similarity metric
+    size_t common_chars = 0;
+    size_t min_len = std::min(len1, len2);
+    
+    for (size_t i = 0; i < min_len; i++) {
+        if (norm1[i] == norm2[i]) {
+            common_chars++;
+        }
+    }
+    
+    // Add bonus for common keywords
+    std::vector<std::string> keywords = {"error", "warning", "failed", "exception", "timeout", "permission", "not found"};
+    size_t keyword_matches = 0;
+    
+    for (const auto& keyword : keywords) {
+        if (norm1.find(keyword) != std::string::npos && norm2.find(keyword) != std::string::npos) {
+            keyword_matches++;
+        }
+    }
+    
+    double base_similarity = static_cast<double>(common_chars) / max_len;
+    double keyword_bonus = static_cast<double>(keyword_matches) * 0.1;
+    
+    return std::min(1.0, base_similarity + keyword_bonus);
+}
+
+// Detect root cause category based on error content and context
+std::string DetectRootCauseCategory(const ValidationEvent& event) {
+    std::string message_lower = event.message;
+    std::transform(message_lower.begin(), message_lower.end(), message_lower.begin(), ::tolower);
+    
+    // Network-related errors
+    if (message_lower.find("connection") != std::string::npos ||
+        message_lower.find("timeout") != std::string::npos ||
+        message_lower.find("unreachable") != std::string::npos ||
+        message_lower.find("network") != std::string::npos ||
+        message_lower.find("dns") != std::string::npos) {
+        return "network";
+    }
+    
+    // Permission and access errors
+    if (message_lower.find("permission") != std::string::npos ||
+        message_lower.find("access denied") != std::string::npos ||
+        message_lower.find("unauthorized") != std::string::npos ||
+        message_lower.find("forbidden") != std::string::npos ||
+        message_lower.find("authentication") != std::string::npos) {
+        return "permission";
+    }
+    
+    // Configuration errors
+    if (message_lower.find("config") != std::string::npos ||
+        message_lower.find("invalid resource") != std::string::npos ||
+        message_lower.find("not found") != std::string::npos ||
+        message_lower.find("does not exist") != std::string::npos ||
+        message_lower.find("missing") != std::string::npos) {
+        return "configuration";
+    }
+    
+    // Resource errors (memory, disk, etc.)
+    if (message_lower.find("memory") != std::string::npos ||
+        message_lower.find("disk") != std::string::npos ||
+        message_lower.find("space") != std::string::npos ||
+        message_lower.find("quota") != std::string::npos ||
+        message_lower.find("limit") != std::string::npos) {
+        return "resource";
+    }
+    
+    // Syntax and validation errors
+    if (message_lower.find("syntax") != std::string::npos ||
+        message_lower.find("parse") != std::string::npos ||
+        message_lower.find("invalid") != std::string::npos ||
+        message_lower.find("format") != std::string::npos ||
+        event.event_type == ValidationEventType::LINT_ISSUE ||
+        event.event_type == ValidationEventType::TYPE_ERROR) {
+        return "syntax";
+    }
+    
+    // Build and dependency errors
+    if (message_lower.find("build") != std::string::npos ||
+        message_lower.find("compile") != std::string::npos ||
+        message_lower.find("dependency") != std::string::npos ||
+        message_lower.find("package") != std::string::npos ||
+        event.event_type == ValidationEventType::BUILD_ERROR) {
+        return "build";
+    }
+    
+    // Test-specific errors
+    if (event.event_type == ValidationEventType::TEST_RESULT) {
+        return "test_logic";
+    }
+    
+    // Default category
+    return "unknown";
+}
+
+// Process events to generate Phase 3B error pattern metadata
+void ProcessErrorPatterns(std::vector<ValidationEvent>& events) {
+    // Step 1: Generate fingerprints and root cause categories for each event
+    for (auto& event : events) {
+        event.error_fingerprint = GenerateErrorFingerprint(event);
+        event.root_cause_category = DetectRootCauseCategory(event);
+    }
+    
+    // Step 2: Assign pattern IDs based on fingerprint clustering
+    std::map<std::string, int64_t> fingerprint_to_pattern_id;
+    int64_t next_pattern_id = 1;
+    
+    for (auto& event : events) {
+        if (fingerprint_to_pattern_id.find(event.error_fingerprint) == fingerprint_to_pattern_id.end()) {
+            fingerprint_to_pattern_id[event.error_fingerprint] = next_pattern_id++;
+        }
+        event.pattern_id = fingerprint_to_pattern_id[event.error_fingerprint];
+    }
+    
+    // Step 3: Calculate similarity scores within pattern groups
+    for (auto& event : events) {
+        if (event.pattern_id == -1) continue;
+        
+        // Find the representative message for this pattern (first occurrence)
+        std::string representative_message;
+        for (const auto& other_event : events) {
+            if (other_event.pattern_id == event.pattern_id) {
+                representative_message = other_event.message;
+                break;
+            }
+        }
+        
+        // Calculate similarity to representative message
+        if (!representative_message.empty()) {
+            event.similarity_score = CalculateMessageSimilarity(event.message, representative_message);
+        }
+    }
+}
 
 TestResultFormat DetectTestResultFormat(const std::string& content) {
     // First check if it's valid JSON
@@ -630,7 +847,12 @@ unique_ptr<FunctionData> ReadTestResultsBind(ClientContext &context, TableFuncti
         LogicalType::VARCHAR,  // source_file
         LogicalType::VARCHAR,  // build_id
         LogicalType::VARCHAR,  // environment
-        LogicalType::BIGINT    // file_index
+        LogicalType::BIGINT,   // file_index
+        // Phase 3B: Error pattern analysis
+        LogicalType::VARCHAR,  // error_fingerprint
+        LogicalType::DOUBLE,   // similarity_score
+        LogicalType::BIGINT,   // pattern_id
+        LogicalType::VARCHAR   // root_cause_category
     };
     
     names = {
@@ -639,7 +861,9 @@ unique_ptr<FunctionData> ReadTestResultsBind(ClientContext &context, TableFuncti
         "message", "suggestion", "error_code", "test_name", "execution_time",
         "raw_output", "structured_data",
         // Phase 3A: Multi-file processing metadata
-        "source_file", "build_id", "environment", "file_index"
+        "source_file", "build_id", "environment", "file_index",
+        // Phase 3B: Error pattern analysis
+        "error_fingerprint", "similarity_score", "pattern_id", "root_cause_category"
     };
     
     return std::move(bind_data);
@@ -868,6 +1092,9 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
         }
     }
     
+    // Phase 3B: Process error patterns for intelligent categorization
+    ProcessErrorPatterns(global_state->events);
+    
     return std::move(global_state);
 }
 
@@ -925,6 +1152,11 @@ void PopulateDataChunkFromEvents(DataChunk &output, const std::vector<Validation
         output.SetValue(col++, i, event.build_id.empty() ? Value() : Value(event.build_id));
         output.SetValue(col++, i, event.environment.empty() ? Value() : Value(event.environment));
         output.SetValue(col++, i, event.file_index == -1 ? Value() : Value::BIGINT(event.file_index));
+        // Phase 3B: Error pattern analysis
+        output.SetValue(col++, i, event.error_fingerprint.empty() ? Value() : Value(event.error_fingerprint));
+        output.SetValue(col++, i, event.similarity_score == 0.0 ? Value() : Value::DOUBLE(event.similarity_score));
+        output.SetValue(col++, i, event.pattern_id == -1 ? Value() : Value::BIGINT(event.pattern_id));
+        output.SetValue(col++, i, event.root_cause_category.empty() ? Value() : Value(event.root_cause_category));
     }
 }
 
@@ -3701,7 +3933,12 @@ unique_ptr<FunctionData> ParseTestResultsBind(ClientContext &context, TableFunct
         LogicalType::VARCHAR,  // source_file
         LogicalType::VARCHAR,  // build_id
         LogicalType::VARCHAR,  // environment
-        LogicalType::BIGINT    // file_index
+        LogicalType::BIGINT,   // file_index
+        // Phase 3B: Error pattern analysis
+        LogicalType::VARCHAR,  // error_fingerprint
+        LogicalType::DOUBLE,   // similarity_score
+        LogicalType::BIGINT,   // pattern_id
+        LogicalType::VARCHAR   // root_cause_category
     };
     
     names = {
@@ -3710,7 +3947,9 @@ unique_ptr<FunctionData> ParseTestResultsBind(ClientContext &context, TableFunct
         "message", "suggestion", "error_code", "test_name", "execution_time",
         "raw_output", "structured_data",
         // Phase 3A: Multi-file processing metadata
-        "source_file", "build_id", "environment", "file_index"
+        "source_file", "build_id", "environment", "file_index",
+        // Phase 3B: Error pattern analysis
+        "error_fingerprint", "similarity_score", "pattern_id", "root_cause_category"
     };
     
     return std::move(bind_data);
@@ -3903,6 +4142,9 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
             // For unknown formats, don't create any events
             break;
     }
+    
+    // Phase 3B: Process error patterns for intelligent categorization
+    ProcessErrorPatterns(global_state->events);
     
     return std::move(global_state);
 }

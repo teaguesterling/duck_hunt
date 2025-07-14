@@ -59,8 +59,14 @@ struct ValidationEvent {
     std::string environment;      // dev/staging/prod extracted from path
     int64_t file_index;          // Order of processing (0-based)
     
+    // Phase 3B: Error pattern analysis
+    std::string error_fingerprint;     // Normalized error signature for pattern detection
+    double similarity_score;           // Similarity to pattern cluster centroid (0.0-1.0)
+    int64_t pattern_id;                // Assigned error pattern group ID (-1 if unassigned)
+    std::string root_cause_category;   // Detected root cause type (network, permission, config, etc.)
+    
     ValidationEvent() : event_id(0), line_number(-1), column_number(-1), 
-                       execution_time(0.0), file_index(-1) {}
+                       execution_time(0.0), file_index(-1), similarity_score(0.0), pattern_id(-1) {}
 };
 
 // Helper functions for enum conversions
