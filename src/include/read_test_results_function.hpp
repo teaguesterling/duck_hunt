@@ -100,6 +100,14 @@ TestResultFormat StringToTestResultFormat(const std::string& str);
 std::string ReadContentFromSource(const std::string& source);
 bool IsValidJSON(const std::string& content);
 
+// Phase 3A: Multi-file processing utilities
+std::vector<std::string> GetFilesFromPattern(ClientContext& context, const std::string& pattern);
+std::vector<std::string> GetGlobFiles(ClientContext& context, const std::string& pattern);
+void ProcessMultipleFiles(ClientContext& context, const std::vector<std::string>& files, 
+                         TestResultFormat format, std::vector<ValidationEvent>& events);
+std::string ExtractBuildIdFromPath(const std::string& file_path);
+std::string ExtractEnvironmentFromPath(const std::string& file_path);
+
 // Main table function
 TableFunction GetReadTestResultsFunction();
 TableFunction GetParseTestResultsFunction();
