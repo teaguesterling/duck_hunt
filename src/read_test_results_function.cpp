@@ -493,7 +493,9 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
     
     // Check for Flake8 patterns
     if ((content.find("F401") != std::string::npos || content.find("E131") != std::string::npos || content.find("W503") != std::string::npos) ||
-        (content.find(".py:") != std::string::npos && content.find(":") != std::string::npos && (content.find(" F") != std::string::npos || content.find(" E") != std::string::npos || content.find(" W") != std::string::npos || content.find(" C") != std::string::npos)) ||
+        (content.find(".py:") != std::string::npos && content.find(":") != std::string::npos && 
+         (content.find(": F") != std::string::npos || content.find(": E") != std::string::npos || 
+          content.find(": W") != std::string::npos || content.find(": C") != std::string::npos)) ||
         (content.find("imported but unused") != std::string::npos || content.find("line too long") != std::string::npos || content.find("continuation line") != std::string::npos)) {
         return TestResultFormat::FLAKE8_TEXT;
     }
@@ -504,6 +506,11 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
         (content.find("All done!") != std::string::npos && content.find("✨") != std::string::npos && content.find("🍰") != std::string::npos) ||
         (content.find("--- ") != std::string::npos && content.find("+++ ") != std::string::npos && content.find("(original)") != std::string::npos && content.find("(formatted)") != std::string::npos)) {
         return TestResultFormat::BLACK_TEXT;
+    }
+    
+    // Check for make error patterns (must be before mypy since make errors can contain ": error:" and brackets)
+    if (content.find("make: ***") != std::string::npos && content.find("Error") != std::string::npos) {
+        return TestResultFormat::MAKE_ERROR;
     }
     
     // Check for mypy patterns
@@ -584,7 +591,11 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
         return TestResultFormat::PYTEST_COV_TEXT;
     }
     
-    if (content.find("PASSED") != std::string::npos && content.find("::") != std::string::npos) {
+    // Check for pytest text patterns (file.py::test_name with PASSED/FAILED/SKIPPED)
+    if (content.find("::") != std::string::npos && 
+        (content.find("PASSED") != std::string::npos || 
+         content.find("FAILED") != std::string::npos || 
+         content.find("SKIPPED") != std::string::npos)) {
         return TestResultFormat::PYTEST_TEXT;
     }
     
@@ -647,11 +658,6 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
         (content.find("error CS") != std::string::npos && content.find(".csproj") != std::string::npos) ||
         (content.find("xUnit.net") != std::string::npos && content.find("[FAIL]") != std::string::npos)) {
         return TestResultFormat::MSBUILD;
-    }
-    
-    
-    if (content.find("make: ***") != std::string::npos && content.find("Error") != std::string::npos) {
-        return TestResultFormat::MAKE_ERROR;
     }
     
     if (content.find(": error:") != std::string::npos || content.find(": warning:") != std::string::npos) {
@@ -1658,11 +1664,12 @@ void ParseMakeErrors(const std::string& content, std::vector<ValidationEvent>& e
             event.structured_data = "make_build";
             
             // Extract makefile target from pattern like "[Makefile:23: build/main]"
+            // Note: We extract file_path and test_name but NOT line_number for make build failures
             std::regex target_pattern(R"(\[([^:]+):(\d+):\s*([^\]]+)\])");
             std::smatch target_match;
             if (std::regex_search(line, target_match, target_pattern)) {
                 event.file_path = target_match[1].str();  // Makefile
-                event.line_number = std::stoi(target_match[2].str());  // Line in Makefile
+                // Don't extract line_number for make build failures - keep it as -1 (NULL)
                 event.test_name = target_match[3].str();  // Target name (e.g., "build/main")
             }
             
@@ -3763,7 +3770,7 @@ void ParseCMakeBuild(const std::string& content, std::vector<ValidationEvent>& e
             event.column_number = -1;
             
             // Extract symbol name from linker error
-            std::regex linker_pattern(R"(undefined reference to `([^']+)')");
+            std::regex linker_pattern(R"(undefined reference to `([^`]+)`)");
             std::smatch linker_match;
             if (std::regex_search(line, linker_match, linker_pattern)) {
                 event.function_name = linker_match[1].str();
