@@ -4,6 +4,7 @@
 #include "duckdb/parser/parsed_data/create_table_function_info.hpp"
 #include "duckdb/common/file_system.hpp"
 #include "duckdb/common/string_util.hpp"
+#include "duckdb/common/enums/file_glob_options.hpp"
 #include "yyjson.hpp"
 #include <fstream>
 #include <regex>
@@ -624,14 +625,21 @@ unique_ptr<FunctionData> ReadTestResultsBind(ClientContext &context, TableFuncti
         LogicalType::VARCHAR,  // test_name
         LogicalType::DOUBLE,   // execution_time
         LogicalType::VARCHAR,  // raw_output
-        LogicalType::VARCHAR   // structured_data
+        LogicalType::VARCHAR,  // structured_data
+        // Phase 3A: Multi-file processing metadata
+        LogicalType::VARCHAR,  // source_file
+        LogicalType::VARCHAR,  // build_id
+        LogicalType::VARCHAR,  // environment
+        LogicalType::BIGINT    // file_index
     };
     
     names = {
         "event_id", "tool_name", "event_type", "file_path", "line_number",
         "column_number", "function_name", "status", "severity", "category",
         "message", "suggestion", "error_code", "test_name", "execution_time",
-        "raw_output", "structured_data"
+        "raw_output", "structured_data",
+        // Phase 3A: Multi-file processing metadata
+        "source_file", "build_id", "environment", "file_index"
     };
     
     return std::move(bind_data);
@@ -641,194 +649,223 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
     auto &bind_data = input.bind_data->Cast<ReadTestResultsBindData>();
     auto global_state = make_uniq<ReadTestResultsGlobalState>();
     
-    // Read content from source
-    std::string content;
+    // Phase 3A: Check if source contains glob patterns or multiple files
+    auto &fs = FileSystem::GetFileSystem(context);
+    std::vector<std::string> files;
+    
     try {
-        content = ReadContentFromSource(bind_data.source);
+        // Try to expand the source as a glob pattern or file list
+        files = GetFilesFromPattern(context, bind_data.source);
     } catch (const IOException&) {
-        // If file reading fails, treat source as direct content
-        content = bind_data.source;
+        // If glob expansion fails, treat as single file or direct content
+        files.clear();
     }
     
-    // Auto-detect format if needed
-    TestResultFormat format = bind_data.format;
-    if (format == TestResultFormat::AUTO) {
-        format = DetectTestResultFormat(content);
-    }
-    
-    // Parse content based on detected format
-    switch (format) {
-        case TestResultFormat::PYTEST_JSON:
-            ParsePytestJSON(content, global_state->events);
-            break;
-        case TestResultFormat::DUCKDB_TEST:
-            ParseDuckDBTestOutput(content, global_state->events);
-            break;
-        case TestResultFormat::ESLINT_JSON:
-            ParseESLintJSON(content, global_state->events);
-            break;
-        case TestResultFormat::GOTEST_JSON:
-            ParseGoTestJSON(content, global_state->events);
-            break;
-        case TestResultFormat::MAKE_ERROR:
-            ParseMakeErrors(content, global_state->events);
-            break;
-        case TestResultFormat::PYTEST_TEXT:
-            ParsePytestText(content, global_state->events);
-            break;
-        case TestResultFormat::GENERIC_LINT:
-            ParseGenericLint(content, global_state->events);
-            break;
-        case TestResultFormat::RUBOCOP_JSON:
-            ParseRuboCopJSON(content, global_state->events);
-            break;
-        case TestResultFormat::CARGO_TEST_JSON:
-            ParseCargoTestJSON(content, global_state->events);
-            break;
-        case TestResultFormat::SWIFTLINT_JSON:
-            ParseSwiftLintJSON(content, global_state->events);
-            break;
-        case TestResultFormat::PHPSTAN_JSON:
-            ParsePHPStanJSON(content, global_state->events);
-            break;
-        case TestResultFormat::SHELLCHECK_JSON:
-            ParseShellCheckJSON(content, global_state->events);
-            break;
-        case TestResultFormat::STYLELINT_JSON:
-            ParseStylelintJSON(content, global_state->events);
-            break;
-        case TestResultFormat::CLIPPY_JSON:
-            ParseClippyJSON(content, global_state->events);
-            break;
-        case TestResultFormat::MARKDOWNLINT_JSON:
-            ParseMarkdownlintJSON(content, global_state->events);
-            break;
-        case TestResultFormat::YAMLLINT_JSON:
-            ParseYamllintJSON(content, global_state->events);
-            break;
-        case TestResultFormat::BANDIT_JSON:
-            ParseBanditJSON(content, global_state->events);
-            break;
-        case TestResultFormat::SPOTBUGS_JSON:
-            ParseSpotBugsJSON(content, global_state->events);
-            break;
-        case TestResultFormat::KTLINT_JSON:
-            ParseKtlintJSON(content, global_state->events);
-            break;
-        case TestResultFormat::HADOLINT_JSON:
-            ParseHadolintJSON(content, global_state->events);
-            break;
-        case TestResultFormat::LINTR_JSON:
-            ParseLintrJSON(content, global_state->events);
-            break;
-        case TestResultFormat::SQLFLUFF_JSON:
-            ParseSqlfluffJSON(content, global_state->events);
-            break;
-        case TestResultFormat::TFLINT_JSON:
-            ParseTflintJSON(content, global_state->events);
-            break;
-        case TestResultFormat::KUBE_SCORE_JSON:
-            ParseKubeScoreJSON(content, global_state->events);
-            break;
-        case TestResultFormat::CMAKE_BUILD:
-            ParseCMakeBuild(content, global_state->events);
-            break;
-        case TestResultFormat::PYTHON_BUILD:
-            ParsePythonBuild(content, global_state->events);
-            break;
-        case TestResultFormat::NODE_BUILD:
-            ParseNodeBuild(content, global_state->events);
-            break;
-        case TestResultFormat::CARGO_BUILD:
-            ParseCargoBuild(content, global_state->events);
-            break;
-        case TestResultFormat::MAVEN_BUILD:
-            ParseMavenBuild(content, global_state->events);
-            break;
-        case TestResultFormat::GRADLE_BUILD:
-            ParseGradleBuild(content, global_state->events);
-            break;
-        case TestResultFormat::MSBUILD:
-            ParseMSBuild(content, global_state->events);
-            break;
-        case TestResultFormat::JUNIT_TEXT:
-            ParseJUnitText(content, global_state->events);
-            break;
-        case TestResultFormat::VALGRIND:
-            ParseValgrind(content, global_state->events);
-            break;
-        case TestResultFormat::GDB_LLDB:
-            ParseGdbLldb(content, global_state->events);
-            break;
-        case TestResultFormat::RSPEC_TEXT:
-            ParseRSpecText(content, global_state->events);
-            break;
-        case TestResultFormat::MOCHA_CHAI_TEXT:
-            ParseMochaChai(content, global_state->events);
-            break;
-        case TestResultFormat::GTEST_TEXT:
-            ParseGoogleTest(content, global_state->events);
-            break;
-        case TestResultFormat::NUNIT_XUNIT_TEXT:
-            ParseNUnitXUnit(content, global_state->events);
-            break;
-        case TestResultFormat::PYLINT_TEXT:
-            ParsePylintText(content, global_state->events);
-            break;
-        case TestResultFormat::FLAKE8_TEXT:
-            ParseFlake8Text(content, global_state->events);
-            break;
-        case TestResultFormat::BLACK_TEXT:
-            ParseBlackText(content, global_state->events);
-            break;
-        case TestResultFormat::MYPY_TEXT:
-            ParseMypyText(content, global_state->events);
-            break;
-        case TestResultFormat::DOCKER_BUILD:
-            ParseDockerBuild(content, global_state->events);
-            break;
-        case TestResultFormat::BAZEL_BUILD:
-            ParseBazelBuild(content, global_state->events);
-            break;
-        case TestResultFormat::ISORT_TEXT:
-            ParseIsortText(content, global_state->events);
-            break;
-        case TestResultFormat::BANDIT_TEXT:
-            ParseBanditText(content, global_state->events);
-            break;
-        case TestResultFormat::AUTOPEP8_TEXT:
-            ParseAutopep8Text(content, global_state->events);
-            break;
-        case TestResultFormat::YAPF_TEXT:
-            ParseYapfText(content, global_state->events);
-            break;
-        case TestResultFormat::COVERAGE_TEXT:
-            ParseCoverageText(content, global_state->events);
-            break;
-        case TestResultFormat::PYTEST_COV_TEXT:
-            ParsePytestCovText(content, global_state->events);
-            break;
-        case TestResultFormat::GITHUB_ACTIONS_TEXT:
-            ParseGitHubActionsText(content, global_state->events);
-            break;
-        case TestResultFormat::GITLAB_CI_TEXT:
-            ParseGitLabCIText(content, global_state->events);
-            break;
-        case TestResultFormat::JENKINS_TEXT:
-            ParseJenkinsText(content, global_state->events);
-            break;
-        case TestResultFormat::DRONE_CI_TEXT:
-            ParseDroneCIText(content, global_state->events);
-            break;
-        case TestResultFormat::TERRAFORM_TEXT:
-            ParseTerraformText(content, global_state->events);
-            break;
-        case TestResultFormat::ANSIBLE_TEXT:
-            ParseAnsibleText(content, global_state->events);
-            break;
-        default:
-            // For unknown formats, don't create any events
-            break;
+    if (files.size() > 1) {
+        // Multi-file processing path
+        ProcessMultipleFiles(context, files, bind_data.format, global_state->events);
+    } else {
+        // Single file processing path (original behavior)
+        std::string content;
+        try {
+            content = ReadContentFromSource(bind_data.source);
+        } catch (const IOException&) {
+            // If file reading fails, treat source as direct content
+            content = bind_data.source;
+        }
+        
+        // Auto-detect format if needed
+        TestResultFormat format = bind_data.format;
+        if (format == TestResultFormat::AUTO) {
+            format = DetectTestResultFormat(content);
+        }
+        
+        // Parse content based on detected format
+        switch (format) {
+            case TestResultFormat::PYTEST_JSON:
+                ParsePytestJSON(content, global_state->events);
+                break;
+            case TestResultFormat::DUCKDB_TEST:
+                ParseDuckDBTestOutput(content, global_state->events);
+                break;
+            case TestResultFormat::ESLINT_JSON:
+                ParseESLintJSON(content, global_state->events);
+                break;
+            case TestResultFormat::GOTEST_JSON:
+                ParseGoTestJSON(content, global_state->events);
+                break;
+            case TestResultFormat::MAKE_ERROR:
+                ParseMakeErrors(content, global_state->events);
+                break;
+            case TestResultFormat::PYTEST_TEXT:
+                ParsePytestText(content, global_state->events);
+                break;
+            case TestResultFormat::GENERIC_LINT:
+                ParseGenericLint(content, global_state->events);
+                break;
+            case TestResultFormat::RUBOCOP_JSON:
+                ParseRuboCopJSON(content, global_state->events);
+                break;
+            case TestResultFormat::CARGO_TEST_JSON:
+                ParseCargoTestJSON(content, global_state->events);
+                break;
+            case TestResultFormat::SWIFTLINT_JSON:
+                ParseSwiftLintJSON(content, global_state->events);
+                break;
+            case TestResultFormat::PHPSTAN_JSON:
+                ParsePHPStanJSON(content, global_state->events);
+                break;
+            case TestResultFormat::SHELLCHECK_JSON:
+                ParseShellCheckJSON(content, global_state->events);
+                break;
+            case TestResultFormat::STYLELINT_JSON:
+                ParseStylelintJSON(content, global_state->events);
+                break;
+            case TestResultFormat::CLIPPY_JSON:
+                ParseClippyJSON(content, global_state->events);
+                break;
+            case TestResultFormat::MARKDOWNLINT_JSON:
+                ParseMarkdownlintJSON(content, global_state->events);
+                break;
+            case TestResultFormat::YAMLLINT_JSON:
+                ParseYamllintJSON(content, global_state->events);
+                break;
+            case TestResultFormat::BANDIT_JSON:
+                ParseBanditJSON(content, global_state->events);
+                break;
+            case TestResultFormat::SPOTBUGS_JSON:
+                ParseSpotBugsJSON(content, global_state->events);
+                break;
+            case TestResultFormat::KTLINT_JSON:
+                ParseKtlintJSON(content, global_state->events);
+                break;
+            case TestResultFormat::HADOLINT_JSON:
+                ParseHadolintJSON(content, global_state->events);
+                break;
+            case TestResultFormat::LINTR_JSON:
+                ParseLintrJSON(content, global_state->events);
+                break;
+            case TestResultFormat::SQLFLUFF_JSON:
+                ParseSqlfluffJSON(content, global_state->events);
+                break;
+            case TestResultFormat::TFLINT_JSON:
+                ParseTflintJSON(content, global_state->events);
+                break;
+            case TestResultFormat::KUBE_SCORE_JSON:
+                ParseKubeScoreJSON(content, global_state->events);
+                break;
+            case TestResultFormat::CMAKE_BUILD:
+                ParseCMakeBuild(content, global_state->events);
+                break;
+            case TestResultFormat::PYTHON_BUILD:
+                ParsePythonBuild(content, global_state->events);
+                break;
+            case TestResultFormat::NODE_BUILD:
+                ParseNodeBuild(content, global_state->events);
+                break;
+            case TestResultFormat::CARGO_BUILD:
+                ParseCargoBuild(content, global_state->events);
+                break;
+            case TestResultFormat::MAVEN_BUILD:
+                ParseMavenBuild(content, global_state->events);
+                break;
+            case TestResultFormat::GRADLE_BUILD:
+                ParseGradleBuild(content, global_state->events);
+                break;
+            case TestResultFormat::MSBUILD:
+                ParseMSBuild(content, global_state->events);
+                break;
+            case TestResultFormat::JUNIT_TEXT:
+                ParseJUnitText(content, global_state->events);
+                break;
+            case TestResultFormat::VALGRIND:
+                ParseValgrind(content, global_state->events);
+                break;
+            case TestResultFormat::GDB_LLDB:
+                ParseGdbLldb(content, global_state->events);
+                break;
+            case TestResultFormat::RSPEC_TEXT:
+                ParseRSpecText(content, global_state->events);
+                break;
+            case TestResultFormat::MOCHA_CHAI_TEXT:
+                ParseMochaChai(content, global_state->events);
+                break;
+            case TestResultFormat::GTEST_TEXT:
+                ParseGoogleTest(content, global_state->events);
+                break;
+            case TestResultFormat::NUNIT_XUNIT_TEXT:
+                ParseNUnitXUnit(content, global_state->events);
+                break;
+            case TestResultFormat::PYLINT_TEXT:
+                ParsePylintText(content, global_state->events);
+                break;
+            case TestResultFormat::FLAKE8_TEXT:
+                ParseFlake8Text(content, global_state->events);
+                break;
+            case TestResultFormat::BLACK_TEXT:
+                ParseBlackText(content, global_state->events);
+                break;
+            case TestResultFormat::MYPY_TEXT:
+                ParseMypyText(content, global_state->events);
+                break;
+            case TestResultFormat::DOCKER_BUILD:
+                ParseDockerBuild(content, global_state->events);
+                break;
+            case TestResultFormat::BAZEL_BUILD:
+                ParseBazelBuild(content, global_state->events);
+                break;
+            case TestResultFormat::ISORT_TEXT:
+                ParseIsortText(content, global_state->events);
+                break;
+            case TestResultFormat::BANDIT_TEXT:
+                ParseBanditText(content, global_state->events);
+                break;
+            case TestResultFormat::AUTOPEP8_TEXT:
+                ParseAutopep8Text(content, global_state->events);
+                break;
+            case TestResultFormat::YAPF_TEXT:
+                ParseYapfText(content, global_state->events);
+                break;
+            case TestResultFormat::COVERAGE_TEXT:
+                ParseCoverageText(content, global_state->events);
+                break;
+            case TestResultFormat::PYTEST_COV_TEXT:
+                ParsePytestCovText(content, global_state->events);
+                break;
+            case TestResultFormat::GITHUB_ACTIONS_TEXT:
+                ParseGitHubActionsText(content, global_state->events);
+                break;
+            case TestResultFormat::GITLAB_CI_TEXT:
+                ParseGitLabCIText(content, global_state->events);
+                break;
+            case TestResultFormat::JENKINS_TEXT:
+                ParseJenkinsText(content, global_state->events);
+                break;
+            case TestResultFormat::DRONE_CI_TEXT:
+                ParseDroneCIText(content, global_state->events);
+                break;
+            case TestResultFormat::TERRAFORM_TEXT:
+                ParseTerraformText(content, global_state->events);
+                break;
+            case TestResultFormat::ANSIBLE_TEXT:
+                ParseAnsibleText(content, global_state->events);
+                break;
+            default:
+                // For unknown formats, don't create any events
+                break;
+        }
+        
+        // For single files, populate basic metadata
+        if (!global_state->events.empty()) {
+            for (auto& event : global_state->events) {
+                if (event.source_file.empty()) {
+                    event.source_file = bind_data.source;
+                    event.build_id = ExtractBuildIdFromPath(bind_data.source);
+                    event.environment = ExtractEnvironmentFromPath(bind_data.source);
+                    event.file_index = 0;
+                }
+            }
+        }
     }
     
     return std::move(global_state);
@@ -883,6 +920,11 @@ void PopulateDataChunkFromEvents(DataChunk &output, const std::vector<Validation
         output.SetValue(col++, i, Value::DOUBLE(event.execution_time));
         output.SetValue(col++, i, Value(event.raw_output));
         output.SetValue(col++, i, Value(event.structured_data));
+        // Phase 3A: Multi-file processing metadata
+        output.SetValue(col++, i, Value(event.source_file));
+        output.SetValue(col++, i, event.build_id.empty() ? Value() : Value(event.build_id));
+        output.SetValue(col++, i, event.environment.empty() ? Value() : Value(event.environment));
+        output.SetValue(col++, i, event.file_index == -1 ? Value() : Value::BIGINT(event.file_index));
     }
 }
 
@@ -3654,14 +3696,21 @@ unique_ptr<FunctionData> ParseTestResultsBind(ClientContext &context, TableFunct
         LogicalType::VARCHAR,  // test_name
         LogicalType::DOUBLE,   // execution_time
         LogicalType::VARCHAR,  // raw_output
-        LogicalType::VARCHAR   // structured_data
+        LogicalType::VARCHAR,  // structured_data
+        // Phase 3A: Multi-file processing metadata
+        LogicalType::VARCHAR,  // source_file
+        LogicalType::VARCHAR,  // build_id
+        LogicalType::VARCHAR,  // environment
+        LogicalType::BIGINT    // file_index
     };
     
     names = {
         "event_id", "tool_name", "event_type", "file_path", "line_number",
         "column_number", "function_name", "status", "severity", "category",
         "message", "suggestion", "error_code", "test_name", "execution_time",
-        "raw_output", "structured_data"
+        "raw_output", "structured_data",
+        // Phase 3A: Multi-file processing metadata
+        "source_file", "build_id", "environment", "file_index"
     };
     
     return std::move(bind_data);
@@ -13360,6 +13409,201 @@ void ParseAnsibleText(const std::string& content, std::vector<ValidationEvent>& 
             continue;
         }
     }
+}
+
+// Phase 3A: Multi-file processing implementation
+
+std::vector<std::string> GetFilesFromPattern(ClientContext& context, const std::string& pattern) {
+    auto &fs = FileSystem::GetFileSystem(context);
+    std::vector<std::string> result;
+    
+    // Helper lambda to handle individual file paths (adapted from duckdb_yaml)
+    auto processPath = [&](const std::string &file_path) {
+        // First: check if we're dealing with just a single file that exists
+        if (fs.FileExists(file_path)) {
+            result.push_back(file_path);
+            return;
+        }
+        
+        // Second: attempt to use the path as a glob
+        auto glob_files = GetGlobFiles(context, file_path);
+        if (glob_files.size() > 0) {
+            result.insert(result.end(), glob_files.begin(), glob_files.end());
+            return;
+        }
+        
+        // Third: if it looks like a directory, try to glob common test result files
+        if (StringUtil::EndsWith(file_path, "/")) {
+            // Common test result file patterns
+            std::vector<std::string> patterns = {
+                "*.xml", "*.json", "*.txt", "*.log", "*.out"
+            };
+            for (const auto& ext_pattern : patterns) {
+                auto files = GetGlobFiles(context, fs.JoinPath(file_path, ext_pattern));
+                result.insert(result.end(), files.begin(), files.end());
+            }
+            return;
+        }
+        
+        // If file doesn't exist and isn't a valid glob, throw error
+        throw IOException("File or directory does not exist: " + file_path);
+    };
+    
+    processPath(pattern);
+    return result;
+}
+
+std::vector<std::string> GetGlobFiles(ClientContext& context, const std::string& pattern) {
+    auto &fs = FileSystem::GetFileSystem(context);
+    std::vector<std::string> result;
+    
+    // Don't bother if we can't identify a glob pattern
+    try {
+        bool has_glob = fs.HasGlob(pattern);
+        if (!has_glob) {
+            // For remote URLs, still try GlobFiles as it has better support
+            if (pattern.find("://") == std::string::npos || pattern.find("file://") == 0) {
+                return result;
+            }
+        }
+    } catch (const NotImplementedException &) {
+        // If HasGlob is not implemented, still try GlobFiles for remote URLs
+        if (pattern.find("://") == std::string::npos || pattern.find("file://") == 0) {
+            return result;
+        }
+    }
+    
+    // Use GlobFiles which handles extension auto-loading and directory filtering
+    try {
+        auto glob_files = fs.GlobFiles(pattern, context, FileGlobOptions::ALLOW_EMPTY);
+        for (auto &file : glob_files) {
+            result.push_back(file.path);
+        }
+    } catch (const NotImplementedException &) {
+        // No glob support available
+        return result;
+    } catch (const IOException &) {
+        // Glob failed, return empty result
+        return result;
+    }
+    
+    return result;
+}
+
+void ProcessMultipleFiles(ClientContext& context, const std::vector<std::string>& files, 
+                         TestResultFormat format, std::vector<ValidationEvent>& events) {
+    for (size_t file_idx = 0; file_idx < files.size(); file_idx++) {
+        const auto& file_path = files[file_idx];
+        
+        try {
+            // Read file content
+            std::string content = ReadContentFromSource(file_path);
+            
+            // Detect format if AUTO
+            TestResultFormat detected_format = format;
+            if (format == TestResultFormat::AUTO) {
+                detected_format = DetectTestResultFormat(content);
+            }
+            
+            // Parse content and get events for this file
+            std::vector<ValidationEvent> file_events;
+            
+            // Dispatch to appropriate parser based on format
+            switch (detected_format) {
+                case TestResultFormat::PYTEST_JSON:
+                    ParsePytestJSON(content, file_events);
+                    break;
+                case TestResultFormat::GOTEST_JSON:
+                    ParseGoTestJSON(content, file_events);
+                    break;
+                case TestResultFormat::ESLINT_JSON:
+                    ParseESLintJSON(content, file_events);
+                    break;
+                case TestResultFormat::PYTEST_TEXT:
+                    ParsePytestText(content, file_events);
+                    break;
+                case TestResultFormat::GITHUB_ACTIONS_TEXT:
+                    ParseGitHubActionsText(content, file_events);
+                    break;
+                case TestResultFormat::GITLAB_CI_TEXT:
+                    ParseGitLabCIText(content, file_events);
+                    break;
+                case TestResultFormat::JENKINS_TEXT:
+                    ParseJenkinsText(content, file_events);
+                    break;
+                case TestResultFormat::DRONE_CI_TEXT:
+                    ParseDroneCIText(content, file_events);
+                    break;
+                case TestResultFormat::TERRAFORM_TEXT:
+                    ParseTerraformText(content, file_events);
+                    break;
+                case TestResultFormat::ANSIBLE_TEXT:
+                    ParseAnsibleText(content, file_events);
+                    break;
+                // Add other formats as needed...
+                default:
+                    // For unsupported formats, continue to next file
+                    continue;
+            }
+            
+            // Enrich events with multi-file metadata
+            for (auto& event : file_events) {
+                event.source_file = file_path;
+                event.build_id = ExtractBuildIdFromPath(file_path);
+                event.environment = ExtractEnvironmentFromPath(file_path);
+                event.file_index = static_cast<int64_t>(file_idx);
+            }
+            
+            // Add events to main collection
+            events.insert(events.end(), file_events.begin(), file_events.end());
+            
+        } catch (const IOException& e) {
+            // Continue processing other files if one fails
+            continue;
+        }
+    }
+}
+
+std::string ExtractBuildIdFromPath(const std::string& file_path) {
+    // Extract build ID from common patterns like:
+    // - /builds/build-123/results.xml -> "build-123"
+    // - /ci-logs/pipeline-456/test.log -> "pipeline-456"
+    // - /artifacts/20231201-142323/output.txt -> "20231201-142323"
+    
+    std::regex build_patterns[] = {
+        std::regex(R"(/(?:build|pipeline|run|job)-([^/\s]+)/)"),  // build-123, pipeline-456
+        std::regex(R"(/(\d{8}-\d{6})/)"),                         // 20231201-142323 
+        std::regex(R"(/(?:builds?|ci|artifacts)/([^/\s]+)/)"),    // builds/abc123, ci/def456
+        std::regex(R"([_-](\w+\d+)[_-])"),                        // any_build123_ pattern
+    };
+    
+    for (const auto& pattern : build_patterns) {
+        std::smatch match;
+        if (std::regex_search(file_path, match, pattern)) {
+            return match[1].str();
+        }
+    }
+    
+    return ""; // No build ID found
+}
+
+std::string ExtractEnvironmentFromPath(const std::string& file_path) {
+    // Extract environment from common patterns like:
+    // - /environments/dev/results.xml -> "dev"
+    // - /staging/ci-logs/test.log -> "staging"
+    // - /prod/artifacts/output.txt -> "prod"
+    
+    std::vector<std::string> environments = {"dev", "development", "staging", "stage", "prod", "production", "test", "testing"};
+    
+    for (const auto& env : environments) {
+        if (file_path.find("/" + env + "/") != std::string::npos ||
+            file_path.find("-" + env + "-") != std::string::npos ||
+            file_path.find("_" + env + "_") != std::string::npos) {
+            return env;
+        }
+    }
+    
+    return ""; // No environment found
 }
 
 } // namespace duckdb

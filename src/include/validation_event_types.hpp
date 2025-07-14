@@ -52,9 +52,15 @@ struct ValidationEvent {
     double execution_time;
     std::string raw_output;
     std::string structured_data;  // JSON string
-
+    
+    // Phase 3A: Multi-file processing metadata
+    std::string source_file;      // Which log/result file this event came from
+    std::string build_id;         // Extract from file path pattern (e.g., build-123)
+    std::string environment;      // dev/staging/prod extracted from path
+    int64_t file_index;          // Order of processing (0-based)
+    
     ValidationEvent() : event_id(0), line_number(-1), column_number(-1), 
-                       execution_time(0.0) {}
+                       execution_time(0.0), file_index(-1) {}
 };
 
 // Helper functions for enum conversions
