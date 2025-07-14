@@ -1,0 +1,7 @@
+============================= test session starts ==============================
+platform linux -- Python 3.8.10
+
+test_production.py::test_database_connection PASSED           [ 50%]
+test_production.py::test_api_endpoint PASSED                  [100%]
+
+========================= 2 passed in 0.08s =========================

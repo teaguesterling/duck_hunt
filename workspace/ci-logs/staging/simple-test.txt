@@ -1,0 +1,3 @@
+PASS: test_user_login
+FAIL: test_password_validation
+PASS: test_logout_flow

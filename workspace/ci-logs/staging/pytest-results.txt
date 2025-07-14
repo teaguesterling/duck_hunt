@@ -1,0 +1,18 @@
+============================= test session starts ==============================
+platform linux -- Python 3.8.10
+
+test_user_auth.py::test_login PASSED                           [ 33%]
+test_user_auth.py::test_logout PASSED                          [ 66%]
+test_user_auth.py::test_invalid_login FAILED                   [100%]
+
+=================================== FAILURES ===================================
+________________________________ test_invalid_login ________________________________
+
+    def test_invalid_login():
+>       assert login("invalid", "password") == False
+E       assert None == False
+
+test_user_auth.py:15: AssertionError
+========================= short test summary info =========================
+FAILED test_user_auth.py::test_invalid_login - assert None == False
+========================= 1 failed, 2 passed in 0.12s =========================
