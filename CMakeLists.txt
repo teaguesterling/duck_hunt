@@ -36,6 +36,11 @@ set(EXTENSION_SOURCES
     src/parsers/build_systems/cmake_parser.cpp
     src/parsers/linting_tools/black_parser.cpp
     src/parsers/linting_tools/pylint_parser.cpp
+    
+    # Phase 5: JSON Parser Extraction - Batch 1
+    src/parsers/tool_outputs/rubocop_json_parser.cpp
+    src/parsers/tool_outputs/cargo_test_json_parser.cpp
+    src/parsers/tool_outputs/swiftlint_json_parser.cpp
 )
 
 build_static_extension(${TARGET_NAME} ${EXTENSION_SOURCES})
