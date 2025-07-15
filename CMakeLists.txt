@@ -51,6 +51,11 @@ set(EXTENSION_SOURCES
     src/parsers/tool_outputs/clippy_json_parser.cpp
     src/parsers/tool_outputs/markdownlint_json_parser.cpp
     src/parsers/tool_outputs/yamllint_json_parser.cpp
+    
+    # Phase 5: JSON Parser Extraction - Batch 4 (Final JSON Batch)
+    src/parsers/tool_outputs/bandit_json_parser.cpp
+    src/parsers/tool_outputs/spotbugs_json_parser.cpp
+    src/parsers/tool_outputs/ktlint_json_parser.cpp
 )
 
 build_static_extension(${TARGET_NAME} ${EXTENSION_SOURCES})
