@@ -6,6 +6,7 @@
 #include "parsers/test_frameworks/gtest_text_parser.hpp"
 #include "parsers/test_frameworks/nunit_xunit_text_parser.hpp"
 #include "parsers/specialized/valgrind_parser.hpp"
+#include "parsers/specialized/gdb_lldb_parser.hpp"
 #include "duckdb/function/table_function.hpp"
 #include "duckdb/parser/parsed_data/create_table_function_info.hpp"
 #include "duckdb/common/file_system.hpp"
@@ -1018,7 +1019,7 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                 duck_hunt::ValgrindParser::ParseValgrind(content, global_state->events);
                 break;
             case TestResultFormat::GDB_LLDB:
-                ParseGdbLldb(content, global_state->events);
+                duck_hunt::GdbLldbParser::ParseGdbLldb(content, global_state->events);
                 break;
             case TestResultFormat::RSPEC_TEXT:
                 duck_hunt::RSpecTextParser::ParseRSpecText(content, global_state->events);
@@ -4083,7 +4084,7 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
             duck_hunt::ValgrindParser::ParseValgrind(content, global_state->events);
             break;
         case TestResultFormat::GDB_LLDB:
-            ParseGdbLldb(content, global_state->events);
+            duck_hunt::GdbLldbParser::ParseGdbLldb(content, global_state->events);
             break;
         case TestResultFormat::RSPEC_TEXT:
             duck_hunt::RSpecTextParser::ParseRSpecText(content, global_state->events);

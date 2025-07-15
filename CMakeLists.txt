@@ -72,6 +72,9 @@ set(EXTENSION_SOURCES
     
     # Phase 7: Specialized Parser Extraction - Batch 1
     src/parsers/specialized/valgrind_parser.cpp
+    
+    # Phase 7: Specialized Parser Extraction - Batch 2
+    src/parsers/specialized/gdb_lldb_parser.cpp
 )
 
 build_static_extension(${TARGET_NAME} ${EXTENSION_SOURCES})
