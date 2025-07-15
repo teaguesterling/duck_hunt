@@ -1,7 +1,6 @@
 #pragma once
 
-#include "../base/parser_interface.hpp"
-#include "../../validation_event_types.hpp"
+#include "validation_event_types.hpp"
 #include <string>
 #include <vector>
 
