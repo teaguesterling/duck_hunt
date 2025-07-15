@@ -18,6 +18,16 @@ set(EXTENSION_SOURCES
     src/duck_hunt_extension.cpp
     src/validation_event_types.cpp
     src/read_test_results_function.cpp
+    
+    # Core modular architecture
+    src/core/parser_registry.cpp
+    src/core/format_detector.cpp
+    
+    # Parser implementations
+    src/parsers/test_frameworks/pytest_parser.cpp
+    src/parsers/test_frameworks/pytest_json_parser.cpp
+    src/parsers/tool_outputs/eslint_json_parser.cpp
+    src/parsers/tool_outputs/gotest_json_parser.cpp
 )
 
 build_static_extension(${TARGET_NAME} ${EXTENSION_SOURCES})

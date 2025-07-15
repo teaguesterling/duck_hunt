@@ -4,8 +4,10 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
-#include "../parsers/base/parser_interface.hpp"
+#include "duckdb/common/unique_ptr.hpp"
 #include "../include/validation_event_types.hpp"
+#include "../include/read_test_results_function.hpp"
+#include "../parsers/base/parser_interface.hpp"
 
 namespace duckdb {
 
@@ -80,7 +82,7 @@ template<typename ParserType>
 class ParserRegistrar {
 public:
     ParserRegistrar() {
-        ParserRegistry::getInstance().registerParser(std::make_unique<ParserType>());
+        ParserRegistry::getInstance().registerParser(make_uniq<ParserType>());
     }
 };
 
