@@ -6,14 +6,13 @@
 
 namespace duck_hunt {
 
-class JUnitTextParser : public ParserInterface {
+class JUnitTextParser {
 public:
-    static void ParseJUnitText(const std::string& content, std::vector<ValidationEvent>& events);
+    static void ParseJUnitText(const std::string& content, std::vector<duckdb::ValidationEvent>& events);
     
-    // ParserInterface implementation
-    std::string GetName() const override { return "junit_text"; }
-    bool CanParse(const std::string& content) const override;
-    void Parse(const std::string& content, std::vector<ValidationEvent>& events) const override;
+    std::string GetName() const { return "junit_text"; }
+    bool CanParse(const std::string& content) const;
+    void Parse(const std::string& content, std::vector<duckdb::ValidationEvent>& events) const;
 };
 
 } // namespace duck_hunt

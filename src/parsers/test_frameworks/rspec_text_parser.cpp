@@ -12,11 +12,11 @@ bool RSpecTextParser::CanParse(const std::string& content) const {
            (content.find("rspec") != std::string::npos || content.find("Failure/Error:") != std::string::npos);
 }
 
-void RSpecTextParser::Parse(const std::string& content, std::vector<ValidationEvent>& events) const {
+void RSpecTextParser::Parse(const std::string& content, std::vector<duckdb::ValidationEvent>& events) const {
     ParseRSpecText(content, events);
 }
 
-void RSpecTextParser::ParseRSpecText(const std::string& content, std::vector<ValidationEvent>& events) {
+void RSpecTextParser::ParseRSpecText(const std::string& content, std::vector<duckdb::ValidationEvent>& events) {
     std::istringstream stream(content);
     std::string line;
     int64_t event_id = 1;
@@ -59,11 +59,11 @@ void RSpecTextParser::ParseRSpecText(const std::string& content, std::vector<Val
         
         // Parse failed example references
         if (in_failed_examples && std::regex_search(line, match, failed_example)) {
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = "RSpec";
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.status = ValidationEventStatus::FAIL;
+            event.event_type = duckdb::ValidationEventType::TEST_RESULT;
+            event.status = duckdb::ValidationEventStatus::FAIL;
             event.severity = "error";
             event.category = "test_failure";
             event.file_path = match[1].str();
@@ -93,11 +93,11 @@ void RSpecTextParser::ParseRSpecText(const std::string& content, std::vector<Val
         
         // Parse passed tests
         if (std::regex_search(line, match, test_passed)) {
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = "RSpec";
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.status = ValidationEventStatus::PASS;
+            event.event_type = duckdb::ValidationEventType::TEST_RESULT;
+            event.status = duckdb::ValidationEventStatus::PASS;
             event.severity = "info";
             event.category = "test_success";
             if (!current_context.empty()) {
@@ -114,11 +114,11 @@ void RSpecTextParser::ParseRSpecText(const std::string& content, std::vector<Val
         
         // Parse failed tests
         else if (std::regex_search(line, match, test_failed)) {
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = "RSpec";
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.status = ValidationEventStatus::FAIL;
+            event.event_type = duckdb::ValidationEventType::TEST_RESULT;
+            event.status = duckdb::ValidationEventStatus::FAIL;
             event.severity = "error";
             event.category = "test_failure";
             if (!current_context.empty()) {
@@ -135,11 +135,11 @@ void RSpecTextParser::ParseRSpecText(const std::string& content, std::vector<Val
         
         // Parse pending tests
         else if (std::regex_search(line, match, test_pending)) {
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = "RSpec";
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.status = ValidationEventStatus::SKIP;
+            event.event_type = duckdb::ValidationEventType::TEST_RESULT;
+            event.status = duckdb::ValidationEventStatus::SKIP;
             event.severity = "warning";
             event.category = "test_pending";
             if (!current_context.empty()) {
@@ -178,7 +178,7 @@ void RSpecTextParser::ParseRSpecText(const std::string& content, std::vector<Val
             
             // Update the most recent failed test event with file/line info
             for (auto it = events.rbegin(); it != events.rend(); ++it) {
-                if (it->tool_name == "RSpec" && it->status == ValidationEventStatus::FAIL && 
+                if (it->tool_name == "RSpec" && it->status == duckdb::ValidationEventStatus::FAIL && 
                     it->file_path.empty()) {
                     it->file_path = current_failure_file;
                     it->line_number = current_failure_line;
@@ -192,11 +192,11 @@ void RSpecTextParser::ParseRSpecText(const std::string& content, std::vector<Val
         
         // Parse summary
         else if (std::regex_search(line, match, summary_pattern)) {
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = "RSpec";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.status = ValidationEventStatus::INFO;
+            event.event_type = duckdb::ValidationEventType::SUMMARY;
+            event.status = duckdb::ValidationEventStatus::INFO;
             event.severity = "info";
             event.category = "test_summary";
             

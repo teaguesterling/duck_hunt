@@ -6,14 +6,13 @@
 
 namespace duck_hunt {
 
-class RSpecTextParser : public ParserInterface {
+class RSpecTextParser {
 public:
-    static void ParseRSpecText(const std::string& content, std::vector<ValidationEvent>& events);
+    static void ParseRSpecText(const std::string& content, std::vector<duckdb::ValidationEvent>& events);
     
-    // ParserInterface implementation
-    std::string GetName() const override { return "rspec_text"; }
-    bool CanParse(const std::string& content) const override;
-    void Parse(const std::string& content, std::vector<ValidationEvent>& events) const override;
+    std::string GetName() const { return "rspec_text"; }
+    bool CanParse(const std::string& content) const;
+    void Parse(const std::string& content, std::vector<duckdb::ValidationEvent>& events) const;
 };
 
 } // namespace duck_hunt

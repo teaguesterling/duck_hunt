@@ -15,11 +15,11 @@ bool NUnitXUnitTextParser::CanParse(const std::string& content) const {
            content.find("Overall result:") != std::string::npos;
 }
 
-void NUnitXUnitTextParser::Parse(const std::string& content, std::vector<ValidationEvent>& events) const {
+void NUnitXUnitTextParser::Parse(const std::string& content, std::vector<duckdb::ValidationEvent>& events) const {
     ParseNUnitXUnit(content, events);
 }
 
-void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vector<ValidationEvent>& events) {
+void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vector<duckdb::ValidationEvent>& events) {
     std::istringstream stream(content);
     std::string line;
     int64_t event_id = 1;
@@ -61,11 +61,11 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
         if (std::regex_search(line, match, nunit_header)) {
             current_framework = "nunit";
             
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
-            event.event_type = ValidationEventType::DEBUG_INFO;
+            event.event_type = duckdb::ValidationEventType::DEBUG_INFO;
             event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
+            event.status = duckdb::ValidationEventStatus::INFO;
             event.message = "NUnit version " + match[1].str();
             event.tool_name = "nunit";
             event.category = "nunit_xunit_text";
@@ -77,11 +77,11 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
         else if (std::regex_search(line, match, xunit_header)) {
             current_framework = "xunit";
             
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
-            event.event_type = ValidationEventType::DEBUG_INFO;
+            event.event_type = duckdb::ValidationEventType::DEBUG_INFO;
             event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
+            event.status = duckdb::ValidationEventStatus::INFO;
             event.message = "xUnit.net VSTest Adapter version " + match[1].str();
             event.tool_name = "xunit";
             event.category = "nunit_xunit_text";
@@ -99,11 +99,11 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             int inconclusive = std::stoi(match[5].str());
             int skipped = std::stoi(match[6].str());
             
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
-            event.event_type = ValidationEventType::SUMMARY;
+            event.event_type = duckdb::ValidationEventType::SUMMARY;
             event.severity = failed > 0 ? "error" : "info";
-            event.status = failed > 0 ? ValidationEventStatus::FAIL : ValidationEventStatus::PASS;
+            event.status = failed > 0 ? duckdb::ValidationEventStatus::FAIL : duckdb::ValidationEventStatus::PASS;
             event.message = "Test summary: " + std::to_string(total_tests) + " total, " + 
                           std::to_string(passed) + " passed, " + std::to_string(failed) + " failed, " +
                           std::to_string(skipped) + " skipped";
@@ -118,11 +118,11 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
         else if (std::regex_search(line, match, nunit_overall_result)) {
             std::string result = match[1].str();
             
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
-            event.event_type = ValidationEventType::TEST_RESULT;
+            event.event_type = duckdb::ValidationEventType::TEST_RESULT;
             event.severity = (result == "Failed") ? "error" : "info";
-            event.status = (result == "Failed") ? ValidationEventStatus::FAIL : ValidationEventStatus::PASS;
+            event.status = (result == "Failed") ? duckdb::ValidationEventStatus::FAIL : duckdb::ValidationEventStatus::PASS;
             event.message = "Overall test result: " + result;
             event.tool_name = "nunit";
             event.category = "nunit_xunit_text";
@@ -136,11 +136,11 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             double duration_seconds = std::stod(match[1].str());
             int64_t duration_ms = static_cast<int64_t>(duration_seconds * 1000);
             
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
-            event.event_type = ValidationEventType::PERFORMANCE_METRIC;
+            event.event_type = duckdb::ValidationEventType::PERFORMANCE_METRIC;
             event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
+            event.status = duckdb::ValidationEventStatus::INFO;
             event.message = "Test execution time: " + match[1].str() + " seconds";
             event.execution_time = duration_ms;
             event.tool_name = "nunit";
@@ -153,11 +153,11 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
         else if (std::regex_search(line, match, xunit_test_start)) {
             current_test_suite = match[1].str();
             
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
-            event.event_type = ValidationEventType::DEBUG_INFO;
+            event.event_type = duckdb::ValidationEventType::DEBUG_INFO;
             event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
+            event.status = duckdb::ValidationEventStatus::INFO;
             event.message = "Starting test suite: " + current_test_suite;
             event.tool_name = "xunit";
             event.category = "nunit_xunit_text";
@@ -170,11 +170,11 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
         else if (std::regex_search(line, match, xunit_test_finish)) {
             std::string suite_name = match[1].str();
             
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
-            event.event_type = ValidationEventType::DEBUG_INFO;
+            event.event_type = duckdb::ValidationEventType::DEBUG_INFO;
             event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
+            event.status = duckdb::ValidationEventStatus::INFO;
             event.message = "Finished test suite: " + suite_name;
             event.tool_name = "xunit";
             event.category = "nunit_xunit_text";
@@ -187,11 +187,11 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
         else if (std::regex_search(line, match, xunit_test_pass)) {
             std::string test_name = match[1].str();
             
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
-            event.event_type = ValidationEventType::TEST_RESULT;
+            event.event_type = duckdb::ValidationEventType::TEST_RESULT;
             event.severity = "info";
-            event.status = ValidationEventStatus::PASS;
+            event.status = duckdb::ValidationEventStatus::PASS;
             event.message = "Test passed: " + test_name;
             event.test_name = test_name;
             event.tool_name = "xunit";
@@ -205,11 +205,11 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
         else if (std::regex_search(line, match, xunit_test_fail)) {
             std::string test_name = match[1].str();
             
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
-            event.event_type = ValidationEventType::TEST_RESULT;
+            event.event_type = duckdb::ValidationEventType::TEST_RESULT;
             event.severity = "error";
-            event.status = ValidationEventStatus::FAIL;
+            event.status = duckdb::ValidationEventStatus::FAIL;
             event.message = "Test failed: " + test_name;
             event.test_name = test_name;
             event.tool_name = "xunit";
@@ -223,11 +223,11 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
         else if (std::regex_search(line, match, xunit_test_skip)) {
             std::string test_name = match[1].str();
             
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
-            event.event_type = ValidationEventType::TEST_RESULT;
+            event.event_type = duckdb::ValidationEventType::TEST_RESULT;
             event.severity = "warning";
-            event.status = ValidationEventStatus::SKIP;
+            event.status = duckdb::ValidationEventStatus::SKIP;
             event.message = "Test skipped: " + test_name;
             event.test_name = test_name;
             event.tool_name = "xunit";
@@ -241,11 +241,11 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
         else if (std::regex_search(line, match, xunit_total_summary)) {
             int total_tests = std::stoi(match[1].str());
             
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
-            event.event_type = ValidationEventType::SUMMARY;
+            event.event_type = duckdb::ValidationEventType::SUMMARY;
             event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
+            event.status = duckdb::ValidationEventStatus::INFO;
             event.message = "Total tests: " + std::to_string(total_tests);
             event.tool_name = "xunit";
             event.category = "nunit_xunit_text";
@@ -259,11 +259,11 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             double duration_seconds = std::stod(match[1].str());
             int64_t duration_ms = static_cast<int64_t>(duration_seconds * 1000);
             
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
-            event.event_type = ValidationEventType::PERFORMANCE_METRIC;
+            event.event_type = duckdb::ValidationEventType::PERFORMANCE_METRIC;
             event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
+            event.status = duckdb::ValidationEventStatus::INFO;
             event.message = "Test execution time: " + match[1].str() + " seconds";
             event.execution_time = duration_ms;
             event.tool_name = "xunit";
@@ -279,7 +279,7 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             
             // Update the most recent test event with file/line info
             if (!events.empty()) {
-                ValidationEvent& last_event = events.back();
+                duckdb::ValidationEvent& last_event = events.back();
                 if (last_event.category == "nunit_xunit_text" && last_event.file_path.empty()) {
                     last_event.file_path = file_path;
                     last_event.line_number = line_number;
@@ -293,7 +293,7 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             
             // Update the most recent test event with file/line info
             if (!events.empty()) {
-                ValidationEvent& last_event = events.back();
+                duckdb::ValidationEvent& last_event = events.back();
                 if (last_event.category == "nunit_xunit_text" && last_event.file_path.empty()) {
                     last_event.file_path = file_path;
                     last_event.line_number = line_number;

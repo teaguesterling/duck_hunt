@@ -13,11 +13,11 @@ bool GTestTextParser::CanParse(const std::string& content) const {
            content.find("[----------]") != std::string::npos;
 }
 
-void GTestTextParser::Parse(const std::string& content, std::vector<ValidationEvent>& events) const {
+void GTestTextParser::Parse(const std::string& content, std::vector<duckdb::ValidationEvent>& events) const {
     ParseGoogleTest(content, events);
 }
 
-void GTestTextParser::ParseGoogleTest(const std::string& content, std::vector<ValidationEvent>& events) {
+void GTestTextParser::ParseGoogleTest(const std::string& content, std::vector<duckdb::ValidationEvent>& events) {
     std::istringstream stream(content);
     std::string line;
     int64_t event_id = 1;
@@ -55,13 +55,13 @@ void GTestTextParser::ParseGoogleTest(const std::string& content, std::vector<Va
             std::string time_str = match[2].str();
             int64_t execution_time = std::stoll(time_str);
             
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
-            event.event_type = ValidationEventType::TEST_RESULT;
+            event.event_type = duckdb::ValidationEventType::TEST_RESULT;
             event.severity = "info";
             event.message = "Test passed: " + test_name;
             event.test_name = test_name;
-            event.status = ValidationEventStatus::PASS;
+            event.status = duckdb::ValidationEventStatus::PASS;
             event.file_path = "";
             event.line_number = 0;
             event.column_number = 0;
@@ -80,13 +80,13 @@ void GTestTextParser::ParseGoogleTest(const std::string& content, std::vector<Va
             std::string time_str = match[2].str();
             int64_t execution_time = std::stoll(time_str);
             
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
-            event.event_type = ValidationEventType::TEST_RESULT;
+            event.event_type = duckdb::ValidationEventType::TEST_RESULT;
             event.severity = "error";
             event.message = "Test failed: " + test_name;
             event.test_name = test_name;
-            event.status = ValidationEventStatus::FAIL;
+            event.status = duckdb::ValidationEventStatus::FAIL;
             event.file_path = "";
             event.line_number = 0;
             event.column_number = 0;
@@ -105,13 +105,13 @@ void GTestTextParser::ParseGoogleTest(const std::string& content, std::vector<Va
             std::string time_str = match[2].str();
             int64_t execution_time = std::stoll(time_str);
             
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
-            event.event_type = ValidationEventType::TEST_RESULT;
+            event.event_type = duckdb::ValidationEventType::TEST_RESULT;
             event.severity = "warning";
             event.message = "Test skipped: " + test_name;
             event.test_name = test_name;
-            event.status = ValidationEventStatus::SKIP;
+            event.status = duckdb::ValidationEventStatus::SKIP;
             event.file_path = "";
             event.line_number = 0;
             event.column_number = 0;
@@ -133,13 +133,13 @@ void GTestTextParser::ParseGoogleTest(const std::string& content, std::vector<Va
             std::string suite_name = match[2].str();
             std::string total_time = match[3].str();
             
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
-            event.event_type = ValidationEventType::SUMMARY;
+            event.event_type = duckdb::ValidationEventType::SUMMARY;
             event.severity = "info";
             event.message = "Test suite completed: " + suite_name + " (" + total_time + " ms total)";
             event.test_name = "";
-            event.status = ValidationEventStatus::INFO;
+            event.status = duckdb::ValidationEventStatus::INFO;
             event.file_path = "";
             event.line_number = 0;
             event.column_number = 0;
@@ -158,13 +158,13 @@ void GTestTextParser::ParseGoogleTest(const std::string& content, std::vector<Va
             std::string total_suites = match[2].str();
             std::string total_time = match[3].str();
             
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
-            event.event_type = ValidationEventType::SUMMARY;
+            event.event_type = duckdb::ValidationEventType::SUMMARY;
             event.severity = "info";
             event.message = "Test execution completed: " + total_tests + " tests from " + total_suites + " test suites";
             event.test_name = "";
-            event.status = ValidationEventStatus::INFO;
+            event.status = duckdb::ValidationEventStatus::INFO;
             event.file_path = "";
             event.line_number = 0;
             event.column_number = 0;
@@ -181,13 +181,13 @@ void GTestTextParser::ParseGoogleTest(const std::string& content, std::vector<Va
         else if (std::regex_match(line, match, tests_passed_summary)) {
             std::string passed_count = match[1].str();
             
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
-            event.event_type = ValidationEventType::SUMMARY;
+            event.event_type = duckdb::ValidationEventType::SUMMARY;
             event.severity = "info";
             event.message = "Tests passed: " + passed_count + " tests";
             event.test_name = "";
-            event.status = ValidationEventStatus::PASS;
+            event.status = duckdb::ValidationEventStatus::PASS;
             event.file_path = "";
             event.line_number = 0;
             event.column_number = 0;
@@ -204,13 +204,13 @@ void GTestTextParser::ParseGoogleTest(const std::string& content, std::vector<Va
         else if (std::regex_match(line, match, tests_failed_summary)) {
             std::string failed_count = match[1].str();
             
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
-            event.event_type = ValidationEventType::SUMMARY;
+            event.event_type = duckdb::ValidationEventType::SUMMARY;
             event.severity = "error";
             event.message = "Tests failed: " + failed_count + " tests";
             event.test_name = "";
-            event.status = ValidationEventStatus::FAIL;
+            event.status = duckdb::ValidationEventStatus::FAIL;
             event.file_path = "";
             event.line_number = 0;
             event.column_number = 0;
@@ -236,13 +236,13 @@ void GTestTextParser::ParseGoogleTest(const std::string& content, std::vector<Va
                 // If parsing line number fails, keep it as 0
             }
             
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
-            event.event_type = ValidationEventType::TEST_RESULT;
+            event.event_type = duckdb::ValidationEventType::TEST_RESULT;
             event.severity = "error";
             event.message = "Test failure details: " + test_name;
             event.test_name = test_name;
-            event.status = ValidationEventStatus::FAIL;
+            event.status = duckdb::ValidationEventStatus::FAIL;
             event.file_path = file_path;
             event.line_number = line_number;
             event.column_number = 0;

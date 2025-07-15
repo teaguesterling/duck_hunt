@@ -6,14 +6,13 @@
 
 namespace duck_hunt {
 
-class MochaChaiTextParser : public ParserInterface {
+class MochaChaiTextParser {
 public:
-    static void ParseMochaChai(const std::string& content, std::vector<ValidationEvent>& events);
+    static void ParseMochaChai(const std::string& content, std::vector<duckdb::ValidationEvent>& events);
     
-    // ParserInterface implementation
-    std::string GetName() const override { return "mocha_chai_text"; }
-    bool CanParse(const std::string& content) const override;
-    void Parse(const std::string& content, std::vector<ValidationEvent>& events) const override;
+    std::string GetName() const { return "mocha_chai_text"; }
+    bool CanParse(const std::string& content) const;
+    void Parse(const std::string& content, std::vector<duckdb::ValidationEvent>& events) const;
 };
 
 } // namespace duck_hunt
