@@ -28,6 +28,14 @@ set(EXTENSION_SOURCES
     src/parsers/test_frameworks/pytest_json_parser.cpp
     src/parsers/tool_outputs/eslint_json_parser.cpp
     src/parsers/tool_outputs/gotest_json_parser.cpp
+    src/parsers/build_systems/make_parser.cpp
+    src/parsers/linting_tools/mypy_parser.cpp
+    src/parsers/linting_tools/flake8_parser.cpp
+    
+    # Phase 4: Additional Tool Parsers
+    src/parsers/build_systems/cmake_parser.cpp
+    src/parsers/linting_tools/black_parser.cpp
+    src/parsers/linting_tools/pylint_parser.cpp
 )
 
 build_static_extension(${TARGET_NAME} ${EXTENSION_SOURCES})
