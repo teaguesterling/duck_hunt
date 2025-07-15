@@ -46,6 +46,11 @@ set(EXTENSION_SOURCES
     src/parsers/tool_outputs/phpstan_json_parser.cpp
     src/parsers/tool_outputs/shellcheck_json_parser.cpp
     src/parsers/tool_outputs/stylelint_json_parser.cpp
+    
+    # Phase 5: JSON Parser Extraction - Batch 3
+    src/parsers/tool_outputs/clippy_json_parser.cpp
+    src/parsers/tool_outputs/markdownlint_json_parser.cpp
+    src/parsers/tool_outputs/yamllint_json_parser.cpp
 )
 
 build_static_extension(${TARGET_NAME} ${EXTENSION_SOURCES})
