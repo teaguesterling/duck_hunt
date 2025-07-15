@@ -56,6 +56,9 @@ set(EXTENSION_SOURCES
     src/parsers/tool_outputs/bandit_json_parser.cpp
     src/parsers/tool_outputs/spotbugs_json_parser.cpp
     src/parsers/tool_outputs/ktlint_json_parser.cpp
+    
+    # Phase 6: Text Parser Extraction - Batch 1
+    src/parsers/test_frameworks/junit_text_parser.cpp
 )
 
 build_static_extension(${TARGET_NAME} ${EXTENSION_SOURCES})

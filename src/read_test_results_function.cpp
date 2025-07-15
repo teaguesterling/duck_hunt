@@ -1,5 +1,6 @@
 #include "include/read_test_results_function.hpp"
 #include "include/validation_event_types.hpp"
+#include "parsers/test_frameworks/junit_text_parser.hpp"
 #include "duckdb/function/table_function.hpp"
 #include "duckdb/parser/parsed_data/create_table_function_info.hpp"
 #include "duckdb/common/file_system.hpp"
@@ -1006,7 +1007,7 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                 ParseMSBuild(content, global_state->events);
                 break;
             case TestResultFormat::JUNIT_TEXT:
-                ParseJUnitText(content, global_state->events);
+                duck_hunt::JUnitTextParser::ParseJUnitText(content, global_state->events);
                 break;
             case TestResultFormat::VALGRIND:
                 ParseValgrind(content, global_state->events);
@@ -4071,7 +4072,7 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
             ParseMSBuild(content, global_state->events);
             break;
         case TestResultFormat::JUNIT_TEXT:
-            ParseJUnitText(content, global_state->events);
+            duck_hunt::JUnitTextParser::ParseJUnitText(content, global_state->events);
             break;
         case TestResultFormat::VALGRIND:
             ParseValgrind(content, global_state->events);
