@@ -62,6 +62,9 @@ set(EXTENSION_SOURCES
     
     # Phase 6: Text Parser Extraction - Batch 2
     src/parsers/test_frameworks/rspec_text_parser.cpp
+    
+    # Phase 6: Text Parser Extraction - Batch 3
+    src/parsers/test_frameworks/mocha_chai_text_parser.cpp
 )
 
 build_static_extension(${TARGET_NAME} ${EXTENSION_SOURCES})
