@@ -7,6 +7,7 @@
 #include "parsers/test_frameworks/nunit_xunit_text_parser.hpp"
 #include "parsers/specialized/valgrind_parser.hpp"
 #include "parsers/specialized/gdb_lldb_parser.hpp"
+#include "parsers/specialized/coverage_parser.hpp"
 #include "duckdb/function/table_function.hpp"
 #include "duckdb/parser/parsed_data/create_table_function_info.hpp"
 #include "duckdb/common/file_system.hpp"
@@ -1064,10 +1065,10 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                 ParseYapfText(content, global_state->events);
                 break;
             case TestResultFormat::COVERAGE_TEXT:
-                ParseCoverageText(content, global_state->events);
+                duck_hunt::CoverageParser::ParseCoverageText(content, global_state->events);
                 break;
             case TestResultFormat::PYTEST_COV_TEXT:
-                ParsePytestCovText(content, global_state->events);
+                duck_hunt::CoverageParser::ParsePytestCovText(content, global_state->events);
                 break;
             case TestResultFormat::GITHUB_ACTIONS_TEXT:
                 ParseGitHubActionsText(content, global_state->events);
@@ -4129,10 +4130,10 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
             ParseYapfText(content, global_state->events);
             break;
         case TestResultFormat::COVERAGE_TEXT:
-            ParseCoverageText(content, global_state->events);
+            duck_hunt::CoverageParser::ParseCoverageText(content, global_state->events);
             break;
         case TestResultFormat::PYTEST_COV_TEXT:
-            ParsePytestCovText(content, global_state->events);
+            duck_hunt::CoverageParser::ParsePytestCovText(content, global_state->events);
             break;
         case TestResultFormat::GITHUB_ACTIONS_TEXT:
             ParseGitHubActionsText(content, global_state->events);

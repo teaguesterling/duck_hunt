@@ -160,7 +160,7 @@ void ValgrindParser::ParseValgrind(const std::string& content, std::vector<duckd
                 duckdb::ValidationEvent event;
                 event.event_id = event_id++;
                 event.tool_name = current_tool;
-                event.event_type = duckdb::ValidationEventType::ERROR;
+                event.event_type = duckdb::ValidationEventType::MEMORY_ERROR;
                 event.status = duckdb::ValidationEventStatus::FAIL;
                 event.severity = "error";
                 event.category = current_error_type;
@@ -183,7 +183,7 @@ void ValgrindParser::ParseValgrind(const std::string& content, std::vector<duckd
                 duckdb::ValidationEvent event;
                 event.event_id = event_id++;
                 event.tool_name = current_tool;
-                event.event_type = duckdb::ValidationEventType::ERROR;
+                event.event_type = duckdb::ValidationEventType::MEMORY_ERROR;
                 event.status = duckdb::ValidationEventStatus::FAIL;
                 event.severity = "error";
                 event.category = current_error_type;
@@ -263,7 +263,7 @@ void ValgrindParser::ParseValgrind(const std::string& content, std::vector<duckd
             duckdb::ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = current_tool;
-            event.event_type = duckdb::ValidationEventType::ERROR;
+            event.event_type = duckdb::ValidationEventType::MEMORY_ERROR;
             event.status = duckdb::ValidationEventStatus::FAIL;
             event.severity = "error";
             event.category = "process_termination";
