@@ -8,6 +8,13 @@
 #include "parsers/specialized/valgrind_parser.hpp"
 #include "parsers/specialized/gdb_lldb_parser.hpp"
 #include "parsers/specialized/coverage_parser.hpp"
+#include "parsers/build_systems/maven_parser.hpp"
+#include "parsers/build_systems/gradle_parser.hpp"
+#include "parsers/build_systems/msbuild_parser.hpp"
+#include "parsers/build_systems/node_parser.hpp"
+#include "parsers/build_systems/python_parser.hpp"
+#include "parsers/build_systems/cargo_parser.hpp"
+#include "parsers/build_systems/cmake_parser.hpp"
 #include "duckdb/function/table_function.hpp"
 #include "duckdb/parser/parsed_data/create_table_function_info.hpp"
 #include "duckdb/common/file_system.hpp"
@@ -993,25 +1000,25 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                 ParseKubeScoreJSON(content, global_state->events);
                 break;
             case TestResultFormat::CMAKE_BUILD:
-                ParseCMakeBuild(content, global_state->events);
+                duck_hunt::CMakeParser::ParseCMakeBuild(content, global_state->events);
                 break;
             case TestResultFormat::PYTHON_BUILD:
-                ParsePythonBuild(content, global_state->events);
+                duck_hunt::PythonParser::ParsePythonBuild(content, global_state->events);
                 break;
             case TestResultFormat::NODE_BUILD:
-                ParseNodeBuild(content, global_state->events);
+                duck_hunt::NodeParser::ParseNodeBuild(content, global_state->events);
                 break;
             case TestResultFormat::CARGO_BUILD:
-                ParseCargoBuild(content, global_state->events);
+                duck_hunt::CargoParser::ParseCargoBuild(content, global_state->events);
                 break;
             case TestResultFormat::MAVEN_BUILD:
-                ParseMavenBuild(content, global_state->events);
+                duck_hunt::MavenParser::ParseMavenBuild(content, global_state->events);
                 break;
             case TestResultFormat::GRADLE_BUILD:
-                ParseGradleBuild(content, global_state->events);
+                duck_hunt::GradleParser::ParseGradleBuild(content, global_state->events);
                 break;
             case TestResultFormat::MSBUILD:
-                ParseMSBuild(content, global_state->events);
+                duck_hunt::MSBuildParser::ParseMSBuild(content, global_state->events);
                 break;
             case TestResultFormat::JUNIT_TEXT:
                 duck_hunt::JUnitTextParser::ParseJUnitText(content, global_state->events);
@@ -4058,25 +4065,25 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
             ParseKubeScoreJSON(content, global_state->events);
             break;
         case TestResultFormat::CMAKE_BUILD:
-            ParseCMakeBuild(content, global_state->events);
+            duck_hunt::CMakeParser::ParseCMakeBuild(content, global_state->events);
             break;
         case TestResultFormat::PYTHON_BUILD:
-            ParsePythonBuild(content, global_state->events);
+            duck_hunt::PythonParser::ParsePythonBuild(content, global_state->events);
             break;
         case TestResultFormat::NODE_BUILD:
-            ParseNodeBuild(content, global_state->events);
+            duck_hunt::NodeParser::ParseNodeBuild(content, global_state->events);
             break;
         case TestResultFormat::CARGO_BUILD:
-            ParseCargoBuild(content, global_state->events);
+            duck_hunt::CargoParser::ParseCargoBuild(content, global_state->events);
             break;
         case TestResultFormat::MAVEN_BUILD:
-            ParseMavenBuild(content, global_state->events);
+            duck_hunt::MavenParser::ParseMavenBuild(content, global_state->events);
             break;
         case TestResultFormat::GRADLE_BUILD:
-            ParseGradleBuild(content, global_state->events);
+            duck_hunt::GradleParser::ParseGradleBuild(content, global_state->events);
             break;
         case TestResultFormat::MSBUILD:
-            ParseMSBuild(content, global_state->events);
+            duck_hunt::MSBuildParser::ParseMSBuild(content, global_state->events);
             break;
         case TestResultFormat::JUNIT_TEXT:
             duck_hunt::JUnitTextParser::ParseJUnitText(content, global_state->events);

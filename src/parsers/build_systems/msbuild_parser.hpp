@@ -6,11 +6,11 @@
 
 namespace duck_hunt {
 
-class CMakeParser {
+class MSBuildParser {
 public:
-    static void ParseCMakeBuild(const std::string& content, std::vector<duckdb::ValidationEvent>& events);
+    static void ParseMSBuild(const std::string& content, std::vector<duckdb::ValidationEvent>& events);
     
-    std::string GetName() const { return "cmake"; }
+    std::string GetName() const { return "msbuild"; }
     bool CanParse(const std::string& content) const;
     void Parse(const std::string& content, std::vector<duckdb::ValidationEvent>& events) const;
 };

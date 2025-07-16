@@ -78,6 +78,19 @@ set(EXTENSION_SOURCES
     
     # Phase 7: Specialized Parser Extraction - Batch 3
     src/parsers/specialized/coverage_parser.cpp
+    
+    # Phase 8: Build System Parser Extraction - Batch 1
+    src/parsers/build_systems/maven_parser.cpp
+    src/parsers/build_systems/gradle_parser.cpp
+    
+    # Phase 8: Build System Parser Extraction - Batch 2
+    src/parsers/build_systems/msbuild_parser.cpp
+    src/parsers/build_systems/node_parser.cpp
+    src/parsers/build_systems/python_parser.cpp
+    
+    # Phase 8: Build System Parser Extraction - Batch 3
+    src/parsers/build_systems/cargo_parser.cpp
+    src/parsers/build_systems/cmake_parser.cpp
 )
 
 build_static_extension(${TARGET_NAME} ${EXTENSION_SOURCES})

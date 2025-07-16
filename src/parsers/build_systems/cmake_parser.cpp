@@ -1,37 +1,26 @@
 #include "cmake_parser.hpp"
-#include "../../core/parser_registry.hpp"
+#include <regex>
 #include <sstream>
+#include <string>
 
-namespace duckdb {
+namespace duck_hunt {
 
-bool CMakeParser::canParse(const std::string& content) const {
-    // Look for CMake-specific patterns
-    if (content.find("CMake Error") != std::string::npos ||
-        content.find("CMake Warning") != std::string::npos ||
-        content.find("gmake[") != std::string::npos ||
-        content.find("Configuring incomplete") != std::string::npos ||
-        (content.find("undefined reference") != std::string::npos && 
-         content.find("cmake") != std::string::npos)) {
-        return isValidCMakeOutput(content);
-    }
-    return false;
+bool CMakeParser::CanParse(const std::string& content) const {
+    // Check for CMake patterns
+    return (content.find("CMake Error") != std::string::npos) ||
+           (content.find("CMake Warning") != std::string::npos) ||
+           (content.find("undefined reference") != std::string::npos) ||
+           (content.find("collect2: error:") != std::string::npos) ||
+           (content.find("gmake[") != std::string::npos && content.find("Error") != std::string::npos) ||
+           (content.find("-- Configuring incomplete, errors occurred!") != std::string::npos) ||
+           (content.find(".cpp:") != std::string::npos && content.find("error:") != std::string::npos);
 }
 
-bool CMakeParser::isValidCMakeOutput(const std::string& content) const {
-    // Check for CMake-specific output patterns
-    std::regex cmake_error(R"(CMake Error)");
-    std::regex cmake_warning(R"(CMake Warning)");
-    std::regex gmake_pattern(R"(gmake\[.*\])");
-    std::regex config_incomplete(R"(Configuring incomplete)");
-    
-    return std::regex_search(content, cmake_error) || 
-           std::regex_search(content, cmake_warning) ||
-           std::regex_search(content, gmake_pattern) ||
-           std::regex_search(content, config_incomplete);
+void CMakeParser::Parse(const std::string& content, std::vector<duckdb::ValidationEvent>& events) const {
+    ParseCMakeBuild(content, events);
 }
 
-std::vector<ValidationEvent> CMakeParser::parse(const std::string& content) const {
-    std::vector<ValidationEvent> events;
+void CMakeParser::ParseCMakeBuild(const std::string& content, std::vector<duckdb::ValidationEvent>& events) {
     std::istringstream stream(content);
     std::string line;
     int64_t event_id = 1;
@@ -42,10 +31,10 @@ std::vector<ValidationEvent> CMakeParser::parse(const std::string& content) cons
         std::smatch match;
         
         if (std::regex_match(line, match, cpp_error_pattern)) {
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = "cmake";
-            event.event_type = ValidationEventType::BUILD_ERROR;
+            event.event_type = duckdb::ValidationEventType::BUILD_ERROR;
             event.file_path = match[1].str();
             event.line_number = std::stoi(match[2].str());
             event.column_number = match[3].str().empty() ? -1 : std::stoi(match[3].str());
@@ -55,19 +44,19 @@ std::vector<ValidationEvent> CMakeParser::parse(const std::string& content) cons
             
             std::string severity = match[4].str();
             if (severity == "error") {
-                event.status = ValidationEventStatus::ERROR;
+                event.status = duckdb::ValidationEventStatus::ERROR;
                 event.category = "compilation";
                 event.severity = "error";
             } else if (severity == "warning") {
-                event.status = ValidationEventStatus::WARNING;
+                event.status = duckdb::ValidationEventStatus::WARNING;
                 event.category = "compilation";
                 event.severity = "warning";
             } else if (severity == "note") {
-                event.status = ValidationEventStatus::ERROR;  // Treat notes as errors for CMake builds
+                event.status = duckdb::ValidationEventStatus::ERROR;  // Treat notes as errors for CMake builds
                 event.category = "compilation";
                 event.severity = "error";
             } else {
-                event.status = ValidationEventStatus::INFO;
+                event.status = duckdb::ValidationEventStatus::INFO;
                 event.category = "compilation";
                 event.severity = "info";
             }
@@ -79,11 +68,11 @@ std::vector<ValidationEvent> CMakeParser::parse(const std::string& content) cons
         }
         // Parse CMake configuration errors
         else if (line.find("CMake Error") != std::string::npos) {
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = "cmake";
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.status = ValidationEventStatus::ERROR;
+            event.event_type = duckdb::ValidationEventType::BUILD_ERROR;
+            event.status = duckdb::ValidationEventStatus::ERROR;
             event.category = "configuration";
             event.severity = "error";
             event.line_number = -1;
@@ -106,11 +95,11 @@ std::vector<ValidationEvent> CMakeParser::parse(const std::string& content) cons
         }
         // Parse CMake warnings
         else if (line.find("CMake Warning") != std::string::npos) {
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = "cmake";
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.status = ValidationEventStatus::WARNING;
+            event.event_type = duckdb::ValidationEventType::BUILD_ERROR;
+            event.status = duckdb::ValidationEventStatus::WARNING;
             event.category = "configuration";
             event.severity = "warning";
             event.line_number = -1;
@@ -133,11 +122,11 @@ std::vector<ValidationEvent> CMakeParser::parse(const std::string& content) cons
         }
         // Parse linker errors (both with and without /usr/bin/ld: prefix)
         else if (line.find("undefined reference") != std::string::npos) {
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = "cmake";
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.status = ValidationEventStatus::ERROR;
+            event.event_type = duckdb::ValidationEventType::BUILD_ERROR;
+            event.status = duckdb::ValidationEventStatus::ERROR;
             event.category = "linking";
             event.severity = "error";
             event.line_number = -1;
@@ -160,11 +149,11 @@ std::vector<ValidationEvent> CMakeParser::parse(const std::string& content) cons
         }
         // Parse collect2 linker errors
         else if (line.find("collect2: error:") != std::string::npos) {
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = "cmake";
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.status = ValidationEventStatus::ERROR;
+            event.event_type = duckdb::ValidationEventType::BUILD_ERROR;
+            event.status = duckdb::ValidationEventStatus::ERROR;
             event.category = "linking";
             event.severity = "error";
             event.line_number = -1;
@@ -178,11 +167,11 @@ std::vector<ValidationEvent> CMakeParser::parse(const std::string& content) cons
         }
         // Parse gmake errors
         else if (line.find("gmake[") != std::string::npos && line.find("***") != std::string::npos && line.find("Error") != std::string::npos) {
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = "cmake";
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.status = ValidationEventStatus::ERROR;
+            event.event_type = duckdb::ValidationEventType::BUILD_ERROR;
+            event.status = duckdb::ValidationEventStatus::ERROR;
             event.category = "build_failure";
             event.severity = "error";
             event.message = line;
@@ -196,11 +185,11 @@ std::vector<ValidationEvent> CMakeParser::parse(const std::string& content) cons
         }
         // Parse CMake configuration summary errors  
         else if (line.find("-- Configuring incomplete, errors occurred!") != std::string::npos) {
-            ValidationEvent event;
+            duckdb::ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = "cmake";
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.status = ValidationEventStatus::ERROR;
+            event.event_type = duckdb::ValidationEventType::BUILD_ERROR;
+            event.status = duckdb::ValidationEventStatus::ERROR;
             event.category = "configuration";
             event.severity = "error";
             event.message = line;
@@ -213,11 +202,6 @@ std::vector<ValidationEvent> CMakeParser::parse(const std::string& content) cons
             events.push_back(event);
         }
     }
-    
-    return events;
 }
 
-// Auto-register this parser
-REGISTER_PARSER(CMakeParser);
-
-} // namespace duckdb
+} // namespace duck_hunt
