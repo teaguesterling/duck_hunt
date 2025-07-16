@@ -33,7 +33,6 @@ set(EXTENSION_SOURCES
     src/parsers/linting_tools/flake8_parser.cpp
     
     # Phase 4: Additional Tool Parsers
-    src/parsers/build_systems/cmake_parser.cpp
     src/parsers/linting_tools/black_parser.cpp
     src/parsers/linting_tools/pylint_parser.cpp
     
