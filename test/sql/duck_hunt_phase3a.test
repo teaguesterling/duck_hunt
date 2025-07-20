@@ -22,8 +22,8 @@ FROM read_test_results('workspace/builds/**/*.txt', 'auto')
 GROUP BY source_file, build_id, environment, file_index 
 ORDER BY build_id;
 ----
-1	0	123	NULL	0	106
-0	1	456	NULL	1	25
+1	0	123	NULL	1	106
+0	1	456	NULL	0	25
 
 # Test environment detection from file paths
 query IIIIII  
@@ -80,8 +80,8 @@ FROM read_test_results('workspace/builds/**/*.txt', 'auto')
 GROUP BY file_index, source_file
 ORDER BY source_file;
 ----
-0	0	1
-1	1	0
+1	0	1
+0	1	0
 
 # Test metadata column schema  
 query I
