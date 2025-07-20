@@ -20,10 +20,10 @@ SELECT (source_file LIKE '%build-123%')::INTEGER as is_build_123,
        build_id, environment, file_index, COUNT(*) as events
 FROM read_test_results('workspace/builds/**/*.txt', 'auto') 
 GROUP BY source_file, build_id, environment, file_index 
-ORDER BY file_index;
+ORDER BY build_id;
 ----
-0	1	456	NULL	0	25
-1	0	123	NULL	1	106
+1	0	123	NULL	0	106
+0	1	456	NULL	1	25
 
 # Test environment detection from file paths
 query IIIIII  
@@ -78,10 +78,10 @@ SELECT file_index,
        (source_file LIKE '%ansible%')::INTEGER as is_ansible
 FROM read_test_results('workspace/builds/**/*.txt', 'auto')
 GROUP BY file_index, source_file
-ORDER BY file_index;
+ORDER BY source_file;
 ----
-0	1	0
-1	0	1
+0	0	1
+1	1	0
 
 # Test metadata column schema  
 query I
