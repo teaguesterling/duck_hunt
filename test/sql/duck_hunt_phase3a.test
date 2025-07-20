@@ -15,15 +15,15 @@ workspace/ansible_sample.txt	NULL	NULL	0	106	12
 
 # Test multi-file glob pattern processing
 query IIIIII
-SELECT source_file LIKE '%build-123%' as is_build_123, 
-       source_file LIKE '%build-456%' as is_build_456,
+SELECT (source_file LIKE '%build-123%')::INTEGER as is_build_123, 
+       (source_file LIKE '%build-456%')::INTEGER as is_build_456,
        build_id, environment, file_index, COUNT(*) as events
 FROM read_test_results('workspace/builds/**/*.txt', 'auto') 
 GROUP BY source_file, build_id, environment, file_index 
 ORDER BY file_index;
 ----
-false	true	456	NULL	0	25
-true	false	123	NULL	1	106
+0	1	456	NULL	0	25
+1	0	123	NULL	1	106
 
 # Test environment detection from file paths
 query IIIIII  
@@ -74,14 +74,14 @@ ORDER BY build_id;
 # Test file index ordering and processing sequence
 query III
 SELECT file_index, 
-       source_file LIKE '%terraform%' as is_terraform,
-       source_file LIKE '%ansible%' as is_ansible
+       (source_file LIKE '%terraform%')::INTEGER as is_terraform,
+       (source_file LIKE '%ansible%')::INTEGER as is_ansible
 FROM read_test_results('workspace/builds/**/*.txt', 'auto')
 GROUP BY file_index, source_file
 ORDER BY file_index;
 ----
-0	true	false
-1	false	true
+0	1	0
+1	0	1
 
 # Test metadata column schema  
 query I
