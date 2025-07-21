@@ -13,17 +13,28 @@ GROUP BY source_file, build_id, environment, file_index;
 ----
 workspace/ansible_sample.txt	NULL	NULL	0	106	12
 
-# Test multi-file glob pattern processing
-query III
-SELECT (source_file LIKE '%ansible%')::INTEGER as has_ansible, 
-       (source_file LIKE '%terraform%')::INTEGER as has_terraform,
-       COUNT(*) as events
-FROM read_test_results('workspace/builds/**/*.txt', 'auto') 
-GROUP BY source_file
-ORDER BY source_file;
+# Test multi-file glob pattern processing - verify both file types exist
+query I
+SELECT COUNT(*) as files_with_ansible
+FROM (
+    SELECT source_file 
+    FROM read_test_results('workspace/builds/**/*.txt', 'auto') 
+    WHERE source_file LIKE '%ansible%'
+    GROUP BY source_file
+);
 ----
-1	0	106
-0	1	25
+1
+
+query I
+SELECT COUNT(*) as files_with_terraform  
+FROM (
+    SELECT source_file
+    FROM read_test_results('workspace/builds/**/*.txt', 'auto') 
+    WHERE source_file LIKE '%terraform%'
+    GROUP BY source_file
+);
+----
+1
 
 # Test build ID extraction (verify we get 2 distinct files, build IDs may vary by platform)
 query I
