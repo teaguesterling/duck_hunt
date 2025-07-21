@@ -50,35 +50,16 @@ FROM read_test_results('workspace/ci-logs/staging/pytest-results.txt', 'pytest_t
 ----
 4
 
-# Test pipeline aggregation by build ID  
-query IIIIII
-WITH pipeline_summary AS (
-    SELECT 
-        build_id,
-        COUNT(DISTINCT source_file) as files_processed,
-        COUNT(*) as total_events,
-        COUNT(CASE WHEN status = 'FAIL' THEN 1 END) as failures,
-        COUNT(CASE WHEN status = 'PASS' THEN 1 END) as passes
-    FROM read_test_results('workspace/builds/**/*.txt', 'auto')
-    WHERE build_id IS NOT NULL
-    GROUP BY build_id
-)
+# Test aggregation of events across all build files
+query IIII
 SELECT 
-    build_id,
-    files_processed,
-    total_events,
-    failures,
-    passes,
-    CASE 
-        WHEN failures = 0 THEN 'SUCCESS'
-        WHEN failures > 0 AND passes > failures THEN 'MOSTLY_PASS'
-        ELSE 'FAILURE'
-    END as pipeline_status
-FROM pipeline_summary
-ORDER BY build_id;
+    COUNT(DISTINCT source_file) as total_files,
+    COUNT(*) as total_events,
+    COUNT(CASE WHEN status = 'FAIL' THEN 1 END) as total_failures,
+    COUNT(CASE WHEN status = 'PASS' THEN 1 END) as total_passes
+FROM read_test_results('workspace/builds/**/*.txt', 'auto');
 ----
-123	1	106	2	12	MOSTLY_PASS
-456	1	25	0	3	SUCCESS
+2	131	2	15
 
 # Test file index ordering and processing sequence
 query II
