@@ -60,8 +60,9 @@ Duck Hunt provides powerful SQL-based analysis of development tool outputs throu
 
 ## Schema
 
-All parsers output a standardized 17-field schema optimized for agent analysis:
+All parsers output a standardized schema optimized for agent analysis:
 
+### Core Fields (17)
 | Field | Type | Description |
 |-------|------|-------------|
 | `event_id` | BIGINT | Unique identifier for each event |
@@ -82,7 +83,66 @@ All parsers output a standardized 17-field schema optimized for agent analysis:
 | `raw_output` | VARCHAR | Original raw output |
 | `structured_data` | VARCHAR | Parser-specific metadata |
 
+### Advanced Error Analysis Fields (Phase 3B)
+| Field | Type | Description |
+|-------|------|-------------|
+| `error_fingerprint` | VARCHAR | Normalized error signature for pattern detection |
+| `similarity_score` | DOUBLE | Similarity to pattern cluster centroid (0.0-1.0) |
+| `pattern_id` | BIGINT | Assigned error pattern group ID (-1 if unassigned) |
+| `root_cause_category` | VARCHAR | Detected root cause type (network, permission, config, etc.) |
+
+### Enhanced Metadata Fields
+| Field | Type | Description |
+|-------|------|-------------|
+| `source_file` | VARCHAR | Original source file path |
+| `build_id` | VARCHAR | Build identifier extracted from file paths |
+| `environment` | VARCHAR | Environment detected from file paths (prod, staging, dev) |
+| `file_index` | INTEGER | Processing order index for multi-file operations |
+
 ## Usage Examples
+
+### Pipeline Integration & Live Analysis
+
+**Capture build logs and analyze in real-time:**
+```bash
+# Capture make output to both stderr and DuckDB for analysis
+make | tee /dev/stderr | ./build/release/duckdb -s "COPY ( SELECT * EXCLUDE (raw_output) FROM read_test_results('/dev/stdin', 'auto') ) TO '.build-logs/$(git rev-parse --short HEAD).json' (APPEND true);"
+
+# Analyze build errors from stdin pipe
+cat make.out | ./build/release/duckdb -json -s "SELECT * EXCLUDE (raw_output) FROM read_test_results('/dev/stdin', 'auto') WHERE severity='error';"
+
+# Real-time error monitoring during builds
+./build.sh | ./build/release/duckdb -json -s "SELECT tool_name, COUNT(*) as error_count, GROUP_CONCAT(message, '\n') as errors FROM read_test_results('/dev/stdin', 'auto') WHERE status='ERROR' GROUP BY tool_name;"
+```
+
+### Advanced Error Pattern Analysis
+
+**Leverage Phase 3B error clustering capabilities:**
+```sql
+-- Find error patterns and group similar failures
+SELECT pattern_id, COUNT(*) as occurrence_count, 
+       MIN(similarity_score) as min_similarity,
+       MAX(similarity_score) as max_similarity,
+       ANY_VALUE(message) as representative_message
+FROM read_test_results('build_logs/**/*.log', 'auto')
+WHERE pattern_id != -1
+GROUP BY pattern_id
+ORDER BY occurrence_count DESC;
+
+-- Analyze error root causes
+SELECT root_cause_category, COUNT(*) as error_count,
+       GROUP_CONCAT(DISTINCT tool_name) as affected_tools
+FROM read_test_results('ci_logs/**/*.txt', 'auto') 
+WHERE root_cause_category IS NOT NULL
+GROUP BY root_cause_category
+ORDER BY error_count DESC;
+
+-- Find anomalous errors (low similarity to known patterns)
+SELECT file_path, line_number, message, similarity_score
+FROM read_test_results('logs/**/*.log', 'auto')
+WHERE similarity_score < 0.3 AND pattern_id != -1
+ORDER BY similarity_score;
+```
 
 ### Analyze Build Failures
 ```sql
@@ -343,4 +403,32 @@ With comprehensive test framework coverage now complete across Ruby, JavaScript,
 
 ## License
 
-[Add your license information here]
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+**MIT License**
+
+Copyright (c) 2024 Duck Hunt Contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+**Duck Hunt** | MIT License | Built with ❤️ for agent-driven development
+
+*Comprehensive test results & build output parser extension for DuckDB*
