@@ -6,3 +6,23 @@ duckdb_unittest_tempdir/
 testext
 test/python/__pycache__/
 .Rhistory
+
+# Build artifacts and logs
+make.out
+*.log
+test_*.xml
+junit_*.xml
+
+# Temporary files
+*.tmp
+*.temp
+*~
+
+# OS artifacts
+Thumbs.db
+*.swp
+*.swo
+
+# IDE artifacts
+.vscode/
+*.code-workspace
