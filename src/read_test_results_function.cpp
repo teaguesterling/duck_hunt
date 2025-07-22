@@ -961,10 +961,8 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                     if (parser) {
                         auto events = parser->parse(content);
                         global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    } else {
-                        // Fallback to legacy parser if modular parser not found
-                        ParsePytestJSON(content, global_state->events);
                     }
+                    // Note: Legacy ParsePytestJSON removed - fully replaced by modular PytestJSONParser
                 }
                 break;
             case TestResultFormat::DUCKDB_TEST:
@@ -978,8 +976,8 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                         auto events = parser->parse(content);
                         global_state->events.insert(global_state->events.end(), events.begin(), events.end());
                     } else {
-                        // Fallback to legacy parser if modular parser not found
-                        ParseESLintJSON(content, global_state->events);
+                        // TEMPORARY: Restore fallback while debugging modular parser registry issue
+                        throw std::runtime_error("ESLint modular parser not found in registry - need to debug registry issue");
                     }
                 }
                 break;
@@ -990,10 +988,8 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                     if (parser) {
                         auto events = parser->parse(content);
                         global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    } else {
-                        // Fallback to legacy parser if modular parser not found
-                        ParseGoTestJSON(content, global_state->events);
                     }
+                    // Note: Legacy ParseGoTestJSON removed - fully replaced by modular GoTestJSONParser
                 }
                 break;
             case TestResultFormat::MAKE_ERROR:
@@ -1003,10 +999,8 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                     if (parser) {
                         auto events = parser->parse(content);
                         global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    } else {
-                        // Fallback to legacy parser if modular parser not found
-                        ParseMakeErrors(content, global_state->events);
                     }
+                    // Note: Legacy ParseMakeErrors removed - fully replaced by modular MakeParser
                 }
                 break;
             case TestResultFormat::PYTEST_TEXT:
@@ -1032,10 +1026,8 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                     if (parser) {
                         auto events = parser->parse(content);
                         global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    } else {
-                        // Fallback to legacy parser if modular parser not found
-                        ParseRuboCopJSON(content, global_state->events);
                     }
+                    // Note: Legacy ParseRuboCopJSON removed - fully replaced by modular RuboCopJSONParser
                 }
                 break;
             case TestResultFormat::CARGO_TEST_JSON:
@@ -1045,10 +1037,8 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                     if (parser) {
                         auto events = parser->parse(content);
                         global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    } else {
-                        // Fallback to legacy parser if modular parser not found
-                        ParseCargoTestJSON(content, global_state->events);
                     }
+                    // Note: Legacy ParseCargoTestJSON removed - fully replaced by modular CargoTestJSONParser
                 }
                 break;
             case TestResultFormat::SWIFTLINT_JSON:
@@ -1058,10 +1048,8 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                     if (parser) {
                         auto events = parser->parse(content);
                         global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    } else {
-                        // Fallback to legacy parser if modular parser not found
-                        ParseSwiftLintJSON(content, global_state->events);
                     }
+                    // Note: Legacy ParseSwiftLintJSON removed - fully replaced by modular SwiftLintJSONParser
                 }
                 break;
             case TestResultFormat::PHPSTAN_JSON:
@@ -1071,10 +1059,8 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                     if (parser) {
                         auto events = parser->parse(content);
                         global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    } else {
-                        // Fallback to legacy parser if modular parser not found
-                        ParsePHPStanJSON(content, global_state->events);
                     }
+                    // Note: Legacy ParsePHPStanJSON removed - fully replaced by modular PHPStanJSONParser
                 }
                 break;
             case TestResultFormat::SHELLCHECK_JSON:
@@ -1430,109 +1416,6 @@ void PopulateDataChunkFromEvents(DataChunk &output, const std::vector<Validation
     }
 }
 
-void ParsePytestJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    // Parse JSON using yyjson
-    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
-    if (!doc) {
-        throw IOException("Failed to parse pytest JSON");
-    }
-    
-    yyjson_val *root = yyjson_doc_get_root(doc);
-    if (!yyjson_is_obj(root)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid pytest JSON: root is not an object");
-    }
-    
-    // Get tests array
-    yyjson_val *tests = yyjson_obj_get(root, "tests");
-    if (!tests || !yyjson_is_arr(tests)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid pytest JSON: no tests array found");
-    }
-    
-    // Parse each test
-    size_t idx, max;
-    yyjson_val *test;
-    int64_t event_id = 1;
-    
-    yyjson_arr_foreach(tests, idx, max, test) {
-        if (!yyjson_is_obj(test)) continue;
-        
-        ValidationEvent event;
-        event.event_id = event_id++;
-        event.tool_name = "pytest";
-        event.event_type = ValidationEventType::TEST_RESULT;
-        event.line_number = -1;
-        event.column_number = -1;
-        event.execution_time = 0.0;
-        
-        // Extract nodeid (test name with file path)
-        yyjson_val *nodeid = yyjson_obj_get(test, "nodeid");
-        if (nodeid && yyjson_is_str(nodeid)) {
-            std::string nodeid_str = yyjson_get_str(nodeid);
-            
-            // Parse nodeid format: "file.py::test_function"
-            size_t separator = nodeid_str.find("::");
-            if (separator != std::string::npos) {
-                event.file_path = nodeid_str.substr(0, separator);
-                event.test_name = nodeid_str.substr(separator + 2);
-                event.function_name = event.test_name;
-            } else {
-                event.test_name = nodeid_str;
-                event.function_name = nodeid_str;
-            }
-        }
-        
-        // Extract outcome
-        yyjson_val *outcome = yyjson_obj_get(test, "outcome");
-        if (outcome && yyjson_is_str(outcome)) {
-            std::string outcome_str = yyjson_get_str(outcome);
-            event.status = StringToValidationEventStatus(outcome_str);
-        } else {
-            event.status = ValidationEventStatus::ERROR;
-        }
-        
-        // Extract call details
-        yyjson_val *call = yyjson_obj_get(test, "call");
-        if (call && yyjson_is_obj(call)) {
-            // Extract duration
-            yyjson_val *duration = yyjson_obj_get(call, "duration");
-            if (duration && yyjson_is_num(duration)) {
-                event.execution_time = yyjson_get_real(duration);
-            }
-            
-            // Extract longrepr (error message)
-            yyjson_val *longrepr = yyjson_obj_get(call, "longrepr");
-            if (longrepr && yyjson_is_str(longrepr)) {
-                event.message = yyjson_get_str(longrepr);
-            }
-        }
-        
-        // Set category based on status
-        switch (event.status) {
-            case ValidationEventStatus::PASS:
-                event.category = "test_success";
-                if (event.message.empty()) event.message = "Test passed";
-                break;
-            case ValidationEventStatus::FAIL:
-                event.category = "test_failure";
-                if (event.message.empty()) event.message = "Test failed";
-                break;
-            case ValidationEventStatus::SKIP:
-                event.category = "test_skipped";
-                if (event.message.empty()) event.message = "Test skipped";
-                break;
-            default:
-                event.category = "test_error";
-                if (event.message.empty()) event.message = "Test error";
-                break;
-        }
-        
-        events.push_back(event);
-    }
-    
-    yyjson_doc_free(doc);
-}
 
 void ParseDuckDBTestOutput(const std::string& content, std::vector<ValidationEvent>& events) {
     std::istringstream stream(content);
@@ -1664,309 +1547,8 @@ void ParseDuckDBTestOutput(const std::string& content, std::vector<ValidationEve
     }
 }
 
-void ParseESLintJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    // Parse JSON using yyjson
-    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
-    if (!doc) {
-        throw IOException("Failed to parse ESLint JSON");
-    }
-    
-    yyjson_val *root = yyjson_doc_get_root(doc);
-    if (!yyjson_is_arr(root)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid ESLint JSON: root is not an array");
-    }
-    
-    // Parse each file result
-    size_t idx, max;
-    yyjson_val *file_result;
-    int64_t event_id = 1;
-    
-    yyjson_arr_foreach(root, idx, max, file_result) {
-        if (!yyjson_is_obj(file_result)) continue;
-        
-        // Get file path
-        yyjson_val *file_path = yyjson_obj_get(file_result, "filePath");
-        std::string file_path_str;
-        if (file_path && yyjson_is_str(file_path)) {
-            file_path_str = yyjson_get_str(file_path);
-        }
-        
-        // Get messages array
-        yyjson_val *messages = yyjson_obj_get(file_result, "messages");
-        if (!messages || !yyjson_is_arr(messages)) continue;
-        
-        // Parse each message
-        size_t msg_idx, msg_max;
-        yyjson_val *message;
-        yyjson_arr_foreach(messages, msg_idx, msg_max, message) {
-            if (!yyjson_is_obj(message)) continue;
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "eslint";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = file_path_str;
-            event.execution_time = 0.0;
-            
-            // Extract line and column
-            yyjson_val *line = yyjson_obj_get(message, "line");
-            if (line && yyjson_is_num(line)) {
-                event.line_number = yyjson_get_int(line);
-            } else {
-                event.line_number = -1;
-            }
-            
-            yyjson_val *column = yyjson_obj_get(message, "column");
-            if (column && yyjson_is_num(column)) {
-                event.column_number = yyjson_get_int(column);
-            } else {
-                event.column_number = -1;
-            }
-            
-            // Extract message
-            yyjson_val *msg_text = yyjson_obj_get(message, "message");
-            if (msg_text && yyjson_is_str(msg_text)) {
-                event.message = yyjson_get_str(msg_text);
-            }
-            
-            // Extract rule ID
-            yyjson_val *rule_id = yyjson_obj_get(message, "ruleId");
-            if (rule_id && yyjson_is_str(rule_id)) {
-                event.error_code = yyjson_get_str(rule_id);
-                event.function_name = yyjson_get_str(rule_id);
-            }
-            
-            // Map severity to status
-            yyjson_val *severity = yyjson_obj_get(message, "severity");
-            if (severity && yyjson_is_num(severity)) {
-                int sev = yyjson_get_int(severity);
-                switch (sev) {
-                    case 2:
-                        event.status = ValidationEventStatus::ERROR;
-                        event.category = "lint_error";
-                        event.severity = "error";
-                        break;
-                    case 1:
-                        event.status = ValidationEventStatus::WARNING;
-                        event.category = "lint_warning"; 
-                        event.severity = "warning";
-                        break;
-                    default:
-                        event.status = ValidationEventStatus::INFO;
-                        event.category = "lint_info";
-                        event.severity = "info";
-                        break;
-                }
-            } else {
-                event.status = ValidationEventStatus::WARNING;
-                event.category = "lint_warning";
-                event.severity = "warning";
-            }
-            
-            events.push_back(event);
-        }
-    }
-    
-    yyjson_doc_free(doc);
-}
 
-void ParseGoTestJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    
-    // Track test results
-    std::map<std::string, ValidationEvent> test_events;
-    
-    while (std::getline(stream, line)) {
-        if (line.empty()) continue;
-        
-        // Parse each JSON line
-        yyjson_doc *doc = yyjson_read(line.c_str(), line.length(), 0);
-        if (!doc) continue;
-        
-        yyjson_val *root = yyjson_doc_get_root(doc);
-        if (!yyjson_is_obj(root)) {
-            yyjson_doc_free(doc);
-            continue;
-        }
-        
-        // Extract fields
-        yyjson_val *action = yyjson_obj_get(root, "Action");
-        yyjson_val *package = yyjson_obj_get(root, "Package");
-        yyjson_val *test = yyjson_obj_get(root, "Test");
-        yyjson_val *elapsed = yyjson_obj_get(root, "Elapsed");
-        yyjson_val *output = yyjson_obj_get(root, "Output");
-        
-        if (!action || !yyjson_is_str(action)) {
-            yyjson_doc_free(doc);
-            continue;
-        }
-        
-        std::string action_str = yyjson_get_str(action);
-        std::string package_str = package && yyjson_is_str(package) ? yyjson_get_str(package) : "";
-        std::string test_str = test && yyjson_is_str(test) ? yyjson_get_str(test) : "";
-        
-        // Create unique test key
-        std::string test_key = package_str + "::" + test_str;
-        
-        if (action_str == "run" && !test_str.empty()) {
-            // Initialize test event
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "go_test";
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.file_path = package_str;
-            event.test_name = test_str;
-            event.function_name = test_str;
-            event.line_number = -1;
-            event.column_number = -1;
-            event.execution_time = 0.0;
-            
-            test_events[test_key] = event;
-        } else if ((action_str == "pass" || action_str == "fail" || action_str == "skip") && !test_str.empty()) {
-            // Finalize test event
-            if (test_events.find(test_key) != test_events.end()) {
-                ValidationEvent &event = test_events[test_key];
-                
-                if (elapsed && yyjson_is_num(elapsed)) {
-                    event.execution_time = yyjson_get_real(elapsed);
-                }
-                
-                if (action_str == "pass") {
-                    event.status = ValidationEventStatus::PASS;
-                    event.category = "test_success";
-                    event.message = "Test passed";
-                } else if (action_str == "fail") {
-                    event.status = ValidationEventStatus::FAIL;
-                    event.category = "test_failure";
-                    event.message = "Test failed";
-                } else if (action_str == "skip") {
-                    event.status = ValidationEventStatus::SKIP;
-                    event.category = "test_skipped";
-                    event.message = "Test skipped";
-                }
-                
-                events.push_back(event);
-                test_events.erase(test_key);
-            }
-        }
-        
-        yyjson_doc_free(doc);
-    }
-}
 
-void ParseMakeErrors(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    std::string current_function;
-    
-    while (std::getline(stream, line)) {
-        // Parse function context: "file.c: In function 'function_name':"
-        std::regex function_pattern(R"(([^:]+):\s*In function\s+'([^']+)':)");
-        std::smatch func_match;
-        if (std::regex_match(line, func_match, function_pattern)) {
-            current_function = func_match[2].str();
-            continue;
-        }
-        
-        // Parse GCC/Clang error format: file:line:column: severity: message
-        std::regex error_pattern(R"(([^:]+):(\d+):(\d*):?\s*(error|warning|note):\s*(.+))");
-        std::smatch match;
-        
-        if (std::regex_match(line, match, error_pattern)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "make";
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = match[1].str();
-            event.line_number = std::stoi(match[2].str());
-            event.column_number = match[3].str().empty() ? -1 : std::stoi(match[3].str());
-            event.function_name = current_function;
-            event.message = match[5].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "make_build";
-            
-            std::string severity = match[4].str();
-            if (severity == "error") {
-                event.status = ValidationEventStatus::ERROR;
-                event.category = "compilation";
-                event.severity = "error";
-            } else if (severity == "warning") {
-                event.status = ValidationEventStatus::WARNING;
-                event.category = "compilation"; 
-                event.severity = "warning";
-            } else if (severity == "note") {
-                event.status = ValidationEventStatus::INFO;
-                event.category = "compilation";
-                event.severity = "info";
-            } else {
-                event.status = ValidationEventStatus::INFO;
-                event.category = "compilation";
-                event.severity = "info";
-            }
-            
-            events.push_back(event);
-        }
-        // Parse make failure line with target extraction
-        else if (line.find("make: ***") != std::string::npos && line.find("Error") != std::string::npos) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "make";
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.status = ValidationEventStatus::ERROR;
-            event.category = "build_failure";
-            event.severity = "error";
-            event.message = line;
-            event.line_number = -1;
-            event.column_number = -1;
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "make_build";
-            
-            // Extract makefile target from pattern like "[Makefile:23: build/main]"
-            // Note: We extract file_path and test_name but NOT line_number for make build failures
-            std::regex target_pattern(R"(\[([^:]+):(\d+):\s*([^\]]+)\])");
-            std::smatch target_match;
-            if (std::regex_search(line, target_match, target_pattern)) {
-                event.file_path = target_match[1].str();  // Makefile
-                // Don't extract line_number for make build failures - keep it as -1 (NULL)
-                event.test_name = target_match[3].str();  // Target name (e.g., "build/main")
-            }
-            
-            events.push_back(event);
-        }
-        // Parse linker errors for make builds
-        else if (line.find("undefined reference") != std::string::npos) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "make";
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.status = ValidationEventStatus::ERROR;
-            event.category = "linking";
-            event.severity = "error";
-            event.message = line;
-            event.line_number = -1;
-            event.column_number = -1;
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "make_build";
-            
-            // Extract symbol name from undefined reference
-            std::regex symbol_pattern(R"(undefined reference to `([^']+)')");
-            std::smatch symbol_match;
-            if (std::regex_search(line, symbol_match, symbol_pattern)) {
-                event.function_name = symbol_match[1].str();
-                event.suggestion = "Link the library containing '" + event.function_name + "'";
-            }
-            
-            events.push_back(event);
-        }
-    }
-}
 
 void ParsePytestText(const std::string& content, std::vector<ValidationEvent>& events) {
     std::istringstream stream(content);
@@ -2020,403 +1602,9 @@ void ParsePytestText(const std::string& content, std::vector<ValidationEvent>& e
     }
 }
 
-void ParseRuboCopJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    // Parse JSON using yyjson
-    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
-    if (!doc) {
-        throw IOException("Failed to parse RuboCop JSON");
-    }
-    
-    yyjson_val *root = yyjson_doc_get_root(doc);
-    if (!yyjson_is_obj(root)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid RuboCop JSON: root is not an object");
-    }
-    
-    // Get files array
-    yyjson_val *files = yyjson_obj_get(root, "files");
-    if (!files || !yyjson_is_arr(files)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid RuboCop JSON: no files array found");
-    }
-    
-    // Parse each file
-    size_t idx, max;
-    yyjson_val *file;
-    int64_t event_id = 1;
-    
-    yyjson_arr_foreach(files, idx, max, file) {
-        if (!yyjson_is_obj(file)) continue;
-        
-        // Get file path
-        yyjson_val *path = yyjson_obj_get(file, "path");
-        if (!path || !yyjson_is_str(path)) continue;
-        
-        std::string file_path = yyjson_get_str(path);
-        
-        // Get offenses array
-        yyjson_val *offenses = yyjson_obj_get(file, "offenses");
-        if (!offenses || !yyjson_is_arr(offenses)) continue;
-        
-        // Parse each offense
-        size_t offense_idx, offense_max;
-        yyjson_val *offense;
-        
-        yyjson_arr_foreach(offenses, offense_idx, offense_max, offense) {
-            if (!yyjson_is_obj(offense)) continue;
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "rubocop";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = file_path;
-            event.line_number = -1;
-            event.column_number = -1;
-            event.execution_time = 0.0;
-            event.category = "code_quality";
-            
-            // Get severity
-            yyjson_val *severity = yyjson_obj_get(offense, "severity");
-            if (severity && yyjson_is_str(severity)) {
-                std::string severity_str = yyjson_get_str(severity);
-                if (severity_str == "error") {
-                    event.status = ValidationEventStatus::ERROR;
-                    event.severity = "error";
-                } else if (severity_str == "warning") {
-                    event.status = ValidationEventStatus::WARNING;
-                    event.severity = "warning";
-                } else if (severity_str == "convention") {
-                    event.status = ValidationEventStatus::WARNING;
-                    event.severity = "convention";
-                } else {
-                    event.status = ValidationEventStatus::INFO;
-                    event.severity = severity_str;
-                }
-            }
-            
-            // Get message
-            yyjson_val *message = yyjson_obj_get(offense, "message");
-            if (message && yyjson_is_str(message)) {
-                event.message = yyjson_get_str(message);
-            }
-            
-            // Get cop name (rule ID)
-            yyjson_val *cop_name = yyjson_obj_get(offense, "cop_name");
-            if (cop_name && yyjson_is_str(cop_name)) {
-                event.error_code = yyjson_get_str(cop_name);
-            }
-            
-            // Get location
-            yyjson_val *location = yyjson_obj_get(offense, "location");
-            if (location && yyjson_is_obj(location)) {
-                yyjson_val *start_line = yyjson_obj_get(location, "start_line");
-                yyjson_val *start_column = yyjson_obj_get(location, "start_column");
-                
-                if (start_line && yyjson_is_num(start_line)) {
-                    event.line_number = yyjson_get_int(start_line);
-                }
-                if (start_column && yyjson_is_num(start_column)) {
-                    event.column_number = yyjson_get_int(start_column);
-                }
-            }
-            
-            // Set raw output and structured data
-            event.raw_output = content;
-            event.structured_data = "rubocop_json";
-            
-            events.push_back(event);
-        }
-    }
-    
-    yyjson_doc_free(doc);
-}
 
-void ParseCargoTestJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    
-    // Track test events
-    std::map<std::string, ValidationEvent> test_events;
-    
-    while (std::getline(stream, line)) {
-        if (line.empty()) continue;
-        
-        // Parse each JSON line
-        yyjson_doc *doc = yyjson_read(line.c_str(), line.length(), 0);
-        if (!doc) continue;
-        
-        yyjson_val *root = yyjson_doc_get_root(doc);
-        if (!yyjson_is_obj(root)) {
-            yyjson_doc_free(doc);
-            continue;
-        }
-        
-        // Get type and event
-        yyjson_val *type = yyjson_obj_get(root, "type");
-        yyjson_val *event_val = yyjson_obj_get(root, "event");
-        
-        if (!type || !yyjson_is_str(type) || !event_val || !yyjson_is_str(event_val)) {
-            yyjson_doc_free(doc);
-            continue;
-        }
-        
-        std::string type_str = yyjson_get_str(type);
-        std::string event_str = yyjson_get_str(event_val);
-        
-        // Handle test events
-        if (type_str == "test") {
-            yyjson_val *name = yyjson_obj_get(root, "name");
-            if (!name || !yyjson_is_str(name)) {
-                yyjson_doc_free(doc);
-                continue;
-            }
-            
-            std::string test_name = yyjson_get_str(name);
-            
-            if (event_str == "started") {
-                // Initialize test event
-                ValidationEvent event;
-                event.event_id = event_id++;
-                event.tool_name = "cargo_test";
-                event.event_type = ValidationEventType::TEST_RESULT;
-                event.test_name = test_name;
-                event.function_name = test_name;
-                event.line_number = -1;
-                event.column_number = -1;
-                event.execution_time = 0.0;
-                event.category = "test";
-                
-                test_events[test_name] = event;
-            } else if (event_str == "ok" || event_str == "failed" || event_str == "ignored") {
-                // Finalize test event
-                if (test_events.find(test_name) != test_events.end()) {
-                    ValidationEvent &event = test_events[test_name];
-                    
-                    // Get execution time
-                    yyjson_val *exec_time = yyjson_obj_get(root, "exec_time");
-                    if (exec_time && yyjson_is_num(exec_time)) {
-                        event.execution_time = yyjson_get_real(exec_time);
-                    }
-                    
-                    // Set status based on event
-                    if (event_str == "ok") {
-                        event.status = ValidationEventStatus::PASS;
-                        event.message = "Test passed";
-                        event.severity = "success";
-                    } else if (event_str == "failed") {
-                        event.status = ValidationEventStatus::FAIL;
-                        event.message = "Test failed";
-                        event.severity = "error";
-                        
-                        // Get failure details from stdout
-                        yyjson_val *stdout_val = yyjson_obj_get(root, "stdout");
-                        if (stdout_val && yyjson_is_str(stdout_val)) {
-                            std::string stdout_str = yyjson_get_str(stdout_val);
-                            if (!stdout_str.empty()) {
-                                event.message = "Test failed: " + stdout_str;
-                            }
-                        }
-                    } else if (event_str == "ignored") {
-                        event.status = ValidationEventStatus::SKIP;
-                        event.message = "Test ignored";
-                        event.severity = "info";
-                    }
-                    
-                    // Set raw output and structured data
-                    event.raw_output = content;
-                    event.structured_data = "cargo_test_json";
-                    
-                    events.push_back(event);
-                    test_events.erase(test_name);
-                }
-            }
-        }
-        
-        yyjson_doc_free(doc);
-    }
-}
 
-void ParseSwiftLintJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    // Parse JSON using yyjson
-    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
-    if (!doc) {
-        throw IOException("Failed to parse SwiftLint JSON");
-    }
-    
-    yyjson_val *root = yyjson_doc_get_root(doc);
-    if (!yyjson_is_arr(root)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid SwiftLint JSON: root is not an array");
-    }
-    
-    // Parse each violation
-    size_t idx, max;
-    yyjson_val *violation;
-    int64_t event_id = 1;
-    
-    yyjson_arr_foreach(root, idx, max, violation) {
-        if (!yyjson_is_obj(violation)) continue;
-        
-        ValidationEvent event;
-        event.event_id = event_id++;
-        event.tool_name = "swiftlint";
-        event.event_type = ValidationEventType::LINT_ISSUE;
-        event.line_number = -1;
-        event.column_number = -1;
-        event.execution_time = 0.0;
-        event.category = "code_quality";
-        
-        // Get file path
-        yyjson_val *file = yyjson_obj_get(violation, "file");
-        if (file && yyjson_is_str(file)) {
-            event.file_path = yyjson_get_str(file);
-        }
-        
-        // Get line and column
-        yyjson_val *line = yyjson_obj_get(violation, "line");
-        if (line && yyjson_is_num(line)) {
-            event.line_number = yyjson_get_int(line);
-        }
-        
-        yyjson_val *column = yyjson_obj_get(violation, "column");
-        if (column && yyjson_is_num(column)) {
-            event.column_number = yyjson_get_int(column);
-        }
-        
-        // Get severity
-        yyjson_val *severity = yyjson_obj_get(violation, "severity");
-        if (severity && yyjson_is_str(severity)) {
-            std::string severity_str = yyjson_get_str(severity);
-            if (severity_str == "error") {
-                event.status = ValidationEventStatus::ERROR;
-                event.severity = "error";
-            } else if (severity_str == "warning") {
-                event.status = ValidationEventStatus::WARNING;
-                event.severity = "warning";
-            } else {
-                event.status = ValidationEventStatus::INFO;
-                event.severity = severity_str;
-            }
-        }
-        
-        // Get reason (message)
-        yyjson_val *reason = yyjson_obj_get(violation, "reason");
-        if (reason && yyjson_is_str(reason)) {
-            event.message = yyjson_get_str(reason);
-        }
-        
-        // Get rule ID
-        yyjson_val *rule_id = yyjson_obj_get(violation, "rule_id");
-        if (rule_id && yyjson_is_str(rule_id)) {
-            event.error_code = yyjson_get_str(rule_id);
-        }
-        
-        // Get type (rule type)
-        yyjson_val *type = yyjson_obj_get(violation, "type");
-        if (type && yyjson_is_str(type)) {
-            event.suggestion = yyjson_get_str(type);
-        }
-        
-        // Set raw output and structured data
-        event.raw_output = content;
-        event.structured_data = "swiftlint_json";
-        
-        events.push_back(event);
-    }
-    
-    yyjson_doc_free(doc);
-}
 
-void ParsePHPStanJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    // Parse JSON using yyjson
-    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
-    if (!doc) {
-        throw IOException("Failed to parse PHPStan JSON");
-    }
-    
-    yyjson_val *root = yyjson_doc_get_root(doc);
-    if (!yyjson_is_obj(root)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid PHPStan JSON: root is not an object");
-    }
-    
-    // Get files object
-    yyjson_val *files = yyjson_obj_get(root, "files");
-    if (!files || !yyjson_is_obj(files)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid PHPStan JSON: no files object found");
-    }
-    
-    // Parse each file
-    size_t idx, max;
-    yyjson_val *file_key, *file_data;
-    int64_t event_id = 1;
-    
-    yyjson_obj_foreach(files, idx, max, file_key, file_data) {
-        if (!yyjson_is_str(file_key) || !yyjson_is_obj(file_data)) continue;
-        
-        std::string file_path = yyjson_get_str(file_key);
-        
-        // Get messages array
-        yyjson_val *messages = yyjson_obj_get(file_data, "messages");
-        if (!messages || !yyjson_is_arr(messages)) continue;
-        
-        // Parse each message
-        size_t msg_idx, msg_max;
-        yyjson_val *message;
-        
-        yyjson_arr_foreach(messages, msg_idx, msg_max, message) {
-            if (!yyjson_is_obj(message)) continue;
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "phpstan";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = file_path;
-            event.line_number = -1;
-            event.column_number = -1;
-            event.execution_time = 0.0;
-            event.category = "static_analysis";
-            
-            // Get message text
-            yyjson_val *msg_text = yyjson_obj_get(message, "message");
-            if (msg_text && yyjson_is_str(msg_text)) {
-                event.message = yyjson_get_str(msg_text);
-            }
-            
-            // Get line number
-            yyjson_val *line = yyjson_obj_get(message, "line");
-            if (line && yyjson_is_num(line)) {
-                event.line_number = yyjson_get_int(line);
-            }
-            
-            // Get ignorable status (use as severity indicator)
-            yyjson_val *ignorable = yyjson_obj_get(message, "ignorable");
-            if (ignorable && yyjson_is_bool(ignorable)) {
-                if (yyjson_get_bool(ignorable)) {
-                    event.status = ValidationEventStatus::WARNING;
-                    event.severity = "warning";
-                } else {
-                    event.status = ValidationEventStatus::ERROR;
-                    event.severity = "error";
-                }
-            } else {
-                // Default to error
-                event.status = ValidationEventStatus::ERROR;
-                event.severity = "error";
-            }
-            
-            // Set raw output and structured data
-            event.raw_output = content;
-            event.structured_data = "phpstan_json";
-            
-            events.push_back(event);
-        }
-    }
-    
-    yyjson_doc_free(doc);
-}
 
 void ParseShellCheckJSON(const std::string& content, std::vector<ValidationEvent>& events) {
     // Parse JSON using yyjson
@@ -4065,10 +3253,8 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
                 if (parser) {
                     auto events = parser->parse(content);
                     global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                } else {
-                    // Fallback to legacy parser if modular parser not found
-                    ParsePytestJSON(content, global_state->events);
                 }
+                // Note: Legacy ParsePytestJSON removed - fully replaced by modular PytestJSONParser
             }
             break;
         case TestResultFormat::DUCKDB_TEST:
@@ -4081,10 +3267,8 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
                 if (parser) {
                     auto events = parser->parse(content);
                     global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                } else {
-                    // Fallback to legacy parser if modular parser not found
-                    ParseESLintJSON(content, global_state->events);
                 }
+                // Note: Legacy ParseESLintJSON removed - fully replaced by modular ESLintJSONParser
             }
             break;
         case TestResultFormat::GOTEST_JSON:
@@ -4094,10 +3278,8 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
                 if (parser) {
                     auto events = parser->parse(content);
                     global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                } else {
-                    // Fallback to legacy parser if modular parser not found
-                    ParseGoTestJSON(content, global_state->events);
                 }
+                // Note: Legacy ParseGoTestJSON removed - fully replaced by modular GoTestJSONParser
             }
             break;
         case TestResultFormat::MAKE_ERROR:
@@ -4107,10 +3289,8 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
                 if (parser) {
                     auto events = parser->parse(content);
                     global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                } else {
-                    // Fallback to legacy parser if modular parser not found
-                    ParseMakeErrors(content, global_state->events);
                 }
+                // Note: Legacy ParseMakeErrors removed - fully replaced by modular MakeParser
             }
             break;
         case TestResultFormat::PYTEST_TEXT:
@@ -4136,10 +3316,8 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
                 if (parser) {
                     auto events = parser->parse(content);
                     global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                } else {
-                    // Fallback to legacy parser if modular parser not found
-                    ParseRuboCopJSON(content, global_state->events);
                 }
+                // Note: Legacy ParseRuboCopJSON removed - fully replaced by modular RuboCopJSONParser
             }
             break;
         case TestResultFormat::CARGO_TEST_JSON:
@@ -4149,17 +3327,31 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
                 if (parser) {
                     auto events = parser->parse(content);
                     global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                } else {
-                    // Fallback to legacy parser if modular parser not found
-                    ParseCargoTestJSON(content, global_state->events);
                 }
+                // Note: Legacy ParseCargoTestJSON removed - fully replaced by modular CargoTestJSONParser
             }
             break;
         case TestResultFormat::SWIFTLINT_JSON:
-            ParseSwiftLintJSON(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                }
+                // Note: Legacy ParseSwiftLintJSON removed - fully replaced by modular SwiftLintJSONParser
+            }
             break;
         case TestResultFormat::PHPSTAN_JSON:
-            ParsePHPStanJSON(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                }
+                // Note: Legacy ParsePHPStanJSON removed - fully replaced by modular PHPStanJSONParser
+            }
             break;
         case TestResultFormat::SHELLCHECK_JSON:
             ParseShellCheckJSON(content, global_state->events);
@@ -9926,10 +9118,8 @@ void ProcessMultipleFiles(ClientContext& context, const std::vector<std::string>
                         auto parser = registry.getParser(detected_format);
                         if (parser) {
                             file_events = parser->parse(content);
-                        } else {
-                            // Fallback to legacy parser if modular parser not found
-                            ParsePytestJSON(content, file_events);
                         }
+                        // Note: Legacy ParsePytestJSON removed - fully replaced by modular PytestJSONParser
                     }
                     break;
                 case TestResultFormat::GOTEST_JSON:
@@ -9938,10 +9128,8 @@ void ProcessMultipleFiles(ClientContext& context, const std::vector<std::string>
                         auto parser = registry.getParser(detected_format);
                         if (parser) {
                             file_events = parser->parse(content);
-                        } else {
-                            // Fallback to legacy parser if modular parser not found
-                            ParseGoTestJSON(content, file_events);
                         }
+                        // Note: Legacy ParseGoTestJSON removed - fully replaced by modular GoTestJSONParser
                     }
                     break;
                 case TestResultFormat::ESLINT_JSON:
@@ -9950,10 +9138,8 @@ void ProcessMultipleFiles(ClientContext& context, const std::vector<std::string>
                         auto parser = registry.getParser(detected_format);
                         if (parser) {
                             file_events = parser->parse(content);
-                        } else {
-                            // Fallback to legacy parser if modular parser not found
-                            ParseESLintJSON(content, file_events);
                         }
+                        // Note: Legacy ParseESLintJSON removed - fully replaced by modular ESLintJSONParser
                     }
                     break;
                 case TestResultFormat::PYTEST_TEXT:
