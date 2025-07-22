@@ -19,6 +19,9 @@
 #include "parsers/test_frameworks/pytest_json_parser.hpp"
 #include "parsers/build_systems/make_parser.hpp"
 #include "parsers/linting_tools/mypy_parser.hpp"
+#include "parsers/linting_tools/black_parser.hpp"
+#include "parsers/linting_tools/flake8_parser.hpp"
+#include "parsers/linting_tools/pylint_parser.hpp"
 #include "parsers/tool_outputs/rubocop_json_parser.hpp"
 #include "parsers/tool_outputs/cargo_test_json_parser.hpp"
 #include "parsers/tool_outputs/swiftlint_json_parser.hpp"
@@ -68,6 +71,9 @@ static void LoadInternal(DatabaseInstance &instance) {
 	registry.registerParser(make_uniq<PytestJSONParser>());
 	registry.registerParser(make_uniq<MakeParser>());
 	registry.registerParser(make_uniq<MypyParser>());
+	registry.registerParser(make_uniq<BlackParser>());
+	registry.registerParser(make_uniq<Flake8Parser>());
+	registry.registerParser(make_uniq<PylintParser>());
 	registry.registerParser(make_uniq<RuboCopJSONParser>());
 	registry.registerParser(make_uniq<CargoTestJSONParser>());
 	registry.registerParser(make_uniq<SwiftLintJSONParser>());

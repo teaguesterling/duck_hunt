@@ -1224,9 +1224,6 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                     if (parser) {
                         auto events = parser->parse(content);
                         global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    } else {
-                        // Fallback to legacy parser if modular parser not found
-                        ParsePylintText(content, global_state->events);
                     }
                 }
                 break;
@@ -1237,9 +1234,6 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                     if (parser) {
                         auto events = parser->parse(content);
                         global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    } else {
-                        // Fallback to legacy parser if modular parser not found
-                        ParseFlake8Text(content, global_state->events);
                     }
                 }
                 break;
@@ -1250,9 +1244,6 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                     if (parser) {
                         auto events = parser->parse(content);
                         global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    } else {
-                        // Fallback to legacy parser if modular parser not found
-                        ParseBlackText(content, global_state->events);
                     }
                 }
                 break;
@@ -1263,9 +1254,6 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                     if (parser) {
                         auto events = parser->parse(content);
                         global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    } else {
-                        // Fallback to legacy parser if modular parser not found
-                        ParseMypyText(content, global_state->events);
                     }
                 }
                 break;
@@ -2619,9 +2607,6 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
                 if (parser) {
                     auto events = parser->parse(content);
                     global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                } else {
-                    // Fallback to legacy parser if modular parser not found
-                    ParsePylintText(content, global_state->events);
                 }
             }
             break;
@@ -2632,9 +2617,6 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
                 if (parser) {
                     auto events = parser->parse(content);
                     global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                } else {
-                    // Fallback to legacy parser if modular parser not found
-                    ParseFlake8Text(content, global_state->events);
                 }
             }
             break;
@@ -2645,9 +2627,6 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
                 if (parser) {
                     auto events = parser->parse(content);
                     global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                } else {
-                    // Fallback to legacy parser if modular parser not found
-                    ParseBlackText(content, global_state->events);
                 }
             }
             break;
@@ -2658,9 +2637,6 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
                 if (parser) {
                     auto events = parser->parse(content);
                     global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                } else {
-                    // Fallback to legacy parser if modular parser not found
-                    ParseMypyText(content, global_state->events);
                 }
             }
             break;
@@ -2772,486 +2748,9 @@ TableFunction GetParseTestResultsFunction() {
 
 
 
-void ParsePylintText(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    
-    // Regex patterns for Pylint output
-    std::regex pylint_module_header(R"(\*+\s*Module\s+(.+))");
-    std::regex pylint_message(R"(([CWERF]):\s*(\d+),\s*(\d+):\s*(.+?)\s+\(([^)]+)\))");  // C:  1, 0: message (code)
-    std::regex pylint_message_simple(R"(([CWERF]):\s*(\d+),\s*(\d+):\s*(.+))");  // C:  1, 0: message
-    std::regex pylint_rating(R"(Your code has been rated at ([\d\.-]+)/10)");
-    std::regex pylint_statistics(R"((\d+)\s+statements\s+analysed)");
-    
-    std::string current_module;
-    
-    while (std::getline(stream, line)) {
-        std::smatch match;
-        
-        // Check for module header
-        if (std::regex_search(line, match, pylint_module_header)) {
-            current_module = match[1].str();
-            continue;
-        }
-        
-        // Check for Pylint message with error code
-        if (std::regex_search(line, match, pylint_message)) {
-            std::string severity_char = match[1].str();
-            std::string line_str = match[2].str();
-            std::string column_str = match[3].str();
-            std::string message = match[4].str();
-            std::string error_code = match[5].str();
-            
-            int64_t line_number = 0;
-            int64_t column_number = 0;
-            
-            try {
-                line_number = std::stoi(line_str);
-                column_number = std::stoi(column_str);
-            } catch (...) {
-                // If parsing fails, keep as 0
-            }
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            
-            // Map Pylint severity to ValidationEventStatus
-            if (severity_char == "E" || severity_char == "F") {
-                event.severity = "error";
-                event.status = ValidationEventStatus::ERROR;
-                event.event_type = ValidationEventType::BUILD_ERROR;
-            } else if (severity_char == "W") {
-                event.severity = "warning";
-                event.status = ValidationEventStatus::WARNING;
-            } else if (severity_char == "C" || severity_char == "R") {
-                event.severity = "info";
-                event.status = ValidationEventStatus::INFO;
-            } else {
-                event.severity = "warning";
-                event.status = ValidationEventStatus::WARNING;
-            }
-            
-            event.message = message;
-            event.file_path = current_module.empty() ? "unknown" : current_module;
-            event.line_number = line_number;
-            event.column_number = column_number;
-            event.error_code = error_code;
-            event.tool_name = "pylint";
-            event.category = "code_quality";
-            event.raw_output = line;
-            event.structured_data = "{\"severity_char\": \"" + severity_char + "\", \"error_code\": \"" + error_code + "\"}";
-            
-            events.push_back(event);
-        }
-        // Check for Pylint message without explicit error code
-        else if (std::regex_search(line, match, pylint_message_simple)) {
-            std::string severity_char = match[1].str();
-            std::string line_str = match[2].str();
-            std::string column_str = match[3].str();
-            std::string message = match[4].str();
-            
-            int64_t line_number = 0;
-            int64_t column_number = 0;
-            
-            try {
-                line_number = std::stoi(line_str);
-                column_number = std::stoi(column_str);
-            } catch (...) {
-                // If parsing fails, keep as 0
-            }
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            
-            // Map Pylint severity to ValidationEventStatus
-            if (severity_char == "E" || severity_char == "F") {
-                event.severity = "error";
-                event.status = ValidationEventStatus::ERROR;
-                event.event_type = ValidationEventType::BUILD_ERROR;
-            } else if (severity_char == "W") {
-                event.severity = "warning";
-                event.status = ValidationEventStatus::WARNING;
-            } else if (severity_char == "C" || severity_char == "R") {
-                event.severity = "info";
-                event.status = ValidationEventStatus::INFO;
-            } else {
-                event.severity = "warning";
-                event.status = ValidationEventStatus::WARNING;
-            }
-            
-            event.message = message;
-            event.file_path = current_module.empty() ? "unknown" : current_module;
-            event.line_number = line_number;
-            event.column_number = column_number;
-            event.tool_name = "pylint";
-            event.category = "code_quality";
-            event.raw_output = line;
-            event.structured_data = "{\"severity_char\": \"" + severity_char + "\"}";
-            
-            events.push_back(event);
-        }
-        // Check for rating information
-        else if (std::regex_search(line, match, pylint_rating)) {
-            std::string rating = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::SUMMARY;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "Code quality rating: " + rating + "/10";
-            event.tool_name = "pylint";
-            event.category = "code_quality";
-            event.raw_output = line;
-            event.structured_data = "{\"rating\": \"" + rating + "\"}";
-            
-            events.push_back(event);
-        }
-    }
-}
 
-void ParseFlake8Text(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    
-    // Regex pattern for Flake8 output: file.py:line:column: error_code message
-    std::regex flake8_message(R"(([^:]+):(\d+):(\d+):\s*([FEWC]\d+)\s*(.+))");
-    
-    while (std::getline(stream, line)) {
-        std::smatch match;
-        
-        if (std::regex_search(line, match, flake8_message)) {
-            std::string file_path = match[1].str();
-            std::string line_str = match[2].str();
-            std::string column_str = match[3].str();
-            std::string error_code = match[4].str();
-            std::string message = match[5].str();
-            
-            int64_t line_number = 0;
-            int64_t column_number = 0;
-            
-            try {
-                line_number = std::stoi(line_str);
-                column_number = std::stoi(column_str);
-            } catch (...) {
-                // If parsing fails, keep as 0
-            }
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            
-            // Map Flake8 error codes to severity
-            if (error_code.front() == 'F') {
-                // F codes are pyflakes errors (logical errors)
-                event.severity = "error";
-                event.status = ValidationEventStatus::ERROR;
-                event.event_type = ValidationEventType::BUILD_ERROR;
-            } else if (error_code.front() == 'E') {
-                // E codes are PEP 8 errors (style errors)
-                event.severity = "error";
-                event.status = ValidationEventStatus::ERROR;
-            } else if (error_code.front() == 'W') {
-                // W codes are PEP 8 warnings
-                event.severity = "warning";
-                event.status = ValidationEventStatus::WARNING;
-            } else if (error_code.front() == 'C') {
-                // C codes are complexity warnings
-                event.severity = "warning";
-                event.status = ValidationEventStatus::WARNING;
-            } else {
-                event.severity = "warning";
-                event.status = ValidationEventStatus::WARNING;
-            }
-            
-            event.message = message;
-            event.file_path = file_path;
-            event.line_number = line_number;
-            event.column_number = column_number;
-            event.error_code = error_code;
-            event.tool_name = "flake8";
-            event.category = "style_guide";
-            event.raw_output = line;
-            event.structured_data = "{\"error_code\": \"" + error_code + "\", \"error_type\": \"" + std::string(1, error_code.front()) + "\"}";
-            
-            events.push_back(event);
-        }
-    }
-}
 
-void ParseBlackText(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    
-    // Regex patterns for Black output
-    std::regex would_reformat(R"(would reformat (.+))");
-    std::regex reformat_summary(R"((\d+) files? would be reformatted, (\d+) files? would be left unchanged)");
-    std::regex all_done_summary(R"(All done! ✨ 🍰 ✨)");
-    std::regex diff_header(R"(--- (.+)\s+\(original\))");
-    
-    bool in_diff_mode = false;
-    std::string current_file;
-    
-    while (std::getline(stream, line)) {
-        std::smatch match;
-        
-        // Check for "would reformat" messages
-        if (std::regex_search(line, match, would_reformat)) {
-            std::string file_path = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "File would be reformatted by Black";
-            event.file_path = file_path;
-            event.tool_name = "black";
-            event.category = "code_formatting";
-            event.raw_output = line;
-            event.structured_data = "{\"action\": \"would_reformat\"}";
-            
-            events.push_back(event);
-        }
-        // Check for reformat summary
-        else if (std::regex_search(line, match, reformat_summary)) {
-            std::string reformat_count = match[1].str();
-            std::string unchanged_count = match[2].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.severity = "warning";
-            event.status = ValidationEventStatus::WARNING;
-            event.message = reformat_count + " files would be reformatted, " + unchanged_count + " files would be left unchanged";
-            event.tool_name = "black";
-            event.category = "code_formatting";
-            event.raw_output = line;
-            event.structured_data = "{\"reformat_count\": " + reformat_count + ", \"unchanged_count\": " + unchanged_count + "}";
-            
-            events.push_back(event);
-        }
-        // Check for "All done!" success message
-        else if (std::regex_search(line, match, all_done_summary)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::SUMMARY;
-            event.severity = "info";
-            event.status = ValidationEventStatus::PASS;
-            event.message = "Black formatting check completed successfully";
-            event.tool_name = "black";
-            event.category = "code_formatting";
-            event.raw_output = line;
-            event.structured_data = "{\"action\": \"success\"}";
-            
-            events.push_back(event);
-        }
-        // Check for diff header (unified diff mode)
-        else if (std::regex_search(line, match, diff_header)) {
-            current_file = match[1].str();
-            in_diff_mode = true;
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "Black would apply formatting changes";
-            event.file_path = current_file;
-            event.tool_name = "black";
-            event.category = "code_formatting";
-            event.raw_output = line;
-            event.structured_data = "{\"action\": \"diff_start\", \"file\": \"" + current_file + "\"}";
-            
-            events.push_back(event);
-        }
-        // Handle diff content (lines starting with + or -)
-        else if (in_diff_mode && (line.front() == '+' || line.front() == '-') && line.size() > 1) {
-            // Skip pure markers like +++/---
-            if (line.substr(0, 3) != "+++" && line.substr(0, 3) != "---") {
-                ValidationEvent event;
-                event.event_id = event_id++;
-                event.event_type = ValidationEventType::LINT_ISSUE;
-                event.severity = "info";
-                event.status = ValidationEventStatus::INFO;
-                
-                if (line.front() == '+') {
-                    event.message = "Black would add: " + line.substr(1);
-                } else {
-                    event.message = "Black would remove: " + line.substr(1);
-                }
-                
-                event.file_path = current_file;
-                event.tool_name = "black";
-                event.category = "code_formatting";
-                event.raw_output = line;
-                event.structured_data = "{\"action\": \"diff_line\", \"type\": \"" + std::string(1, line.front()) + "\"}";
-                
-                events.push_back(event);
-            }
-        }
-        // Reset diff mode on empty lines or when encountering new files
-        else if (line.empty() || line.find("would reformat") != std::string::npos) {
-            in_diff_mode = false;
-            current_file.clear();
-        }
-    }
-}
 
-void ParseMypyText(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    
-    // Regex patterns for mypy output
-    std::regex mypy_message(R"(([^:]+):(\d+):\s*(error|warning|note):\s*(.+?)\s*\[([^\]]+)\])");
-    std::regex mypy_message_no_code(R"(([^:]+):(\d+):\s*(error|warning|note):\s*(.+))");
-    std::regex mypy_summary(R"(Found (\d+) errors? in (\d+) files? \(checked (\d+) files?\))");
-    std::regex mypy_success(R"(Success: no issues found in (\d+) source files?)");
-    std::regex mypy_revealed_type(R"((.+):(\d+):\s*note:\s*Revealed type is \"(.+)\")");
-    
-    while (std::getline(stream, line)) {
-        std::smatch match;
-        
-        // Check for mypy message with error code
-        if (std::regex_search(line, match, mypy_message)) {
-            std::string file_path = match[1].str();
-            std::string line_str = match[2].str();
-            std::string severity = match[3].str();
-            std::string message = match[4].str();
-            std::string error_code = match[5].str();
-            
-            int64_t line_number = 0;
-            
-            try {
-                line_number = std::stoi(line_str);
-            } catch (...) {
-                // If parsing fails, keep as 0
-            }
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            
-            // Map mypy severity to ValidationEventStatus
-            if (severity == "error") {
-                event.event_type = ValidationEventType::BUILD_ERROR;
-                event.severity = "error";
-                event.status = ValidationEventStatus::ERROR;
-            } else if (severity == "warning") {
-                event.event_type = ValidationEventType::LINT_ISSUE;
-                event.severity = "warning";
-                event.status = ValidationEventStatus::WARNING;
-            } else if (severity == "note") {
-                event.event_type = ValidationEventType::LINT_ISSUE;
-                event.severity = "info";
-                event.status = ValidationEventStatus::INFO;
-            } else {
-                event.event_type = ValidationEventType::LINT_ISSUE;
-                event.severity = "warning";
-                event.status = ValidationEventStatus::WARNING;
-            }
-            
-            event.message = message;
-            event.file_path = file_path;
-            event.line_number = line_number;
-            event.error_code = error_code;
-            event.tool_name = "mypy";
-            event.category = "type_checking";
-            event.raw_output = line;
-            event.structured_data = "{\"error_code\": \"" + error_code + "\", \"severity\": \"" + severity + "\"}";
-            
-            events.push_back(event);
-        }
-        // Check for mypy message without error code
-        else if (std::regex_search(line, match, mypy_message_no_code)) {
-            std::string file_path = match[1].str();
-            std::string line_str = match[2].str();
-            std::string severity = match[3].str();
-            std::string message = match[4].str();
-            
-            int64_t line_number = 0;
-            
-            try {
-                line_number = std::stoi(line_str);
-            } catch (...) {
-                // If parsing fails, keep as 0
-            }
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            
-            // Map mypy severity to ValidationEventStatus
-            if (severity == "error") {
-                event.event_type = ValidationEventType::BUILD_ERROR;
-                event.severity = "error";
-                event.status = ValidationEventStatus::ERROR;
-            } else if (severity == "warning") {
-                event.event_type = ValidationEventType::LINT_ISSUE;
-                event.severity = "warning";
-                event.status = ValidationEventStatus::WARNING;
-            } else if (severity == "note") {
-                event.event_type = ValidationEventType::LINT_ISSUE;
-                event.severity = "info";
-                event.status = ValidationEventStatus::INFO;
-            } else {
-                event.event_type = ValidationEventType::LINT_ISSUE;
-                event.severity = "warning";
-                event.status = ValidationEventStatus::WARNING;
-            }
-            
-            event.message = message;
-            event.file_path = file_path;
-            event.line_number = line_number;
-            event.tool_name = "mypy";
-            event.category = "type_checking";
-            event.raw_output = line;
-            event.structured_data = "{\"severity\": \"" + severity + "\"}";
-            
-            events.push_back(event);
-        }
-        // Check for summary with errors
-        else if (std::regex_search(line, match, mypy_summary)) {
-            std::string error_count = match[1].str();
-            std::string file_count = match[2].str();
-            std::string checked_count = match[3].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.severity = "error";
-            event.status = ValidationEventStatus::ERROR;
-            event.message = "Found " + error_count + " errors in " + file_count + " files (checked " + checked_count + " files)";
-            event.tool_name = "mypy";
-            event.category = "type_checking";
-            event.raw_output = line;
-            event.structured_data = "{\"error_count\": " + error_count + ", \"file_count\": " + file_count + ", \"checked_count\": " + checked_count + "}";
-            
-            events.push_back(event);
-        }
-        // Check for success message
-        else if (std::regex_search(line, match, mypy_success)) {
-            std::string checked_count = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::SUMMARY;
-            event.severity = "info";
-            event.status = ValidationEventStatus::PASS;
-            event.message = "Success: no issues found in " + checked_count + " source files";
-            event.tool_name = "mypy";
-            event.category = "type_checking";
-            event.raw_output = line;
-            event.structured_data = "{\"checked_count\": " + checked_count + "}";
-            
-            events.push_back(event);
-        }
-    }
-}
 
 void ParseDockerBuild(const std::string& content, std::vector<ValidationEvent>& events) {
     std::istringstream stream(content);
