@@ -62,6 +62,11 @@ bool ClangTidyParser::isValidClangTidyOutput(const std::string& content) const {
         return true;
     }
     
+    // Additional patterns from main detection logic
+    if ((content.find("google-") != std::string::npos && content.find("build") != std::string::npos)) {
+        return true;
+    }
+    
     return false;
 }
 

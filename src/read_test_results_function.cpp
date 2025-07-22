@@ -343,14 +343,7 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
         return TestResultFormat::GITHUB_ACTIONS_TEXT;
     }
     
-    // Check for GitHub CLI patterns
-    if ((content.find("STATUS") != std::string::npos && content.find("CONCLUSION") != std::string::npos && content.find("WORKFLOW") != std::string::npos) ||
-        (content.find("Run #") != std::string::npos && content.find("Status:") != std::string::npos) ||
-        (content.find("Run ID:") != std::string::npos && content.find("Conclusion:") != std::string::npos) ||
-        (content.find("::error::") != std::string::npos && content.find("::warning::") != std::string::npos) ||
-        (content.find("##[endgroup]") != std::string::npos && content.find("::notice::") != std::string::npos)) {
-        return TestResultFormat::GITHUB_CLI;
-    }
+    // GitHub CLI detection moved to GitHubCliParser::canParse()
     
     // Check for GitLab CI patterns
     if ((content.find("Running with gitlab-runner") != std::string::npos) ||
@@ -538,28 +531,27 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
         return TestResultFormat::MAKE_ERROR;
     }
     
-    // Check for clang-tidy patterns first (higher priority)
-    if ((content.find("readability-") != std::string::npos) ||
-        (content.find("bugprone-") != std::string::npos) ||
-        (content.find("cppcoreguidelines-") != std::string::npos) ||
-        (content.find("google-") != std::string::npos && content.find("build") != std::string::npos) ||
-        (content.find("performance-") != std::string::npos) ||
-        (content.find("modernize-") != std::string::npos) ||
-        (content.find("warnings generated") != std::string::npos) ||
-        (content.find("errors generated") != std::string::npos)) {
-        return TestResultFormat::CLANG_TIDY_TEXT;
-    }
+    // Clang-tidy detection moved to ClangTidyParser::canParse()
 
-    // Check for mypy patterns (more specific to avoid conflicts)
-    if (((content.find(": error:") != std::string::npos || content.find(": warning:") != std::string::npos) && 
-         content.find("[") != std::string::npos && content.find("]") != std::string::npos &&
-         // Exclude clang-tidy by checking against column number format
-         content.find(": error:") == content.rfind(":", content.find(": error:") - 1) + 2) ||
-        (content.find(": note:") != std::string::npos && content.find("Revealed type") != std::string::npos) ||
-        (content.find("Found") != std::string::npos && content.find("error") != std::string::npos && content.find("files") != std::string::npos && content.find("checked") != std::string::npos) ||
-        (content.find("Success: no issues found") != std::string::npos) ||
-        (content.find("return-value") != std::string::npos || content.find("arg-type") != std::string::npos || content.find("attr-defined") != std::string::npos)) {
-        return TestResultFormat::MYPY_TEXT;
+    // Check for mypy patterns (more specific to avoid conflicts with clang-tidy)
+    // First exclude clang-tidy patterns
+    if (content.find("readability-") == std::string::npos && 
+        content.find("bugprone-") == std::string::npos && 
+        content.find("cppcoreguidelines-") == std::string::npos &&
+        content.find("google-build") == std::string::npos && 
+        content.find("performance-") == std::string::npos && 
+        content.find("modernize-") == std::string::npos &&
+        content.find("warnings generated") == std::string::npos &&
+        content.find("errors generated") == std::string::npos) {
+        
+        if (((content.find(": error:") != std::string::npos || content.find(": warning:") != std::string::npos) && 
+             content.find("[") != std::string::npos && content.find("]") != std::string::npos) ||
+            (content.find(": note:") != std::string::npos && content.find("Revealed type") != std::string::npos) ||
+            (content.find("Found") != std::string::npos && content.find("error") != std::string::npos && content.find("files") != std::string::npos && content.find("checked") != std::string::npos) ||
+            (content.find("Success: no issues found") != std::string::npos) ||
+            (content.find("return-value") != std::string::npos || content.find("arg-type") != std::string::npos || content.find("attr-defined") != std::string::npos)) {
+            return TestResultFormat::MYPY_TEXT;
+        }
     }
     
     // Check for Docker build patterns
@@ -701,6 +693,13 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
     
     if (content.find(": error:") != std::string::npos || content.find(": warning:") != std::string::npos) {
         return TestResultFormat::GENERIC_LINT;
+    }
+    
+    // Fallback: try the modular parser registry for newly added parsers
+    auto& registry = ParserRegistry::getInstance();
+    auto parser = registry.findParser(content);
+    if (parser) {
+        return parser->getFormat();
     }
     
     return TestResultFormat::UNKNOWN;

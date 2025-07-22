@@ -40,7 +40,8 @@ bool GitHubCliParser::isGitHubWorkflowLogs(const std::string& content) const {
     if (content.find("##[group]") != std::string::npos ||
         content.find("##[endgroup]") != std::string::npos ||
         content.find("::error::") != std::string::npos ||
-        content.find("::warning::") != std::string::npos) {
+        content.find("::warning::") != std::string::npos ||
+        content.find("::notice::") != std::string::npos) {
         return true;
     }
     
@@ -48,6 +49,12 @@ bool GitHubCliParser::isGitHubWorkflowLogs(const std::string& content) const {
     std::regex step_pattern(R"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z)");
     if (std::regex_search(content, step_pattern)) {
         return content.find("Run ") != std::string::npos || content.find("Setup ") != std::string::npos;
+    }
+    
+    // Check for combined annotation patterns (from main detection logic)
+    if ((content.find("::error::") != std::string::npos && content.find("::warning::") != std::string::npos) ||
+        (content.find("##[endgroup]") != std::string::npos && content.find("::notice::") != std::string::npos)) {
+        return true;
     }
     
     return false;
