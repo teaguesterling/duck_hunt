@@ -955,19 +955,59 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
         // Parse content based on detected format
         switch (format) {
             case TestResultFormat::PYTEST_JSON:
-                ParsePytestJSON(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    } else {
+                        // Fallback to legacy parser if modular parser not found
+                        ParsePytestJSON(content, global_state->events);
+                    }
+                }
                 break;
             case TestResultFormat::DUCKDB_TEST:
                 ParseDuckDBTestOutput(content, global_state->events);
                 break;
             case TestResultFormat::ESLINT_JSON:
-                ParseESLintJSON(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    } else {
+                        // Fallback to legacy parser if modular parser not found
+                        ParseESLintJSON(content, global_state->events);
+                    }
+                }
                 break;
             case TestResultFormat::GOTEST_JSON:
-                ParseGoTestJSON(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    } else {
+                        // Fallback to legacy parser if modular parser not found
+                        ParseGoTestJSON(content, global_state->events);
+                    }
+                }
                 break;
             case TestResultFormat::MAKE_ERROR:
-                ParseMakeErrors(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    } else {
+                        // Fallback to legacy parser if modular parser not found
+                        ParseMakeErrors(content, global_state->events);
+                    }
+                }
                 break;
             case TestResultFormat::PYTEST_TEXT:
                 ParsePytestText(content, global_state->events);
@@ -1108,26 +1148,8 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                 ParseGitHubActionsText(content, global_state->events);
                 break;
             case TestResultFormat::GITHUB_CLI:
-                // Use the modular parser system
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(TestResultFormat::GITHUB_CLI);
-                    if (parser) {
-                        auto events = parser->parse(content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    }
-                }
-                break;
             case TestResultFormat::CLANG_TIDY_TEXT:
-                // Use the modular parser system
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(TestResultFormat::CLANG_TIDY_TEXT);
-                    if (parser) {
-                        auto events = parser->parse(content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    }
-                }
+                // These formats are handled by the modular parser registry at the end
                 break;
             case TestResultFormat::GITLAB_CI_TEXT:
                 ParseGitLabCIText(content, global_state->events);
@@ -1145,7 +1167,15 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                 ParseAnsibleText(content, global_state->events);
                 break;
             default:
-                // For unknown formats, don't create any events
+                // Try the modular parser registry for new parsers
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    }
+                }
                 break;
         }
         
@@ -3859,19 +3889,59 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
     // Parse content based on detected format (same logic as read_test_results)
     switch (format) {
         case TestResultFormat::PYTEST_JSON:
-            ParsePytestJSON(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                } else {
+                    // Fallback to legacy parser if modular parser not found
+                    ParsePytestJSON(content, global_state->events);
+                }
+            }
             break;
         case TestResultFormat::DUCKDB_TEST:
             ParseDuckDBTestOutput(content, global_state->events);
             break;
         case TestResultFormat::ESLINT_JSON:
-            ParseESLintJSON(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                } else {
+                    // Fallback to legacy parser if modular parser not found
+                    ParseESLintJSON(content, global_state->events);
+                }
+            }
             break;
         case TestResultFormat::GOTEST_JSON:
-            ParseGoTestJSON(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                } else {
+                    // Fallback to legacy parser if modular parser not found
+                    ParseGoTestJSON(content, global_state->events);
+                }
+            }
             break;
         case TestResultFormat::MAKE_ERROR:
-            ParseMakeErrors(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                } else {
+                    // Fallback to legacy parser if modular parser not found
+                    ParseMakeErrors(content, global_state->events);
+                }
+            }
             break;
         case TestResultFormat::PYTEST_TEXT:
             ParsePytestText(content, global_state->events);
@@ -4012,26 +4082,8 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
             ParseGitHubActionsText(content, global_state->events);
             break;
         case TestResultFormat::GITHUB_CLI:
-            // Use the modular parser system
-            {
-                auto& registry = ParserRegistry::getInstance();
-                auto parser = registry.getParser(TestResultFormat::GITHUB_CLI);
-                if (parser) {
-                    auto events = parser->parse(content);
-                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                }
-            }
-            break;
         case TestResultFormat::CLANG_TIDY_TEXT:
-            // Use the modular parser system
-            {
-                auto& registry = ParserRegistry::getInstance();
-                auto parser = registry.getParser(TestResultFormat::CLANG_TIDY_TEXT);
-                if (parser) {
-                    auto events = parser->parse(content);
-                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                }
-            }
+            // These formats are handled by the modular parser registry at the end
             break;
         case TestResultFormat::GITLAB_CI_TEXT:
             ParseGitLabCIText(content, global_state->events);
@@ -4049,7 +4101,15 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
             ParseAnsibleText(content, global_state->events);
             break;
         default:
-            // For unknown formats, don't create any events
+            // Try the modular parser registry for new parsers
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                }
+            }
             break;
     }
     
@@ -9551,13 +9611,40 @@ void ProcessMultipleFiles(ClientContext& context, const std::vector<std::string>
             // Dispatch to appropriate parser based on format
             switch (detected_format) {
                 case TestResultFormat::PYTEST_JSON:
-                    ParsePytestJSON(content, file_events);
+                    {
+                        auto& registry = ParserRegistry::getInstance();
+                        auto parser = registry.getParser(detected_format);
+                        if (parser) {
+                            file_events = parser->parse(content);
+                        } else {
+                            // Fallback to legacy parser if modular parser not found
+                            ParsePytestJSON(content, file_events);
+                        }
+                    }
                     break;
                 case TestResultFormat::GOTEST_JSON:
-                    ParseGoTestJSON(content, file_events);
+                    {
+                        auto& registry = ParserRegistry::getInstance();
+                        auto parser = registry.getParser(detected_format);
+                        if (parser) {
+                            file_events = parser->parse(content);
+                        } else {
+                            // Fallback to legacy parser if modular parser not found
+                            ParseGoTestJSON(content, file_events);
+                        }
+                    }
                     break;
                 case TestResultFormat::ESLINT_JSON:
-                    ParseESLintJSON(content, file_events);
+                    {
+                        auto& registry = ParserRegistry::getInstance();
+                        auto parser = registry.getParser(detected_format);
+                        if (parser) {
+                            file_events = parser->parse(content);
+                        } else {
+                            // Fallback to legacy parser if modular parser not found
+                            ParseESLintJSON(content, file_events);
+                        }
+                    }
                     break;
                 case TestResultFormat::PYTEST_TEXT:
                     ParsePytestText(content, file_events);
@@ -9566,26 +9653,8 @@ void ProcessMultipleFiles(ClientContext& context, const std::vector<std::string>
                     ParseGitHubActionsText(content, file_events);
                     break;
                 case TestResultFormat::GITHUB_CLI:
-                    // Use the modular parser system
-                    {
-                        auto& registry = ParserRegistry::getInstance();
-                        auto parser = registry.getParser(TestResultFormat::GITHUB_CLI);
-                        if (parser) {
-                            auto events = parser->parse(content);
-                            file_events.insert(file_events.end(), events.begin(), events.end());
-                        }
-                    }
-                    break;
                 case TestResultFormat::CLANG_TIDY_TEXT:
-                    // Use the modular parser system
-                    {
-                        auto& registry = ParserRegistry::getInstance();
-                        auto parser = registry.getParser(TestResultFormat::CLANG_TIDY_TEXT);
-                        if (parser) {
-                            auto events = parser->parse(content);
-                            file_events.insert(file_events.end(), events.begin(), events.end());
-                        }
-                    }
+                    // These formats are handled by the modular parser registry at the end
                     break;
                 case TestResultFormat::GITLAB_CI_TEXT:
                     ParseGitLabCIText(content, file_events);
@@ -9604,8 +9673,18 @@ void ProcessMultipleFiles(ClientContext& context, const std::vector<std::string>
                     break;
                 // Add other formats as needed...
                 default:
-                    // For unsupported formats, continue to next file
-                    continue;
+                    // Try the modular parser registry for new parsers
+                    {
+                        auto& registry = ParserRegistry::getInstance();
+                        auto parser = registry.getParser(detected_format);
+                        if (parser) {
+                            file_events = parser->parse(content);
+                        } else {
+                            // For truly unsupported formats, continue to next file
+                            continue;
+                        }
+                    }
+                    break;
             }
             
             // Enrich events with multi-file metadata
