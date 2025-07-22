@@ -1010,25 +1010,85 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                 }
                 break;
             case TestResultFormat::PYTEST_TEXT:
-                ParsePytestText(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    } else {
+                        // Fallback to legacy parser if modular parser not found
+                        ParsePytestText(content, global_state->events);
+                    }
+                }
                 break;
             case TestResultFormat::GENERIC_LINT:
                 ParseGenericLint(content, global_state->events);
                 break;
             case TestResultFormat::RUBOCOP_JSON:
-                ParseRuboCopJSON(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    } else {
+                        // Fallback to legacy parser if modular parser not found
+                        ParseRuboCopJSON(content, global_state->events);
+                    }
+                }
                 break;
             case TestResultFormat::CARGO_TEST_JSON:
-                ParseCargoTestJSON(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    } else {
+                        // Fallback to legacy parser if modular parser not found
+                        ParseCargoTestJSON(content, global_state->events);
+                    }
+                }
                 break;
             case TestResultFormat::SWIFTLINT_JSON:
-                ParseSwiftLintJSON(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    } else {
+                        // Fallback to legacy parser if modular parser not found
+                        ParseSwiftLintJSON(content, global_state->events);
+                    }
+                }
                 break;
             case TestResultFormat::PHPSTAN_JSON:
-                ParsePHPStanJSON(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    } else {
+                        // Fallback to legacy parser if modular parser not found
+                        ParsePHPStanJSON(content, global_state->events);
+                    }
+                }
                 break;
             case TestResultFormat::SHELLCHECK_JSON:
-                ParseShellCheckJSON(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    } else {
+                        // Fallback to legacy parser if modular parser not found
+                        ParseShellCheckJSON(content, global_state->events);
+                    }
+                }
                 break;
             case TestResultFormat::STYLELINT_JSON:
                 ParseStylelintJSON(content, global_state->events);
@@ -1118,7 +1178,17 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                 ParseBlackText(content, global_state->events);
                 break;
             case TestResultFormat::MYPY_TEXT:
-                ParseMypyText(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    } else {
+                        // Fallback to legacy parser if modular parser not found
+                        ParseMypyText(content, global_state->events);
+                    }
+                }
                 break;
             case TestResultFormat::DOCKER_BUILD:
                 ParseDockerBuild(content, global_state->events);
@@ -3944,16 +4014,46 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
             }
             break;
         case TestResultFormat::PYTEST_TEXT:
-            ParsePytestText(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                } else {
+                    // Fallback to legacy parser if modular parser not found
+                    ParsePytestText(content, global_state->events);
+                }
+            }
             break;
         case TestResultFormat::GENERIC_LINT:
             ParseGenericLint(content, global_state->events);
             break;
         case TestResultFormat::RUBOCOP_JSON:
-            ParseRuboCopJSON(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                } else {
+                    // Fallback to legacy parser if modular parser not found
+                    ParseRuboCopJSON(content, global_state->events);
+                }
+            }
             break;
         case TestResultFormat::CARGO_TEST_JSON:
-            ParseCargoTestJSON(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                } else {
+                    // Fallback to legacy parser if modular parser not found
+                    ParseCargoTestJSON(content, global_state->events);
+                }
+            }
             break;
         case TestResultFormat::SWIFTLINT_JSON:
             ParseSwiftLintJSON(content, global_state->events);
@@ -4052,7 +4152,17 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
             ParseBlackText(content, global_state->events);
             break;
         case TestResultFormat::MYPY_TEXT:
-            ParseMypyText(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                } else {
+                    // Fallback to legacy parser if modular parser not found
+                    ParseMypyText(content, global_state->events);
+                }
+            }
             break;
         case TestResultFormat::DOCKER_BUILD:
             ParseDockerBuild(content, global_state->events);
