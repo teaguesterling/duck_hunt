@@ -11,6 +11,14 @@
 // Duck Hunt specific includes
 #include "include/read_test_results_function.hpp"
 #include "include/validation_event_types.hpp"
+#include "core/parser_registry.hpp"
+
+// Include parser headers to force registration
+#include "parsers/tool_outputs/eslint_json_parser.hpp"
+#include "parsers/tool_outputs/gotest_json_parser.hpp"
+#include "parsers/test_frameworks/pytest_json_parser.hpp"
+#include "parsers/build_systems/make_parser.hpp"
+#include "parsers/linting_tools/mypy_parser.hpp"
 
 // OpenSSL linked through vcpkg
 #include <openssl/opensslv.h>
@@ -41,6 +49,14 @@ static void LoadInternal(DatabaseInstance &instance) {
 	                                                            LogicalType::VARCHAR, DuckHuntOpenSSLVersionScalarFun);
 	ExtensionUtil::RegisterFunction(instance, duck_hunt_openssl_version_scalar_function);
 
+	// Initialize parser registry with key parsers
+	auto& registry = ParserRegistry::getInstance();
+	registry.registerParser(make_uniq<ESLintJSONParser>());
+	registry.registerParser(make_uniq<GoTestJSONParser>());
+	registry.registerParser(make_uniq<PytestJSONParser>());
+	registry.registerParser(make_uniq<MakeParser>());
+	registry.registerParser(make_uniq<MypyParser>());
+	
 	// Register table functions for test result parsing
 	auto read_test_results_function = GetReadTestResultsFunction();
 	ExtensionUtil::RegisterFunction(instance, read_test_results_function);

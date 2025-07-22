@@ -974,10 +974,11 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                     auto parser = registry.getParser(format);
                     if (parser) {
                         auto events = parser->parse(content);
+                        // Insert parsed events into the global state
+                        // (removed debugging throws - parser registration fix worked!)
                         global_state->events.insert(global_state->events.end(), events.begin(), events.end());
                     } else {
-                        // TEMPORARY: Restore fallback while debugging modular parser registry issue
-                        throw std::runtime_error("ESLint modular parser not found in registry - need to debug registry issue");
+                        throw std::runtime_error("ESLint modular parser NOT found in registry");
                     }
                 }
                 break;
@@ -3266,9 +3267,12 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
                 auto parser = registry.getParser(format);
                 if (parser) {
                     auto events = parser->parse(content);
+                    // Insert parsed events into the global state
+                    // (removed debugging throws - parser registration fix worked!)
                     global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                } else {
+                    throw std::runtime_error("parse_test_results: ESLint modular parser NOT found in registry");
                 }
-                // Note: Legacy ParseESLintJSON removed - fully replaced by modular ESLintJSONParser
             }
             break;
         case TestResultFormat::GOTEST_JSON:
