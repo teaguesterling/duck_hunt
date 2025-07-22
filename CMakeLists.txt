@@ -90,6 +90,10 @@ set(EXTENSION_SOURCES
     # Phase 8: Build System Parser Extraction - Batch 3
     src/parsers/build_systems/cargo_parser.cpp
     src/parsers/build_systems/cmake_parser.cpp
+    
+    # New parsers - CI Systems and improved linting tools
+    src/parsers/ci_systems/github_cli_parser.cpp
+    src/parsers/linting_tools/clang_tidy_parser.cpp
 )
 
 build_static_extension(${TARGET_NAME} ${EXTENSION_SOURCES})

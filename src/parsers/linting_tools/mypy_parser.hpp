@@ -15,7 +15,7 @@ public:
     std::vector<ValidationEvent> parse(const std::string& content) const override;
     TestResultFormat getFormat() const override { return TestResultFormat::MYPY_TEXT; }
     std::string getName() const override { return "mypy"; }
-    int getPriority() const override { return 85; }  // High priority for Python type checking
+    int getPriority() const override { return 80; }  // Lower priority than clang-tidy to avoid conflicts
     std::string getCategory() const override { return "linting_tool"; }
 
 private:

@@ -65,7 +65,9 @@ enum class TestResultFormat : uint8_t {
     JENKINS_TEXT = 54,
     DRONE_CI_TEXT = 55,
     TERRAFORM_TEXT = 56,
-    ANSIBLE_TEXT = 57
+    ANSIBLE_TEXT = 57,
+    GITHUB_CLI = 58,
+    CLANG_TIDY_TEXT = 59
 };
 
 // Bind data for read_test_results table function

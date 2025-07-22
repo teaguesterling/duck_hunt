@@ -1,5 +1,6 @@
 #include "include/read_test_results_function.hpp"
 #include "include/validation_event_types.hpp"
+#include "core/parser_registry.hpp"
 #include "parsers/test_frameworks/junit_text_parser.hpp"
 #include "parsers/test_frameworks/rspec_text_parser.hpp"
 #include "parsers/test_frameworks/mocha_chai_text_parser.hpp"
@@ -342,6 +343,15 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
         return TestResultFormat::GITHUB_ACTIONS_TEXT;
     }
     
+    // Check for GitHub CLI patterns
+    if ((content.find("STATUS") != std::string::npos && content.find("CONCLUSION") != std::string::npos && content.find("WORKFLOW") != std::string::npos) ||
+        (content.find("Run #") != std::string::npos && content.find("Status:") != std::string::npos) ||
+        (content.find("Run ID:") != std::string::npos && content.find("Conclusion:") != std::string::npos) ||
+        (content.find("::error::") != std::string::npos && content.find("::warning::") != std::string::npos) ||
+        (content.find("##[endgroup]") != std::string::npos && content.find("::notice::") != std::string::npos)) {
+        return TestResultFormat::GITHUB_CLI;
+    }
+    
     // Check for GitLab CI patterns
     if ((content.find("Running with gitlab-runner") != std::string::npos) ||
         (content.find("using docker driver") != std::string::npos && content.find("Getting source from Git repository") != std::string::npos) ||
@@ -528,9 +538,23 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
         return TestResultFormat::MAKE_ERROR;
     }
     
-    // Check for mypy patterns
-    if ((content.find(": error:") != std::string::npos && content.find("[") != std::string::npos && content.find("]") != std::string::npos) ||
-        (content.find(": warning:") != std::string::npos && content.find("[") != std::string::npos && content.find("]") != std::string::npos) ||
+    // Check for clang-tidy patterns first (higher priority)
+    if ((content.find("readability-") != std::string::npos) ||
+        (content.find("bugprone-") != std::string::npos) ||
+        (content.find("cppcoreguidelines-") != std::string::npos) ||
+        (content.find("google-") != std::string::npos && content.find("build") != std::string::npos) ||
+        (content.find("performance-") != std::string::npos) ||
+        (content.find("modernize-") != std::string::npos) ||
+        (content.find("warnings generated") != std::string::npos) ||
+        (content.find("errors generated") != std::string::npos)) {
+        return TestResultFormat::CLANG_TIDY_TEXT;
+    }
+
+    // Check for mypy patterns (more specific to avoid conflicts)
+    if (((content.find(": error:") != std::string::npos || content.find(": warning:") != std::string::npos) && 
+         content.find("[") != std::string::npos && content.find("]") != std::string::npos &&
+         // Exclude clang-tidy by checking against column number format
+         content.find(": error:") == content.rfind(":", content.find(": error:") - 1) + 2) ||
         (content.find(": note:") != std::string::npos && content.find("Revealed type") != std::string::npos) ||
         (content.find("Found") != std::string::npos && content.find("error") != std::string::npos && content.find("files") != std::string::npos && content.find("checked") != std::string::npos) ||
         (content.find("Success: no issues found") != std::string::npos) ||
@@ -737,6 +761,8 @@ std::string TestResultFormatToString(TestResultFormat format) {
         case TestResultFormat::COVERAGE_TEXT: return "coverage_text";
         case TestResultFormat::PYTEST_COV_TEXT: return "pytest_cov_text";
         case TestResultFormat::GITHUB_ACTIONS_TEXT: return "github_actions_text";
+        case TestResultFormat::GITHUB_CLI: return "github_cli";
+        case TestResultFormat::CLANG_TIDY_TEXT: return "clang_tidy_text";
         case TestResultFormat::GITLAB_CI_TEXT: return "gitlab_ci_text";
         case TestResultFormat::JENKINS_TEXT: return "jenkins_text";
         case TestResultFormat::DRONE_CI_TEXT: return "drone_ci_text";
@@ -799,6 +825,8 @@ TestResultFormat StringToTestResultFormat(const std::string& str) {
     if (str == "coverage_text") return TestResultFormat::COVERAGE_TEXT;
     if (str == "pytest_cov_text") return TestResultFormat::PYTEST_COV_TEXT;
     if (str == "github_actions_text") return TestResultFormat::GITHUB_ACTIONS_TEXT;
+    if (str == "github_cli") return TestResultFormat::GITHUB_CLI;
+    if (str == "clang_tidy_text") return TestResultFormat::CLANG_TIDY_TEXT;
     if (str == "gitlab_ci_text") return TestResultFormat::GITLAB_CI_TEXT;
     if (str == "jenkins_text") return TestResultFormat::JENKINS_TEXT;
     if (str == "drone_ci_text") return TestResultFormat::DRONE_CI_TEXT;
@@ -1079,6 +1107,28 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                 break;
             case TestResultFormat::GITHUB_ACTIONS_TEXT:
                 ParseGitHubActionsText(content, global_state->events);
+                break;
+            case TestResultFormat::GITHUB_CLI:
+                // Use the modular parser system
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(TestResultFormat::GITHUB_CLI);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    }
+                }
+                break;
+            case TestResultFormat::CLANG_TIDY_TEXT:
+                // Use the modular parser system
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(TestResultFormat::CLANG_TIDY_TEXT);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    }
+                }
                 break;
             case TestResultFormat::GITLAB_CI_TEXT:
                 ParseGitLabCIText(content, global_state->events);
@@ -3961,6 +4011,28 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
             break;
         case TestResultFormat::GITHUB_ACTIONS_TEXT:
             ParseGitHubActionsText(content, global_state->events);
+            break;
+        case TestResultFormat::GITHUB_CLI:
+            // Use the modular parser system
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(TestResultFormat::GITHUB_CLI);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                }
+            }
+            break;
+        case TestResultFormat::CLANG_TIDY_TEXT:
+            // Use the modular parser system
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(TestResultFormat::CLANG_TIDY_TEXT);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                }
+            }
             break;
         case TestResultFormat::GITLAB_CI_TEXT:
             ParseGitLabCIText(content, global_state->events);
@@ -9493,6 +9565,28 @@ void ProcessMultipleFiles(ClientContext& context, const std::vector<std::string>
                     break;
                 case TestResultFormat::GITHUB_ACTIONS_TEXT:
                     ParseGitHubActionsText(content, file_events);
+                    break;
+                case TestResultFormat::GITHUB_CLI:
+                    // Use the modular parser system
+                    {
+                        auto& registry = ParserRegistry::getInstance();
+                        auto parser = registry.getParser(TestResultFormat::GITHUB_CLI);
+                        if (parser) {
+                            auto events = parser->parse(content);
+                            file_events.insert(file_events.end(), events.begin(), events.end());
+                        }
+                    }
+                    break;
+                case TestResultFormat::CLANG_TIDY_TEXT:
+                    // Use the modular parser system
+                    {
+                        auto& registry = ParserRegistry::getInstance();
+                        auto parser = registry.getParser(TestResultFormat::CLANG_TIDY_TEXT);
+                        if (parser) {
+                            auto events = parser->parse(content);
+                            file_events.insert(file_events.end(), events.begin(), events.end());
+                        }
+                    }
                     break;
                 case TestResultFormat::GITLAB_CI_TEXT:
                     ParseGitLabCIText(content, file_events);

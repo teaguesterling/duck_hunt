@@ -1,0 +1,4 @@
+/path/to/file.cpp:123:45: error: use of undeclared identifier 'foo' [readability-braces-around-statements]
+/path/to/another.cpp:456:78: warning: implicit conversion changes signedness: 'int' to 'unsigned int' [bugprone-narrowing-conversions]
+/path/to/third.cpp:789:10: note: candidate function not viable: no known conversion from 'int' to 'string' [cppcoreguidelines-avoid-non-const-global-variables]
+256 warnings generated.

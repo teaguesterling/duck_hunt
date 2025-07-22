@@ -1,0 +1,2 @@
+src/file.cpp:123:45: warning: function should be marked 'const' [readability-make-member-function-const]
+256 warnings generated

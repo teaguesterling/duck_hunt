@@ -1,0 +1,5 @@
+STATUS  CONCLUSION  WORKFLOW        BRANCH  EVENT  ID     ELAPSED  CREATED
+✓       success     CI              main    push   123456  5m       2h
+X       failure     Build and Test  feat    push   123455  3m       3h
+✓       success     Lint            main    push   123454  1m       4h
+X       cancelled   Deploy          main    push   123453  2m       5h

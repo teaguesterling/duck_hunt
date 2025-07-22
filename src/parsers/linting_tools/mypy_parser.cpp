@@ -5,11 +5,29 @@
 namespace duckdb {
 
 bool MypyParser::canParse(const std::string& content) const {
+    // First check for clang-tidy specific patterns and exclude them
+    std::vector<std::string> clang_tidy_rules = {
+        "readability-", "performance-", "modernize-", "bugprone-", 
+        "cppcoreguidelines-", "google-", "llvm-", "misc-", "portability-"
+    };
+    
+    for (const auto& rule : clang_tidy_rules) {
+        if (content.find(rule) != std::string::npos) {
+            return false;  // This is likely clang-tidy output
+        }
+    }
+    
+    // Check for column numbers which are more common in clang-tidy than mypy
+    std::regex clang_tidy_pattern(R"([^:]+:\d+:\d+:\s*(error|warning|note):\s*)");
+    if (std::regex_search(content, clang_tidy_pattern)) {
+        return false;  // This looks like clang-tidy format
+    }
+    
     // Look for mypy-specific patterns
     if (content.find("error:") != std::string::npos ||
         content.find("warning:") != std::string::npos ||
         content.find("Success: no issues found") != std::string::npos ||
-        content.find("Found") != std::string::npos && content.find("errors") != std::string::npos) {
+        (content.find("Found") != std::string::npos && content.find("errors") != std::string::npos)) {
         return isValidMypyOutput(content);
     }
     return false;
