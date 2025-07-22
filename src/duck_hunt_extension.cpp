@@ -23,6 +23,14 @@
 #include "parsers/tool_outputs/cargo_test_json_parser.hpp"
 #include "parsers/tool_outputs/swiftlint_json_parser.hpp"
 #include "parsers/tool_outputs/phpstan_json_parser.hpp"
+#include "parsers/tool_outputs/shellcheck_json_parser.hpp"
+#include "parsers/tool_outputs/stylelint_json_parser.hpp"
+#include "parsers/tool_outputs/clippy_json_parser.hpp"
+#include "parsers/tool_outputs/markdownlint_json_parser.hpp"
+#include "parsers/tool_outputs/yamllint_json_parser.hpp"
+#include "parsers/tool_outputs/spotbugs_json_parser.hpp"
+#include "parsers/tool_outputs/ktlint_json_parser.hpp"
+#include "parsers/tool_outputs/bandit_json_parser.hpp"
 
 // OpenSSL linked through vcpkg
 #include <openssl/opensslv.h>
@@ -64,6 +72,14 @@ static void LoadInternal(DatabaseInstance &instance) {
 	registry.registerParser(make_uniq<CargoTestJSONParser>());
 	registry.registerParser(make_uniq<SwiftLintJSONParser>());
 	registry.registerParser(make_uniq<PHPStanJSONParser>());
+	registry.registerParser(make_uniq<ShellCheckJSONParser>());
+	registry.registerParser(make_uniq<StylelintJSONParser>());
+	registry.registerParser(make_uniq<ClippyJSONParser>());
+	registry.registerParser(make_uniq<MarkdownlintJSONParser>());
+	registry.registerParser(make_uniq<YamllintJSONParser>());
+	registry.registerParser(make_uniq<SpotBugsJSONParser>());
+	registry.registerParser(make_uniq<KtlintJSONParser>());
+	registry.registerParser(make_uniq<BanditJSONParser>());
 	
 	// Register table functions for test result parsing
 	auto read_test_results_function = GetReadTestResultsFunction();

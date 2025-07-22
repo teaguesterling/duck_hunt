@@ -152,14 +152,6 @@ void ParseRuboCopJSON(const std::string& content, std::vector<ValidationEvent>& 
 void ParseCargoTestJSON(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseSwiftLintJSON(const std::string& content, std::vector<ValidationEvent>& events);
 void ParsePHPStanJSON(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseShellCheckJSON(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseStylelintJSON(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseClippyJSON(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseMarkdownlintJSON(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseYamllintJSON(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseBanditJSON(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseSpotBugsJSON(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseKtlintJSON(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseHadolintJSON(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseLintrJSON(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseSqlfluffJSON(const std::string& content, std::vector<ValidationEvent>& events);

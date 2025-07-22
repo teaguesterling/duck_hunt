@@ -1072,8 +1072,7 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                         auto events = parser->parse(content);
                         global_state->events.insert(global_state->events.end(), events.begin(), events.end());
                     } else {
-                        // Fallback to legacy parser if modular parser not found
-                        ParseShellCheckJSON(content, global_state->events);
+                        throw std::runtime_error("ShellCheck JSON modular parser not found in registry");
                     }
                 }
                 break;
@@ -1085,8 +1084,7 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                         auto events = parser->parse(content);
                         global_state->events.insert(global_state->events.end(), events.begin(), events.end());
                     } else {
-                        // Fallback to legacy parser if modular parser not found
-                        ParseStylelintJSON(content, global_state->events);
+                        throw std::runtime_error("Stylelint JSON modular parser not found in registry");
                     }
                 }
                 break;
@@ -1098,8 +1096,7 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                         auto events = parser->parse(content);
                         global_state->events.insert(global_state->events.end(), events.begin(), events.end());
                     } else {
-                        // Fallback to legacy parser if modular parser not found
-                        ParseClippyJSON(content, global_state->events);
+                        throw std::runtime_error("Clippy JSON modular parser not found in registry");
                     }
                 }
                 break;
@@ -1111,8 +1108,7 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                         auto events = parser->parse(content);
                         global_state->events.insert(global_state->events.end(), events.begin(), events.end());
                     } else {
-                        // Fallback to legacy parser if modular parser not found
-                        ParseMarkdownlintJSON(content, global_state->events);
+                        throw std::runtime_error("Markdownlint JSON modular parser not found in registry");
                     }
                 }
                 break;
@@ -1124,8 +1120,7 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                         auto events = parser->parse(content);
                         global_state->events.insert(global_state->events.end(), events.begin(), events.end());
                     } else {
-                        // Fallback to legacy parser if modular parser not found
-                        ParseYamllintJSON(content, global_state->events);
+                        throw std::runtime_error("Yamllint JSON modular parser not found in registry");
                     }
                 }
                 break;
@@ -1137,8 +1132,7 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                         auto events = parser->parse(content);
                         global_state->events.insert(global_state->events.end(), events.begin(), events.end());
                     } else {
-                        // Fallback to legacy parser if modular parser not found
-                        ParseBanditJSON(content, global_state->events);
+                        throw std::runtime_error("Bandit JSON modular parser not found in registry");
                     }
                 }
                 break;
@@ -1150,8 +1144,7 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                         auto events = parser->parse(content);
                         global_state->events.insert(global_state->events.end(), events.begin(), events.end());
                     } else {
-                        // Fallback to legacy parser if modular parser not found
-                        ParseSpotBugsJSON(content, global_state->events);
+                        throw std::runtime_error("SpotBugs JSON modular parser not found in registry");
                     }
                 }
                 break;
@@ -1163,8 +1156,7 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                         auto events = parser->parse(content);
                         global_state->events.insert(global_state->events.end(), events.begin(), events.end());
                     } else {
-                        // Fallback to legacy parser if modular parser not found
-                        ParseKtlintJSON(content, global_state->events);
+                        throw std::runtime_error("Ktlint JSON modular parser not found in registry");
                     }
                 }
                 break;
@@ -1607,351 +1599,8 @@ void ParsePytestText(const std::string& content, std::vector<ValidationEvent>& e
 
 
 
-void ParseShellCheckJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    // Parse JSON using yyjson
-    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
-    if (!doc) {
-        throw IOException("Failed to parse ShellCheck JSON");
-    }
-    
-    yyjson_val *root = yyjson_doc_get_root(doc);
-    if (!yyjson_is_arr(root)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid ShellCheck JSON: root is not an array");
-    }
-    
-    // Parse each issue
-    size_t idx, max;
-    yyjson_val *issue;
-    int64_t event_id = 1;
-    
-    yyjson_arr_foreach(root, idx, max, issue) {
-        if (!yyjson_is_obj(issue)) continue;
-        
-        ValidationEvent event;
-        event.event_id = event_id++;
-        event.tool_name = "shellcheck";
-        event.event_type = ValidationEventType::LINT_ISSUE;
-        event.category = "shell_script";
-        
-        // Get file path
-        yyjson_val *file = yyjson_obj_get(issue, "file");
-        if (file && yyjson_is_str(file)) {
-            event.file_path = yyjson_get_str(file);
-        }
-        
-        // Get line number
-        yyjson_val *line = yyjson_obj_get(issue, "line");
-        if (line && yyjson_is_int(line)) {
-            event.line_number = yyjson_get_int(line);
-        } else {
-            event.line_number = -1;
-        }
-        
-        // Get column number
-        yyjson_val *column = yyjson_obj_get(issue, "column");
-        if (column && yyjson_is_int(column)) {
-            event.column_number = yyjson_get_int(column);
-        } else {
-            event.column_number = -1;
-        }
-        
-        // Get severity/level
-        yyjson_val *level = yyjson_obj_get(issue, "level");
-        if (level && yyjson_is_str(level)) {
-            std::string level_str = yyjson_get_str(level);
-            event.severity = level_str;
-            
-            // Map ShellCheck levels to ValidationEventStatus
-            if (level_str == "error") {
-                event.status = ValidationEventStatus::ERROR;
-            } else if (level_str == "warning") {
-                event.status = ValidationEventStatus::WARNING;
-            } else if (level_str == "info") {
-                event.status = ValidationEventStatus::INFO;
-            } else if (level_str == "style") {
-                event.status = ValidationEventStatus::WARNING;
-            } else {
-                event.status = ValidationEventStatus::WARNING;
-            }
-        } else {
-            event.severity = "warning";
-            event.status = ValidationEventStatus::WARNING;
-        }
-        
-        // Get error code (SC#### codes)
-        yyjson_val *code = yyjson_obj_get(issue, "code");
-        if (code && yyjson_is_str(code)) {
-            event.error_code = yyjson_get_str(code);
-        }
-        
-        // Get message
-        yyjson_val *message = yyjson_obj_get(issue, "message");
-        if (message && yyjson_is_str(message)) {
-            event.message = yyjson_get_str(message);
-        }
-        
-        // Get fix suggestions if available
-        yyjson_val *fix = yyjson_obj_get(issue, "fix");
-        if (fix && yyjson_is_obj(fix)) {
-            yyjson_val *replacements = yyjson_obj_get(fix, "replacements");
-            if (replacements && yyjson_is_arr(replacements)) {
-                event.suggestion = "Fix available";
-            }
-        }
-        
-        // Set raw output and structured data
-        event.raw_output = content;
-        event.structured_data = "shellcheck_json";
-        
-        events.push_back(event);
-    }
-    
-    yyjson_doc_free(doc);
-}
 
-void ParseStylelintJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    // Parse JSON using yyjson
-    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
-    if (!doc) {
-        throw IOException("Failed to parse stylelint JSON");
-    }
-    
-    yyjson_val *root = yyjson_doc_get_root(doc);
-    if (!yyjson_is_arr(root)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid stylelint JSON: root is not an array");
-    }
-    
-    // Parse each file result
-    size_t idx, max;
-    yyjson_val *file_result;
-    int64_t event_id = 1;
-    
-    yyjson_arr_foreach(root, idx, max, file_result) {
-        if (!yyjson_is_obj(file_result)) continue;
-        
-        // Get source file path
-        yyjson_val *source = yyjson_obj_get(file_result, "source");
-        if (!source || !yyjson_is_str(source)) continue;
-        
-        std::string file_path = yyjson_get_str(source);
-        
-        // Get warnings array
-        yyjson_val *warnings = yyjson_obj_get(file_result, "warnings");
-        if (!warnings || !yyjson_is_arr(warnings)) continue;
-        
-        // Parse each warning
-        size_t warn_idx, warn_max;
-        yyjson_val *warning;
-        
-        yyjson_arr_foreach(warnings, warn_idx, warn_max, warning) {
-            if (!yyjson_is_obj(warning)) continue;
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "stylelint";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.category = "css_style";
-            event.file_path = file_path;
-            
-            // Get line number
-            yyjson_val *line = yyjson_obj_get(warning, "line");
-            if (line && yyjson_is_int(line)) {
-                event.line_number = yyjson_get_int(line);
-            } else {
-                event.line_number = -1;
-            }
-            
-            // Get column number
-            yyjson_val *column = yyjson_obj_get(warning, "column");
-            if (column && yyjson_is_int(column)) {
-                event.column_number = yyjson_get_int(column);
-            } else {
-                event.column_number = -1;
-            }
-            
-            // Get severity
-            yyjson_val *severity = yyjson_obj_get(warning, "severity");
-            if (severity && yyjson_is_str(severity)) {
-                std::string severity_str = yyjson_get_str(severity);
-                event.severity = severity_str;
-                
-                // Map stylelint severity to ValidationEventStatus
-                if (severity_str == "error") {
-                    event.status = ValidationEventStatus::ERROR;
-                } else if (severity_str == "warning") {
-                    event.status = ValidationEventStatus::WARNING;
-                } else {
-                    event.status = ValidationEventStatus::WARNING;
-                }
-            } else {
-                event.severity = "warning";
-                event.status = ValidationEventStatus::WARNING;
-            }
-            
-            // Get rule name
-            yyjson_val *rule = yyjson_obj_get(warning, "rule");
-            if (rule && yyjson_is_str(rule)) {
-                event.error_code = yyjson_get_str(rule);
-            }
-            
-            // Get message text
-            yyjson_val *text = yyjson_obj_get(warning, "text");
-            if (text && yyjson_is_str(text)) {
-                event.message = yyjson_get_str(text);
-            }
-            
-            // Set raw output and structured data
-            event.raw_output = content;
-            event.structured_data = "stylelint_json";
-            
-            events.push_back(event);
-        }
-    }
-    
-    yyjson_doc_free(doc);
-}
 
-void ParseClippyJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    // Parse JSONL format (JSON Lines) - each line is a separate JSON object
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    
-    while (std::getline(stream, line)) {
-        if (line.empty()) continue;
-        
-        // Parse JSON using yyjson
-        yyjson_doc *doc = yyjson_read(line.c_str(), line.length(), 0);
-        if (!doc) {
-            continue; // Skip invalid JSON lines
-        }
-        
-        yyjson_val *root = yyjson_doc_get_root(doc);
-        if (!yyjson_is_obj(root)) {
-            yyjson_doc_free(doc);
-            continue;
-        }
-        
-        // Get message object
-        yyjson_val *message = yyjson_obj_get(root, "message");
-        if (!message || !yyjson_is_obj(message)) {
-            yyjson_doc_free(doc);
-            continue;
-        }
-        
-        // Get spans array
-        yyjson_val *spans = yyjson_obj_get(message, "spans");
-        if (!spans || !yyjson_is_arr(spans)) {
-            yyjson_doc_free(doc);
-            continue;
-        }
-        
-        // Get primary span (first span with is_primary = true)
-        yyjson_val *primary_span = nullptr;
-        size_t idx, max;
-        yyjson_val *span;
-        
-        yyjson_arr_foreach(spans, idx, max, span) {
-            if (!yyjson_is_obj(span)) continue;
-            
-            yyjson_val *is_primary = yyjson_obj_get(span, "is_primary");
-            if (is_primary && yyjson_is_bool(is_primary) && yyjson_get_bool(is_primary)) {
-                primary_span = span;
-                break;
-            }
-        }
-        
-        if (!primary_span) {
-            // If no primary span found, use the first span
-            primary_span = yyjson_arr_get_first(spans);
-        }
-        
-        if (!primary_span) {
-            yyjson_doc_free(doc);
-            continue;
-        }
-        
-        ValidationEvent event;
-        event.event_id = event_id++;
-        event.tool_name = "clippy";
-        event.event_type = ValidationEventType::LINT_ISSUE;
-        event.category = "code_quality";
-        
-        // Get file name from primary span
-        yyjson_val *file_name = yyjson_obj_get(primary_span, "file_name");
-        if (file_name && yyjson_is_str(file_name)) {
-            event.file_path = yyjson_get_str(file_name);
-        }
-        
-        // Get line number from primary span
-        yyjson_val *line_start = yyjson_obj_get(primary_span, "line_start");
-        if (line_start && yyjson_is_int(line_start)) {
-            event.line_number = yyjson_get_int(line_start);
-        } else {
-            event.line_number = -1;
-        }
-        
-        // Get column number from primary span
-        yyjson_val *column_start = yyjson_obj_get(primary_span, "column_start");
-        if (column_start && yyjson_is_int(column_start)) {
-            event.column_number = yyjson_get_int(column_start);
-        } else {
-            event.column_number = -1;
-        }
-        
-        // Get severity level
-        yyjson_val *level = yyjson_obj_get(message, "level");
-        if (level && yyjson_is_str(level)) {
-            std::string level_str = yyjson_get_str(level);
-            event.severity = level_str;
-            
-            // Map clippy levels to ValidationEventStatus
-            if (level_str == "error") {
-                event.status = ValidationEventStatus::ERROR;
-            } else if (level_str == "warn" || level_str == "warning") {
-                event.status = ValidationEventStatus::WARNING;
-            } else if (level_str == "note" || level_str == "info") {
-                event.status = ValidationEventStatus::INFO;
-            } else {
-                event.status = ValidationEventStatus::WARNING;
-            }
-        } else {
-            event.severity = "warning";
-            event.status = ValidationEventStatus::WARNING;
-        }
-        
-        // Get code object for error code
-        yyjson_val *code = yyjson_obj_get(message, "code");
-        if (code && yyjson_is_obj(code)) {
-            yyjson_val *code_str = yyjson_obj_get(code, "code");
-            if (code_str && yyjson_is_str(code_str)) {
-                event.error_code = yyjson_get_str(code_str);
-            }
-        }
-        
-        // Get message text
-        yyjson_val *message_text = yyjson_obj_get(message, "message");
-        if (message_text && yyjson_is_str(message_text)) {
-            event.message = yyjson_get_str(message_text);
-        }
-        
-        // Get suggestion from primary span
-        yyjson_val *suggested_replacement = yyjson_obj_get(primary_span, "suggested_replacement");
-        if (suggested_replacement && yyjson_is_str(suggested_replacement)) {
-            event.suggestion = yyjson_get_str(suggested_replacement);
-        }
-        
-        // Set raw output and structured data
-        event.raw_output = content;
-        event.structured_data = "clippy_json";
-        
-        events.push_back(event);
-        
-        yyjson_doc_free(doc);
-    }
-}
 
 void ParseMarkdownlintJSON(const std::string& content, std::vector<ValidationEvent>& events) {
     // Parse JSON using yyjson
@@ -3358,7 +3007,16 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
             }
             break;
         case TestResultFormat::SHELLCHECK_JSON:
-            ParseShellCheckJSON(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                } else {
+                    throw std::runtime_error("parse_test_results: ShellCheck JSON modular parser not found in registry");
+                }
+            }
             break;
         case TestResultFormat::STYLELINT_JSON:
             {
@@ -3368,8 +3026,7 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
                     auto events = parser->parse(content);
                     global_state->events.insert(global_state->events.end(), events.begin(), events.end());
                 } else {
-                    // Fallback to legacy parser if modular parser not found
-                    ParseStylelintJSON(content, global_state->events);
+                    throw std::runtime_error("parse_test_results: Stylelint JSON modular parser not found in registry");
                 }
             }
             break;
@@ -3381,8 +3038,7 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
                     auto events = parser->parse(content);
                     global_state->events.insert(global_state->events.end(), events.begin(), events.end());
                 } else {
-                    // Fallback to legacy parser if modular parser not found
-                    ParseClippyJSON(content, global_state->events);
+                    throw std::runtime_error("parse_test_results: Clippy JSON modular parser not found in registry");
                 }
             }
             break;
@@ -3394,8 +3050,7 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
                     auto events = parser->parse(content);
                     global_state->events.insert(global_state->events.end(), events.begin(), events.end());
                 } else {
-                    // Fallback to legacy parser if modular parser not found
-                    ParseMarkdownlintJSON(content, global_state->events);
+                    throw std::runtime_error("parse_test_results: Markdownlint JSON modular parser not found in registry");
                 }
             }
             break;
@@ -3407,8 +3062,7 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
                     auto events = parser->parse(content);
                     global_state->events.insert(global_state->events.end(), events.begin(), events.end());
                 } else {
-                    // Fallback to legacy parser if modular parser not found
-                    ParseYamllintJSON(content, global_state->events);
+                    throw std::runtime_error("parse_test_results: Yamllint JSON modular parser not found in registry");
                 }
             }
             break;
@@ -3420,8 +3074,7 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
                     auto events = parser->parse(content);
                     global_state->events.insert(global_state->events.end(), events.begin(), events.end());
                 } else {
-                    // Fallback to legacy parser if modular parser not found
-                    ParseBanditJSON(content, global_state->events);
+                    throw std::runtime_error("parse_test_results: Bandit JSON modular parser not found in registry");
                 }
             }
             break;
@@ -3433,8 +3086,7 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
                     auto events = parser->parse(content);
                     global_state->events.insert(global_state->events.end(), events.begin(), events.end());
                 } else {
-                    // Fallback to legacy parser if modular parser not found
-                    ParseSpotBugsJSON(content, global_state->events);
+                    throw std::runtime_error("parse_test_results: SpotBugs JSON modular parser not found in registry");
                 }
             }
             break;
@@ -3446,8 +3098,7 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
                     auto events = parser->parse(content);
                     global_state->events.insert(global_state->events.end(), events.begin(), events.end());
                 } else {
-                    // Fallback to legacy parser if modular parser not found
-                    ParseKtlintJSON(content, global_state->events);
+                    throw std::runtime_error("parse_test_results: Ktlint JSON modular parser not found in registry");
                 }
             }
             break;
