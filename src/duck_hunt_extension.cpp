@@ -19,6 +19,10 @@
 #include "parsers/test_frameworks/pytest_json_parser.hpp"
 #include "parsers/build_systems/make_parser.hpp"
 #include "parsers/linting_tools/mypy_parser.hpp"
+#include "parsers/tool_outputs/rubocop_json_parser.hpp"
+#include "parsers/tool_outputs/cargo_test_json_parser.hpp"
+#include "parsers/tool_outputs/swiftlint_json_parser.hpp"
+#include "parsers/tool_outputs/phpstan_json_parser.hpp"
 
 // OpenSSL linked through vcpkg
 #include <openssl/opensslv.h>
@@ -56,6 +60,10 @@ static void LoadInternal(DatabaseInstance &instance) {
 	registry.registerParser(make_uniq<PytestJSONParser>());
 	registry.registerParser(make_uniq<MakeParser>());
 	registry.registerParser(make_uniq<MypyParser>());
+	registry.registerParser(make_uniq<RuboCopJSONParser>());
+	registry.registerParser(make_uniq<CargoTestJSONParser>());
+	registry.registerParser(make_uniq<SwiftLintJSONParser>());
+	registry.registerParser(make_uniq<PHPStanJSONParser>());
 	
 	// Register table functions for test result parsing
 	auto read_test_results_function = GetReadTestResultsFunction();
