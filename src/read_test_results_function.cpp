@@ -1173,7 +1173,14 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                 ParseTflintJSON(content, global_state->events);
                 break;
             case TestResultFormat::KUBE_SCORE_JSON:
-                ParseKubeScoreJSON(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    }
+                }
                 break;
             case TestResultFormat::CMAKE_BUILD:
                 duck_hunt::CMakeParser::ParseCMakeBuild(content, global_state->events);
@@ -1999,206 +2006,6 @@ void ParseTflintJSON(const std::string& content, std::vector<ValidationEvent>& e
     yyjson_doc_free(doc);
 }
 
-void ParseKubeScoreJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    // Parse JSON using yyjson
-    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
-    if (!doc) {
-        throw IOException("Failed to parse kube-score JSON");
-    }
-    
-    yyjson_val *root = yyjson_doc_get_root(doc);
-    if (!yyjson_is_arr(root)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid kube-score JSON: root is not an array");
-    }
-    
-    // Parse each Kubernetes object
-    size_t obj_idx, obj_max;
-    yyjson_val *k8s_object;
-    int64_t event_id = 1;
-    
-    yyjson_arr_foreach(root, obj_idx, obj_max, k8s_object) {
-        if (!yyjson_is_obj(k8s_object)) continue;
-        
-        // Get object metadata
-        std::string object_name;
-        std::string file_name;
-        std::string resource_kind;
-        std::string namespace_name = "default";
-        int line_number = -1;
-        
-        yyjson_val *obj_name = yyjson_obj_get(k8s_object, "object_name");
-        if (obj_name && yyjson_is_str(obj_name)) {
-            object_name = yyjson_get_str(obj_name);
-        }
-        
-        yyjson_val *file_name_val = yyjson_obj_get(k8s_object, "file_name");
-        if (file_name_val && yyjson_is_str(file_name_val)) {
-            file_name = yyjson_get_str(file_name_val);
-        }
-        
-        yyjson_val *file_row = yyjson_obj_get(k8s_object, "file_row");
-        if (file_row && yyjson_is_int(file_row)) {
-            line_number = yyjson_get_int(file_row);
-        }
-        
-        // Get resource kind from type_meta
-        yyjson_val *type_meta = yyjson_obj_get(k8s_object, "type_meta");
-        if (type_meta && yyjson_is_obj(type_meta)) {
-            yyjson_val *kind = yyjson_obj_get(type_meta, "kind");
-            if (kind && yyjson_is_str(kind)) {
-                resource_kind = yyjson_get_str(kind);
-            }
-        }
-        
-        // Get namespace from object_meta
-        yyjson_val *object_meta = yyjson_obj_get(k8s_object, "object_meta");
-        if (object_meta && yyjson_is_obj(object_meta)) {
-            yyjson_val *ns = yyjson_obj_get(object_meta, "namespace");
-            if (ns && yyjson_is_str(ns)) {
-                namespace_name = yyjson_get_str(ns);
-            }
-        }
-        
-        // Get checks array
-        yyjson_val *checks = yyjson_obj_get(k8s_object, "checks");
-        if (!checks || !yyjson_is_arr(checks)) continue;
-        
-        // Parse each check
-        size_t check_idx, check_max;
-        yyjson_val *check;
-        
-        yyjson_arr_foreach(checks, check_idx, check_max, check) {
-            if (!yyjson_is_obj(check)) continue;
-            
-            // Get grade to determine if this is an issue
-            yyjson_val *grade = yyjson_obj_get(check, "grade");
-            if (!grade || !yyjson_is_str(grade)) continue;
-            
-            std::string grade_str = yyjson_get_str(grade);
-            
-            // Skip OK checks unless they have comments
-            yyjson_val *comments = yyjson_obj_get(check, "comments");
-            bool has_comments = comments && yyjson_is_arr(comments) && yyjson_arr_size(comments) > 0;
-            
-            if (grade_str == "OK" && !has_comments) continue;
-            
-            // Get check information
-            yyjson_val *check_info = yyjson_obj_get(check, "check");
-            std::string check_id;
-            std::string check_name;
-            std::string check_comment;
-            
-            if (check_info && yyjson_is_obj(check_info)) {
-                yyjson_val *id = yyjson_obj_get(check_info, "id");
-                if (id && yyjson_is_str(id)) {
-                    check_id = yyjson_get_str(id);
-                }
-                
-                yyjson_val *name = yyjson_obj_get(check_info, "name");
-                if (name && yyjson_is_str(name)) {
-                    check_name = yyjson_get_str(name);
-                }
-                
-                yyjson_val *comment = yyjson_obj_get(check_info, "comment");
-                if (comment && yyjson_is_str(comment)) {
-                    check_comment = yyjson_get_str(comment);
-                }
-            }
-            
-            // Create validation event for each comment or one general event
-            if (has_comments) {
-                size_t comment_idx, comment_max;
-                yyjson_val *comment_obj;
-                
-                yyjson_arr_foreach(comments, comment_idx, comment_max, comment_obj) {
-                    if (!yyjson_is_obj(comment_obj)) continue;
-                    
-                    ValidationEvent event;
-                    event.event_id = event_id++;
-                    event.tool_name = "kube-score";
-                    event.event_type = ValidationEventType::LINT_ISSUE;
-                    event.category = "kubernetes";
-                    event.file_path = file_name;
-                    event.line_number = line_number;
-                    event.column_number = -1;
-                    event.error_code = check_id;
-                    event.function_name = object_name + " (" + resource_kind + ")";
-                    
-                    // Map grade to status
-                    if (grade_str == "CRITICAL") {
-                        event.status = ValidationEventStatus::ERROR;
-                        event.severity = "critical";
-                    } else if (grade_str == "WARNING") {
-                        event.status = ValidationEventStatus::WARNING;
-                        event.severity = "warning";
-                    } else {
-                        event.status = ValidationEventStatus::INFO;
-                        event.severity = "info";
-                    }
-                    
-                    // Get comment details
-                    yyjson_val *summary = yyjson_obj_get(comment_obj, "summary");
-                    yyjson_val *description = yyjson_obj_get(comment_obj, "description");
-                    yyjson_val *path = yyjson_obj_get(comment_obj, "path");
-                    
-                    if (summary && yyjson_is_str(summary)) {
-                        event.message = yyjson_get_str(summary);
-                    } else {
-                        event.message = check_name;
-                    }
-                    
-                    if (description && yyjson_is_str(description)) {
-                        event.suggestion = yyjson_get_str(description);
-                    }
-                    
-                    // Add path context if available
-                    if (path && yyjson_is_str(path) && strlen(yyjson_get_str(path)) > 0) {
-                        event.test_name = yyjson_get_str(path);
-                    }
-                    
-                    event.raw_output = content;
-                    event.structured_data = "kube_score_json";
-                    
-                    events.push_back(event);
-                }
-            } else {
-                // Create general event for non-OK checks without specific comments
-                ValidationEvent event;
-                event.event_id = event_id++;
-                event.tool_name = "kube-score";
-                event.event_type = ValidationEventType::LINT_ISSUE;
-                event.category = "kubernetes";
-                event.file_path = file_name;
-                event.line_number = line_number;
-                event.column_number = -1;
-                event.error_code = check_id;
-                event.function_name = object_name + " (" + resource_kind + ")";
-                event.message = check_name;
-                event.suggestion = check_comment;
-                
-                // Map grade to status
-                if (grade_str == "CRITICAL") {
-                    event.status = ValidationEventStatus::ERROR;
-                    event.severity = "critical";
-                } else if (grade_str == "WARNING") {
-                    event.status = ValidationEventStatus::WARNING;
-                    event.severity = "warning";
-                } else {
-                    event.status = ValidationEventStatus::INFO;
-                    event.severity = "info";
-                }
-                
-                event.raw_output = content;
-                event.structured_data = "kube_score_json";
-                
-                events.push_back(event);
-            }
-        }
-    }
-    
-    yyjson_doc_free(doc);
-}
 
 
 void ParseGenericLint(const std::string& content, std::vector<ValidationEvent>& events) {
@@ -2556,7 +2363,14 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
             ParseTflintJSON(content, global_state->events);
             break;
         case TestResultFormat::KUBE_SCORE_JSON:
-            ParseKubeScoreJSON(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                }
+            }
             break;
         case TestResultFormat::CMAKE_BUILD:
             duck_hunt::CMakeParser::ParseCMakeBuild(content, global_state->events);

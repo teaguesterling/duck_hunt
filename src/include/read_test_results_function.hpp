@@ -156,7 +156,6 @@ void ParseHadolintJSON(const std::string& content, std::vector<ValidationEvent>&
 void ParseLintrJSON(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseSqlfluffJSON(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseTflintJSON(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseKubeScoreJSON(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseCMakeBuild(const std::string& content, std::vector<ValidationEvent>& events);
 void ParsePythonBuild(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseNodeBuild(const std::string& content, std::vector<ValidationEvent>& events);
