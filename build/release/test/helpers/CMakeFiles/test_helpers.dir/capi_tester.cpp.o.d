@@ -1,0 +1,531 @@
+test/helpers/CMakeFiles/test_helpers.dir/capi_tester.cpp.o: \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/test/helpers/capi_tester.cpp \
+ /usr/include/stdc-predef.h \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/test/include/capi_tester.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/test/../third_party/catch/catch.hpp \
+ /usr/include/c++/11/memory /usr/include/c++/11/bits/stl_algobase.h \
+ /usr/include/x86_64-linux-gnu/c++/11/bits/c++config.h \
+ /usr/include/x86_64-linux-gnu/c++/11/bits/os_defines.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/c++/11/bits/cpu_defines.h \
+ /usr/include/c++/11/bits/functexcept.h \
+ /usr/include/c++/11/bits/exception_defines.h \
+ /usr/include/c++/11/bits/cpp_type_traits.h \
+ /usr/include/c++/11/ext/type_traits.h \
+ /usr/include/c++/11/ext/numeric_traits.h \
+ /usr/include/c++/11/bits/stl_pair.h /usr/include/c++/11/bits/move.h \
+ /usr/include/c++/11/type_traits \
+ /usr/include/c++/11/bits/stl_iterator_base_types.h \
+ /usr/include/c++/11/bits/stl_iterator_base_funcs.h \
+ /usr/include/c++/11/bits/concept_check.h \
+ /usr/include/c++/11/debug/assertions.h \
+ /usr/include/c++/11/bits/stl_iterator.h \
+ /usr/include/c++/11/bits/ptr_traits.h /usr/include/c++/11/debug/debug.h \
+ /usr/include/c++/11/bits/predefined_ops.h \
+ /usr/include/c++/11/bits/allocator.h \
+ /usr/include/x86_64-linux-gnu/c++/11/bits/c++allocator.h \
+ /usr/include/c++/11/ext/new_allocator.h /usr/include/c++/11/new \
+ /usr/include/c++/11/bits/exception.h \
+ /usr/include/c++/11/bits/memoryfwd.h \
+ /usr/include/c++/11/bits/stl_construct.h \
+ /usr/include/c++/11/bits/stl_uninitialized.h \
+ /usr/include/c++/11/ext/alloc_traits.h \
+ /usr/include/c++/11/bits/alloc_traits.h \
+ /usr/include/c++/11/bits/stl_tempbuf.h \
+ /usr/include/c++/11/bits/stl_raw_storage_iter.h \
+ /usr/include/c++/11/bits/align.h /usr/include/c++/11/bit \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/c++/11/bits/uses_allocator.h \
+ /usr/include/c++/11/bits/unique_ptr.h /usr/include/c++/11/utility \
+ /usr/include/c++/11/bits/stl_relops.h \
+ /usr/include/c++/11/initializer_list /usr/include/c++/11/tuple \
+ /usr/include/c++/11/array /usr/include/c++/11/bits/range_access.h \
+ /usr/include/c++/11/bits/invoke.h \
+ /usr/include/c++/11/bits/stl_function.h \
+ /usr/include/c++/11/backward/binders.h \
+ /usr/include/c++/11/bits/functional_hash.h \
+ /usr/include/c++/11/bits/hash_bytes.h \
+ /usr/include/c++/11/bits/shared_ptr.h /usr/include/c++/11/iosfwd \
+ /usr/include/c++/11/bits/stringfwd.h /usr/include/c++/11/bits/postypes.h \
+ /usr/include/c++/11/cwchar /usr/include/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/floatn.h \
+ /usr/include/x86_64-linux-gnu/bits/floatn-common.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/stdarg.h \
+ /usr/include/x86_64-linux-gnu/bits/types/wint_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/mbstate_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__mbstate_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__FILE.h \
+ /usr/include/x86_64-linux-gnu/bits/types/FILE.h \
+ /usr/include/x86_64-linux-gnu/bits/types/locale_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__locale_t.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar2.h \
+ /usr/include/c++/11/bits/shared_ptr_base.h /usr/include/c++/11/typeinfo \
+ /usr/include/c++/11/bits/allocated_ptr.h \
+ /usr/include/c++/11/bits/refwrap.h \
+ /usr/include/c++/11/ext/aligned_buffer.h \
+ /usr/include/c++/11/ext/atomicity.h \
+ /usr/include/x86_64-linux-gnu/c++/11/bits/gthr.h \
+ /usr/include/x86_64-linux-gnu/c++/11/bits/gthr-default.h \
+ /usr/include/pthread.h /usr/include/sched.h \
+ /usr/include/x86_64-linux-gnu/bits/types/time_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/struct_timespec.h \
+ /usr/include/x86_64-linux-gnu/bits/endian.h \
+ /usr/include/x86_64-linux-gnu/bits/endianness.h \
+ /usr/include/x86_64-linux-gnu/bits/sched.h \
+ /usr/include/x86_64-linux-gnu/bits/types/struct_sched_param.h \
+ /usr/include/x86_64-linux-gnu/bits/cpu-set.h /usr/include/time.h \
+ /usr/include/x86_64-linux-gnu/bits/time.h \
+ /usr/include/x86_64-linux-gnu/bits/timex.h \
+ /usr/include/x86_64-linux-gnu/bits/types/struct_timeval.h \
+ /usr/include/x86_64-linux-gnu/bits/types/clock_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/struct_tm.h \
+ /usr/include/x86_64-linux-gnu/bits/types/clockid_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/timer_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/struct_itimerspec.h \
+ /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h \
+ /usr/include/x86_64-linux-gnu/bits/thread-shared-types.h \
+ /usr/include/x86_64-linux-gnu/bits/pthreadtypes-arch.h \
+ /usr/include/x86_64-linux-gnu/bits/atomic_wide_counter.h \
+ /usr/include/x86_64-linux-gnu/bits/struct_mutex.h \
+ /usr/include/x86_64-linux-gnu/bits/struct_rwlock.h \
+ /usr/include/x86_64-linux-gnu/bits/setjmp.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__sigset_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/struct___jmp_buf_tag.h \
+ /usr/include/x86_64-linux-gnu/bits/pthread_stack_min-dynamic.h \
+ /usr/include/x86_64-linux-gnu/c++/11/bits/atomic_word.h \
+ /usr/include/x86_64-linux-gnu/sys/single_threaded.h \
+ /usr/include/c++/11/ext/concurrence.h /usr/include/c++/11/exception \
+ /usr/include/c++/11/bits/exception_ptr.h \
+ /usr/include/c++/11/bits/cxxabi_init_exception.h \
+ /usr/include/c++/11/bits/nested_exception.h \
+ /usr/include/c++/11/bits/shared_ptr_atomic.h \
+ /usr/include/c++/11/bits/atomic_base.h \
+ /usr/include/c++/11/bits/atomic_lockfree_defines.h \
+ /usr/include/c++/11/backward/auto_ptr.h /usr/include/c++/11/string \
+ /usr/include/c++/11/bits/char_traits.h /usr/include/c++/11/cstdint \
+ /usr/include/c++/11/bits/localefwd.h \
+ /usr/include/x86_64-linux-gnu/c++/11/bits/c++locale.h \
+ /usr/include/c++/11/clocale /usr/include/locale.h \
+ /usr/include/x86_64-linux-gnu/bits/locale.h /usr/include/c++/11/cctype \
+ /usr/include/ctype.h /usr/include/c++/11/bits/ostream_insert.h \
+ /usr/include/c++/11/bits/cxxabi_forced.h \
+ /usr/include/c++/11/bits/basic_string.h \
+ /usr/include/c++/11/ext/string_conversions.h /usr/include/c++/11/cstdlib \
+ /usr/include/stdlib.h /usr/include/x86_64-linux-gnu/bits/waitflags.h \
+ /usr/include/x86_64-linux-gnu/bits/waitstatus.h \
+ /usr/include/x86_64-linux-gnu/sys/types.h /usr/include/endian.h \
+ /usr/include/x86_64-linux-gnu/bits/byteswap.h \
+ /usr/include/x86_64-linux-gnu/bits/uintn-identity.h \
+ /usr/include/x86_64-linux-gnu/sys/select.h \
+ /usr/include/x86_64-linux-gnu/bits/select.h \
+ /usr/include/x86_64-linux-gnu/bits/types/sigset_t.h \
+ /usr/include/x86_64-linux-gnu/bits/select2.h /usr/include/alloca.h \
+ /usr/include/x86_64-linux-gnu/bits/stdlib-bsearch.h \
+ /usr/include/x86_64-linux-gnu/bits/stdlib-float.h \
+ /usr/include/x86_64-linux-gnu/bits/stdlib.h \
+ /usr/include/c++/11/bits/std_abs.h /usr/include/c++/11/cstdio \
+ /usr/include/stdio.h /usr/include/x86_64-linux-gnu/bits/types/__fpos_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__fpos64_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/struct_FILE.h \
+ /usr/include/x86_64-linux-gnu/bits/types/cookie_io_functions_t.h \
+ /usr/include/x86_64-linux-gnu/bits/stdio_lim.h \
+ /usr/include/x86_64-linux-gnu/bits/stdio.h \
+ /usr/include/x86_64-linux-gnu/bits/stdio2.h /usr/include/c++/11/cerrno \
+ /usr/include/errno.h /usr/include/x86_64-linux-gnu/bits/errno.h \
+ /usr/include/linux/errno.h /usr/include/x86_64-linux-gnu/asm/errno.h \
+ /usr/include/asm-generic/errno.h /usr/include/asm-generic/errno-base.h \
+ /usr/include/x86_64-linux-gnu/bits/types/error_t.h \
+ /usr/include/c++/11/bits/charconv.h \
+ /usr/include/c++/11/bits/basic_string.tcc /usr/include/c++/11/vector \
+ /usr/include/c++/11/bits/stl_vector.h \
+ /usr/include/c++/11/bits/stl_bvector.h \
+ /usr/include/c++/11/bits/vector.tcc /usr/include/c++/11/locale \
+ /usr/include/c++/11/bits/locale_classes.h \
+ /usr/include/c++/11/bits/locale_classes.tcc \
+ /usr/include/c++/11/bits/locale_facets.h /usr/include/c++/11/cwctype \
+ /usr/include/wctype.h /usr/include/x86_64-linux-gnu/bits/wctype-wchar.h \
+ /usr/include/x86_64-linux-gnu/c++/11/bits/ctype_base.h \
+ /usr/include/c++/11/bits/ios_base.h /usr/include/c++/11/system_error \
+ /usr/include/x86_64-linux-gnu/c++/11/bits/error_constants.h \
+ /usr/include/c++/11/stdexcept /usr/include/c++/11/streambuf \
+ /usr/include/c++/11/bits/streambuf.tcc \
+ /usr/include/c++/11/bits/streambuf_iterator.h \
+ /usr/include/x86_64-linux-gnu/c++/11/bits/ctype_inline.h \
+ /usr/include/c++/11/bits/locale_facets.tcc \
+ /usr/include/c++/11/bits/locale_facets_nonio.h /usr/include/c++/11/ctime \
+ /usr/include/x86_64-linux-gnu/c++/11/bits/time_members.h \
+ /usr/include/x86_64-linux-gnu/c++/11/bits/messages_members.h \
+ /usr/include/libintl.h /usr/include/c++/11/bits/codecvt.h \
+ /usr/include/c++/11/bits/locale_facets_nonio.tcc \
+ /usr/include/c++/11/bits/locale_conv.h /usr/include/c++/11/cstddef \
+ /usr/include/c++/11/cassert /usr/include/assert.h \
+ /usr/include/c++/11/ostream /usr/include/c++/11/ios \
+ /usr/include/c++/11/bits/basic_ios.h \
+ /usr/include/c++/11/bits/basic_ios.tcc \
+ /usr/include/c++/11/bits/ostream.tcc /usr/include/c++/11/chrono \
+ /usr/include/c++/11/ratio /usr/include/c++/11/limits \
+ /usr/include/c++/11/bits/parse_numbers.h /usr/include/c++/11/map \
+ /usr/include/c++/11/bits/stl_tree.h /usr/include/c++/11/bits/stl_map.h \
+ /usr/include/c++/11/bits/stl_multimap.h \
+ /usr/include/c++/11/bits/erase_if.h /usr/include/c++/11/functional \
+ /usr/include/c++/11/bits/std_function.h /usr/include/c++/11/algorithm \
+ /usr/include/c++/11/bits/stl_algo.h \
+ /usr/include/c++/11/bits/algorithmfwd.h \
+ /usr/include/c++/11/bits/stl_heap.h \
+ /usr/include/c++/11/bits/uniform_int_dist.h /usr/include/c++/11/random \
+ /usr/include/c++/11/cmath /usr/include/math.h \
+ /usr/include/x86_64-linux-gnu/bits/math-vector.h \
+ /usr/include/x86_64-linux-gnu/bits/libm-simd-decl-stubs.h \
+ /usr/include/x86_64-linux-gnu/bits/flt-eval-method.h \
+ /usr/include/x86_64-linux-gnu/bits/fp-logb.h \
+ /usr/include/x86_64-linux-gnu/bits/fp-fast.h \
+ /usr/include/x86_64-linux-gnu/bits/mathcalls-helper-functions.h \
+ /usr/include/x86_64-linux-gnu/bits/mathcalls.h \
+ /usr/include/x86_64-linux-gnu/bits/mathcalls-narrow.h \
+ /usr/include/x86_64-linux-gnu/bits/iscanonical.h \
+ /usr/include/c++/11/bits/random.h \
+ /usr/include/x86_64-linux-gnu/c++/11/bits/opt_random.h \
+ /usr/include/c++/11/bits/random.tcc /usr/include/c++/11/numeric \
+ /usr/include/c++/11/bits/stl_numeric.h \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/stdbool.h \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/test/include/test_helpers.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/test/include/compare_result.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/string_util.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/constants.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/string.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/original/std/sstream.hpp \
+ /usr/include/c++/11/sstream /usr/include/c++/11/istream \
+ /usr/include/c++/11/bits/istream.tcc \
+ /usr/include/c++/11/bits/sstream.tcc \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/winapi.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/unique_ptr.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/exception.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/assert.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/exception_format_value.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/hugeint.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/typedefs.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/unordered_map.hpp \
+ /usr/include/c++/11/unordered_map /usr/include/c++/11/bits/hashtable.h \
+ /usr/include/c++/11/bits/hashtable_policy.h \
+ /usr/include/c++/11/bits/enable_special_members.h \
+ /usr/include/c++/11/bits/unordered_map.h \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/likely.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/memory_safety.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/original/std/memory.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/numeric_utils.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/limits.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/uhugeint.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/types.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/optional_ptr.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/shared_ptr.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/shared_ptr_ipp.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/weak_ptr_ipp.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enable_shared_from_this_ipp.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/vector.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/helper.hpp \
+ /usr/include/string.h /usr/include/strings.h \
+ /usr/include/x86_64-linux-gnu/bits/strings_fortified.h \
+ /usr/include/x86_64-linux-gnu/bits/string_fortified.h \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/pair.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/set.hpp \
+ /usr/include/c++/11/set /usr/include/c++/11/bits/stl_set.h \
+ /usr/include/c++/11/bits/stl_multiset.h \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/complex_json.hpp \
+ /usr/include/c++/11/cstring \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/main/connection.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/profiler_format.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/serializer/buffered_file_writer.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/serializer/write_stream.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/catalog/catalog.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/catalog/catalog_entry.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/common.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/catalog_type.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/atomic.hpp \
+ /usr/include/c++/11/atomic \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/exception/catalog_exception.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/query_error_context.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/optional_idx.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/types/value.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/types/timestamp.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/types/date.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/types/string_type.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/types/hash.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/types/datetime.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/types/interval.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/insertion_order_preserving_map.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/case_insensitive_map.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/unordered_set.hpp \
+ /usr/include/c++/11/unordered_set \
+ /usr/include/c++/11/bits/unordered_set.h \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/map.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/catalog/catalog_transaction.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/catalog_lookup_behavior.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/on_entry_not_found.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/error_data.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/mutex.hpp \
+ /usr/include/c++/11/mutex /usr/include/c++/11/bits/std_mutex.h \
+ /usr/include/c++/11/bits/unique_lock.h \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/reference_map.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/catalog/entry_lookup_info.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/file_system.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/file_compression_type.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/file_buffer.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/debug_initialize.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/file_glob_options.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/file_open_flags.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/open_file_info.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/function/udf_function.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/function/scalar_function.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/vector_operations/binary_executor.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/types/vector.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/bitset.hpp \
+ /usr/include/c++/11/bitset \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/vector_type.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/types/selection_vector.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/allocator.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/vector_size.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/types/validity_mask.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/to_string.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/types/vector_buffer.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/types/string_heap.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/storage/arena_allocator.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/storage/buffer/buffer_handle.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/storage/storage_info.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/vector_operations/vector_operations.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/types/data_chunk.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/arrow/arrow_wrapper.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/arrow/arrow.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/vector_operations/ternary_executor.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/vector_operations/unary_executor.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/function_errors.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/execution/expression_executor_state.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/function/function.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/named_parameter_map.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/main/external_dependencies.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/column_definition.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/parsed_expression.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/base_expression.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/expression_type.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/qualified_name.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/exception/parser_exception.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/keyword_helper.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/simplified_token.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/planner/binding_alias.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/expression_util.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/compression_type.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/catalog/catalog_entry/table_column_type.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/storage/statistics/base_statistics.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/operator/comparison_operators.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/types/hugeint.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/type_util.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/storage/statistics/numeric_stats.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/filter_propagate_result.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/storage/statistics/numeric_stats_union.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/array_ptr.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/storage/statistics/string_stats.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/function/aggregate_function.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/array.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/vector_operations/aggregate_executor.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/function/aggregate_state.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/storage/statistics/node_statistics.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/planner/bound_result_modifier.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/result_modifier.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/order_type.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/planner/bound_statement.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/planner/expression.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/main/materialized_query_result.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/types/column/column_data_collection.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/types/column/column_data_collection_iterators.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/types/column/column_data_scan_states.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/main/query_result.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/statement_type.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/main/client_properties.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/main/pending_query_result.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/pending_execution_result.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/execution/executor.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/execution/task_error_manager.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/execution/progress_data.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parallel/pipeline.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/execution/physical_operator.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/operator_result_type.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/physical_operator_type.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/explain_format.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/execution/execution_context.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/optimizer/join_order/join_node.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/optimizer/join_order/join_relation.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/optimizer/join_order/query_graph.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/optimizer/join_order/relation_manager.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/optimizer/join_order/cardinality_estimator.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/planner/column_binding_map.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/planner/column_binding.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/optimizer/join_order/relation_statistics_helper.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/planner/filter/conjunction_filter.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/planner/table_filter.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/column_index.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/planner/logical_operator.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/logical_operator_type.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/planner/logical_operator_visitor.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/planner/bound_tokens.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/planner/logical_tokens.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/expression_map.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/execution/physical_operator_states.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parallel/interrupt.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parallel/task.hpp \
+ /usr/include/c++/11/condition_variable \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/execution/partition_info.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/order_preservation_type.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/function/table_function.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/table_column.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/function/partition_stats.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/exception/binder_exception.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parallel/task_scheduler.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parallel/executor_task.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/main/prepared_statement.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/planner/expression/bound_parameter_data.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/main/relation.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/join_type.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/relation_type.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/joinref_type.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/main/client_context.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/catalog/catalog_entry/schema_catalog_entry.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/catalog/catalog_set.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/catalog/default/default_generator.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/transaction/transaction.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/catalog/catalog_entry/sequence_catalog_entry.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/catalog/standard_entry.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/catalog/dependency_list.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/catalog/catalog_entry_map.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/catalog/dependency.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/parsed_data/create_sequence_info.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/parsed_data/create_info.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/parsed_data/parse_info.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enum_util.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/on_create_conflict.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/parsed_data/alter_table_info.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/parsed_data/alter_info.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/constraint.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/transaction/transaction_data.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/catalog/similar_catalog_entry.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/deque.hpp \
+ /usr/include/c++/11/deque /usr/include/c++/11/bits/stl_deque.h \
+ /usr/include/c++/11/bits/deque.tcc \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/prepared_statement_mode.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/main/client_config.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/output_type.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/progress_bar/progress_bar.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/profiler.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/chrono.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/progress_bar/progress_bar_display.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/main/profiling_info.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/metric_type.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/optimizer_type.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/expression/lambda_expression.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/main/client_context_state.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/exception/transaction_exception.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/main/config.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/arrow/arrow_type_extension.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/main/chunk_scan_state.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/function/table/arrow/arrow_duck_schema.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/function/table/arrow/arrow_type_info.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/function/table/arrow/enum/arrow_type_info_type.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/function/table/arrow/enum/arrow_datetime_type.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/function/table/arrow/enum/arrow_variable_size_type.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/cgroups.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/encryption_state.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/access_mode.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/set_scope.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/window_aggregation_mode.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/execution/index/index_type_set.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/execution/index/index_type.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/execution/physical_plan_generator.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/planner/joinside.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/function/cast/default_casts.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/function/replacement_scan.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/optimizer/optimizer_extension.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/parser_extension.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/planner/operator_extension.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/planner/binder.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/query_node.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/common_table_expression_info.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/statement/select_statement.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/sql_statement.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/printer.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/tableref.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/tableref_type.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/parsed_data/sample_options.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/cte_materialize.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/tableref/delimgetref.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/tokens.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/planner/bind_context.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/expression/columnref_expression.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/qualified_name_set.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/planner/expression_binder.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/stack_checker.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/expression/bound_expression.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/expression/lambdaref_expression.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/catalog/catalog_entry_retriever.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/catalog/catalog_search_path.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/planner/expression/bound_lambda_expression.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/collation_type.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/planner/table_binding.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/planner/expression/bound_columnref_expression.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/expression/star_expression.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/planner/bound_constraint.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/planner/tableref/bound_delimgetref.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/planner/bound_tableref.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/storage/compression/bitpacking.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/function/encoding_function.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/storage/data_pointer.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/storage/block.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/storage/table/row_group.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/storage/table/chunk_info.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/storage/statistics/segment_statistics.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/scan_options.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/column_list.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/storage/table/segment_base.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/checkpoint_type.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/storage/storage_index.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/logging/log_manager.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/logging/logger.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/logging/logging.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/logging/log_type.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/debug_vector_verification.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/main/valid_checker.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/transaction/meta_transaction.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/transaction/transaction_manager.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/main/database_manager.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/parsed_data/attach_info.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/storage/storage_options.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/main/settings.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/main/stream_query_result.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/queue.hpp \
+ /usr/include/c++/11/queue /usr/include/c++/11/bits/stl_queue.h \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/common/enums/stream_execution_result.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/main/buffered_data/simple_buffered_data.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/main/buffered_data/buffered_data.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/main/table_description.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/transaction/transaction_context.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/main/client_context_wrapper.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/parser/statement/explain_statement.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/main/profiling_node.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/main/database.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/main/capi/extension_api.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/main/extension.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/main/extension_install_info.hpp \
+ /mnt/aux-data/teague/Projects/duck_hunt/duckdb/src/include/duckdb/main/appender.hpp

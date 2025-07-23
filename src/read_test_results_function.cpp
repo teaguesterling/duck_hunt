@@ -1302,7 +1302,14 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                 ParseJenkinsText(content, global_state->events);
                 break;
             case TestResultFormat::DRONE_CI_TEXT:
-                ParseDroneCIText(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    }
+                }
                 break;
             case TestResultFormat::TERRAFORM_TEXT:
                 ParseTerraformText(content, global_state->events);
@@ -2492,7 +2499,14 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
             ParseJenkinsText(content, global_state->events);
             break;
         case TestResultFormat::DRONE_CI_TEXT:
-            ParseDroneCIText(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                }
+            }
             break;
         case TestResultFormat::TERRAFORM_TEXT:
             ParseTerraformText(content, global_state->events);
@@ -6560,259 +6574,6 @@ void ParseJenkinsText(const std::string& content, std::vector<ValidationEvent>& 
     }
 }
 
-void ParseDroneCIText(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    
-    // Regex patterns for DroneCI output
-    std::regex drone_step_start(R"(\[drone:exec\] .* starting build step: (.+))");
-    std::regex drone_step_complete(R"(\[drone:exec\] .* completed build step: (.+) \(exit code (\d+)\))");
-    std::regex drone_pipeline_complete(R"(\[drone:exec\] .* pipeline execution complete)");
-    std::regex drone_pipeline_failed(R"(\[drone:exec\] .* pipeline failed with exit code (\d+))");
-    std::regex git_clone(R"(\+ git clone (.+) \.)");
-    std::regex git_checkout(R"(\+ git checkout ([a-f0-9]+))");
-    std::regex npm_install(R"(added (\d+) packages .* in ([\d.]+)s)");
-    std::regex npm_vulnerabilities(R"(found (\d+) vulnerabilit)");
-    std::regex jest_test_pass(R"(PASS (.+) \(([\d.]+) s\))");
-    std::regex jest_test_fail(R"(FAIL (.+) \(([\d.]+) s\))");
-    std::regex jest_test_item(R"(✓ (.+) \((\d+) ms\))");
-    std::regex jest_test_fail_item(R"(✗ (.+) \(([\d.]+) s\))");
-    std::regex jest_summary(R"(Test Suites: (\d+) failed, (\d+) passed, (\d+) total)");
-    std::regex jest_test_summary(R"(Tests: (\d+) failed, (\d+) passed, (\d+) total)");
-    std::regex jest_timing(R"(Time: ([\d.]+) s)");
-    std::regex webpack_build(R"(Hash: ([a-f0-9]+))");
-    std::regex webpack_warning(R"(Module Warning \(from ([^)]+)\):)");
-    std::regex eslint_warning(R"((\d+):(\d+)\s+(warning|error)\s+(.+)\s+([a-z-]+))");
-    std::regex docker_build_start(R"(Sending build context to Docker daemon\s+([\d.]+[KMG]?B))");
-    std::regex docker_step(R"(Step (\d+)/(\d+) : (.+))");
-    std::regex docker_success(R"(Successfully built ([a-f0-9]+))");
-    std::regex docker_tagged(R"(Successfully tagged (.+))");
-    std::regex curl_notification(R"(\+ curl -X POST .* --data '(.+)' )");
-    
-    std::smatch match;
-    std::string current_step = "";
-    bool in_jest_failure = false;
-    
-    while (std::getline(stream, line)) {
-        // Parse DroneCI step start
-        if (std::regex_search(line, match, drone_step_start)) {
-            current_step = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "drone-ci";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "step_start";
-            event.message = "Starting build step: " + current_step;
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "drone_ci_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse DroneCI step completion
-        if (std::regex_search(line, match, drone_step_complete)) {
-            std::string step_name = match[1].str();
-            int exit_code = std::stoi(match[2].str());
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "drone-ci";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = exit_code == 0 ? ValidationEventStatus::PASS : ValidationEventStatus::FAIL;
-            event.severity = exit_code == 0 ? "info" : "error";
-            event.category = "step_complete";
-            event.message = "Completed build step: " + step_name + " (exit code " + std::to_string(exit_code) + ")";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "drone_ci_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse Jest test results
-        if (std::regex_search(line, match, jest_test_pass)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "jest";
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.file_path = match[1].str();
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::PASS;
-            event.severity = "info";
-            event.category = "test_pass";
-            event.message = "Test passed: " + match[1].str();
-            event.execution_time = std::stod(match[2].str());
-            event.raw_output = content;
-            event.structured_data = "drone_ci_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        if (std::regex_search(line, match, jest_test_fail)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "jest";
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.file_path = match[1].str();
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::FAIL;
-            event.severity = "error";
-            event.category = "test_failure";
-            event.message = "Test failed: " + match[1].str();
-            event.execution_time = std::stod(match[2].str());
-            event.raw_output = content;
-            event.structured_data = "drone_ci_text";
-            
-            events.push_back(event);
-            in_jest_failure = true;
-            continue;
-        }
-        
-        // Parse individual test failures
-        if (std::regex_search(line, match, jest_test_fail_item)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "jest";
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::FAIL;
-            event.severity = "error";
-            event.category = "test_failure";
-            event.test_name = match[1].str();
-            event.message = "Test failure: " + match[1].str();
-            event.execution_time = std::stod(match[2].str());
-            event.raw_output = content;
-            event.structured_data = "drone_ci_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse Jest test summary
-        if (std::regex_search(line, match, jest_summary)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "jest";
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = std::stoi(match[1].str()) > 0 ? ValidationEventStatus::FAIL : ValidationEventStatus::PASS;
-            event.severity = std::stoi(match[1].str()) > 0 ? "error" : "info";
-            event.category = "test_summary";
-            event.message = "Test Suites: " + match[1].str() + " failed, " + match[2].str() + " passed, " + match[3].str() + " total";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "drone_ci_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse ESLint warnings
-        if (std::regex_search(line, match, eslint_warning)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "eslint";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = "/drone/src/src/services/auth.js"; // Default from sample
-            event.line_number = std::stoi(match[1].str());
-            event.column_number = std::stoi(match[2].str());
-            event.status = match[3].str() == "error" ? ValidationEventStatus::ERROR : ValidationEventStatus::WARNING;
-            event.severity = match[3].str();
-            event.category = "lint_issue";
-            event.error_code = match[5].str();
-            event.message = match[4].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "drone_ci_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse Docker build success
-        if (std::regex_search(line, match, docker_success)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "docker";
-            event.event_type = ValidationEventType::DEBUG_INFO;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::PASS;
-            event.severity = "info";
-            event.category = "docker_success";
-            event.message = "Successfully built image: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "drone_ci_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse pipeline completion
-        if (std::regex_search(line, match, drone_pipeline_complete)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "drone-ci";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "pipeline_complete";
-            event.message = "Pipeline execution complete";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "drone_ci_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse pipeline failure
-        if (std::regex_search(line, match, drone_pipeline_failed)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "drone-ci";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::FAIL;
-            event.severity = "error";
-            event.category = "pipeline_failure";
-            event.message = "Pipeline failed with exit code " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "drone_ci_text";
-            
-            events.push_back(event);
-            continue;
-        }
-    }
-}
 
 void ParseTerraformText(const std::string& content, std::vector<ValidationEvent>& events) {
     std::istringstream stream(content);
@@ -7580,7 +7341,14 @@ void ProcessMultipleFiles(ClientContext& context, const std::vector<std::string>
                     ParseJenkinsText(content, file_events);
                     break;
                 case TestResultFormat::DRONE_CI_TEXT:
-                    ParseDroneCIText(content, file_events);
+                    {
+                        auto& registry = ParserRegistry::getInstance();
+                        auto parser = registry.getParser(format);
+                        if (parser) {
+                            auto events = parser->parse(content);
+                            file_events.insert(file_events.end(), events.begin(), events.end());
+                        }
+                    }
                     break;
                 case TestResultFormat::TERRAFORM_TEXT:
                     ParseTerraformText(content, file_events);

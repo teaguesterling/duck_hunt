@@ -1,0 +1,1 @@
+/usr/bin/c++ -O3 -DNDEBUG -ffunction-sections -fdata-sections -O3 -DNDEBUG   CMakeFiles/duckdb_platform_binary.dir/tools/utils/test_platform.cpp.o -o duckdb_platform_binary
