@@ -1312,7 +1312,14 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                 }
                 break;
             case TestResultFormat::TERRAFORM_TEXT:
-                ParseTerraformText(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    }
+                }
                 break;
             case TestResultFormat::ANSIBLE_TEXT:
                 ParseAnsibleText(content, global_state->events);
@@ -1423,6 +1430,11 @@ void ParseDuckDBTestOutput(const std::string& content, std::vector<ValidationEve
     std::string failure_message;
     std::string failure_query;
     int failure_line = -1;
+    std::string mismatch_details;
+    std::string expected_result;
+    std::string actual_result;
+    bool in_expected_section = false;
+    bool in_actual_section = false;
     
     while (std::getline(stream, line)) {
         // Parse test progress lines: [X/Y] (Z%): /path/to/test.test
@@ -1466,6 +1478,37 @@ void ParseDuckDBTestOutput(const std::string& content, std::vector<ValidationEve
             failure_query = line;
         }
         
+        // Capture mismatch details
+        else if (in_failure_section && line.find("Mismatch on row") != std::string::npos) {
+            mismatch_details = line;
+        }
+        
+        // Detect expected result section
+        else if (in_failure_section && line.find("Expected result:") != std::string::npos) {
+            in_expected_section = true;
+            in_actual_section = false;
+        }
+        
+        // Detect actual result section
+        else if (in_failure_section && line.find("Actual result:") != std::string::npos) {
+            in_expected_section = false;
+            in_actual_section = true;
+        }
+        
+        // Capture expected result data
+        else if (in_expected_section && !line.empty() && 
+                 line.find("================================================================================") == std::string::npos) {
+            if (!expected_result.empty()) expected_result += "\n";
+            expected_result += line;
+        }
+        
+        // Capture actual result data
+        else if (in_actual_section && !line.empty() && 
+                 line.find("================================================================================") == std::string::npos) {
+            if (!actual_result.empty()) actual_result += "\n";
+            actual_result += line;
+        }
+        
         // End of failure section - create failure event
         else if (in_failure_section && line.find("FAILED:") != std::string::npos) {
             ValidationEvent event;
@@ -1478,17 +1521,38 @@ void ParseDuckDBTestOutput(const std::string& content, std::vector<ValidationEve
             event.function_name = failure_query.empty() ? "unknown" : failure_query.substr(0, 50);
             event.status = ValidationEventStatus::FAIL;
             event.category = "test_failure";
-            event.message = failure_message;
-            event.raw_output = failure_query;
+            
+            // Enhanced message with mismatch details
+            std::string enhanced_message = failure_message;
+            if (!mismatch_details.empty()) {
+                enhanced_message += " | " + mismatch_details;
+            }
+            event.message = enhanced_message;
+            
+            // Enhanced raw_output with query and comparison details
+            std::string enhanced_output = failure_query;
+            if (!expected_result.empty() && !actual_result.empty()) {
+                enhanced_output += "\n--- Expected ---\n" + expected_result;
+                enhanced_output += "\n--- Actual ---\n" + actual_result;
+            }
+            event.raw_output = enhanced_output;
+            
+            // Use suggestion field for mismatch details
+            event.suggestion = mismatch_details;
             event.execution_time = 0.0;
             
             events.push_back(event);
             
             // Reset failure tracking
             in_failure_section = false;
+            in_expected_section = false;
+            in_actual_section = false;
             failure_message.clear();
             failure_query.clear();
             failure_line = -1;
+            mismatch_details.clear();
+            expected_result.clear();
+            actual_result.clear();
         }
         
         // Parse summary line: test cases: X | Y passed | Z failed
@@ -2509,7 +2573,14 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
             }
             break;
         case TestResultFormat::TERRAFORM_TEXT:
-            ParseTerraformText(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                }
+            }
             break;
         case TestResultFormat::ANSIBLE_TEXT:
             ParseAnsibleText(content, global_state->events);
@@ -6575,285 +6646,6 @@ void ParseJenkinsText(const std::string& content, std::vector<ValidationEvent>& 
 }
 
 
-void ParseTerraformText(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    std::smatch match;
-    
-    // Terraform regex patterns
-    std::regex terraform_version(R"(Terraform v(\d+\.\d+\.\d+))");
-    std::regex provider_info(R"(\+ provider registry\.terraform\.io/hashicorp/(\w+) v([\d\.]+))");
-    std::regex resource_create(R"(# (\S+) will be created)");
-    std::regex resource_update(R"(# (\S+) will be updated in-place)");
-    std::regex resource_destroy(R"(# (\S+) will be destroyed)");
-    std::regex plan_summary(R"(Plan: (\d+) to add, (\d+) to change, (\d+) to destroy)");
-    std::regex resource_creating(R"((\S+): Creating\.\.\.)");
-    std::regex resource_creation_complete(R"((\S+): Creation complete after (\d+)s \[id=(.+)\])");
-    std::regex resource_modifying(R"((\S+): Modifying\.\.\. \[id=(.+)\])");
-    std::regex resource_modification_complete(R"((\S+): Modifications complete after (\d+)s \[id=(.+)\])");
-    std::regex resource_destroying(R"((\S+): Destroying\.\.\. \[id=(.+)\])");
-    std::regex resource_destruction_complete(R"((\S+): Destruction complete after (\d+)s)");
-    std::regex apply_complete(R"(Apply complete! Resources: (\d+) added, (\d+) changed, (\d+) destroyed)");
-    std::regex terraform_error(R"(Error: (.+))");
-    std::regex terraform_warning(R"(Warning: (.+))");
-    std::regex terraform_output(R"((\w+) = (.+))");
-    std::regex version_warning(R"(Your version of Terraform is out of date!)");
-    
-    while (std::getline(stream, line)) {
-        // Parse Terraform version
-        if (std::regex_search(line, match, terraform_version)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "terraform";
-            event.event_type = ValidationEventType::DEBUG_INFO;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "version";
-            event.message = "Terraform version: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "terraform_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse provider information
-        if (std::regex_search(line, match, provider_info)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "terraform";
-            event.event_type = ValidationEventType::DEBUG_INFO;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "provider";
-            event.message = "Provider " + match[1].str() + " version " + match[2].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "terraform_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse resource creation plan
-        if (std::regex_search(line, match, resource_create)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "terraform";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "plan_create";
-            event.message = "Will create resource: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "terraform_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse resource update plan
-        if (std::regex_search(line, match, resource_update)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "terraform";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::WARNING;
-            event.severity = "warning";
-            event.category = "plan_update";
-            event.message = "Will update resource: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "terraform_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse resource destroy plan
-        if (std::regex_search(line, match, resource_destroy)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "terraform";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::WARNING;
-            event.severity = "warning";
-            event.category = "plan_destroy";
-            event.message = "Will destroy resource: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "terraform_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse plan summary
-        if (std::regex_search(line, match, plan_summary)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "terraform";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "plan_summary";
-            event.message = "Plan: " + match[1].str() + " to add, " + match[2].str() + " to change, " + match[3].str() + " to destroy";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "terraform_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse resource creation
-        if (std::regex_search(line, match, resource_creating)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "terraform";
-            event.event_type = ValidationEventType::DEBUG_INFO;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "resource_creating";
-            event.message = "Creating resource: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "terraform_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse resource creation complete
-        if (std::regex_search(line, match, resource_creation_complete)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "terraform";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::PASS;
-            event.severity = "info";
-            event.category = "resource_created";
-            event.message = "Created resource: " + match[1].str() + " in " + match[2].str() + "s";
-            event.execution_time = std::stod(match[2].str());
-            event.raw_output = content;
-            event.structured_data = "terraform_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse apply complete
-        if (std::regex_search(line, match, apply_complete)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "terraform";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::PASS;
-            event.severity = "info";
-            event.category = "apply_complete";
-            event.message = "Apply complete: " + match[1].str() + " added, " + match[2].str() + " changed, " + match[3].str() + " destroyed";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "terraform_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse errors
-        if (std::regex_search(line, match, terraform_error)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "terraform";
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::ERROR;
-            event.severity = "error";
-            event.category = "terraform_error";
-            event.message = match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "terraform_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse warnings
-        if (std::regex_search(line, match, terraform_warning)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "terraform";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::WARNING;
-            event.severity = "warning";
-            event.category = "terraform_warning";
-            event.message = match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "terraform_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse outputs
-        if (std::regex_search(line, match, terraform_output)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "terraform";
-            event.event_type = ValidationEventType::DEBUG_INFO;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "output";
-            event.message = "Output " + match[1].str() + " = " + match[2].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "terraform_text";
-            
-            events.push_back(event);
-            continue;
-        }
-    }
-}
 
 void ParseAnsibleText(const std::string& content, std::vector<ValidationEvent>& events) {
     std::istringstream stream(content);
@@ -7343,7 +7135,7 @@ void ProcessMultipleFiles(ClientContext& context, const std::vector<std::string>
                 case TestResultFormat::DRONE_CI_TEXT:
                     {
                         auto& registry = ParserRegistry::getInstance();
-                        auto parser = registry.getParser(format);
+                        auto parser = registry.getParser(detected_format);
                         if (parser) {
                             auto events = parser->parse(content);
                             file_events.insert(file_events.end(), events.begin(), events.end());
@@ -7351,7 +7143,14 @@ void ProcessMultipleFiles(ClientContext& context, const std::vector<std::string>
                     }
                     break;
                 case TestResultFormat::TERRAFORM_TEXT:
-                    ParseTerraformText(content, file_events);
+                    {
+                        auto& registry = ParserRegistry::getInstance();
+                        auto parser = registry.getParser(detected_format);
+                        if (parser) {
+                            auto events = parser->parse(content);
+                            file_events.insert(file_events.end(), events.begin(), events.end());
+                        }
+                    }
                     break;
                 case TestResultFormat::ANSIBLE_TEXT:
                     ParseAnsibleText(content, file_events);

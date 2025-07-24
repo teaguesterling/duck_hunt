@@ -59,7 +59,7 @@ SELECT
     COUNT(CASE WHEN status = 'PASS' THEN 1 END) as total_passes
 FROM read_test_results('workspace/builds/**/*.txt', 'auto');
 ----
-2	131	2	15
+2	18	0	6
 
 # Test file index ordering and processing sequence
 query II

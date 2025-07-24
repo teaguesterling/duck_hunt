@@ -36,6 +36,7 @@
 #include "parsers/tool_outputs/bandit_json_parser.hpp"
 #include "parsers/tool_outputs/kubescore_json_parser.hpp"
 #include "parsers/ci_systems/drone_ci_text_parser.hpp"
+#include "parsers/ci_systems/terraform_text_parser.hpp"
 
 // OpenSSL linked through vcpkg
 #include <openssl/opensslv.h>
@@ -90,6 +91,7 @@ static void LoadInternal(DatabaseInstance &instance) {
 	registry.registerParser(make_uniq<BanditJSONParser>());
 	registry.registerParser(make_uniq<KubeScoreJSONParser>());
 	registry.registerParser(make_uniq<DroneCITextParser>());
+	registry.registerParser(make_uniq<TerraformTextParser>());
 	
 	// Register table functions for test result parsing
 	auto read_test_results_function = GetReadTestResultsFunction();

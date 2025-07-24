@@ -95,6 +95,7 @@ set(EXTENSION_SOURCES
     # New parsers - CI Systems and improved linting tools
     src/parsers/ci_systems/github_cli_parser.cpp
     src/parsers/ci_systems/drone_ci_text_parser.cpp
+    src/parsers/ci_systems/terraform_text_parser.cpp
     src/parsers/linting_tools/clang_tidy_parser.cpp
 )
 

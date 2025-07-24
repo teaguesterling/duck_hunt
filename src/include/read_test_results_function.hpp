@@ -185,7 +185,6 @@ void ParsePytestCovText(const std::string& content, std::vector<ValidationEvent>
 void ParseGitHubActionsText(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseGitLabCIText(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseJenkinsText(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseTerraformText(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseAnsibleText(const std::string& content, std::vector<ValidationEvent>& events);
 
 } // namespace duckdb
