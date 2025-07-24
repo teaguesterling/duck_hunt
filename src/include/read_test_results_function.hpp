@@ -174,17 +174,11 @@ void ParsePylintText(const std::string& content, std::vector<ValidationEvent>& e
 void ParseFlake8Text(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseBlackText(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseMypyText(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseDockerBuild(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseBazelBuild(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseIsortText(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseBanditText(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseAutopep8Text(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseYapfText(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseCoverageText(const std::string& content, std::vector<ValidationEvent>& events);
 void ParsePytestCovText(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseGitHubActionsText(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseGitLabCIText(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseJenkinsText(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseAnsibleText(const std::string& content, std::vector<ValidationEvent>& events);
 
 } // namespace duckdb
