@@ -176,9 +176,6 @@ void ParseBlackText(const std::string& content, std::vector<ValidationEvent>& ev
 void ParseMypyText(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseBazelBuild(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseAutopep8Text(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseYapfText(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseCoverageText(const std::string& content, std::vector<ValidationEvent>& events);
-void ParsePytestCovText(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseAnsibleText(const std::string& content, std::vector<ValidationEvent>& events);
 
 } // namespace duckdb

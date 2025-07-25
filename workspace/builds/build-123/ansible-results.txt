@@ -1,0 +1,17 @@
+PLAY [webservers] ************************************************************
+
+TASK [Gathering Facts] *******************************************************
+ok: [web1]
+ok: [web2]
+
+TASK [Install nginx] *********************************************************
+changed: [web1]
+changed: [web2]
+
+TASK [Start nginx service] ***************************************************
+ok: [web1]
+ok: [web2]
+
+PLAY RECAP *******************************************************************
+web1                       : ok=3    changed=1    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+web2                       : ok=3    changed=1    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0

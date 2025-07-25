@@ -1271,7 +1271,14 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                 ParseAutopep8Text(content, global_state->events);
                 break;
             case TestResultFormat::YAPF_TEXT:
-                ParseYapfText(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(TestResultFormat::YAPF_TEXT);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    }
+                }
                 break;
             case TestResultFormat::COVERAGE_TEXT:
                 duck_hunt::CoverageParser::ParseCoverageText(content, global_state->events);
@@ -1304,7 +1311,14 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                 }
                 break;
             case TestResultFormat::ANSIBLE_TEXT:
-                ParseAnsibleText(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(TestResultFormat::ANSIBLE_TEXT);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    }
+                }
                 break;
             default:
                 // Try the modular parser registry for new parsers
@@ -2514,7 +2528,14 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
             ParseAutopep8Text(content, global_state->events);
             break;
         case TestResultFormat::YAPF_TEXT:
-            ParseYapfText(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(TestResultFormat::YAPF_TEXT);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                }
+            }
             break;
         case TestResultFormat::COVERAGE_TEXT:
             duck_hunt::CoverageParser::ParseCoverageText(content, global_state->events);
@@ -2547,7 +2568,14 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
             }
             break;
         case TestResultFormat::ANSIBLE_TEXT:
-            ParseAnsibleText(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(TestResultFormat::ANSIBLE_TEXT);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                }
+            }
             break;
         default:
             // Try the modular parser registry for new parsers
@@ -3385,412 +3413,6 @@ void ParseAutopep8Text(const std::string& content, std::vector<ValidationEvent>&
     }
 }
 
-void ParseYapfText(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    
-    // Regex patterns for yapf output
-    std::regex diff_start_yapf(R"(--- a/(.+) \(original\))");
-    std::regex diff_fixed_yapf(R"(\+\+\+ b/(.+) \(reformatted\))");
-    std::regex reformatted_file(R"(Reformatted (.+))");
-    std::regex yapf_command(R"(yapf (--[^\s]+.+))");
-    std::regex processing_verbose(R"(Processing (.+))");
-    std::regex style_config(R"(Style configuration: (.+))");
-    std::regex line_length_config(R"(Line length: (\d+))");
-    std::regex indent_width_config(R"(Indent width: (\d+))");
-    std::regex files_processed(R"(Files processed: (\d+))");
-    std::regex files_reformatted(R"(Files reformatted: (\d+))");
-    std::regex files_no_changes(R"(Files with no changes: (\d+))");
-    std::regex execution_time(R"(Total execution time: ([\d\.]+)s)");
-    std::regex check_error(R"(ERROR: Files would be reformatted but yapf was run with --check)");
-    std::regex yapf_error(R"(yapf: error: (.+))");
-    std::regex syntax_error(R"(ERROR: ([^:]+\.py):(\d+):(\d+): (.+))");
-    std::regex encoding_warning(R"(WARNING: ([^:]+\.py): cannot determine encoding)");
-    std::regex info_no_changes(R"(INFO: ([^:]+\.py): no changes needed)");
-    std::regex files_left_unchanged(R"((\d+) files reformatted, (\d+) files left unchanged\.)");
-    
-    std::smatch match;
-    std::string current_file;
-    bool in_diff = false;
-    bool in_config = false;
-    
-    while (std::getline(stream, line)) {
-        // Handle yapf diff sections
-        if (std::regex_search(line, match, diff_start_yapf)) {
-            current_file = match[1].str();
-            in_diff = true;
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = current_file;
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "formatting";
-            event.message = "File formatting changes detected";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle reformatted file patterns
-        if (std::regex_search(line, match, reformatted_file)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = match[1].str();
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "formatting";
-            event.message = "File reformatted";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle yapf command patterns
-        if (std::regex_search(line, match, yapf_command)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "configuration";
-            event.message = "Command: yapf " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle verbose processing
-        if (std::regex_search(line, match, processing_verbose)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = match[1].str();
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "processing";
-            event.message = "Processing file";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle style configuration
-        if (std::regex_search(line, match, style_config)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "configuration";
-            event.message = "Style configuration: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle line length configuration
-        if (std::regex_search(line, match, line_length_config)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "configuration";
-            event.message = "Line length: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle indent width configuration
-        if (std::regex_search(line, match, indent_width_config)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "configuration";
-            event.message = "Indent width: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle summary statistics
-        if (std::regex_search(line, match, files_processed)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "summary";
-            event.message = "Files processed: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        if (std::regex_search(line, match, files_reformatted)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "summary";
-            event.message = "Files reformatted: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        if (std::regex_search(line, match, files_no_changes)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "summary";
-            event.message = "Files with no changes: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        if (std::regex_search(line, match, execution_time)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "performance";
-            event.message = "Execution time: " + match[1].str() + "s";
-            event.execution_time = std::stod(match[1].str());
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle combined summary (e.g., "5 files reformatted, 3 files left unchanged.")
-        if (std::regex_search(line, match, files_left_unchanged)) {
-            ValidationEvent event1;
-            event1.event_id = event_id++;
-            event1.tool_name = "yapf";
-            event1.event_type = ValidationEventType::SUMMARY;
-            event1.file_path = "";
-            event1.line_number = -1;
-            event1.column_number = -1;
-            event1.status = ValidationEventStatus::INFO;
-            event1.severity = "info";
-            event1.category = "summary";
-            event1.message = "Files reformatted: " + match[1].str();
-            event1.execution_time = 0.0;
-            event1.raw_output = content;
-            event1.structured_data = "yapf_text";
-            
-            ValidationEvent event2;
-            event2.event_id = event_id++;
-            event2.tool_name = "yapf";
-            event2.event_type = ValidationEventType::SUMMARY;
-            event2.file_path = "";
-            event2.line_number = -1;
-            event2.column_number = -1;
-            event2.status = ValidationEventStatus::INFO;
-            event2.severity = "info";
-            event2.category = "summary";
-            event2.message = "Files left unchanged: " + match[2].str();
-            event2.execution_time = 0.0;
-            event2.raw_output = content;
-            event2.structured_data = "yapf_text";
-            
-            events.push_back(event1);
-            events.push_back(event2);
-            continue;
-        }
-        
-        // Handle check mode error
-        if (std::regex_search(line, match, check_error)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::ERROR;
-            event.severity = "error";
-            event.category = "check_mode";
-            event.message = "Files would be reformatted but yapf was run with --check";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle yapf errors
-        if (std::regex_search(line, match, yapf_error)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::ERROR;
-            event.severity = "error";
-            event.category = "command_error";
-            event.message = match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle syntax errors
-        if (std::regex_search(line, match, syntax_error)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = match[1].str();
-            event.line_number = std::stoi(match[2].str());
-            event.column_number = std::stoi(match[3].str());
-            event.status = ValidationEventStatus::ERROR;
-            event.severity = "error";
-            event.category = "syntax";
-            event.message = match[4].str();
-            event.error_code = "SyntaxError";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle encoding warnings
-        if (std::regex_search(line, match, encoding_warning)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = match[1].str();
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::WARNING;
-            event.severity = "warning";
-            event.category = "encoding";
-            event.message = "Cannot determine encoding";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle info messages (no changes needed)
-        if (std::regex_search(line, match, info_no_changes)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = match[1].str();
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "formatting";
-            event.message = "No changes needed";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-    }
-}
 
 
 void ParsePytestCovText(const std::string& content, std::vector<ValidationEvent>& events) {
@@ -4360,352 +3982,6 @@ void ParsePytestCovText(const std::string& content, std::vector<ValidationEvent>
         }
     }
 }
-
-
-
-
-
-
-void ParseAnsibleText(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    std::smatch match;
-    
-    // Ansible regex patterns
-    std::regex play_start(R"(PLAY \[([^\]]+)\] \*+)");
-    std::regex task_start(R"(TASK \[([^\]]+)\] \*+)");
-    std::regex task_ok(R"(ok: \[([^\]]+)\]( => \((.+)\))?)");
-    std::regex task_changed(R"(changed: \[([^\]]+)\]( => \((.+)\))?)");
-    std::regex task_skipping(R"(skipping: \[([^\]]+)\]( => \((.+)\))?)");
-    std::regex task_failed(R"(fatal: \[([^\]]+)\]: FAILED! => (.+))");
-    std::regex task_unreachable(R"(fatal: \[([^\]]+)\]: UNREACHABLE! => (.+))");
-    std::regex handler_running(R"(RUNNING HANDLER \[([^\]]+)\] \*+)");
-    std::regex play_recap_start(R"(PLAY RECAP \*+)");
-    std::regex play_recap_host(R"((\S+)\s+:\s+ok=(\d+)\s+changed=(\d+)\s+unreachable=(\d+)\s+failed=(\d+)\s+skipped=(\d+)\s+rescued=(\d+)\s+ignored=(\d+))");
-    std::regex ansible_error(R"(ERROR! (.+))");
-    std::regex ansible_warning(R"(\[WARNING\]: (.+))");
-    std::regex deprecation_warning(R"(\[DEPRECATION WARNING\]: (.+))");
-    std::regex retry_failed(R"(FAILED - RETRYING: (.+) \((\d+) retries left\))");
-    std::regex task_retry_exhausted(R"(fatal: \[([^\]]+)\]: FAILED! => \{\"attempts\": (\d+), .+\"msg\": \"(.+)\"\})");
-    std::regex config_diff(R"(--- (.+))");
-    std::regex ansible_notified(R"(NOTIFIED: \[([^\]]+)\] \*+)");
-    
-    bool in_play_recap = false;
-    std::string current_play = "";
-    std::string current_task = "";
-    
-    while (std::getline(stream, line)) {
-        // Parse play start
-        if (std::regex_search(line, match, play_start)) {
-            current_play = match[1].str();
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "ansible";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "play_start";
-            event.message = "Starting play: " + current_play;
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "ansible_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse task start
-        if (std::regex_search(line, match, task_start)) {
-            current_task = match[1].str();
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "ansible";
-            event.event_type = ValidationEventType::DEBUG_INFO;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "task_start";
-            event.message = "Starting task: " + current_task;
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "ansible_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse task OK
-        if (std::regex_search(line, match, task_ok)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "ansible";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::PASS;
-            event.severity = "info";
-            event.category = "task_ok";
-            event.message = "Task OK on host: " + match[1].str() + " (" + current_task + ")";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "ansible_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse task changed
-        if (std::regex_search(line, match, task_changed)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "ansible";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::WARNING;
-            event.severity = "info";
-            event.category = "task_changed";
-            event.message = "Task changed on host: " + match[1].str() + " (" + current_task + ")";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "ansible_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse task skipped
-        if (std::regex_search(line, match, task_skipping)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "ansible";
-            event.event_type = ValidationEventType::DEBUG_INFO;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::SKIP;
-            event.severity = "info";
-            event.category = "task_skipped";
-            event.message = "Task skipped on host: " + match[1].str() + " (" + current_task + ")";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "ansible_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse task failed
-        if (std::regex_search(line, match, task_failed)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "ansible";
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::FAIL;
-            event.severity = "error";
-            event.category = "task_failed";
-            event.message = "Task failed on host: " + match[1].str() + " (" + current_task + ")";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "ansible_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse task unreachable
-        if (std::regex_search(line, match, task_unreachable)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "ansible";
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::ERROR;
-            event.severity = "error";
-            event.category = "host_unreachable";
-            event.message = "Host unreachable: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "ansible_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse running handler
-        if (std::regex_search(line, match, handler_running)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "ansible";
-            event.event_type = ValidationEventType::DEBUG_INFO;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "handler_running";
-            event.message = "Running handler: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "ansible_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse play recap start
-        if (std::regex_search(line, match, play_recap_start)) {
-            in_play_recap = true;
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "ansible";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "play_recap_start";
-            event.message = "Playbook execution summary";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "ansible_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse play recap host stats
-        if (in_play_recap && std::regex_search(line, match, play_recap_host)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "ansible";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            
-            int failed = std::stoi(match[5].str());
-            int unreachable = std::stoi(match[4].str());
-            
-            if (failed > 0 || unreachable > 0) {
-                event.status = ValidationEventStatus::FAIL;
-                event.severity = "error";
-            } else {
-                event.status = ValidationEventStatus::PASS;
-                event.severity = "info";
-            }
-            
-            event.category = "host_summary";
-            event.message = "Host " + match[1].str() + ": ok=" + match[2].str() + " changed=" + match[3].str() + 
-                           " unreachable=" + match[4].str() + " failed=" + match[5].str() + " skipped=" + match[6].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "ansible_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse errors
-        if (std::regex_search(line, match, ansible_error)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "ansible";
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::ERROR;
-            event.severity = "error";
-            event.category = "ansible_error";
-            event.message = match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "ansible_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse warnings
-        if (std::regex_search(line, match, ansible_warning)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "ansible";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::WARNING;
-            event.severity = "warning";
-            event.category = "ansible_warning";
-            event.message = match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "ansible_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse deprecation warnings
-        if (std::regex_search(line, match, deprecation_warning)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "ansible";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::WARNING;
-            event.severity = "warning";
-            event.category = "deprecation_warning";
-            event.message = match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "ansible_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse retry failures
-        if (std::regex_search(line, match, retry_failed)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "ansible";
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::WARNING;
-            event.severity = "warning";
-            event.category = "retry_failed";
-            event.message = "Retrying: " + match[1].str() + " (" + match[2].str() + " retries left)";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "ansible_text";
-            
-            events.push_back(event);
-            continue;
-        }
-    }
-}
-
 // Phase 3A: Multi-file processing implementation
 
 std::vector<std::string> GetFilesFromPattern(ClientContext& context, const std::string& pattern) {
@@ -4872,7 +4148,14 @@ void ProcessMultipleFiles(ClientContext& context, const std::vector<std::string>
                     }
                     break;
                 case TestResultFormat::ANSIBLE_TEXT:
-                    ParseAnsibleText(content, file_events);
+                    {
+                        auto& registry = ParserRegistry::getInstance();
+                        auto parser = registry.getParser(detected_format);
+                        if (parser) {
+                            auto events = parser->parse(content);
+                            file_events.insert(file_events.end(), events.begin(), events.end());
+                        }
+                    }
                     break;
                 // Add other formats as needed...
                 default:

@@ -37,6 +37,8 @@
 #include "parsers/tool_outputs/kubescore_json_parser.hpp"
 #include "parsers/ci_systems/drone_ci_text_parser.hpp"
 #include "parsers/ci_systems/terraform_text_parser.hpp"
+#include "parsers/infrastructure_tools/ansible_text_parser.hpp"
+#include "parsers/linting_tools/yapf_text_parser.hpp"
 
 // OpenSSL linked through vcpkg
 #include <openssl/opensslv.h>
@@ -92,6 +94,8 @@ static void LoadInternal(DatabaseInstance &instance) {
 	registry.registerParser(make_uniq<KubeScoreJSONParser>());
 	registry.registerParser(make_uniq<DroneCITextParser>());
 	registry.registerParser(make_uniq<TerraformTextParser>());
+	registry.registerParser(make_uniq<AnsibleTextParser>());
+	registry.registerParser(make_uniq<YapfTextParser>());
 	
 	// Register table functions for test result parsing
 	auto read_test_results_function = GetReadTestResultsFunction();
