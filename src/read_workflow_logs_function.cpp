@@ -1,0 +1,302 @@
+#include "read_workflow_logs_function.hpp"
+#include "read_test_results_function.hpp"
+#include "workflow_engine_interface.hpp"
+#include "duckdb/common/exception.hpp"
+#include "duckdb/common/file_system.hpp"
+#include "duckdb/common/string_util.hpp"
+#include "duckdb/function/table_function.hpp"
+#include "duckdb/main/client_context.hpp"
+#include "duckdb/catalog/catalog.hpp"
+#include "duckdb/parser/parsed_data/create_table_function_info.hpp"
+#include <regex>
+#include <sstream>
+#include <iostream>
+#include <fstream>
+
+namespace duckdb {
+
+// Convert workflow format enum to string
+std::string WorkflowLogFormatToString(WorkflowLogFormat format) {
+    switch (format) {
+        case WorkflowLogFormat::AUTO: return "auto";
+        case WorkflowLogFormat::GITHUB_ACTIONS: return "github_actions";
+        case WorkflowLogFormat::GITLAB_CI: return "gitlab_ci";
+        case WorkflowLogFormat::JENKINS: return "jenkins";
+        case WorkflowLogFormat::DOCKER_BUILD: return "docker_build";
+        case WorkflowLogFormat::UNKNOWN: return "unknown";
+        default: return "unknown";
+    }
+}
+
+// Convert string to workflow format enum
+WorkflowLogFormat StringToWorkflowLogFormat(const std::string& format_str) {
+    std::string lower_format = StringUtil::Lower(format_str);
+    
+    if (lower_format == "auto") return WorkflowLogFormat::AUTO;
+    if (lower_format == "github_actions" || lower_format == "github") return WorkflowLogFormat::GITHUB_ACTIONS;
+    if (lower_format == "gitlab_ci" || lower_format == "gitlab") return WorkflowLogFormat::GITLAB_CI;
+    if (lower_format == "jenkins") return WorkflowLogFormat::JENKINS;
+    if (lower_format == "docker_build" || lower_format == "docker") return WorkflowLogFormat::DOCKER_BUILD;
+    
+    return WorkflowLogFormat::UNKNOWN;
+}
+
+// Detect workflow log format from content
+WorkflowLogFormat DetectWorkflowLogFormat(const std::string& content) {
+    // GitHub Actions patterns
+    if (content.find("##[group]") != std::string::npos ||
+        content.find("##[endgroup]") != std::string::npos ||
+        content.find("::group::") != std::string::npos ||
+        content.find("::endgroup::") != std::string::npos ||
+        content.find("Run actions/") != std::string::npos) {
+        return WorkflowLogFormat::GITHUB_ACTIONS;
+    }
+    
+    // GitLab CI patterns
+    if (content.find("Running with gitlab-runner") != std::string::npos ||
+        content.find("Preparing the \"docker\"") != std::string::npos ||
+        content.find("$ docker run") != std::string::npos && content.find("gitlab") != std::string::npos ||
+        content.find("Job succeeded") != std::string::npos && content.find("Pipeline #") != std::string::npos) {
+        return WorkflowLogFormat::GITLAB_CI;
+    }
+    
+    // Jenkins patterns
+    if (content.find("Started by user") != std::string::npos ||
+        content.find("Building in workspace") != std::string::npos ||
+        content.find("Finished: SUCCESS") != std::string::npos ||
+        content.find("Finished: FAILURE") != std::string::npos ||
+        content.find("[Pipeline]") != std::string::npos) {
+        return WorkflowLogFormat::JENKINS;
+    }
+    
+    // Docker build patterns
+    if (content.find("Step ") != std::string::npos && content.find("/") != std::string::npos ||
+        content.find("Sending build context to Docker daemon") != std::string::npos ||
+        content.find("Successfully built") != std::string::npos ||
+        content.find("Successfully tagged") != std::string::npos ||
+        content.find("COPY --from=") != std::string::npos) {
+        return WorkflowLogFormat::DOCKER_BUILD;
+    }
+    
+    return WorkflowLogFormat::UNKNOWN;
+}
+
+
+// Bind function for read_workflow_logs
+unique_ptr<FunctionData> ReadWorkflowLogsBind(ClientContext &context, TableFunctionBindInput &input,
+                                            vector<LogicalType> &return_types, vector<string> &names) {
+    auto bind_data = make_uniq<ReadWorkflowLogsBindData>();
+    
+    // Get source parameter (required)
+    if (input.inputs.empty()) {
+        throw BinderException("read_workflow_logs requires at least one parameter (source)");
+    }
+    bind_data->source = input.inputs[0].ToString();
+    
+    // Get format parameter (optional, defaults to auto)
+    if (input.inputs.size() > 1) {
+        bind_data->format = StringToWorkflowLogFormat(input.inputs[1].ToString());
+    } else {
+        bind_data->format = WorkflowLogFormat::AUTO;
+    }
+    
+    // Define return schema - includes all ValidationEvent fields plus workflow-specific ones
+    return_types = {
+        LogicalType::BIGINT,   // event_id
+        LogicalType::VARCHAR,  // tool_name
+        LogicalType::VARCHAR,  // event_type
+        LogicalType::VARCHAR,  // file_path
+        LogicalType::INTEGER,  // line_number
+        LogicalType::INTEGER,  // column_number
+        LogicalType::VARCHAR,  // function_name
+        LogicalType::VARCHAR,  // status
+        LogicalType::VARCHAR,  // severity
+        LogicalType::VARCHAR,  // category
+        LogicalType::VARCHAR,  // message
+        LogicalType::VARCHAR,  // suggestion
+        LogicalType::VARCHAR,  // error_code
+        LogicalType::VARCHAR,  // test_name
+        LogicalType::DOUBLE,   // execution_time
+        LogicalType::VARCHAR,  // raw_output
+        LogicalType::VARCHAR,  // structured_data
+        LogicalType::VARCHAR,  // source_file
+        LogicalType::VARCHAR,  // build_id
+        LogicalType::VARCHAR,  // environment
+        LogicalType::BIGINT,   // file_index
+        LogicalType::VARCHAR,  // error_fingerprint
+        LogicalType::DOUBLE,   // similarity_score
+        LogicalType::BIGINT,   // pattern_id
+        LogicalType::VARCHAR,  // root_cause_category
+        
+        // Phase 3C: Workflow-specific fields
+        LogicalType::VARCHAR,  // workflow_name
+        LogicalType::VARCHAR,  // job_name
+        LogicalType::VARCHAR,  // step_name
+        LogicalType::VARCHAR,  // workflow_run_id
+        LogicalType::VARCHAR,  // job_id
+        LogicalType::VARCHAR,  // step_id
+        LogicalType::VARCHAR,  // workflow_status
+        LogicalType::VARCHAR,  // job_status
+        LogicalType::VARCHAR,  // step_status
+        LogicalType::VARCHAR,  // started_at
+        LogicalType::VARCHAR,  // completed_at
+        LogicalType::DOUBLE,   // duration
+        
+        // Additional workflow-specific fields
+        LogicalType::VARCHAR,  // workflow_type
+        LogicalType::INTEGER,  // hierarchy_level
+        LogicalType::VARCHAR,  // parent_id
+    };
+    
+    names = {
+        "event_id", "tool_name", "event_type", "file_path", "line_number", "column_number",
+        "function_name", "status", "severity", "category", "message", "suggestion", 
+        "error_code", "test_name", "execution_time", "raw_output", "structured_data",
+        "source_file", "build_id", "environment", "file_index", "error_fingerprint",
+        "similarity_score", "pattern_id", "root_cause_category",
+        
+        "workflow_name", "job_name", "step_name", "workflow_run_id", "job_id", "step_id",
+        "workflow_status", "job_status", "step_status", "started_at", "completed_at", "duration",
+        
+        "workflow_type", "hierarchy_level", "parent_id"
+    };
+    
+    return std::move(bind_data);
+}
+
+// Global initialization for read_workflow_logs
+unique_ptr<GlobalTableFunctionState> ReadWorkflowLogsInitGlobal(ClientContext &context, TableFunctionInitInput &input) {
+    auto &bind_data = input.bind_data->Cast<ReadWorkflowLogsBindData>();
+    auto global_state = make_uniq<ReadWorkflowLogsGlobalState>();
+    
+    // Read source content
+    std::string content;
+    
+    try {
+        // Try to read as file first
+        content = ReadContentFromSource(bind_data.source);
+    } catch (const IOException&) {
+        // If file reading fails, treat source as direct content
+        content = bind_data.source;
+    }
+    
+    // Auto-detect format if needed
+    WorkflowLogFormat format = bind_data.format;
+    if (format == WorkflowLogFormat::AUTO) {
+        format = DetectWorkflowLogFormat(content);
+    }
+    
+    // Parse content using the workflow engine registry
+    auto& registry = WorkflowEngineRegistry::getInstance();
+    const WorkflowEngineParser* parser = nullptr;
+    
+    if (bind_data.format == WorkflowLogFormat::AUTO) {
+        // Auto-detect using registry (format was detected, but fallback to registry findParser)
+        parser = registry.findParser(content);
+        if (!parser) {
+            // If registry detection fails, try using detected format
+            parser = registry.getParser(format);
+        }
+    } else {
+        // Use specific format parser
+        parser = registry.getParser(format);
+    }
+    
+    if (parser) {
+        // Parse using the found parser
+        std::vector<WorkflowEvent> parsed_events = parser->parseWorkflowLogs(content);
+        global_state->events = std::move(parsed_events);
+    } else {
+        // No suitable parser found, return empty result
+        global_state->events.clear();
+    }
+    
+    return std::move(global_state);
+}
+
+// Local initialization for read_workflow_logs
+unique_ptr<LocalTableFunctionState> ReadWorkflowLogsInitLocal(ExecutionContext &context, TableFunctionInitInput &input, 
+                                                            GlobalTableFunctionState *global_state) {
+    return make_uniq<ReadWorkflowLogsLocalState>();
+}
+
+// Main table function implementation
+void ReadWorkflowLogsFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output) {
+    auto &bind_data = data_p.bind_data->Cast<ReadWorkflowLogsBindData>();
+    auto &global_state = data_p.global_state->Cast<ReadWorkflowLogsGlobalState>();
+    auto &local_state = data_p.local_state->Cast<ReadWorkflowLogsLocalState>();
+    
+    idx_t current_row = local_state.chunk_offset;
+    idx_t chunk_size = output.size();
+    idx_t events_count = global_state.events.size();
+    
+    if (current_row >= events_count) {
+        output.SetCardinality(0);
+        return;
+    }
+    
+    idx_t rows_to_output = std::min(chunk_size, events_count - current_row);
+    
+    for (idx_t i = 0; i < rows_to_output; i++) {
+        const WorkflowEvent& event = global_state.events[current_row + i];
+        
+        // Map all ValidationEvent fields
+        output.SetValue(0, i, Value::BIGINT(event.base_event.event_id));
+        output.SetValue(1, i, Value(event.base_event.tool_name));
+        output.SetValue(2, i, Value(ValidationEventTypeToString(event.base_event.event_type)));
+        output.SetValue(3, i, Value(event.base_event.file_path));
+        output.SetValue(4, i, event.base_event.line_number == -1 ? Value() : Value::INTEGER(event.base_event.line_number));
+        output.SetValue(5, i, event.base_event.column_number == -1 ? Value() : Value::INTEGER(event.base_event.column_number));
+        output.SetValue(6, i, Value(event.base_event.function_name));
+        output.SetValue(7, i, Value(ValidationEventStatusToString(event.base_event.status)));
+        output.SetValue(8, i, Value(event.base_event.severity));
+        output.SetValue(9, i, Value(event.base_event.category));
+        output.SetValue(10, i, Value(event.base_event.message));
+        output.SetValue(11, i, Value(event.base_event.suggestion));
+        output.SetValue(12, i, Value(event.base_event.error_code));
+        output.SetValue(13, i, Value(event.base_event.test_name));
+        output.SetValue(14, i, Value::DOUBLE(event.base_event.execution_time));
+        output.SetValue(15, i, Value(event.base_event.raw_output));
+        output.SetValue(16, i, Value(event.base_event.structured_data));
+        output.SetValue(17, i, Value(event.base_event.source_file));
+        output.SetValue(18, i, Value(event.base_event.build_id));
+        output.SetValue(19, i, Value(event.base_event.environment));
+        output.SetValue(20, i, Value::BIGINT(event.base_event.file_index));
+        output.SetValue(21, i, Value(event.base_event.error_fingerprint));
+        output.SetValue(22, i, Value::DOUBLE(event.base_event.similarity_score));
+        output.SetValue(23, i, Value::BIGINT(event.base_event.pattern_id));
+        output.SetValue(24, i, Value(event.base_event.root_cause_category));
+        
+        // Map workflow-specific fields
+        output.SetValue(25, i, Value(event.base_event.workflow_name));
+        output.SetValue(26, i, Value(event.base_event.job_name));
+        output.SetValue(27, i, Value(event.base_event.step_name));
+        output.SetValue(28, i, Value(event.base_event.workflow_run_id));
+        output.SetValue(29, i, Value(event.base_event.job_id));
+        output.SetValue(30, i, Value(event.base_event.step_id));
+        output.SetValue(31, i, Value(event.base_event.workflow_status));
+        output.SetValue(32, i, Value(event.base_event.job_status));
+        output.SetValue(33, i, Value(event.base_event.step_status));
+        output.SetValue(34, i, Value(event.base_event.started_at));
+        output.SetValue(35, i, Value(event.base_event.completed_at));
+        output.SetValue(36, i, Value::DOUBLE(event.base_event.duration));
+        
+        // Map additional workflow fields
+        output.SetValue(37, i, Value(event.workflow_type));
+        output.SetValue(38, i, Value::INTEGER(event.hierarchy_level));
+        output.SetValue(39, i, Value(event.parent_id));
+    }
+    
+    output.SetCardinality(rows_to_output);
+    local_state.chunk_offset += rows_to_output;
+}
+
+// Create the table function
+TableFunction GetReadWorkflowLogsFunction() {
+    TableFunction function("read_workflow_logs", {LogicalType::VARCHAR, LogicalType::VARCHAR}, 
+                          ReadWorkflowLogsFunction, ReadWorkflowLogsBind, ReadWorkflowLogsInitGlobal, ReadWorkflowLogsInitLocal);
+    
+    return function;
+}
+
+} // namespace duckdb

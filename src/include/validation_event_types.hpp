@@ -65,8 +65,22 @@ struct ValidationEvent {
     int64_t pattern_id;                // Assigned error pattern group ID (-1 if unassigned)
     std::string root_cause_category;   // Detected root cause type (network, permission, config, etc.)
     
+    // Phase 3C: Workflow hierarchy metadata for CI/CD log parsing
+    std::string workflow_name;          // Name of the workflow/pipeline (e.g., "build", "deploy")
+    std::string job_name;               // Name of the current job/stage (e.g., "test", "lint", "build")
+    std::string step_name;              // Name of the current step (e.g., "run tests", "setup node")
+    std::string workflow_run_id;        // Unique identifier for the workflow run
+    std::string job_id;                 // Unique identifier for the job
+    std::string step_id;                // Unique identifier for the step  
+    std::string workflow_status;        // Overall workflow status (running, success, failure, cancelled)
+    std::string job_status;             // Job status (pending, running, success, failure, skipped)
+    std::string step_status;            // Step status (pending, running, success, failure, skipped)
+    std::string started_at;             // When the workflow/job/step started (ISO timestamp)
+    std::string completed_at;           // When it completed (ISO timestamp)
+    double duration;                    // Duration in seconds
+    
     ValidationEvent() : event_id(0), line_number(-1), column_number(-1), 
-                       execution_time(0.0), file_index(-1), similarity_score(0.0), pattern_id(-1) {}
+                       execution_time(0.0), file_index(-1), similarity_score(0.0), pattern_id(-1), duration(0.0) {}
 };
 
 // Helper functions for enum conversions

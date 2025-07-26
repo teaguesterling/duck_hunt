@@ -101,6 +101,14 @@ set(EXTENSION_SOURCES
     
     # Phase 2 Final: Infrastructure Tools
     src/parsers/infrastructure_tools/ansible_text_parser.cpp
+    
+    # Phase 3: Workflow Engine Implementation
+    src/read_workflow_logs_function.cpp
+    src/workflow_engine_interface.cpp
+    src/parsers/workflow_engines/github_actions_parser.cpp
+    src/parsers/workflow_engines/gitlab_ci_parser.cpp
+    src/parsers/workflow_engines/jenkins_parser.cpp
+    src/parsers/workflow_engines/docker_parser.cpp
 )
 
 build_static_extension(${TARGET_NAME} ${EXTENSION_SOURCES})

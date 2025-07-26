@@ -10,6 +10,7 @@
 
 // Duck Hunt specific includes
 #include "include/read_test_results_function.hpp"
+#include "include/read_workflow_logs_function.hpp"
 #include "include/validation_event_types.hpp"
 #include "core/parser_registry.hpp"
 
@@ -39,6 +40,12 @@
 #include "parsers/ci_systems/terraform_text_parser.hpp"
 #include "parsers/infrastructure_tools/ansible_text_parser.hpp"
 #include "parsers/linting_tools/yapf_text_parser.hpp"
+
+// Phase 3: Workflow Engine parsers
+#include "parsers/workflow_engines/github_actions_parser.hpp"
+#include "parsers/workflow_engines/gitlab_ci_parser.hpp"
+#include "parsers/workflow_engines/jenkins_parser.hpp"
+#include "parsers/workflow_engines/docker_parser.hpp"
 
 // OpenSSL linked through vcpkg
 #include <openssl/opensslv.h>
@@ -103,6 +110,10 @@ static void LoadInternal(DatabaseInstance &instance) {
 	
 	auto parse_test_results_function = GetParseTestResultsFunction();
 	ExtensionUtil::RegisterFunction(instance, parse_test_results_function);
+	
+	// Phase 3: Register workflow log parsing function
+	auto read_workflow_logs_function = GetReadWorkflowLogsFunction();
+	ExtensionUtil::RegisterFunction(instance, read_workflow_logs_function);
 }
 
 void DuckHuntExtension::Load(DuckDB &db) {
