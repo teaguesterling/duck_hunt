@@ -62,6 +62,7 @@ public:
     
     // Get all registered parsers (sorted by priority)
     const std::vector<std::unique_ptr<WorkflowEngineParser>>& getParsers() const;
+    size_t getParserCount() const { return parsers_.size(); }
 
 private:
     WorkflowEngineRegistry() = default;

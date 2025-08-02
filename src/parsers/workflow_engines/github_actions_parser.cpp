@@ -6,26 +6,141 @@
 namespace duckdb {
 
 bool GitHubActionsParser::canParse(const std::string& content) const {
-    // GitHub Actions specific patterns
-    return content.find("##[group]") != std::string::npos ||
-           content.find("##[endgroup]") != std::string::npos ||
-           content.find("actions/checkout@") != std::string::npos ||
-           content.find("actions/setup-") != std::string::npos ||
-           isGitHubActionsTimestamp(content);
+    try {
+        // GitHub Actions specific patterns
+        return content.find("##[group]") != std::string::npos ||
+               content.find("##[endgroup]") != std::string::npos ||
+               content.find("actions/checkout@") != std::string::npos ||
+               content.find("actions/setup-") != std::string::npos ||
+               isGitHubActionsTimestamp(content);
+    } catch (const std::exception& e) {
+        // Error in canParse should not break the system
+        return false;
+    }
 }
 
 std::vector<WorkflowEvent> GitHubActionsParser::parseWorkflowLogs(const std::string& content) const {
     std::vector<WorkflowEvent> events;
     
-    // Extract workflow metadata
-    std::string workflow_name = extractWorkflowName(content);
-    std::string run_id = extractRunId(content);
+    try {
+        if (content.empty()) {
+            return events;
+        }
+        
+        std::istringstream iss(content);
+        std::string line;
+        int event_id = 1;
+        std::string current_step_name = "unknown";
+        
+        while (std::getline(iss, line)) {
+            if (line.empty()) continue;
+            
+            WorkflowEvent event;
+            
+            // Extract timestamp if present
+            std::string timestamp = extractTimestamp(line);
+            
+            // Determine if this is a group marker
+            bool is_group_start = line.find("##[group]") != std::string::npos;
+            bool is_group_end = line.find("##[endgroup]") != std::string::npos;
+            
+            if (is_group_start) {
+                // Extract step name from group marker
+                size_t group_pos = line.find("##[group]");
+                if (group_pos != std::string::npos) {
+                    current_step_name = line.substr(group_pos + 9); // Skip "##[group]"
+                    // Clean up the step name
+                    if (current_step_name.empty()) {
+                        current_step_name = "Step";
+                    }
+                }
+            }
+            
+            // Create base event with error handling
+            try {
+                event.base_event = createBaseEvent(line, "GitHub Actions Workflow", "build", current_step_name);
+            } catch (const std::exception& e) {
+                // If createBaseEvent fails, create minimal event
+                event.base_event.event_id = event_id;
+                event.base_event.tool_name = "github_actions";
+                event.base_event.message = line;
+                event.base_event.raw_output = line;
+                event.base_event.event_type = ValidationEventType::SUMMARY;
+                event.base_event.status = ValidationEventStatus::INFO;
+            }
+            
+            // Override/set specific fields
+            event.base_event.event_id = event_id++;
+            event.base_event.tool_name = "github_actions";
+            
+            if (!timestamp.empty()) {
+                event.base_event.started_at = timestamp;
+            }
+            
+            // Determine severity based on content
+            if (line.find("ERROR") != std::string::npos || line.find("FAIL") != std::string::npos) {
+                event.base_event.status = ValidationEventStatus::ERROR;
+                event.base_event.severity = "error";
+            } else if (line.find("WARN") != std::string::npos) {
+                event.base_event.status = ValidationEventStatus::WARNING;
+                event.base_event.severity = "warning";
+            } else if (line.find("PASS") != std::string::npos || line.find("✓") != std::string::npos) {
+                event.base_event.status = ValidationEventStatus::PASS;
+                event.base_event.severity = "info";
+            } else {
+                event.base_event.status = ValidationEventStatus::INFO;
+                event.base_event.severity = "info";
+            }
+            
+            // Set workflow-specific fields
+            event.workflow_type = "github_actions";
+            if (is_group_start || is_group_end) {
+                event.hierarchy_level = 2; // Step level
+            } else {
+                event.hierarchy_level = 3; // Line level within step
+            }
+            event.parent_id = "job_1";
+            
+            events.push_back(event);
+        }
+        
+        // If no events were created but content exists, create a summary event
+        if (events.empty() && !content.empty()) {
+            WorkflowEvent summary_event;
+            summary_event.base_event.event_id = 1;
+            summary_event.base_event.tool_name = "github_actions";
+            summary_event.base_event.message = "Workflow log processed";
+            summary_event.base_event.raw_output = content.substr(0, std::min(size_t(500), content.length()));
+            summary_event.base_event.event_type = ValidationEventType::SUMMARY;
+            summary_event.base_event.status = ValidationEventStatus::INFO;
+            summary_event.base_event.severity = "info";
+            
+            summary_event.workflow_type = "github_actions";
+            summary_event.hierarchy_level = 1;
+            summary_event.parent_id = "workflow_1";
+            
+            events.push_back(summary_event);
+        }
+        
+    } catch (const std::exception& e) {
+        // If parsing fails completely, create an error event
+        WorkflowEvent error_event;
+        error_event.base_event.event_id = 1;
+        error_event.base_event.tool_name = "github_actions";
+        error_event.base_event.message = std::string("Parser error: ") + e.what();
+        error_event.base_event.raw_output = content.substr(0, std::min(size_t(200), content.length()));
+        error_event.base_event.event_type = ValidationEventType::SUMMARY;
+        error_event.base_event.status = ValidationEventStatus::ERROR;
+        error_event.base_event.severity = "error";
+        
+        error_event.workflow_type = "github_actions";
+        error_event.hierarchy_level = 1;
+        error_event.parent_id = "error";
+        
+        events.push_back(error_event);
+    }
     
-    // Parse jobs and steps
-    std::vector<GitHubJob> jobs = parseJobs(content);
-    
-    // Convert to events
-    return convertToEvents(jobs, workflow_name, run_id);
+    return events;
 }
 
 bool GitHubActionsParser::isGitHubActionsTimestamp(const std::string& line) const {

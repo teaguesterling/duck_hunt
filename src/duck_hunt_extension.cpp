@@ -11,6 +11,7 @@
 // Duck Hunt specific includes
 #include "include/read_test_results_function.hpp"
 #include "include/read_workflow_logs_function.hpp"
+#include "include/parse_workflow_logs_function.hpp"
 #include "include/validation_event_types.hpp"
 #include "core/parser_registry.hpp"
 
@@ -41,41 +42,21 @@
 #include "parsers/infrastructure_tools/ansible_text_parser.hpp"
 #include "parsers/linting_tools/yapf_text_parser.hpp"
 
-// Phase 3: Workflow Engine parsers
+// Phase 3: Workflow Engine parsers  
 #include "parsers/workflow_engines/github_actions_parser.hpp"
 #include "parsers/workflow_engines/gitlab_ci_parser.hpp"
 #include "parsers/workflow_engines/jenkins_parser.hpp"
 #include "parsers/workflow_engines/docker_parser.hpp"
 
-// OpenSSL linked through vcpkg
-#include <openssl/opensslv.h>
+// Include workflow engine interface for registry
+#include "workflow_engine_interface.hpp"
 
 namespace duckdb {
 
-inline void DuckHuntScalarFun(DataChunk &args, ExpressionState &state, Vector &result) {
-	auto &name_vector = args.data[0];
-	UnaryExecutor::Execute<string_t, string_t>(name_vector, result, args.size(), [&](string_t name) {
-		return StringVector::AddString(result, "DuckHunt " + name.GetString() + " 🐥");
-	});
-}
-
-inline void DuckHuntOpenSSLVersionScalarFun(DataChunk &args, ExpressionState &state, Vector &result) {
-	auto &name_vector = args.data[0];
-	UnaryExecutor::Execute<string_t, string_t>(name_vector, result, args.size(), [&](string_t name) {
-		return StringVector::AddString(result, "DuckHunt " + name.GetString() + ", my linked OpenSSL version is " +
-		                                           OPENSSL_VERSION_TEXT);
-	});
-}
-
 static void LoadInternal(DatabaseInstance &instance) {
-	// Register original scalar functions
-	auto duck_hunt_scalar_function = ScalarFunction("duck_hunt", {LogicalType::VARCHAR}, LogicalType::VARCHAR, DuckHuntScalarFun);
-	ExtensionUtil::RegisterFunction(instance, duck_hunt_scalar_function);
-
-	auto duck_hunt_openssl_version_scalar_function = ScalarFunction("duck_hunt_openssl_version", {LogicalType::VARCHAR},
-	                                                            LogicalType::VARCHAR, DuckHuntOpenSSLVersionScalarFun);
-	ExtensionUtil::RegisterFunction(instance, duck_hunt_openssl_version_scalar_function);
-
+	// DEBUG: Test if LoadInternal is being called
+	// throw InternalException("DEBUG: LoadInternal was called");
+	
 	// Initialize parser registry with key parsers
 	auto& registry = ParserRegistry::getInstance();
 	registry.registerParser(make_uniq<ESLintJSONParser>());
@@ -111,9 +92,12 @@ static void LoadInternal(DatabaseInstance &instance) {
 	auto parse_test_results_function = GetParseTestResultsFunction();
 	ExtensionUtil::RegisterFunction(instance, parse_test_results_function);
 	
-	// Phase 3: Register workflow log parsing function
+	// Phase 3: Register workflow log parsing functions
 	auto read_workflow_logs_function = GetReadWorkflowLogsFunction();
 	ExtensionUtil::RegisterFunction(instance, read_workflow_logs_function);
+	
+	auto parse_workflow_logs_function = GetParseWorkflowLogsFunction();
+	ExtensionUtil::RegisterFunction(instance, parse_workflow_logs_function);
 }
 
 void DuckHuntExtension::Load(DuckDB &db) {

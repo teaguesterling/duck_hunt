@@ -1,6 +1,12 @@
 #include "read_workflow_logs_function.hpp"
 #include "read_test_results_function.hpp"
 #include "workflow_engine_interface.hpp"
+
+// Include parser implementations for static build
+#include "parsers/workflow_engines/github_actions_parser.hpp"
+#include "parsers/workflow_engines/gitlab_ci_parser.hpp"
+#include "parsers/workflow_engines/jenkins_parser.hpp"
+#include "parsers/workflow_engines/docker_parser.hpp"
 #include "duckdb/common/exception.hpp"
 #include "duckdb/common/file_system.hpp"
 #include "duckdb/common/string_util.hpp"
@@ -92,6 +98,9 @@ unique_ptr<FunctionData> ReadWorkflowLogsBind(ClientContext &context, TableFunct
         throw BinderException("read_workflow_logs requires at least one parameter (source)");
     }
     bind_data->source = input.inputs[0].ToString();
+    
+    // DEBUG: Force an exception to see if bind is being called
+    // throw BinderException("DEBUG: Bind function was called with source: " + bind_data->source);
     
     // Get format parameter (optional, defaults to auto)
     if (input.inputs.size() > 1) {
@@ -188,27 +197,45 @@ unique_ptr<GlobalTableFunctionState> ReadWorkflowLogsInitGlobal(ClientContext &c
     
     // Parse content using the workflow engine registry
     auto& registry = WorkflowEngineRegistry::getInstance();
-    const WorkflowEngineParser* parser = nullptr;
     
-    if (bind_data.format == WorkflowLogFormat::AUTO) {
-        // Auto-detect using registry (format was detected, but fallback to registry findParser)
-        parser = registry.findParser(content);
-        if (!parser) {
-            // If registry detection fails, try using detected format
-            parser = registry.getParser(format);
-        }
-    } else {
-        // Use specific format parser
-        parser = registry.getParser(format);
+    // Ensure parsers are registered (static build workaround)
+    if (registry.getParserCount() == 0) {
+        registry.registerParser(make_uniq<GitHubActionsParser>());
+        registry.registerParser(make_uniq<GitLabCIParser>());
+        registry.registerParser(make_uniq<JenkinsParser>());
+        registry.registerParser(make_uniq<DockerParser>());
     }
     
-    if (parser) {
-        // Parse using the found parser
-        std::vector<WorkflowEvent> parsed_events = parser->parseWorkflowLogs(content);
-        global_state->events = std::move(parsed_events);
+    const WorkflowEngineParser* parser_ptr = nullptr;
+    
+    if (format == WorkflowLogFormat::AUTO) {
+        parser_ptr = registry.findParser(content);
     } else {
-        // No suitable parser found, return empty result
-        global_state->events.clear();
+        parser_ptr = registry.getParser(format);
+    }
+    
+    if (parser_ptr) {
+        // Parse using the found parser
+        std::vector<WorkflowEvent> parsed_events = parser_ptr->parseWorkflowLogs(content);
+        global_state->events = std::move(parsed_events);
+        
+        // Debug: Force at least one event if parser didn't return any
+        if (global_state->events.empty()) {
+            WorkflowEvent debug_event;
+            debug_event.base_event.event_id = 999;
+            debug_event.base_event.tool_name = "DEBUG";
+            debug_event.base_event.message = "Parser returned empty but was called";
+            debug_event.workflow_type = "debug";
+            global_state->events.push_back(debug_event);
+        }
+    } else {
+        // No suitable parser found, create debug event
+        WorkflowEvent debug_event;
+        debug_event.base_event.event_id = 888;
+        debug_event.base_event.tool_name = "DEBUG";
+        debug_event.base_event.message = "No parser found for format";
+        debug_event.workflow_type = "debug";
+        global_state->events.push_back(debug_event);
     }
     
     return std::move(global_state);

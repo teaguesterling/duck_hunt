@@ -2,6 +2,9 @@
 # description: Test workflow log parsing functionality
 # group: [workflow]
 
+# Require statement will ensure this test is run with this extension loaded
+require duck_hunt
+
 # Test GitHub Actions parser
 query I
 SELECT COUNT(*) FROM read_workflow_logs('workspace/sample_github_actions.log', 'github_actions');
