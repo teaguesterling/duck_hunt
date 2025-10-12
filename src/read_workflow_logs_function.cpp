@@ -236,7 +236,6 @@ void ReadWorkflowLogsFunction(ClientContext &context, TableFunctionInput &data_p
     auto &local_state = data_p.local_state->Cast<ReadWorkflowLogsLocalState>();
 
     idx_t current_row = local_state.chunk_offset;
-    idx_t chunk_size = output.size();
     idx_t events_count = global_state.events.size();
 
     if (current_row >= events_count) {
@@ -244,7 +243,8 @@ void ReadWorkflowLogsFunction(ClientContext &context, TableFunctionInput &data_p
         return;
     }
 
-    idx_t rows_to_output = std::min(chunk_size, events_count - current_row);
+    // Use STANDARD_VECTOR_SIZE for chunk size, not output.size() which returns current cardinality
+    idx_t rows_to_output = std::min<idx_t>(STANDARD_VECTOR_SIZE, events_count - current_row);
 
     // CRITICAL: Set cardinality BEFORE populating values (DuckDB requirement)
     output.SetCardinality(rows_to_output);
