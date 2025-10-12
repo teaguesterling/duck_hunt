@@ -313,7 +313,8 @@ std::vector<WorkflowEvent> JenkinsParser::convertToEvents(const std::vector<Jenk
     return events;
 }
 
-// Register the parser
-REGISTER_WORKFLOW_PARSER(JenkinsParser);
+// NOTE: Parser registration is handled manually in ReadWorkflowLogsInitGlobal
+// to avoid static initialization order issues across platforms.
+// Do not use REGISTER_WORKFLOW_PARSER macro here.
 
 } // namespace duckdb

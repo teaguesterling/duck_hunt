@@ -287,7 +287,8 @@ std::vector<WorkflowEvent> GitLabCIParser::convertToEvents(const std::vector<Git
     return events;
 }
 
-// Register the parser
-REGISTER_WORKFLOW_PARSER(GitLabCIParser);
+// NOTE: Parser registration is handled manually in ReadWorkflowLogsInitGlobal
+// to avoid static initialization order issues across platforms.
+// Do not use REGISTER_WORKFLOW_PARSER macro here.
 
 } // namespace duckdb

@@ -392,7 +392,8 @@ std::vector<WorkflowEvent> GitHubActionsParser::convertToEvents(const std::vecto
     return events;
 }
 
-// Register the parser
-REGISTER_WORKFLOW_PARSER(GitHubActionsParser);
+// NOTE: Parser registration is handled manually in ReadWorkflowLogsInitGlobal
+// to avoid static initialization order issues across platforms.
+// Do not use REGISTER_WORKFLOW_PARSER macro here.
 
 } // namespace duckdb
