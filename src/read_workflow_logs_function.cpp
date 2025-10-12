@@ -234,19 +234,21 @@ void ReadWorkflowLogsFunction(ClientContext &context, TableFunctionInput &data_p
     auto &bind_data = data_p.bind_data->Cast<ReadWorkflowLogsBindData>();
     auto &global_state = data_p.global_state->Cast<ReadWorkflowLogsGlobalState>();
     auto &local_state = data_p.local_state->Cast<ReadWorkflowLogsLocalState>();
-    
+
     idx_t current_row = local_state.chunk_offset;
     idx_t chunk_size = output.size();
     idx_t events_count = global_state.events.size();
-    
-    
+
     if (current_row >= events_count) {
         output.SetCardinality(0);
         return;
     }
-    
+
     idx_t rows_to_output = std::min(chunk_size, events_count - current_row);
-    
+
+    // CRITICAL: Set cardinality BEFORE populating values (DuckDB requirement)
+    output.SetCardinality(rows_to_output);
+
     for (idx_t i = 0; i < rows_to_output; i++) {
         const WorkflowEvent& event = global_state.events[current_row + i];
         const ValidationEvent& base = event.base_event;
@@ -297,8 +299,7 @@ void ReadWorkflowLogsFunction(ClientContext &context, TableFunctionInput &data_p
         output.SetValue(38, i, Value::INTEGER(event.hierarchy_level));
         output.SetValue(39, i, Value(event.parent_id));
     }
-    
-    output.SetCardinality(rows_to_output);
+
     local_state.chunk_offset += rows_to_output;
 }
 
