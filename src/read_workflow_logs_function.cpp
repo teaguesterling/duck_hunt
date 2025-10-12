@@ -177,10 +177,10 @@ unique_ptr<FunctionData> ReadWorkflowLogsBind(ClientContext &context, TableFunct
 unique_ptr<GlobalTableFunctionState> ReadWorkflowLogsInitGlobal(ClientContext &context, TableFunctionInitInput &input) {
     auto &bind_data = input.bind_data->Cast<ReadWorkflowLogsBindData>();
     auto global_state = make_uniq<ReadWorkflowLogsGlobalState>();
-    
+
     // Read source content
     std::string content;
-    
+
     try {
         // Try to read as file first
         content = ReadContentFromSource(bind_data.source);
@@ -188,16 +188,16 @@ unique_ptr<GlobalTableFunctionState> ReadWorkflowLogsInitGlobal(ClientContext &c
         // If file reading fails, treat source as direct content
         content = bind_data.source;
     }
-    
+
     // Auto-detect format if needed
     WorkflowLogFormat format = bind_data.format;
     if (format == WorkflowLogFormat::AUTO) {
         format = DetectWorkflowLogFormat(content);
     }
-    
+
     // Parse content using the workflow engine registry
     auto& registry = WorkflowEngineRegistry::getInstance();
-    
+
     // Ensure parsers are registered (static build workaround)
     if (registry.getParserCount() == 0) {
         registry.registerParser(make_uniq<GitHubActionsParser>());
@@ -205,39 +205,21 @@ unique_ptr<GlobalTableFunctionState> ReadWorkflowLogsInitGlobal(ClientContext &c
         registry.registerParser(make_uniq<JenkinsParser>());
         registry.registerParser(make_uniq<DockerParser>());
     }
-    
+
     const WorkflowEngineParser* parser_ptr = nullptr;
-    
+
     if (format == WorkflowLogFormat::AUTO) {
         parser_ptr = registry.findParser(content);
     } else {
         parser_ptr = registry.getParser(format);
     }
-    
+
     if (parser_ptr) {
         // Parse using the found parser
         std::vector<WorkflowEvent> parsed_events = parser_ptr->parseWorkflowLogs(content);
         global_state->events = std::move(parsed_events);
-        
-        // Debug: Force at least one event if parser didn't return any
-        if (global_state->events.empty()) {
-            WorkflowEvent debug_event;
-            debug_event.base_event.event_id = 999;
-            debug_event.base_event.tool_name = "DEBUG";
-            debug_event.base_event.message = "Parser returned empty but was called";
-            debug_event.workflow_type = "debug";
-            global_state->events.push_back(debug_event);
-        }
-    } else {
-        // No suitable parser found, create debug event
-        WorkflowEvent debug_event;
-        debug_event.base_event.event_id = 888;
-        debug_event.base_event.tool_name = "DEBUG";
-        debug_event.base_event.message = "No parser found for format";
-        debug_event.workflow_type = "debug";
-        global_state->events.push_back(debug_event);
     }
-    
+
     return std::move(global_state);
 }
 
@@ -257,6 +239,7 @@ void ReadWorkflowLogsFunction(ClientContext &context, TableFunctionInput &data_p
     idx_t chunk_size = output.size();
     idx_t events_count = global_state.events.size();
     
+    
     if (current_row >= events_count) {
         output.SetCardinality(0);
         return;
@@ -266,49 +249,50 @@ void ReadWorkflowLogsFunction(ClientContext &context, TableFunctionInput &data_p
     
     for (idx_t i = 0; i < rows_to_output; i++) {
         const WorkflowEvent& event = global_state.events[current_row + i];
-        
-        // Map all ValidationEvent fields
-        output.SetValue(0, i, Value::BIGINT(event.base_event.event_id));
-        output.SetValue(1, i, Value(event.base_event.tool_name));
-        output.SetValue(2, i, Value(ValidationEventTypeToString(event.base_event.event_type)));
-        output.SetValue(3, i, Value(event.base_event.file_path));
-        output.SetValue(4, i, event.base_event.line_number == -1 ? Value() : Value::INTEGER(event.base_event.line_number));
-        output.SetValue(5, i, event.base_event.column_number == -1 ? Value() : Value::INTEGER(event.base_event.column_number));
-        output.SetValue(6, i, Value(event.base_event.function_name));
-        output.SetValue(7, i, Value(ValidationEventStatusToString(event.base_event.status)));
-        output.SetValue(8, i, Value(event.base_event.severity));
-        output.SetValue(9, i, Value(event.base_event.category));
-        output.SetValue(10, i, Value(event.base_event.message));
-        output.SetValue(11, i, Value(event.base_event.suggestion));
-        output.SetValue(12, i, Value(event.base_event.error_code));
-        output.SetValue(13, i, Value(event.base_event.test_name));
-        output.SetValue(14, i, Value::DOUBLE(event.base_event.execution_time));
-        output.SetValue(15, i, Value(event.base_event.raw_output));
-        output.SetValue(16, i, Value(event.base_event.structured_data));
-        output.SetValue(17, i, Value(event.base_event.source_file));
-        output.SetValue(18, i, Value(event.base_event.build_id));
-        output.SetValue(19, i, Value(event.base_event.environment));
-        output.SetValue(20, i, Value::BIGINT(event.base_event.file_index));
-        output.SetValue(21, i, Value(event.base_event.error_fingerprint));
-        output.SetValue(22, i, Value::DOUBLE(event.base_event.similarity_score));
-        output.SetValue(23, i, Value::BIGINT(event.base_event.pattern_id));
-        output.SetValue(24, i, Value(event.base_event.root_cause_category));
-        
-        // Map workflow-specific fields
-        output.SetValue(25, i, Value(event.base_event.workflow_name));
-        output.SetValue(26, i, Value(event.base_event.job_name));
-        output.SetValue(27, i, Value(event.base_event.step_name));
-        output.SetValue(28, i, Value(event.base_event.workflow_run_id));
-        output.SetValue(29, i, Value(event.base_event.job_id));
-        output.SetValue(30, i, Value(event.base_event.step_id));
-        output.SetValue(31, i, Value(event.base_event.workflow_status));
-        output.SetValue(32, i, Value(event.base_event.job_status));
-        output.SetValue(33, i, Value(event.base_event.step_status));
-        output.SetValue(34, i, Value(event.base_event.started_at));
-        output.SetValue(35, i, Value(event.base_event.completed_at));
-        output.SetValue(36, i, Value::DOUBLE(event.base_event.duration));
-        
-        // Map additional workflow fields
+        const ValidationEvent& base = event.base_event;
+
+        // Map all ValidationEvent fields from base_event
+        output.SetValue(0, i, Value::BIGINT(base.event_id));
+        output.SetValue(1, i, Value(base.tool_name));
+        output.SetValue(2, i, Value(ValidationEventTypeToString(base.event_type)));
+        output.SetValue(3, i, Value(base.file_path));
+        output.SetValue(4, i, base.line_number == -1 ? Value() : Value::INTEGER(base.line_number));
+        output.SetValue(5, i, base.column_number == -1 ? Value() : Value::INTEGER(base.column_number));
+        output.SetValue(6, i, Value(base.function_name));
+        output.SetValue(7, i, Value(ValidationEventStatusToString(base.status)));
+        output.SetValue(8, i, Value(base.severity));
+        output.SetValue(9, i, Value(base.category));
+        output.SetValue(10, i, Value(base.message));
+        output.SetValue(11, i, Value(base.suggestion));
+        output.SetValue(12, i, Value(base.error_code));
+        output.SetValue(13, i, Value(base.test_name));
+        output.SetValue(14, i, Value::DOUBLE(base.execution_time));
+        output.SetValue(15, i, Value(base.raw_output));
+        output.SetValue(16, i, Value(base.structured_data));
+        output.SetValue(17, i, Value(base.source_file));
+        output.SetValue(18, i, Value(base.build_id));
+        output.SetValue(19, i, Value(base.environment));
+        output.SetValue(20, i, Value::BIGINT(base.file_index));
+        output.SetValue(21, i, Value(base.error_fingerprint));
+        output.SetValue(22, i, Value::DOUBLE(base.similarity_score));
+        output.SetValue(23, i, Value::BIGINT(base.pattern_id));
+        output.SetValue(24, i, Value(base.root_cause_category));
+
+        // Map workflow-specific fields from base_event
+        output.SetValue(25, i, Value(base.workflow_name));
+        output.SetValue(26, i, Value(base.job_name));
+        output.SetValue(27, i, Value(base.step_name));
+        output.SetValue(28, i, Value(base.workflow_run_id));
+        output.SetValue(29, i, Value(base.job_id));
+        output.SetValue(30, i, Value(base.step_id));
+        output.SetValue(31, i, Value(base.workflow_status));
+        output.SetValue(32, i, Value(base.job_status));
+        output.SetValue(33, i, Value(base.step_status));
+        output.SetValue(34, i, Value(base.started_at));
+        output.SetValue(35, i, Value(base.completed_at));
+        output.SetValue(36, i, Value::DOUBLE(base.duration));
+
+        // Map additional workflow fields from WorkflowEvent
         output.SetValue(37, i, Value(event.workflow_type));
         output.SetValue(38, i, Value::INTEGER(event.hierarchy_level));
         output.SetValue(39, i, Value(event.parent_id));

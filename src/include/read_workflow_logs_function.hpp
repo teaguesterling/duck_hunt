@@ -54,7 +54,7 @@ struct ReadWorkflowLogsBindData : public TableFunctionData {
 struct ReadWorkflowLogsGlobalState : public GlobalTableFunctionState {
     std::vector<WorkflowEvent> events;
     idx_t max_threads;
-    
+
     ReadWorkflowLogsGlobalState() : max_threads(1) {}
 };
 
