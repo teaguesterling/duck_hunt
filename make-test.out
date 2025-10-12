@@ -1,35 +1,0 @@
-./build/release/"/test/unittest" "/mnt/aux-data/teague/Projects/duck_hunt/test/*"
-Filters: /mnt/aux-data/teague/Projects/duck_hunt/test/*
-[0/8] (0%): /mnt/aux-data/teague/Projects/duck_hunt/test/sql/new_formats.test   [1/8] (12%): /mnt/aux-data/teague/Projects/duck_hunt/test/sql/read_test_resul...[2/8] (25%): /mnt/aux-data/teague/Projects/duck_hunt/test/sql/validation_even...[3/8] (37%): /mnt/aux-data/teague/Projects/duck_hunt/test/sql/duck_hunt_phase...[4/8] (50%): /mnt/aux-data/teague/Projects/duck_hunt/test/sql/parse_test_resu...[5/8] (62%): /mnt/aux-data/teague/Projects/duck_hunt/test/sql/duck_hunt.test    [6/8] (75%): /mnt/aux-data/teague/Projects/duck_hunt/test/sql/format_detectio...[7/8] (87%): /mnt/aux-data/teague/Projects/duck_hunt/test/sql/workflow_parser...================================================================================
-Query unexpectedly failed (/mnt/aux-data/teague/Projects/duck_hunt/test/sql/workflow_parsers.test:6)
-================================================================================
-SELECT COUNT(*) FROM read_workflow_logs('workspace/sample_github_actions.log', 'github_actions');
-================================================================================
-Actual result:
-Catalog Error: Table Function with name read_workflow_logs does not exist!
-Did you mean "read_blob"?
-
-LINE 1: SELECT COUNT(*) FROM read_workflow_logs('workspace/sample_github_actions.log...
-                             ^
-
-
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-unittest is a Catch v2.13.7 host application.
-Run with -? for options
-
--------------------------------------------------------------------------------
-/mnt/aux-data/teague/Projects/duck_hunt/test/sql/workflow_parsers.test
--------------------------------------------------------------------------------
-/mnt/aux-data/teague/Projects/duck_hunt/duckdb/test/sqlite/test_sqllogictest.cpp:224
-...............................................................................
-
-/mnt/aux-data/teague/Projects/duck_hunt/test/sql/workflow_parsers.test:6: FAILED:
-explicitly with message:
-  0
-
-[8/8] (100%): /mnt/aux-data/teague/Projects/duck_hunt/test/sql/workflow_parse...
-===============================================================================
-test cases:   8 |   7 passed | 1 failed
-assertions: 562 | 561 passed | 1 failed
-
-make: *** [extension-ci-tools/makefiles/duckdb_extension.Makefile:192: test_release_internal] Error 1

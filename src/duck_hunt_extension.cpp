@@ -5,7 +5,6 @@
 #include "duckdb/common/exception.hpp"
 #include "duckdb/common/string_util.hpp"
 #include "duckdb/function/scalar_function.hpp"
-#include "duckdb/main/extension_util.hpp"
 #include <duckdb/parser/parsed_data/create_scalar_function_info.hpp>
 
 // Duck Hunt specific includes
@@ -53,7 +52,7 @@
 
 namespace duckdb {
 
-static void LoadInternal(DatabaseInstance &instance) {
+static void LoadInternal(ExtensionLoader &loader) {
 	// DEBUG: Test if LoadInternal is being called
 	// throw InternalException("DEBUG: LoadInternal was called");
 	
@@ -87,21 +86,21 @@ static void LoadInternal(DatabaseInstance &instance) {
 	
 	// Register table functions for test result parsing
 	auto read_test_results_function = GetReadTestResultsFunction();
-	ExtensionUtil::RegisterFunction(instance, read_test_results_function);
+	loader.RegisterFunction(read_test_results_function);
 	
 	auto parse_test_results_function = GetParseTestResultsFunction();
-	ExtensionUtil::RegisterFunction(instance, parse_test_results_function);
+	loader.RegisterFunction(parse_test_results_function);
 	
 	// Phase 3: Register workflow log parsing functions
 	auto read_workflow_logs_function = GetReadWorkflowLogsFunction();
-	ExtensionUtil::RegisterFunction(instance, read_workflow_logs_function);
+	loader.RegisterFunction(read_workflow_logs_function);
 	
 	auto parse_workflow_logs_function = GetParseWorkflowLogsFunction();
-	ExtensionUtil::RegisterFunction(instance, parse_workflow_logs_function);
+	loader.RegisterFunction(parse_workflow_logs_function);
 }
 
-void DuckHuntExtension::Load(DuckDB &db) {
-	LoadInternal(*db.instance);
+void DuckHuntExtension::Load(ExtensionLoader &loader) {
+	LoadInternal(loader);
 }
 std::string DuckHuntExtension::Name() {
 	return "duck_hunt";
@@ -119,9 +118,8 @@ std::string DuckHuntExtension::Version() const {
 
 extern "C" {
 
-DUCKDB_EXTENSION_API void duck_hunt_init(duckdb::DatabaseInstance &db) {
-	duckdb::DuckDB db_wrapper(db);
-	db_wrapper.LoadExtension<duckdb::DuckHuntExtension>();
+DUCKDB_CPP_EXTENSION_ENTRY(duck_hunt, loader) {
+        duckdb::LoadInternal(loader);
 }
 
 DUCKDB_EXTENSION_API const char *duck_hunt_version() {
