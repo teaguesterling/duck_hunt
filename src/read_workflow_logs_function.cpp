@@ -215,9 +215,19 @@ unique_ptr<GlobalTableFunctionState> ReadWorkflowLogsInitGlobal(ClientContext &c
     }
 
     if (parser_ptr) {
+        // DEBUG: Log what we're about to parse
+        std::cerr << "DEBUG: Parser found: " << parser_ptr->getName()
+                  << ", Content length: " << content.length()
+                  << ", First 100 chars: " << content.substr(0, std::min(size_t(100), content.length())) << std::endl;
+
         // Parse using the found parser
         std::vector<WorkflowEvent> parsed_events = parser_ptr->parseWorkflowLogs(content);
+
+        std::cerr << "DEBUG: Parsed " << parsed_events.size() << " events" << std::endl;
+
         global_state->events = std::move(parsed_events);
+    } else {
+        std::cerr << "DEBUG: No parser found for format " << WorkflowLogFormatToString(format) << std::endl;
     }
 
     return std::move(global_state);
