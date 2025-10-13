@@ -835,16 +835,28 @@ TestResultFormat StringToTestResultFormat(const std::string& str) {
     return TestResultFormat::AUTO;  // Default to auto-detection
 }
 
-std::string ReadContentFromSource(const std::string& source) {
-    // For now, assume source is a file path
-    // Later we can add support for direct content strings
-    std::ifstream file(source);
-    if (!file.is_open()) {
-        throw IOException("Could not open file: " + source);
+std::string ReadContentFromSource(ClientContext& context, const std::string& source) {
+    // Use DuckDB's FileSystem to properly handle file paths including UNITTEST_ROOT_DIRECTORY
+    auto &fs = FileSystem::GetFileSystem(context);
+
+    // Open the file
+    auto flags = FileFlags::FILE_FLAGS_READ;
+    auto file_handle = fs.OpenFile(source, flags);
+
+    // Get file size
+    auto file_size = fs.GetFileSize(*file_handle);
+    if (file_size < 0) {
+        throw IOException("Could not get file size for: " + source);
     }
-    
-    std::string content((std::istreambuf_iterator<char>(file)),
-                       std::istreambuf_iterator<char>());
+
+    // Allocate buffer and read entire file
+    std::string content;
+    content.resize(static_cast<size_t>(file_size));
+
+    if (file_size > 0) {
+        fs.Read(*file_handle, (void*)content.data(), file_size, 0);
+    }
+
     return content;
 }
 
@@ -940,7 +952,7 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
         // Single file processing path (original behavior)
         std::string content;
         try {
-            content = ReadContentFromSource(bind_data.source);
+            content = ReadContentFromSource(context, bind_data.source);
         } catch (const IOException&) {
             // If file reading fails, treat source as direct content
             content = bind_data.source;
@@ -4068,8 +4080,8 @@ void ProcessMultipleFiles(ClientContext& context, const std::vector<std::string>
         
         try {
             // Read file content
-            std::string content = ReadContentFromSource(file_path);
-            
+            std::string content = ReadContentFromSource(context, file_path);
+
             // Detect format if AUTO
             TestResultFormat detected_format = format;
             if (format == TestResultFormat::AUTO) {

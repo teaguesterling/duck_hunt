@@ -182,8 +182,8 @@ unique_ptr<GlobalTableFunctionState> ReadWorkflowLogsInitGlobal(ClientContext &c
     std::string content;
 
     try {
-        // Try to read as file first
-        content = ReadContentFromSource(bind_data.source);
+        // Try to read as file first using DuckDB's FileSystem (respects UNITTEST_ROOT_DIRECTORY)
+        content = ReadContentFromSource(context, bind_data.source);
     } catch (const IOException&) {
         // If file reading fails, treat source as direct content
         content = bind_data.source;
@@ -215,19 +215,9 @@ unique_ptr<GlobalTableFunctionState> ReadWorkflowLogsInitGlobal(ClientContext &c
     }
 
     if (parser_ptr) {
-        // DEBUG: Log what we're about to parse
-        std::cerr << "DEBUG: Parser found: " << parser_ptr->getName()
-                  << ", Content length: " << content.length()
-                  << ", First 100 chars: " << content.substr(0, std::min(size_t(100), content.length())) << std::endl;
-
         // Parse using the found parser
         std::vector<WorkflowEvent> parsed_events = parser_ptr->parseWorkflowLogs(content);
-
-        std::cerr << "DEBUG: Parsed " << parsed_events.size() << " events" << std::endl;
-
         global_state->events = std::move(parsed_events);
-    } else {
-        std::cerr << "DEBUG: No parser found for format " << WorkflowLogFormatToString(format) << std::endl;
     }
 
     return std::move(global_state);
