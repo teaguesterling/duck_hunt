@@ -1,0 +1,23 @@
+Sending build context to Docker daemon  1.23MB
+Step 1/8 : FROM node:16-alpine AS builder
+---> 1a2b3c4d5e6f
+Step 2/8 : WORKDIR /app
+---> Running in 9f8e7d6c5b4a
+---> 8a7b6c5d4e3f
+Step 3/8 : COPY package*.json ./
+---> 7b6a5c4d3e2f
+Step 4/8 : RUN npm ci --only=production
+---> Running in 6a5b4c3d2e1f
+added 1234 packages in 15s
+---> 5a4b3c2d1e0f
+Step 5/8 : FROM node:16-alpine AS runtime
+---> 1a2b3c4d5e6f
+Step 6/8 : WORKDIR /app
+---> Using cache
+---> 8a7b6c5d4e3f
+Step 7/8 : COPY --from=builder /app/node_modules ./node_modules
+---> 4a3b2c1d0e9f
+Step 8/8 : COPY . .
+---> 3a2b1c0d9e8f
+Successfully built 2a1b0c9d8e7f
+Successfully tagged myapp:latest

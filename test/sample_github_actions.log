@@ -1,0 +1,26 @@
+2023-10-15T14:30:15.1234567Z ##[group]Run actions/checkout@v3
+2023-10-15T14:30:15.2345678Z with:
+2023-10-15T14:30:15.3456789Z   repository: user/repo
+2023-10-15T14:30:15.4567890Z   ref: main
+2023-10-15T14:30:15.5678901Z ##[endgroup]
+2023-10-15T14:30:16.1234567Z Syncing repository: user/repo
+2023-10-15T14:30:16.2345678Z ##[group]Getting Git version info
+2023-10-15T14:30:16.3456789Z ##[endgroup]
+2023-10-15T14:30:17.1234567Z ##[group]Run npm ci
+2023-10-15T14:30:17.2345678Z npm ci
+2023-10-15T14:30:17.3456789Z shell: /bin/bash -e {0}
+2023-10-15T14:30:17.4567890Z ##[endgroup]
+2023-10-15T14:30:18.1234567Z npm WARN deprecated package@1.0.0
+2023-10-15T14:30:19.1234567Z added 1234 packages in 2s
+2023-10-15T14:30:20.1234567Z ##[group]Run npm test
+2023-10-15T14:30:20.2345678Z npm test
+2023-10-15T14:30:20.3456789Z shell: /bin/bash -e {0}
+2023-10-15T14:30:20.4567890Z ##[endgroup]
+2023-10-15T14:30:21.1234567Z > test
+2023-10-15T14:30:21.2345678Z > jest
+2023-10-15T14:30:22.1234567Z PASS src/test.js
+2023-10-15T14:30:22.2345678Z   ✓ should work (5 ms)
+2023-10-15T14:30:23.1234567Z Test Suites: 1 passed, 1 total
+2023-10-15T14:30:23.2345678Z Tests:       1 passed, 1 total
+2023-10-15T14:30:23.3456789Z Snapshots:   0 total
+2023-10-15T14:30:23.4567890Z Time:        2.345s

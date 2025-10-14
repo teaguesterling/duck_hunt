@@ -7,73 +7,73 @@ require duck_hunt
 
 # Test GitHub Actions parser
 query I
-SELECT COUNT(*) FROM read_workflow_logs('workspace/sample_github_actions.log', 'github_actions');
+SELECT COUNT(*) FROM read_workflow_logs('test/sample_github_actions.log', 'github_actions');
 ----
 26
 
-# Test GitLab CI parser  
+# Test GitLab CI parser
 query I
-SELECT COUNT(*) FROM read_workflow_logs('workspace/sample_gitlab_ci.log', 'gitlab_ci');
+SELECT COUNT(*) FROM read_workflow_logs('test/sample_gitlab_ci.log', 'gitlab_ci');
 ----
 40
 
 # Test Jenkins parser
 query I
-SELECT COUNT(*) FROM read_workflow_logs('workspace/sample_jenkins.log', 'jenkins');
+SELECT COUNT(*) FROM read_workflow_logs('test/sample_jenkins.log', 'jenkins');
 ----
 31
 
 # Test Docker parser
 query I
-SELECT COUNT(*) FROM read_workflow_logs('workspace/sample_docker.log', 'docker_build');
+SELECT COUNT(*) FROM read_workflow_logs('test/sample_docker.log', 'docker_build');
 ----
 22
 
 # Test auto-detection for GitHub Actions
 query I
-SELECT COUNT(*) FROM read_workflow_logs('workspace/sample_github_actions.log', 'auto') WHERE workflow_type = 'github_actions';
+SELECT COUNT(*) FROM read_workflow_logs('test/sample_github_actions.log', 'auto') WHERE workflow_type = 'github_actions';
 ----
 26
 
 # Test auto-detection for GitLab CI
-query I  
-SELECT COUNT(*) FROM read_workflow_logs('workspace/sample_gitlab_ci.log', 'auto') WHERE workflow_type = 'gitlab_ci';
+query I
+SELECT COUNT(*) FROM read_workflow_logs('test/sample_gitlab_ci.log', 'auto') WHERE workflow_type = 'gitlab_ci';
 ----
 40
 
 # Test auto-detection for Jenkins
 query I
-SELECT COUNT(*) FROM read_workflow_logs('workspace/sample_jenkins.log', 'auto') WHERE workflow_type = 'jenkins';
+SELECT COUNT(*) FROM read_workflow_logs('test/sample_jenkins.log', 'auto') WHERE workflow_type = 'jenkins';
 ----
 31
 
 # Test auto-detection for Docker
 query I
-SELECT COUNT(*) FROM read_workflow_logs('workspace/sample_docker.log', 'auto') WHERE workflow_type = 'docker_build';
+SELECT COUNT(*) FROM read_workflow_logs('test/sample_docker.log', 'auto') WHERE workflow_type = 'docker_build';
 ----
 22
 
 # Test workflow hierarchy levels
 query I
-SELECT DISTINCT hierarchy_level FROM read_workflow_logs('workspace/sample_github_actions.log', 'github_actions') ORDER BY hierarchy_level;
+SELECT DISTINCT hierarchy_level FROM read_workflow_logs('test/sample_github_actions.log', 'github_actions') ORDER BY hierarchy_level;
 ----
 2
 3
 
 # Test workflow metadata extraction
 query II
-SELECT DISTINCT workflow_type, tool_name FROM read_workflow_logs('workspace/sample_github_actions.log', 'github_actions') LIMIT 1;
+SELECT DISTINCT workflow_type, tool_name FROM read_workflow_logs('test/sample_github_actions.log', 'github_actions') LIMIT 1;
 ----
 github_actions	github_actions
 
 # Test step names are extracted
 query I
-SELECT COUNT(DISTINCT step_name) FROM read_workflow_logs('workspace/sample_github_actions.log', 'github_actions') WHERE step_name IS NOT NULL AND step_name != '';
+SELECT COUNT(DISTINCT step_name) FROM read_workflow_logs('test/sample_github_actions.log', 'github_actions') WHERE step_name IS NOT NULL AND step_name != '';
 ----
 4
 
-# Test job names are extracted  
+# Test job names are extracted
 query I
-SELECT COUNT(DISTINCT job_name) FROM read_workflow_logs('workspace/sample_jenkins.log', 'jenkins') WHERE job_name IS NOT NULL AND job_name != '';
+SELECT COUNT(DISTINCT job_name) FROM read_workflow_logs('test/sample_jenkins.log', 'jenkins') WHERE job_name IS NOT NULL AND job_name != '';
 ----
 1

@@ -1,0 +1,31 @@
+Started by user admin
+Building in workspace /var/jenkins_home/workspace/test-job
+Checking out Revision 1a2b3c4d5e6f (refs/remotes/origin/main)
+[Pipeline] Start of Pipeline
+[Pipeline] node
+Running on agent-1 in /var/jenkins_home/workspace/test-job
+[Pipeline] {
+[Pipeline] stage
+[Pipeline] { (Checkout)
+[Pipeline] checkout
++ git checkout 1a2b3c4d5e6f
+[Pipeline] }
+[Pipeline] stage
+[Pipeline] { (Build)
+[Pipeline] sh
++ mvn clean compile
+[INFO] Scanning for projects...
+[INFO] Building test-project 1.0-SNAPSHOT
+[INFO] BUILD SUCCESS
+[Pipeline] }
+[Pipeline] stage
+[Pipeline] { (Test)
+[Pipeline] sh
++ mvn test
+[INFO] Running com.example.TestSuite
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+[Pipeline] }
+[Pipeline] }
+[Pipeline] End of Pipeline
+Finished: SUCCESS
