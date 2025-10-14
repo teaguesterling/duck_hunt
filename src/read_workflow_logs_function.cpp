@@ -180,10 +180,17 @@ unique_ptr<GlobalTableFunctionState> ReadWorkflowLogsInitGlobal(ClientContext &c
 
     // Read source content
     std::string content;
+    auto &fs = FileSystem::GetFileSystem(context);
 
     try {
-        // Try to read as file first using DuckDB's FileSystem (respects UNITTEST_ROOT_DIRECTORY)
-        content = ReadContentFromSource(context, bind_data.source);
+        // Check if file exists first (this triggers proper path resolution in test framework)
+        if (fs.FileExists(bind_data.source)) {
+            // Read file using DuckDB's FileSystem (respects UNITTEST_ROOT_DIRECTORY)
+            content = ReadContentFromSource(context, bind_data.source);
+        } else {
+            // If file doesn't exist, treat source as direct content
+            content = bind_data.source;
+        }
     } catch (const IOException&) {
         // If file reading fails, treat source as direct content
         content = bind_data.source;
