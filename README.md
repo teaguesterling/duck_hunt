@@ -10,8 +10,9 @@ Duck Hunt provides powerful SQL-based analysis of development tool outputs throu
 
 - **`read_test_results(file_path, format := 'AUTO')`** - Parse test results and build outputs from files
 - **`parse_test_results(content, format := 'AUTO')`** - Parse test results and build outputs from strings
+- **`read_workflow_logs(file_path, format := 'AUTO')`** - Parse CI/CD workflow logs with hierarchical structure
 
-### Supported Formats (40 Total)
+### Supported Formats (44 Total)
 
 #### Test Frameworks (9 Total)
 - **pytest** (JSON & text output)
@@ -58,6 +59,12 @@ Duck Hunt provides powerful SQL-based analysis of development tool outputs throu
 - **Valgrind** (Memcheck, Helgrind, Cachegrind, Massif, DRD - memory analysis and thread debugging)
 - **GDB/LLDB** (Debugger output - crashes, breakpoints, stack traces, memory errors)
 
+#### CI/CD & Workflow Engines (4 Total)
+- **GitHub Actions** (Workflow logs with jobs, steps, and hierarchical structure)
+- **GitLab CI** (Pipeline logs with stages, jobs, and execution flow)
+- **Jenkins** (Build logs with stages, steps, and console output)
+- **Docker** (Build logs with layered structure and commands)
+
 ## Schema
 
 All parsers output a standardized schema optimized for agent analysis:
@@ -98,6 +105,25 @@ All parsers output a standardized schema optimized for agent analysis:
 | `build_id` | VARCHAR | Build identifier extracted from file paths |
 | `environment` | VARCHAR | Environment detected from file paths (prod, staging, dev) |
 | `file_index` | INTEGER | Processing order index for multi-file operations |
+
+### Workflow CI/CD Fields (Phase 3C)
+| Field | Type | Description |
+|-------|------|-------------|
+| `workflow_name` | VARCHAR | Name of the workflow/pipeline |
+| `job_name` | VARCHAR | Name of the current job/stage |
+| `step_name` | VARCHAR | Name of the current step |
+| `workflow_run_id` | VARCHAR | Unique identifier for the workflow run |
+| `job_id` | VARCHAR | Unique identifier for the job |
+| `step_id` | VARCHAR | Unique identifier for the step |
+| `workflow_status` | VARCHAR | Overall workflow status (running, success, failure, cancelled) |
+| `job_status` | VARCHAR | Job status (pending, running, success, failure, skipped) |
+| `step_status` | VARCHAR | Step status (pending, running, success, failure, skipped) |
+| `started_at` | VARCHAR | When the workflow/job/step started (ISO timestamp) |
+| `completed_at` | VARCHAR | When it completed (ISO timestamp) |
+| `duration` | DOUBLE | Duration in seconds |
+| `workflow_type` | VARCHAR | Type of workflow system (github_actions, gitlab_ci, jenkins, docker_build) |
+| `hierarchy_level` | INTEGER | Hierarchy level (0=workflow, 1=job, 2=step, 3=tool_output) |
+| `parent_id` | VARCHAR | ID of the parent element in hierarchy |
 
 ## Usage Examples
 
@@ -232,6 +258,47 @@ WHERE event_type = 'BUILD_ERROR' AND category = 'compilation'
 ORDER BY file_path, line_number;
 ```
 
+### CI/CD Workflow Log Analysis
+
+**Parse and analyze workflow execution logs:**
+```sql
+-- Analyze GitHub Actions workflow failures
+SELECT workflow_name, job_name, step_name, message, step_status
+FROM read_workflow_logs('github_actions.log', 'github_actions')
+WHERE step_status IN ('failure', 'error')
+ORDER BY event_id;
+
+-- Track workflow hierarchy and execution flow
+SELECT hierarchy_level, workflow_type, job_name, step_name,
+       COUNT(*) as event_count,
+       SUM(CASE WHEN status = 'ERROR' THEN 1 ELSE 0 END) as errors
+FROM read_workflow_logs('workflow_logs/*.log', 'auto')
+GROUP BY hierarchy_level, workflow_type, job_name, step_name
+ORDER BY hierarchy_level, event_count DESC;
+
+-- Compare workflow performance across CI systems
+SELECT workflow_type,
+       COUNT(DISTINCT workflow_run_id) as runs,
+       AVG(duration) as avg_duration,
+       SUM(CASE WHEN workflow_status = 'failure' THEN 1 ELSE 0 END) as failures
+FROM read_workflow_logs('ci_logs/**/*.log', 'auto')
+WHERE hierarchy_level = 0
+GROUP BY workflow_type
+ORDER BY avg_duration DESC;
+
+-- Analyze Jenkins build stages
+SELECT job_name, step_name, step_status, duration, message
+FROM read_workflow_logs('jenkins_console.log', 'jenkins')
+WHERE hierarchy_level >= 2
+ORDER BY event_id;
+
+-- Find Docker build layer failures
+SELECT step_name, message, severity
+FROM read_workflow_logs('docker_build.log', 'docker_build')
+WHERE status = 'ERROR' AND hierarchy_level = 2
+ORDER BY event_id;
+```
+
 ### Memory Debugging Analysis
 ```sql
 -- Analyze Valgrind memory errors for debugging
@@ -354,29 +421,35 @@ For contributing guidelines, see `CONTRIBUTING.md`.
 
 ## Future Work
 
-Duck Hunt currently supports 40 formats across test frameworks, linting tools, build systems, and debugging tools. The following expansions would provide comprehensive coverage of the entire development ecosystem:
+Duck Hunt currently supports 40+ formats across test frameworks, linting tools, build systems, and debugging tools. The following expansions would provide comprehensive coverage of the entire development ecosystem:
 
 ### 🔥 High Priority Build Systems
 - **Bazel** (Google's system) - Large-scale projects
+- **SBT** (Scala Build Tool)
+- **Buck** (Facebook's build system) 
+- **Pants** (Twitter's build system)
+- **Ninja** (Low-level build system)
 
 ### 🐛 Debugging & Analysis Tools
 - **AddressSanitizer/ThreadSanitizer** - Fast sanitizer output
 - **Clang Static Analyzer** - Static analysis reports
 - **perf** - Linux performance profiling output
+- **Intel VTune** - CPU profiling reports
+- **gperftools** - Google performance tools
 
 ### 🔍 Linting & Code Quality
 - **SonarQube** - Multi-language analysis (XML/JSON)
-- **Pylint/Flake8** (Python) - Text/JSON output
 - **golangci-lint** (Go) - Text/JSON output  
-- **Black/Prettier** (Formatters) - Text output
+- **Prettier** (JavaScript/TypeScript formatter) - Text output
 - **CodeClimate** - Multi-language JSON output
+- **Coverity** - Enterprise static analysis
+- **PVS-Studio** - Cross-platform analysis
 
-### 🔄 CI/CD & DevOps
-- **GitHub Actions** - Workflow log parsing
-- **GitLab CI** - Pipeline log parsing
-- **Jenkins** - Console output parsing
-- **Docker** - Build output parsing
+### 🔄 CI/CD & DevOps (Additional)
 - **Ansible** - Playbook execution logs
+- **Terraform** - Apply/plan output parsing
+- **CircleCI** - Pipeline log parsing
+- **Travis CI** - Build log parsing
 
 ### 📦 Package Managers
 - **apt/dpkg** (Debian/Ubuntu) - Package management logs
@@ -384,22 +457,19 @@ Duck Hunt currently supports 40 formats across test frameworks, linting tools, b
 - **brew** (macOS) - Package installation logs
 - **composer** (PHP) - Dependency management
 
-### 🛠️ Specialized Build Systems
-- **SBT** (Scala Build Tool)
-- **Buck** (Facebook's build system) 
-- **Pants** (Twitter's build system)
-- **Ninja** (Low-level build system)
+**Target**: ~60+ total formats covering 90% of development tool ecosystem
+**Current**: 44+ formats (73% coverage)
 
-### 📊 Performance & Monitoring
-- **Intel VTune** - CPU profiling reports
-- **gperftools** - Google performance tools
-- **Coverity** - Enterprise static analysis
-- **PVS-Studio** - Cross-platform analysis
+### ✅ Already Implemented (Comprehensive Coverage)
+- **Test Frameworks**: pytest, Go test, Cargo test, JUnit, RSpec, Mocha/Chai, Google Test, NUnit/xUnit, DuckDB test
+- **Python Linting**: Pylint, Flake8, Black, MyPy, Bandit
+- **Build Systems**: CMake, Make, Python, Node.js, Cargo, Maven, Gradle, MSBuild
+- **JSON Linters**: ESLint, RuboCop, SwiftLint, PHPStan, Shellcheck, Stylelint, Clippy, etc.
+- **Debugging Tools**: Valgrind (full suite), GDB/LLDB
+- **CI/CD Workflow Engines**: GitHub Actions, GitLab CI, Jenkins, Docker Build
+- **Advanced Features**: Error pattern clustering, similarity scoring, root cause analysis, workflow hierarchy parsing
 
-**Target**: ~70+ total formats covering 95% of development tool ecosystem
-**Current**: 40 formats (57% coverage)
-
-With comprehensive test framework coverage now complete across Ruby, JavaScript, C++, and C#/.NET ecosystems, Duck Hunt provides robust parsing for 9 major test frameworks. This roadmap would establish Duck Hunt as the definitive tool for agent-driven development workflow analysis across all major programming languages, build systems, and development tools.
+Duck Hunt provides robust parsing across 9 major test frameworks, 4 CI/CD workflow engines, and comprehensive coverage of Python, JavaScript, Java, C/C++, Rust, and other ecosystems. The remaining roadmap focuses on enterprise tools, specialized build systems, and additional CI/CD platform integration.
 
 ## License
 

@@ -1,26 +1,9 @@
 # name: test/sql/duck_hunt.test
-# description: test duck_hunt extension
+# description: test duck_hunt extension core functionality
 # group: [sql]
-
-# Before we load the extension, this will fail
-statement error
-SELECT duck_hunt('Sam');
-----
-Catalog Error: Scalar Function with name duck_hunt does not exist!
 
 # Require statement will ensure this test is run with this extension loaded
 require duck_hunt
-
-# Confirm the extension works
-query I
-SELECT duck_hunt('Sam');
-----
-DuckHunt Sam 🐥
-
-query I
-SELECT duck_hunt_openssl_version('Michael') ILIKE 'DuckHunt Michael, my linked OpenSSL version is OpenSSL%';
-----
-true
 
 # Test read_test_results function with sample data
 statement ok

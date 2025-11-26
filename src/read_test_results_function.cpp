@@ -1,5 +1,6 @@
 #include "include/read_test_results_function.hpp"
 #include "include/validation_event_types.hpp"
+#include "core/parser_registry.hpp"
 #include "parsers/test_frameworks/junit_text_parser.hpp"
 #include "parsers/test_frameworks/rspec_text_parser.hpp"
 #include "parsers/test_frameworks/mocha_chai_text_parser.hpp"
@@ -342,6 +343,8 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
         return TestResultFormat::GITHUB_ACTIONS_TEXT;
     }
     
+    // GitHub CLI detection moved to GitHubCliParser::canParse()
+    
     // Check for GitLab CI patterns
     if ((content.find("Running with gitlab-runner") != std::string::npos) ||
         (content.find("using docker driver") != std::string::npos && content.find("Getting source from Git repository") != std::string::npos) ||
@@ -528,14 +531,27 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
         return TestResultFormat::MAKE_ERROR;
     }
     
-    // Check for mypy patterns
-    if ((content.find(": error:") != std::string::npos && content.find("[") != std::string::npos && content.find("]") != std::string::npos) ||
-        (content.find(": warning:") != std::string::npos && content.find("[") != std::string::npos && content.find("]") != std::string::npos) ||
-        (content.find(": note:") != std::string::npos && content.find("Revealed type") != std::string::npos) ||
-        (content.find("Found") != std::string::npos && content.find("error") != std::string::npos && content.find("files") != std::string::npos && content.find("checked") != std::string::npos) ||
-        (content.find("Success: no issues found") != std::string::npos) ||
-        (content.find("return-value") != std::string::npos || content.find("arg-type") != std::string::npos || content.find("attr-defined") != std::string::npos)) {
-        return TestResultFormat::MYPY_TEXT;
+    // Clang-tidy detection moved to ClangTidyParser::canParse()
+
+    // Check for mypy patterns (more specific to avoid conflicts with clang-tidy)
+    // First exclude clang-tidy patterns
+    if (content.find("readability-") == std::string::npos && 
+        content.find("bugprone-") == std::string::npos && 
+        content.find("cppcoreguidelines-") == std::string::npos &&
+        content.find("google-build") == std::string::npos && 
+        content.find("performance-") == std::string::npos && 
+        content.find("modernize-") == std::string::npos &&
+        content.find("warnings generated") == std::string::npos &&
+        content.find("errors generated") == std::string::npos) {
+        
+        if (((content.find(": error:") != std::string::npos || content.find(": warning:") != std::string::npos) && 
+             content.find("[") != std::string::npos && content.find("]") != std::string::npos) ||
+            (content.find(": note:") != std::string::npos && content.find("Revealed type") != std::string::npos) ||
+            (content.find("Found") != std::string::npos && content.find("error") != std::string::npos && content.find("files") != std::string::npos && content.find("checked") != std::string::npos) ||
+            (content.find("Success: no issues found") != std::string::npos) ||
+            (content.find("return-value") != std::string::npos || content.find("arg-type") != std::string::npos || content.find("attr-defined") != std::string::npos)) {
+            return TestResultFormat::MYPY_TEXT;
+        }
     }
     
     // Check for Docker build patterns
@@ -679,6 +695,13 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
         return TestResultFormat::GENERIC_LINT;
     }
     
+    // Fallback: try the modular parser registry for newly added parsers
+    auto& registry = ParserRegistry::getInstance();
+    auto parser = registry.findParser(content);
+    if (parser) {
+        return parser->getFormat();
+    }
+    
     return TestResultFormat::UNKNOWN;
 }
 
@@ -737,6 +760,8 @@ std::string TestResultFormatToString(TestResultFormat format) {
         case TestResultFormat::COVERAGE_TEXT: return "coverage_text";
         case TestResultFormat::PYTEST_COV_TEXT: return "pytest_cov_text";
         case TestResultFormat::GITHUB_ACTIONS_TEXT: return "github_actions_text";
+        case TestResultFormat::GITHUB_CLI: return "github_cli";
+        case TestResultFormat::CLANG_TIDY_TEXT: return "clang_tidy_text";
         case TestResultFormat::GITLAB_CI_TEXT: return "gitlab_ci_text";
         case TestResultFormat::JENKINS_TEXT: return "jenkins_text";
         case TestResultFormat::DRONE_CI_TEXT: return "drone_ci_text";
@@ -799,6 +824,8 @@ TestResultFormat StringToTestResultFormat(const std::string& str) {
     if (str == "coverage_text") return TestResultFormat::COVERAGE_TEXT;
     if (str == "pytest_cov_text") return TestResultFormat::PYTEST_COV_TEXT;
     if (str == "github_actions_text") return TestResultFormat::GITHUB_ACTIONS_TEXT;
+    if (str == "github_cli") return TestResultFormat::GITHUB_CLI;
+    if (str == "clang_tidy_text") return TestResultFormat::CLANG_TIDY_TEXT;
     if (str == "gitlab_ci_text") return TestResultFormat::GITLAB_CI_TEXT;
     if (str == "jenkins_text") return TestResultFormat::JENKINS_TEXT;
     if (str == "drone_ci_text") return TestResultFormat::DRONE_CI_TEXT;
@@ -808,16 +835,28 @@ TestResultFormat StringToTestResultFormat(const std::string& str) {
     return TestResultFormat::AUTO;  // Default to auto-detection
 }
 
-std::string ReadContentFromSource(const std::string& source) {
-    // For now, assume source is a file path
-    // Later we can add support for direct content strings
-    std::ifstream file(source);
-    if (!file.is_open()) {
-        throw IOException("Could not open file: " + source);
+std::string ReadContentFromSource(ClientContext& context, const std::string& source) {
+    // Use DuckDB's FileSystem to properly handle file paths including UNITTEST_ROOT_DIRECTORY
+    auto &fs = FileSystem::GetFileSystem(context);
+
+    // Open the file
+    auto flags = FileFlags::FILE_FLAGS_READ;
+    auto file_handle = fs.OpenFile(source, flags);
+
+    // Get file size
+    auto file_size = fs.GetFileSize(*file_handle);
+    if (file_size < 0) {
+        throw IOException("Could not get file size for: " + source);
     }
-    
-    std::string content((std::istreambuf_iterator<char>(file)),
-                       std::istreambuf_iterator<char>());
+
+    // Allocate buffer and read entire file
+    std::string content;
+    content.resize(static_cast<size_t>(file_size));
+
+    if (file_size > 0) {
+        fs.Read(*file_handle, (void*)content.data(), file_size, 0);
+    }
+
     return content;
 }
 
@@ -913,7 +952,7 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
         // Single file processing path (original behavior)
         std::string content;
         try {
-            content = ReadContentFromSource(bind_data.source);
+            content = ReadContentFromSource(context, bind_data.source);
         } catch (const IOException&) {
             // If file reading fails, treat source as direct content
             content = bind_data.source;
@@ -928,61 +967,210 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
         // Parse content based on detected format
         switch (format) {
             case TestResultFormat::PYTEST_JSON:
-                ParsePytestJSON(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    }
+                    // Note: Legacy ParsePytestJSON removed - fully replaced by modular PytestJSONParser
+                }
                 break;
             case TestResultFormat::DUCKDB_TEST:
                 ParseDuckDBTestOutput(content, global_state->events);
                 break;
             case TestResultFormat::ESLINT_JSON:
-                ParseESLintJSON(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        // Insert parsed events into the global state
+                        // (removed debugging throws - parser registration fix worked!)
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    } else {
+                        throw std::runtime_error("ESLint modular parser NOT found in registry");
+                    }
+                }
                 break;
             case TestResultFormat::GOTEST_JSON:
-                ParseGoTestJSON(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    }
+                    // Note: Legacy ParseGoTestJSON removed - fully replaced by modular GoTestJSONParser
+                }
                 break;
             case TestResultFormat::MAKE_ERROR:
-                ParseMakeErrors(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    }
+                    // Note: Legacy ParseMakeErrors removed - fully replaced by modular MakeParser
+                }
                 break;
             case TestResultFormat::PYTEST_TEXT:
-                ParsePytestText(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    } else {
+                        // Fallback to legacy parser if modular parser not found
+                        ParsePytestText(content, global_state->events);
+                    }
+                }
                 break;
             case TestResultFormat::GENERIC_LINT:
                 ParseGenericLint(content, global_state->events);
                 break;
             case TestResultFormat::RUBOCOP_JSON:
-                ParseRuboCopJSON(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    }
+                    // Note: Legacy ParseRuboCopJSON removed - fully replaced by modular RuboCopJSONParser
+                }
                 break;
             case TestResultFormat::CARGO_TEST_JSON:
-                ParseCargoTestJSON(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    }
+                    // Note: Legacy ParseCargoTestJSON removed - fully replaced by modular CargoTestJSONParser
+                }
                 break;
             case TestResultFormat::SWIFTLINT_JSON:
-                ParseSwiftLintJSON(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    }
+                    // Note: Legacy ParseSwiftLintJSON removed - fully replaced by modular SwiftLintJSONParser
+                }
                 break;
             case TestResultFormat::PHPSTAN_JSON:
-                ParsePHPStanJSON(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    }
+                    // Note: Legacy ParsePHPStanJSON removed - fully replaced by modular PHPStanJSONParser
+                }
                 break;
             case TestResultFormat::SHELLCHECK_JSON:
-                ParseShellCheckJSON(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    } else {
+                        throw std::runtime_error("ShellCheck JSON modular parser not found in registry");
+                    }
+                }
                 break;
             case TestResultFormat::STYLELINT_JSON:
-                ParseStylelintJSON(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    } else {
+                        throw std::runtime_error("Stylelint JSON modular parser not found in registry");
+                    }
+                }
                 break;
             case TestResultFormat::CLIPPY_JSON:
-                ParseClippyJSON(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    } else {
+                        throw std::runtime_error("Clippy JSON modular parser not found in registry");
+                    }
+                }
                 break;
             case TestResultFormat::MARKDOWNLINT_JSON:
-                ParseMarkdownlintJSON(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    } else {
+                        throw std::runtime_error("Markdownlint JSON modular parser not found in registry");
+                    }
+                }
                 break;
             case TestResultFormat::YAMLLINT_JSON:
-                ParseYamllintJSON(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    } else {
+                        throw std::runtime_error("Yamllint JSON modular parser not found in registry");
+                    }
+                }
                 break;
             case TestResultFormat::BANDIT_JSON:
-                ParseBanditJSON(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    } else {
+                        throw std::runtime_error("Bandit JSON modular parser not found in registry");
+                    }
+                }
                 break;
             case TestResultFormat::SPOTBUGS_JSON:
-                ParseSpotBugsJSON(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    } else {
+                        throw std::runtime_error("SpotBugs JSON modular parser not found in registry");
+                    }
+                }
                 break;
             case TestResultFormat::KTLINT_JSON:
-                ParseKtlintJSON(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    } else {
+                        throw std::runtime_error("Ktlint JSON modular parser not found in registry");
+                    }
+                }
                 break;
             case TestResultFormat::HADOLINT_JSON:
                 ParseHadolintJSON(content, global_state->events);
@@ -997,7 +1185,14 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                 ParseTflintJSON(content, global_state->events);
                 break;
             case TestResultFormat::KUBE_SCORE_JSON:
-                ParseKubeScoreJSON(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    }
+                }
                 break;
             case TestResultFormat::CMAKE_BUILD:
                 duck_hunt::CMakeParser::ParseCMakeBuild(content, global_state->events);
@@ -1042,34 +1237,60 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                 duck_hunt::NUnitXUnitTextParser::ParseNUnitXUnit(content, global_state->events);
                 break;
             case TestResultFormat::PYLINT_TEXT:
-                ParsePylintText(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    }
+                }
                 break;
             case TestResultFormat::FLAKE8_TEXT:
-                ParseFlake8Text(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    }
+                }
                 break;
             case TestResultFormat::BLACK_TEXT:
-                ParseBlackText(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    }
+                }
                 break;
             case TestResultFormat::MYPY_TEXT:
-                ParseMypyText(content, global_state->events);
-                break;
-            case TestResultFormat::DOCKER_BUILD:
-                ParseDockerBuild(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    }
+                }
                 break;
             case TestResultFormat::BAZEL_BUILD:
                 ParseBazelBuild(content, global_state->events);
-                break;
-            case TestResultFormat::ISORT_TEXT:
-                ParseIsortText(content, global_state->events);
-                break;
-            case TestResultFormat::BANDIT_TEXT:
-                ParseBanditText(content, global_state->events);
                 break;
             case TestResultFormat::AUTOPEP8_TEXT:
                 ParseAutopep8Text(content, global_state->events);
                 break;
             case TestResultFormat::YAPF_TEXT:
-                ParseYapfText(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(TestResultFormat::YAPF_TEXT);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    }
+                }
                 break;
             case TestResultFormat::COVERAGE_TEXT:
                 duck_hunt::CoverageParser::ParseCoverageText(content, global_state->events);
@@ -1077,26 +1298,50 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
             case TestResultFormat::PYTEST_COV_TEXT:
                 duck_hunt::CoverageParser::ParsePytestCovText(content, global_state->events);
                 break;
-            case TestResultFormat::GITHUB_ACTIONS_TEXT:
-                ParseGitHubActionsText(content, global_state->events);
-                break;
-            case TestResultFormat::GITLAB_CI_TEXT:
-                ParseGitLabCIText(content, global_state->events);
-                break;
-            case TestResultFormat::JENKINS_TEXT:
-                ParseJenkinsText(content, global_state->events);
+            case TestResultFormat::GITHUB_CLI:
+            case TestResultFormat::CLANG_TIDY_TEXT:
+                // These formats are handled by the modular parser registry at the end
                 break;
             case TestResultFormat::DRONE_CI_TEXT:
-                ParseDroneCIText(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    }
+                }
                 break;
             case TestResultFormat::TERRAFORM_TEXT:
-                ParseTerraformText(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    }
+                }
                 break;
             case TestResultFormat::ANSIBLE_TEXT:
-                ParseAnsibleText(content, global_state->events);
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(TestResultFormat::ANSIBLE_TEXT);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    }
+                }
                 break;
             default:
-                // For unknown formats, don't create any events
+                // Try the modular parser registry for new parsers
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    }
+                }
                 break;
         }
         
@@ -1181,109 +1426,6 @@ void PopulateDataChunkFromEvents(DataChunk &output, const std::vector<Validation
     }
 }
 
-void ParsePytestJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    // Parse JSON using yyjson
-    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
-    if (!doc) {
-        throw IOException("Failed to parse pytest JSON");
-    }
-    
-    yyjson_val *root = yyjson_doc_get_root(doc);
-    if (!yyjson_is_obj(root)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid pytest JSON: root is not an object");
-    }
-    
-    // Get tests array
-    yyjson_val *tests = yyjson_obj_get(root, "tests");
-    if (!tests || !yyjson_is_arr(tests)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid pytest JSON: no tests array found");
-    }
-    
-    // Parse each test
-    size_t idx, max;
-    yyjson_val *test;
-    int64_t event_id = 1;
-    
-    yyjson_arr_foreach(tests, idx, max, test) {
-        if (!yyjson_is_obj(test)) continue;
-        
-        ValidationEvent event;
-        event.event_id = event_id++;
-        event.tool_name = "pytest";
-        event.event_type = ValidationEventType::TEST_RESULT;
-        event.line_number = -1;
-        event.column_number = -1;
-        event.execution_time = 0.0;
-        
-        // Extract nodeid (test name with file path)
-        yyjson_val *nodeid = yyjson_obj_get(test, "nodeid");
-        if (nodeid && yyjson_is_str(nodeid)) {
-            std::string nodeid_str = yyjson_get_str(nodeid);
-            
-            // Parse nodeid format: "file.py::test_function"
-            size_t separator = nodeid_str.find("::");
-            if (separator != std::string::npos) {
-                event.file_path = nodeid_str.substr(0, separator);
-                event.test_name = nodeid_str.substr(separator + 2);
-                event.function_name = event.test_name;
-            } else {
-                event.test_name = nodeid_str;
-                event.function_name = nodeid_str;
-            }
-        }
-        
-        // Extract outcome
-        yyjson_val *outcome = yyjson_obj_get(test, "outcome");
-        if (outcome && yyjson_is_str(outcome)) {
-            std::string outcome_str = yyjson_get_str(outcome);
-            event.status = StringToValidationEventStatus(outcome_str);
-        } else {
-            event.status = ValidationEventStatus::ERROR;
-        }
-        
-        // Extract call details
-        yyjson_val *call = yyjson_obj_get(test, "call");
-        if (call && yyjson_is_obj(call)) {
-            // Extract duration
-            yyjson_val *duration = yyjson_obj_get(call, "duration");
-            if (duration && yyjson_is_num(duration)) {
-                event.execution_time = yyjson_get_real(duration);
-            }
-            
-            // Extract longrepr (error message)
-            yyjson_val *longrepr = yyjson_obj_get(call, "longrepr");
-            if (longrepr && yyjson_is_str(longrepr)) {
-                event.message = yyjson_get_str(longrepr);
-            }
-        }
-        
-        // Set category based on status
-        switch (event.status) {
-            case ValidationEventStatus::PASS:
-                event.category = "test_success";
-                if (event.message.empty()) event.message = "Test passed";
-                break;
-            case ValidationEventStatus::FAIL:
-                event.category = "test_failure";
-                if (event.message.empty()) event.message = "Test failed";
-                break;
-            case ValidationEventStatus::SKIP:
-                event.category = "test_skipped";
-                if (event.message.empty()) event.message = "Test skipped";
-                break;
-            default:
-                event.category = "test_error";
-                if (event.message.empty()) event.message = "Test error";
-                break;
-        }
-        
-        events.push_back(event);
-    }
-    
-    yyjson_doc_free(doc);
-}
 
 void ParseDuckDBTestOutput(const std::string& content, std::vector<ValidationEvent>& events) {
     std::istringstream stream(content);
@@ -1296,6 +1438,11 @@ void ParseDuckDBTestOutput(const std::string& content, std::vector<ValidationEve
     std::string failure_message;
     std::string failure_query;
     int failure_line = -1;
+    std::string mismatch_details;
+    std::string expected_result;
+    std::string actual_result;
+    bool in_expected_section = false;
+    bool in_actual_section = false;
     
     while (std::getline(stream, line)) {
         // Parse test progress lines: [X/Y] (Z%): /path/to/test.test
@@ -1339,6 +1486,37 @@ void ParseDuckDBTestOutput(const std::string& content, std::vector<ValidationEve
             failure_query = line;
         }
         
+        // Capture mismatch details
+        else if (in_failure_section && line.find("Mismatch on row") != std::string::npos) {
+            mismatch_details = line;
+        }
+        
+        // Detect expected result section
+        else if (in_failure_section && line.find("Expected result:") != std::string::npos) {
+            in_expected_section = true;
+            in_actual_section = false;
+        }
+        
+        // Detect actual result section
+        else if (in_failure_section && line.find("Actual result:") != std::string::npos) {
+            in_expected_section = false;
+            in_actual_section = true;
+        }
+        
+        // Capture expected result data
+        else if (in_expected_section && !line.empty() && 
+                 line.find("================================================================================") == std::string::npos) {
+            if (!expected_result.empty()) expected_result += "\n";
+            expected_result += line;
+        }
+        
+        // Capture actual result data
+        else if (in_actual_section && !line.empty() && 
+                 line.find("================================================================================") == std::string::npos) {
+            if (!actual_result.empty()) actual_result += "\n";
+            actual_result += line;
+        }
+        
         // End of failure section - create failure event
         else if (in_failure_section && line.find("FAILED:") != std::string::npos) {
             ValidationEvent event;
@@ -1351,17 +1529,38 @@ void ParseDuckDBTestOutput(const std::string& content, std::vector<ValidationEve
             event.function_name = failure_query.empty() ? "unknown" : failure_query.substr(0, 50);
             event.status = ValidationEventStatus::FAIL;
             event.category = "test_failure";
-            event.message = failure_message;
-            event.raw_output = failure_query;
+            
+            // Enhanced message with mismatch details
+            std::string enhanced_message = failure_message;
+            if (!mismatch_details.empty()) {
+                enhanced_message += " | " + mismatch_details;
+            }
+            event.message = enhanced_message;
+            
+            // Enhanced raw_output with query and comparison details
+            std::string enhanced_output = failure_query;
+            if (!expected_result.empty() && !actual_result.empty()) {
+                enhanced_output += "\n--- Expected ---\n" + expected_result;
+                enhanced_output += "\n--- Actual ---\n" + actual_result;
+            }
+            event.raw_output = enhanced_output;
+            
+            // Use suggestion field for mismatch details
+            event.suggestion = mismatch_details;
             event.execution_time = 0.0;
             
             events.push_back(event);
             
             // Reset failure tracking
             in_failure_section = false;
+            in_expected_section = false;
+            in_actual_section = false;
             failure_message.clear();
             failure_query.clear();
             failure_line = -1;
+            mismatch_details.clear();
+            expected_result.clear();
+            actual_result.clear();
         }
         
         // Parse summary line: test cases: X | Y passed | Z failed
@@ -1415,309 +1614,8 @@ void ParseDuckDBTestOutput(const std::string& content, std::vector<ValidationEve
     }
 }
 
-void ParseESLintJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    // Parse JSON using yyjson
-    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
-    if (!doc) {
-        throw IOException("Failed to parse ESLint JSON");
-    }
-    
-    yyjson_val *root = yyjson_doc_get_root(doc);
-    if (!yyjson_is_arr(root)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid ESLint JSON: root is not an array");
-    }
-    
-    // Parse each file result
-    size_t idx, max;
-    yyjson_val *file_result;
-    int64_t event_id = 1;
-    
-    yyjson_arr_foreach(root, idx, max, file_result) {
-        if (!yyjson_is_obj(file_result)) continue;
-        
-        // Get file path
-        yyjson_val *file_path = yyjson_obj_get(file_result, "filePath");
-        std::string file_path_str;
-        if (file_path && yyjson_is_str(file_path)) {
-            file_path_str = yyjson_get_str(file_path);
-        }
-        
-        // Get messages array
-        yyjson_val *messages = yyjson_obj_get(file_result, "messages");
-        if (!messages || !yyjson_is_arr(messages)) continue;
-        
-        // Parse each message
-        size_t msg_idx, msg_max;
-        yyjson_val *message;
-        yyjson_arr_foreach(messages, msg_idx, msg_max, message) {
-            if (!yyjson_is_obj(message)) continue;
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "eslint";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = file_path_str;
-            event.execution_time = 0.0;
-            
-            // Extract line and column
-            yyjson_val *line = yyjson_obj_get(message, "line");
-            if (line && yyjson_is_num(line)) {
-                event.line_number = yyjson_get_int(line);
-            } else {
-                event.line_number = -1;
-            }
-            
-            yyjson_val *column = yyjson_obj_get(message, "column");
-            if (column && yyjson_is_num(column)) {
-                event.column_number = yyjson_get_int(column);
-            } else {
-                event.column_number = -1;
-            }
-            
-            // Extract message
-            yyjson_val *msg_text = yyjson_obj_get(message, "message");
-            if (msg_text && yyjson_is_str(msg_text)) {
-                event.message = yyjson_get_str(msg_text);
-            }
-            
-            // Extract rule ID
-            yyjson_val *rule_id = yyjson_obj_get(message, "ruleId");
-            if (rule_id && yyjson_is_str(rule_id)) {
-                event.error_code = yyjson_get_str(rule_id);
-                event.function_name = yyjson_get_str(rule_id);
-            }
-            
-            // Map severity to status
-            yyjson_val *severity = yyjson_obj_get(message, "severity");
-            if (severity && yyjson_is_num(severity)) {
-                int sev = yyjson_get_int(severity);
-                switch (sev) {
-                    case 2:
-                        event.status = ValidationEventStatus::ERROR;
-                        event.category = "lint_error";
-                        event.severity = "error";
-                        break;
-                    case 1:
-                        event.status = ValidationEventStatus::WARNING;
-                        event.category = "lint_warning"; 
-                        event.severity = "warning";
-                        break;
-                    default:
-                        event.status = ValidationEventStatus::INFO;
-                        event.category = "lint_info";
-                        event.severity = "info";
-                        break;
-                }
-            } else {
-                event.status = ValidationEventStatus::WARNING;
-                event.category = "lint_warning";
-                event.severity = "warning";
-            }
-            
-            events.push_back(event);
-        }
-    }
-    
-    yyjson_doc_free(doc);
-}
 
-void ParseGoTestJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    
-    // Track test results
-    std::map<std::string, ValidationEvent> test_events;
-    
-    while (std::getline(stream, line)) {
-        if (line.empty()) continue;
-        
-        // Parse each JSON line
-        yyjson_doc *doc = yyjson_read(line.c_str(), line.length(), 0);
-        if (!doc) continue;
-        
-        yyjson_val *root = yyjson_doc_get_root(doc);
-        if (!yyjson_is_obj(root)) {
-            yyjson_doc_free(doc);
-            continue;
-        }
-        
-        // Extract fields
-        yyjson_val *action = yyjson_obj_get(root, "Action");
-        yyjson_val *package = yyjson_obj_get(root, "Package");
-        yyjson_val *test = yyjson_obj_get(root, "Test");
-        yyjson_val *elapsed = yyjson_obj_get(root, "Elapsed");
-        yyjson_val *output = yyjson_obj_get(root, "Output");
-        
-        if (!action || !yyjson_is_str(action)) {
-            yyjson_doc_free(doc);
-            continue;
-        }
-        
-        std::string action_str = yyjson_get_str(action);
-        std::string package_str = package && yyjson_is_str(package) ? yyjson_get_str(package) : "";
-        std::string test_str = test && yyjson_is_str(test) ? yyjson_get_str(test) : "";
-        
-        // Create unique test key
-        std::string test_key = package_str + "::" + test_str;
-        
-        if (action_str == "run" && !test_str.empty()) {
-            // Initialize test event
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "go_test";
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.file_path = package_str;
-            event.test_name = test_str;
-            event.function_name = test_str;
-            event.line_number = -1;
-            event.column_number = -1;
-            event.execution_time = 0.0;
-            
-            test_events[test_key] = event;
-        } else if ((action_str == "pass" || action_str == "fail" || action_str == "skip") && !test_str.empty()) {
-            // Finalize test event
-            if (test_events.find(test_key) != test_events.end()) {
-                ValidationEvent &event = test_events[test_key];
-                
-                if (elapsed && yyjson_is_num(elapsed)) {
-                    event.execution_time = yyjson_get_real(elapsed);
-                }
-                
-                if (action_str == "pass") {
-                    event.status = ValidationEventStatus::PASS;
-                    event.category = "test_success";
-                    event.message = "Test passed";
-                } else if (action_str == "fail") {
-                    event.status = ValidationEventStatus::FAIL;
-                    event.category = "test_failure";
-                    event.message = "Test failed";
-                } else if (action_str == "skip") {
-                    event.status = ValidationEventStatus::SKIP;
-                    event.category = "test_skipped";
-                    event.message = "Test skipped";
-                }
-                
-                events.push_back(event);
-                test_events.erase(test_key);
-            }
-        }
-        
-        yyjson_doc_free(doc);
-    }
-}
 
-void ParseMakeErrors(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    std::string current_function;
-    
-    while (std::getline(stream, line)) {
-        // Parse function context: "file.c: In function 'function_name':"
-        std::regex function_pattern(R"(([^:]+):\s*In function\s+'([^']+)':)");
-        std::smatch func_match;
-        if (std::regex_match(line, func_match, function_pattern)) {
-            current_function = func_match[2].str();
-            continue;
-        }
-        
-        // Parse GCC/Clang error format: file:line:column: severity: message
-        std::regex error_pattern(R"(([^:]+):(\d+):(\d*):?\s*(error|warning|note):\s*(.+))");
-        std::smatch match;
-        
-        if (std::regex_match(line, match, error_pattern)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "make";
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = match[1].str();
-            event.line_number = std::stoi(match[2].str());
-            event.column_number = match[3].str().empty() ? -1 : std::stoi(match[3].str());
-            event.function_name = current_function;
-            event.message = match[5].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "make_build";
-            
-            std::string severity = match[4].str();
-            if (severity == "error") {
-                event.status = ValidationEventStatus::ERROR;
-                event.category = "compilation";
-                event.severity = "error";
-            } else if (severity == "warning") {
-                event.status = ValidationEventStatus::WARNING;
-                event.category = "compilation"; 
-                event.severity = "warning";
-            } else if (severity == "note") {
-                event.status = ValidationEventStatus::INFO;
-                event.category = "compilation";
-                event.severity = "info";
-            } else {
-                event.status = ValidationEventStatus::INFO;
-                event.category = "compilation";
-                event.severity = "info";
-            }
-            
-            events.push_back(event);
-        }
-        // Parse make failure line with target extraction
-        else if (line.find("make: ***") != std::string::npos && line.find("Error") != std::string::npos) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "make";
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.status = ValidationEventStatus::ERROR;
-            event.category = "build_failure";
-            event.severity = "error";
-            event.message = line;
-            event.line_number = -1;
-            event.column_number = -1;
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "make_build";
-            
-            // Extract makefile target from pattern like "[Makefile:23: build/main]"
-            // Note: We extract file_path and test_name but NOT line_number for make build failures
-            std::regex target_pattern(R"(\[([^:]+):(\d+):\s*([^\]]+)\])");
-            std::smatch target_match;
-            if (std::regex_search(line, target_match, target_pattern)) {
-                event.file_path = target_match[1].str();  // Makefile
-                // Don't extract line_number for make build failures - keep it as -1 (NULL)
-                event.test_name = target_match[3].str();  // Target name (e.g., "build/main")
-            }
-            
-            events.push_back(event);
-        }
-        // Parse linker errors for make builds
-        else if (line.find("undefined reference") != std::string::npos) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "make";
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.status = ValidationEventStatus::ERROR;
-            event.category = "linking";
-            event.severity = "error";
-            event.message = line;
-            event.line_number = -1;
-            event.column_number = -1;
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "make_build";
-            
-            // Extract symbol name from undefined reference
-            std::regex symbol_pattern(R"(undefined reference to `([^']+)')");
-            std::smatch symbol_match;
-            if (std::regex_search(line, symbol_match, symbol_pattern)) {
-                event.function_name = symbol_match[1].str();
-                event.suggestion = "Link the library containing '" + event.function_name + "'";
-            }
-            
-            events.push_back(event);
-        }
-    }
-}
 
 void ParsePytestText(const std::string& content, std::vector<ValidationEvent>& events) {
     std::istringstream stream(content);
@@ -1771,1301 +1669,17 @@ void ParsePytestText(const std::string& content, std::vector<ValidationEvent>& e
     }
 }
 
-void ParseRuboCopJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    // Parse JSON using yyjson
-    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
-    if (!doc) {
-        throw IOException("Failed to parse RuboCop JSON");
-    }
-    
-    yyjson_val *root = yyjson_doc_get_root(doc);
-    if (!yyjson_is_obj(root)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid RuboCop JSON: root is not an object");
-    }
-    
-    // Get files array
-    yyjson_val *files = yyjson_obj_get(root, "files");
-    if (!files || !yyjson_is_arr(files)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid RuboCop JSON: no files array found");
-    }
-    
-    // Parse each file
-    size_t idx, max;
-    yyjson_val *file;
-    int64_t event_id = 1;
-    
-    yyjson_arr_foreach(files, idx, max, file) {
-        if (!yyjson_is_obj(file)) continue;
-        
-        // Get file path
-        yyjson_val *path = yyjson_obj_get(file, "path");
-        if (!path || !yyjson_is_str(path)) continue;
-        
-        std::string file_path = yyjson_get_str(path);
-        
-        // Get offenses array
-        yyjson_val *offenses = yyjson_obj_get(file, "offenses");
-        if (!offenses || !yyjson_is_arr(offenses)) continue;
-        
-        // Parse each offense
-        size_t offense_idx, offense_max;
-        yyjson_val *offense;
-        
-        yyjson_arr_foreach(offenses, offense_idx, offense_max, offense) {
-            if (!yyjson_is_obj(offense)) continue;
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "rubocop";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = file_path;
-            event.line_number = -1;
-            event.column_number = -1;
-            event.execution_time = 0.0;
-            event.category = "code_quality";
-            
-            // Get severity
-            yyjson_val *severity = yyjson_obj_get(offense, "severity");
-            if (severity && yyjson_is_str(severity)) {
-                std::string severity_str = yyjson_get_str(severity);
-                if (severity_str == "error") {
-                    event.status = ValidationEventStatus::ERROR;
-                    event.severity = "error";
-                } else if (severity_str == "warning") {
-                    event.status = ValidationEventStatus::WARNING;
-                    event.severity = "warning";
-                } else if (severity_str == "convention") {
-                    event.status = ValidationEventStatus::WARNING;
-                    event.severity = "convention";
-                } else {
-                    event.status = ValidationEventStatus::INFO;
-                    event.severity = severity_str;
-                }
-            }
-            
-            // Get message
-            yyjson_val *message = yyjson_obj_get(offense, "message");
-            if (message && yyjson_is_str(message)) {
-                event.message = yyjson_get_str(message);
-            }
-            
-            // Get cop name (rule ID)
-            yyjson_val *cop_name = yyjson_obj_get(offense, "cop_name");
-            if (cop_name && yyjson_is_str(cop_name)) {
-                event.error_code = yyjson_get_str(cop_name);
-            }
-            
-            // Get location
-            yyjson_val *location = yyjson_obj_get(offense, "location");
-            if (location && yyjson_is_obj(location)) {
-                yyjson_val *start_line = yyjson_obj_get(location, "start_line");
-                yyjson_val *start_column = yyjson_obj_get(location, "start_column");
-                
-                if (start_line && yyjson_is_num(start_line)) {
-                    event.line_number = yyjson_get_int(start_line);
-                }
-                if (start_column && yyjson_is_num(start_column)) {
-                    event.column_number = yyjson_get_int(start_column);
-                }
-            }
-            
-            // Set raw output and structured data
-            event.raw_output = content;
-            event.structured_data = "rubocop_json";
-            
-            events.push_back(event);
-        }
-    }
-    
-    yyjson_doc_free(doc);
-}
 
-void ParseCargoTestJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    
-    // Track test events
-    std::map<std::string, ValidationEvent> test_events;
-    
-    while (std::getline(stream, line)) {
-        if (line.empty()) continue;
-        
-        // Parse each JSON line
-        yyjson_doc *doc = yyjson_read(line.c_str(), line.length(), 0);
-        if (!doc) continue;
-        
-        yyjson_val *root = yyjson_doc_get_root(doc);
-        if (!yyjson_is_obj(root)) {
-            yyjson_doc_free(doc);
-            continue;
-        }
-        
-        // Get type and event
-        yyjson_val *type = yyjson_obj_get(root, "type");
-        yyjson_val *event_val = yyjson_obj_get(root, "event");
-        
-        if (!type || !yyjson_is_str(type) || !event_val || !yyjson_is_str(event_val)) {
-            yyjson_doc_free(doc);
-            continue;
-        }
-        
-        std::string type_str = yyjson_get_str(type);
-        std::string event_str = yyjson_get_str(event_val);
-        
-        // Handle test events
-        if (type_str == "test") {
-            yyjson_val *name = yyjson_obj_get(root, "name");
-            if (!name || !yyjson_is_str(name)) {
-                yyjson_doc_free(doc);
-                continue;
-            }
-            
-            std::string test_name = yyjson_get_str(name);
-            
-            if (event_str == "started") {
-                // Initialize test event
-                ValidationEvent event;
-                event.event_id = event_id++;
-                event.tool_name = "cargo_test";
-                event.event_type = ValidationEventType::TEST_RESULT;
-                event.test_name = test_name;
-                event.function_name = test_name;
-                event.line_number = -1;
-                event.column_number = -1;
-                event.execution_time = 0.0;
-                event.category = "test";
-                
-                test_events[test_name] = event;
-            } else if (event_str == "ok" || event_str == "failed" || event_str == "ignored") {
-                // Finalize test event
-                if (test_events.find(test_name) != test_events.end()) {
-                    ValidationEvent &event = test_events[test_name];
-                    
-                    // Get execution time
-                    yyjson_val *exec_time = yyjson_obj_get(root, "exec_time");
-                    if (exec_time && yyjson_is_num(exec_time)) {
-                        event.execution_time = yyjson_get_real(exec_time);
-                    }
-                    
-                    // Set status based on event
-                    if (event_str == "ok") {
-                        event.status = ValidationEventStatus::PASS;
-                        event.message = "Test passed";
-                        event.severity = "success";
-                    } else if (event_str == "failed") {
-                        event.status = ValidationEventStatus::FAIL;
-                        event.message = "Test failed";
-                        event.severity = "error";
-                        
-                        // Get failure details from stdout
-                        yyjson_val *stdout_val = yyjson_obj_get(root, "stdout");
-                        if (stdout_val && yyjson_is_str(stdout_val)) {
-                            std::string stdout_str = yyjson_get_str(stdout_val);
-                            if (!stdout_str.empty()) {
-                                event.message = "Test failed: " + stdout_str;
-                            }
-                        }
-                    } else if (event_str == "ignored") {
-                        event.status = ValidationEventStatus::SKIP;
-                        event.message = "Test ignored";
-                        event.severity = "info";
-                    }
-                    
-                    // Set raw output and structured data
-                    event.raw_output = content;
-                    event.structured_data = "cargo_test_json";
-                    
-                    events.push_back(event);
-                    test_events.erase(test_name);
-                }
-            }
-        }
-        
-        yyjson_doc_free(doc);
-    }
-}
 
-void ParseSwiftLintJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    // Parse JSON using yyjson
-    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
-    if (!doc) {
-        throw IOException("Failed to parse SwiftLint JSON");
-    }
-    
-    yyjson_val *root = yyjson_doc_get_root(doc);
-    if (!yyjson_is_arr(root)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid SwiftLint JSON: root is not an array");
-    }
-    
-    // Parse each violation
-    size_t idx, max;
-    yyjson_val *violation;
-    int64_t event_id = 1;
-    
-    yyjson_arr_foreach(root, idx, max, violation) {
-        if (!yyjson_is_obj(violation)) continue;
-        
-        ValidationEvent event;
-        event.event_id = event_id++;
-        event.tool_name = "swiftlint";
-        event.event_type = ValidationEventType::LINT_ISSUE;
-        event.line_number = -1;
-        event.column_number = -1;
-        event.execution_time = 0.0;
-        event.category = "code_quality";
-        
-        // Get file path
-        yyjson_val *file = yyjson_obj_get(violation, "file");
-        if (file && yyjson_is_str(file)) {
-            event.file_path = yyjson_get_str(file);
-        }
-        
-        // Get line and column
-        yyjson_val *line = yyjson_obj_get(violation, "line");
-        if (line && yyjson_is_num(line)) {
-            event.line_number = yyjson_get_int(line);
-        }
-        
-        yyjson_val *column = yyjson_obj_get(violation, "column");
-        if (column && yyjson_is_num(column)) {
-            event.column_number = yyjson_get_int(column);
-        }
-        
-        // Get severity
-        yyjson_val *severity = yyjson_obj_get(violation, "severity");
-        if (severity && yyjson_is_str(severity)) {
-            std::string severity_str = yyjson_get_str(severity);
-            if (severity_str == "error") {
-                event.status = ValidationEventStatus::ERROR;
-                event.severity = "error";
-            } else if (severity_str == "warning") {
-                event.status = ValidationEventStatus::WARNING;
-                event.severity = "warning";
-            } else {
-                event.status = ValidationEventStatus::INFO;
-                event.severity = severity_str;
-            }
-        }
-        
-        // Get reason (message)
-        yyjson_val *reason = yyjson_obj_get(violation, "reason");
-        if (reason && yyjson_is_str(reason)) {
-            event.message = yyjson_get_str(reason);
-        }
-        
-        // Get rule ID
-        yyjson_val *rule_id = yyjson_obj_get(violation, "rule_id");
-        if (rule_id && yyjson_is_str(rule_id)) {
-            event.error_code = yyjson_get_str(rule_id);
-        }
-        
-        // Get type (rule type)
-        yyjson_val *type = yyjson_obj_get(violation, "type");
-        if (type && yyjson_is_str(type)) {
-            event.suggestion = yyjson_get_str(type);
-        }
-        
-        // Set raw output and structured data
-        event.raw_output = content;
-        event.structured_data = "swiftlint_json";
-        
-        events.push_back(event);
-    }
-    
-    yyjson_doc_free(doc);
-}
 
-void ParsePHPStanJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    // Parse JSON using yyjson
-    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
-    if (!doc) {
-        throw IOException("Failed to parse PHPStan JSON");
-    }
-    
-    yyjson_val *root = yyjson_doc_get_root(doc);
-    if (!yyjson_is_obj(root)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid PHPStan JSON: root is not an object");
-    }
-    
-    // Get files object
-    yyjson_val *files = yyjson_obj_get(root, "files");
-    if (!files || !yyjson_is_obj(files)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid PHPStan JSON: no files object found");
-    }
-    
-    // Parse each file
-    size_t idx, max;
-    yyjson_val *file_key, *file_data;
-    int64_t event_id = 1;
-    
-    yyjson_obj_foreach(files, idx, max, file_key, file_data) {
-        if (!yyjson_is_str(file_key) || !yyjson_is_obj(file_data)) continue;
-        
-        std::string file_path = yyjson_get_str(file_key);
-        
-        // Get messages array
-        yyjson_val *messages = yyjson_obj_get(file_data, "messages");
-        if (!messages || !yyjson_is_arr(messages)) continue;
-        
-        // Parse each message
-        size_t msg_idx, msg_max;
-        yyjson_val *message;
-        
-        yyjson_arr_foreach(messages, msg_idx, msg_max, message) {
-            if (!yyjson_is_obj(message)) continue;
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "phpstan";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = file_path;
-            event.line_number = -1;
-            event.column_number = -1;
-            event.execution_time = 0.0;
-            event.category = "static_analysis";
-            
-            // Get message text
-            yyjson_val *msg_text = yyjson_obj_get(message, "message");
-            if (msg_text && yyjson_is_str(msg_text)) {
-                event.message = yyjson_get_str(msg_text);
-            }
-            
-            // Get line number
-            yyjson_val *line = yyjson_obj_get(message, "line");
-            if (line && yyjson_is_num(line)) {
-                event.line_number = yyjson_get_int(line);
-            }
-            
-            // Get ignorable status (use as severity indicator)
-            yyjson_val *ignorable = yyjson_obj_get(message, "ignorable");
-            if (ignorable && yyjson_is_bool(ignorable)) {
-                if (yyjson_get_bool(ignorable)) {
-                    event.status = ValidationEventStatus::WARNING;
-                    event.severity = "warning";
-                } else {
-                    event.status = ValidationEventStatus::ERROR;
-                    event.severity = "error";
-                }
-            } else {
-                // Default to error
-                event.status = ValidationEventStatus::ERROR;
-                event.severity = "error";
-            }
-            
-            // Set raw output and structured data
-            event.raw_output = content;
-            event.structured_data = "phpstan_json";
-            
-            events.push_back(event);
-        }
-    }
-    
-    yyjson_doc_free(doc);
-}
 
-void ParseShellCheckJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    // Parse JSON using yyjson
-    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
-    if (!doc) {
-        throw IOException("Failed to parse ShellCheck JSON");
-    }
-    
-    yyjson_val *root = yyjson_doc_get_root(doc);
-    if (!yyjson_is_arr(root)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid ShellCheck JSON: root is not an array");
-    }
-    
-    // Parse each issue
-    size_t idx, max;
-    yyjson_val *issue;
-    int64_t event_id = 1;
-    
-    yyjson_arr_foreach(root, idx, max, issue) {
-        if (!yyjson_is_obj(issue)) continue;
-        
-        ValidationEvent event;
-        event.event_id = event_id++;
-        event.tool_name = "shellcheck";
-        event.event_type = ValidationEventType::LINT_ISSUE;
-        event.category = "shell_script";
-        
-        // Get file path
-        yyjson_val *file = yyjson_obj_get(issue, "file");
-        if (file && yyjson_is_str(file)) {
-            event.file_path = yyjson_get_str(file);
-        }
-        
-        // Get line number
-        yyjson_val *line = yyjson_obj_get(issue, "line");
-        if (line && yyjson_is_int(line)) {
-            event.line_number = yyjson_get_int(line);
-        } else {
-            event.line_number = -1;
-        }
-        
-        // Get column number
-        yyjson_val *column = yyjson_obj_get(issue, "column");
-        if (column && yyjson_is_int(column)) {
-            event.column_number = yyjson_get_int(column);
-        } else {
-            event.column_number = -1;
-        }
-        
-        // Get severity/level
-        yyjson_val *level = yyjson_obj_get(issue, "level");
-        if (level && yyjson_is_str(level)) {
-            std::string level_str = yyjson_get_str(level);
-            event.severity = level_str;
-            
-            // Map ShellCheck levels to ValidationEventStatus
-            if (level_str == "error") {
-                event.status = ValidationEventStatus::ERROR;
-            } else if (level_str == "warning") {
-                event.status = ValidationEventStatus::WARNING;
-            } else if (level_str == "info") {
-                event.status = ValidationEventStatus::INFO;
-            } else if (level_str == "style") {
-                event.status = ValidationEventStatus::WARNING;
-            } else {
-                event.status = ValidationEventStatus::WARNING;
-            }
-        } else {
-            event.severity = "warning";
-            event.status = ValidationEventStatus::WARNING;
-        }
-        
-        // Get error code (SC#### codes)
-        yyjson_val *code = yyjson_obj_get(issue, "code");
-        if (code && yyjson_is_str(code)) {
-            event.error_code = yyjson_get_str(code);
-        }
-        
-        // Get message
-        yyjson_val *message = yyjson_obj_get(issue, "message");
-        if (message && yyjson_is_str(message)) {
-            event.message = yyjson_get_str(message);
-        }
-        
-        // Get fix suggestions if available
-        yyjson_val *fix = yyjson_obj_get(issue, "fix");
-        if (fix && yyjson_is_obj(fix)) {
-            yyjson_val *replacements = yyjson_obj_get(fix, "replacements");
-            if (replacements && yyjson_is_arr(replacements)) {
-                event.suggestion = "Fix available";
-            }
-        }
-        
-        // Set raw output and structured data
-        event.raw_output = content;
-        event.structured_data = "shellcheck_json";
-        
-        events.push_back(event);
-    }
-    
-    yyjson_doc_free(doc);
-}
 
-void ParseStylelintJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    // Parse JSON using yyjson
-    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
-    if (!doc) {
-        throw IOException("Failed to parse stylelint JSON");
-    }
-    
-    yyjson_val *root = yyjson_doc_get_root(doc);
-    if (!yyjson_is_arr(root)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid stylelint JSON: root is not an array");
-    }
-    
-    // Parse each file result
-    size_t idx, max;
-    yyjson_val *file_result;
-    int64_t event_id = 1;
-    
-    yyjson_arr_foreach(root, idx, max, file_result) {
-        if (!yyjson_is_obj(file_result)) continue;
-        
-        // Get source file path
-        yyjson_val *source = yyjson_obj_get(file_result, "source");
-        if (!source || !yyjson_is_str(source)) continue;
-        
-        std::string file_path = yyjson_get_str(source);
-        
-        // Get warnings array
-        yyjson_val *warnings = yyjson_obj_get(file_result, "warnings");
-        if (!warnings || !yyjson_is_arr(warnings)) continue;
-        
-        // Parse each warning
-        size_t warn_idx, warn_max;
-        yyjson_val *warning;
-        
-        yyjson_arr_foreach(warnings, warn_idx, warn_max, warning) {
-            if (!yyjson_is_obj(warning)) continue;
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "stylelint";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.category = "css_style";
-            event.file_path = file_path;
-            
-            // Get line number
-            yyjson_val *line = yyjson_obj_get(warning, "line");
-            if (line && yyjson_is_int(line)) {
-                event.line_number = yyjson_get_int(line);
-            } else {
-                event.line_number = -1;
-            }
-            
-            // Get column number
-            yyjson_val *column = yyjson_obj_get(warning, "column");
-            if (column && yyjson_is_int(column)) {
-                event.column_number = yyjson_get_int(column);
-            } else {
-                event.column_number = -1;
-            }
-            
-            // Get severity
-            yyjson_val *severity = yyjson_obj_get(warning, "severity");
-            if (severity && yyjson_is_str(severity)) {
-                std::string severity_str = yyjson_get_str(severity);
-                event.severity = severity_str;
-                
-                // Map stylelint severity to ValidationEventStatus
-                if (severity_str == "error") {
-                    event.status = ValidationEventStatus::ERROR;
-                } else if (severity_str == "warning") {
-                    event.status = ValidationEventStatus::WARNING;
-                } else {
-                    event.status = ValidationEventStatus::WARNING;
-                }
-            } else {
-                event.severity = "warning";
-                event.status = ValidationEventStatus::WARNING;
-            }
-            
-            // Get rule name
-            yyjson_val *rule = yyjson_obj_get(warning, "rule");
-            if (rule && yyjson_is_str(rule)) {
-                event.error_code = yyjson_get_str(rule);
-            }
-            
-            // Get message text
-            yyjson_val *text = yyjson_obj_get(warning, "text");
-            if (text && yyjson_is_str(text)) {
-                event.message = yyjson_get_str(text);
-            }
-            
-            // Set raw output and structured data
-            event.raw_output = content;
-            event.structured_data = "stylelint_json";
-            
-            events.push_back(event);
-        }
-    }
-    
-    yyjson_doc_free(doc);
-}
 
-void ParseClippyJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    // Parse JSONL format (JSON Lines) - each line is a separate JSON object
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    
-    while (std::getline(stream, line)) {
-        if (line.empty()) continue;
-        
-        // Parse JSON using yyjson
-        yyjson_doc *doc = yyjson_read(line.c_str(), line.length(), 0);
-        if (!doc) {
-            continue; // Skip invalid JSON lines
-        }
-        
-        yyjson_val *root = yyjson_doc_get_root(doc);
-        if (!yyjson_is_obj(root)) {
-            yyjson_doc_free(doc);
-            continue;
-        }
-        
-        // Get message object
-        yyjson_val *message = yyjson_obj_get(root, "message");
-        if (!message || !yyjson_is_obj(message)) {
-            yyjson_doc_free(doc);
-            continue;
-        }
-        
-        // Get spans array
-        yyjson_val *spans = yyjson_obj_get(message, "spans");
-        if (!spans || !yyjson_is_arr(spans)) {
-            yyjson_doc_free(doc);
-            continue;
-        }
-        
-        // Get primary span (first span with is_primary = true)
-        yyjson_val *primary_span = nullptr;
-        size_t idx, max;
-        yyjson_val *span;
-        
-        yyjson_arr_foreach(spans, idx, max, span) {
-            if (!yyjson_is_obj(span)) continue;
-            
-            yyjson_val *is_primary = yyjson_obj_get(span, "is_primary");
-            if (is_primary && yyjson_is_bool(is_primary) && yyjson_get_bool(is_primary)) {
-                primary_span = span;
-                break;
-            }
-        }
-        
-        if (!primary_span) {
-            // If no primary span found, use the first span
-            primary_span = yyjson_arr_get_first(spans);
-        }
-        
-        if (!primary_span) {
-            yyjson_doc_free(doc);
-            continue;
-        }
-        
-        ValidationEvent event;
-        event.event_id = event_id++;
-        event.tool_name = "clippy";
-        event.event_type = ValidationEventType::LINT_ISSUE;
-        event.category = "code_quality";
-        
-        // Get file name from primary span
-        yyjson_val *file_name = yyjson_obj_get(primary_span, "file_name");
-        if (file_name && yyjson_is_str(file_name)) {
-            event.file_path = yyjson_get_str(file_name);
-        }
-        
-        // Get line number from primary span
-        yyjson_val *line_start = yyjson_obj_get(primary_span, "line_start");
-        if (line_start && yyjson_is_int(line_start)) {
-            event.line_number = yyjson_get_int(line_start);
-        } else {
-            event.line_number = -1;
-        }
-        
-        // Get column number from primary span
-        yyjson_val *column_start = yyjson_obj_get(primary_span, "column_start");
-        if (column_start && yyjson_is_int(column_start)) {
-            event.column_number = yyjson_get_int(column_start);
-        } else {
-            event.column_number = -1;
-        }
-        
-        // Get severity level
-        yyjson_val *level = yyjson_obj_get(message, "level");
-        if (level && yyjson_is_str(level)) {
-            std::string level_str = yyjson_get_str(level);
-            event.severity = level_str;
-            
-            // Map clippy levels to ValidationEventStatus
-            if (level_str == "error") {
-                event.status = ValidationEventStatus::ERROR;
-            } else if (level_str == "warn" || level_str == "warning") {
-                event.status = ValidationEventStatus::WARNING;
-            } else if (level_str == "note" || level_str == "info") {
-                event.status = ValidationEventStatus::INFO;
-            } else {
-                event.status = ValidationEventStatus::WARNING;
-            }
-        } else {
-            event.severity = "warning";
-            event.status = ValidationEventStatus::WARNING;
-        }
-        
-        // Get code object for error code
-        yyjson_val *code = yyjson_obj_get(message, "code");
-        if (code && yyjson_is_obj(code)) {
-            yyjson_val *code_str = yyjson_obj_get(code, "code");
-            if (code_str && yyjson_is_str(code_str)) {
-                event.error_code = yyjson_get_str(code_str);
-            }
-        }
-        
-        // Get message text
-        yyjson_val *message_text = yyjson_obj_get(message, "message");
-        if (message_text && yyjson_is_str(message_text)) {
-            event.message = yyjson_get_str(message_text);
-        }
-        
-        // Get suggestion from primary span
-        yyjson_val *suggested_replacement = yyjson_obj_get(primary_span, "suggested_replacement");
-        if (suggested_replacement && yyjson_is_str(suggested_replacement)) {
-            event.suggestion = yyjson_get_str(suggested_replacement);
-        }
-        
-        // Set raw output and structured data
-        event.raw_output = content;
-        event.structured_data = "clippy_json";
-        
-        events.push_back(event);
-        
-        yyjson_doc_free(doc);
-    }
-}
 
-void ParseMarkdownlintJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    // Parse JSON using yyjson
-    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
-    if (!doc) {
-        throw IOException("Failed to parse markdownlint JSON");
-    }
-    
-    yyjson_val *root = yyjson_doc_get_root(doc);
-    if (!yyjson_is_arr(root)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid markdownlint JSON: root is not an array");
-    }
-    
-    // Parse each issue
-    size_t idx, max;
-    yyjson_val *issue;
-    int64_t event_id = 1;
-    
-    yyjson_arr_foreach(root, idx, max, issue) {
-        if (!yyjson_is_obj(issue)) continue;
-        
-        ValidationEvent event;
-        event.event_id = event_id++;
-        event.tool_name = "markdownlint";
-        event.event_type = ValidationEventType::LINT_ISSUE;
-        event.category = "documentation";
-        
-        // Get file name
-        yyjson_val *file_name = yyjson_obj_get(issue, "fileName");
-        if (file_name && yyjson_is_str(file_name)) {
-            event.file_path = yyjson_get_str(file_name);
-        }
-        
-        // Get line number
-        yyjson_val *line_number = yyjson_obj_get(issue, "lineNumber");
-        if (line_number && yyjson_is_int(line_number)) {
-            event.line_number = yyjson_get_int(line_number);
-        } else {
-            event.line_number = -1;
-        }
-        
-        // Markdownlint doesn't provide column in the same way - use errorRange if available
-        yyjson_val *error_range = yyjson_obj_get(issue, "errorRange");
-        if (error_range && yyjson_is_arr(error_range)) {
-            yyjson_val *first_elem = yyjson_arr_get_first(error_range);
-            if (first_elem && yyjson_is_int(first_elem)) {
-                event.column_number = yyjson_get_int(first_elem);
-            } else {
-                event.column_number = -1;
-            }
-        } else {
-            event.column_number = -1;
-        }
-        
-        // Markdownlint issues are typically warnings (unless they're really severe)
-        event.severity = "warning";
-        event.status = ValidationEventStatus::WARNING;
-        
-        // Get rule names (first rule name as error code)
-        yyjson_val *rule_names = yyjson_obj_get(issue, "ruleNames");
-        if (rule_names && yyjson_is_arr(rule_names)) {
-            yyjson_val *first_rule = yyjson_arr_get_first(rule_names);
-            if (first_rule && yyjson_is_str(first_rule)) {
-                event.error_code = yyjson_get_str(first_rule);
-            }
-        }
-        
-        // Get rule description as message
-        yyjson_val *rule_description = yyjson_obj_get(issue, "ruleDescription");
-        if (rule_description && yyjson_is_str(rule_description)) {
-            event.message = yyjson_get_str(rule_description);
-        }
-        
-        // Get error detail as suggestion if available
-        yyjson_val *error_detail = yyjson_obj_get(issue, "errorDetail");
-        if (error_detail && yyjson_is_str(error_detail)) {
-            event.suggestion = yyjson_get_str(error_detail);
-        }
-        
-        // Set raw output and structured data
-        event.raw_output = content;
-        event.structured_data = "markdownlint_json";
-        
-        events.push_back(event);
-    }
-    
-    yyjson_doc_free(doc);
-}
 
-void ParseYamllintJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    // Parse JSON using yyjson
-    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
-    if (!doc) {
-        throw IOException("Failed to parse yamllint JSON");
-    }
-    
-    yyjson_val *root = yyjson_doc_get_root(doc);
-    if (!yyjson_is_arr(root)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid yamllint JSON: root is not an array");
-    }
-    
-    // Parse each issue
-    size_t idx, max;
-    yyjson_val *issue;
-    int64_t event_id = 1;
-    
-    yyjson_arr_foreach(root, idx, max, issue) {
-        if (!yyjson_is_obj(issue)) continue;
-        
-        ValidationEvent event;
-        event.event_id = event_id++;
-        event.tool_name = "yamllint";
-        event.event_type = ValidationEventType::LINT_ISSUE;
-        event.category = "configuration";
-        
-        // Get file path
-        yyjson_val *file = yyjson_obj_get(issue, "file");
-        if (file && yyjson_is_str(file)) {
-            event.file_path = yyjson_get_str(file);
-        }
-        
-        // Get line number
-        yyjson_val *line = yyjson_obj_get(issue, "line");
-        if (line && yyjson_is_int(line)) {
-            event.line_number = yyjson_get_int(line);
-        } else {
-            event.line_number = -1;
-        }
-        
-        // Get column number
-        yyjson_val *column = yyjson_obj_get(issue, "column");
-        if (column && yyjson_is_int(column)) {
-            event.column_number = yyjson_get_int(column);
-        } else {
-            event.column_number = -1;
-        }
-        
-        // Get severity level
-        yyjson_val *level = yyjson_obj_get(issue, "level");
-        if (level && yyjson_is_str(level)) {
-            std::string level_str = yyjson_get_str(level);
-            event.severity = level_str;
-            
-            // Map yamllint levels to ValidationEventStatus
-            if (level_str == "error") {
-                event.status = ValidationEventStatus::ERROR;
-            } else if (level_str == "warning") {
-                event.status = ValidationEventStatus::WARNING;
-            } else {
-                event.status = ValidationEventStatus::WARNING;
-            }
-        } else {
-            event.severity = "warning";
-            event.status = ValidationEventStatus::WARNING;
-        }
-        
-        // Get rule name as error code
-        yyjson_val *rule = yyjson_obj_get(issue, "rule");
-        if (rule && yyjson_is_str(rule)) {
-            event.error_code = yyjson_get_str(rule);
-        }
-        
-        // Get message
-        yyjson_val *message = yyjson_obj_get(issue, "message");
-        if (message && yyjson_is_str(message)) {
-            event.message = yyjson_get_str(message);
-        }
-        
-        // Set raw output and structured data
-        event.raw_output = content;
-        event.structured_data = "yamllint_json";
-        
-        events.push_back(event);
-    }
-    
-    yyjson_doc_free(doc);
-}
 
-void ParseBanditJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    // Parse JSON using yyjson
-    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
-    if (!doc) {
-        throw IOException("Failed to parse Bandit JSON");
-    }
-    
-    yyjson_val *root = yyjson_doc_get_root(doc);
-    if (!yyjson_is_obj(root)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid Bandit JSON: root is not an object");
-    }
-    
-    // Get results array
-    yyjson_val *results = yyjson_obj_get(root, "results");
-    if (!results || !yyjson_is_arr(results)) {
-        yyjson_doc_free(doc);
-        return; // No results to process
-    }
-    
-    // Parse each security issue
-    size_t idx, max;
-    yyjson_val *issue;
-    int64_t event_id = 1;
-    
-    yyjson_arr_foreach(results, idx, max, issue) {
-        if (!yyjson_is_obj(issue)) continue;
-        
-        ValidationEvent event;
-        event.event_id = event_id++;
-        event.tool_name = "bandit";
-        event.event_type = ValidationEventType::SECURITY_FINDING;
-        event.category = "security";
-        
-        // Get file path
-        yyjson_val *filename = yyjson_obj_get(issue, "filename");
-        if (filename && yyjson_is_str(filename)) {
-            event.file_path = yyjson_get_str(filename);
-        }
-        
-        // Get line number
-        yyjson_val *line_number = yyjson_obj_get(issue, "line_number");
-        if (line_number && yyjson_is_int(line_number)) {
-            event.line_number = yyjson_get_int(line_number);
-        } else {
-            event.line_number = -1;
-        }
-        
-        // Get column offset (Bandit uses col_offset)
-        yyjson_val *col_offset = yyjson_obj_get(issue, "col_offset");
-        if (col_offset && yyjson_is_int(col_offset)) {
-            event.column_number = yyjson_get_int(col_offset);
-        } else {
-            event.column_number = -1;
-        }
-        
-        // Get test ID as error code
-        yyjson_val *test_id = yyjson_obj_get(issue, "test_id");
-        if (test_id && yyjson_is_str(test_id)) {
-            event.error_code = yyjson_get_str(test_id);
-        }
-        
-        // Get issue severity and map to status
-        yyjson_val *issue_severity = yyjson_obj_get(issue, "issue_severity");
-        if (issue_severity && yyjson_is_str(issue_severity)) {
-            std::string severity_str = yyjson_get_str(issue_severity);
-            event.severity = severity_str;
-            
-            // Map Bandit severity to ValidationEventStatus
-            if (severity_str == "HIGH") {
-                event.status = ValidationEventStatus::ERROR;
-            } else if (severity_str == "MEDIUM") {
-                event.status = ValidationEventStatus::WARNING;
-            } else { // LOW
-                event.status = ValidationEventStatus::INFO;
-            }
-        } else {
-            event.severity = "medium";
-            event.status = ValidationEventStatus::WARNING;
-        }
-        
-        // Get issue text as message
-        yyjson_val *issue_text = yyjson_obj_get(issue, "issue_text");
-        if (issue_text && yyjson_is_str(issue_text)) {
-            event.message = yyjson_get_str(issue_text);
-        }
-        
-        // Get test name as function context
-        yyjson_val *test_name = yyjson_obj_get(issue, "test_name");
-        if (test_name && yyjson_is_str(test_name)) {
-            event.function_name = yyjson_get_str(test_name);
-        }
-        
-        // Get CWE information for suggestion
-        yyjson_val *issue_cwe = yyjson_obj_get(issue, "issue_cwe");
-        if (issue_cwe && yyjson_is_obj(issue_cwe)) {
-            yyjson_val *cwe_id = yyjson_obj_get(issue_cwe, "id");
-            yyjson_val *cwe_link = yyjson_obj_get(issue_cwe, "link");
-            
-            if (cwe_id && yyjson_is_int(cwe_id)) {
-                std::string suggestion = "CWE-" + std::to_string(yyjson_get_int(cwe_id));
-                if (cwe_link && yyjson_is_str(cwe_link)) {
-                    suggestion += ": " + std::string(yyjson_get_str(cwe_link));
-                }
-                event.suggestion = suggestion;
-            }
-        }
-        
-        // Set raw output and structured data
-        event.raw_output = content;
-        event.structured_data = "bandit_json";
-        
-        events.push_back(event);
-    }
-    
-    yyjson_doc_free(doc);
-}
 
-void ParseSpotBugsJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    // Parse JSON using yyjson
-    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
-    if (!doc) {
-        throw IOException("Failed to parse SpotBugs JSON");
-    }
-    
-    yyjson_val *root = yyjson_doc_get_root(doc);
-    if (!yyjson_is_obj(root)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid SpotBugs JSON: root is not an object");
-    }
-    
-    // Get BugCollection object
-    yyjson_val *bug_collection = yyjson_obj_get(root, "BugCollection");
-    if (!bug_collection || !yyjson_is_obj(bug_collection)) {
-        yyjson_doc_free(doc);
-        return; // No bug collection to process
-    }
-    
-    // Get BugInstance array
-    yyjson_val *bug_instances = yyjson_obj_get(bug_collection, "BugInstance");
-    if (!bug_instances || !yyjson_is_arr(bug_instances)) {
-        yyjson_doc_free(doc);
-        return; // No bug instances to process
-    }
-    
-    // Parse each bug instance
-    size_t idx, max;
-    yyjson_val *bug;
-    int64_t event_id = 1;
-    
-    yyjson_arr_foreach(bug_instances, idx, max, bug) {
-        if (!yyjson_is_obj(bug)) continue;
-        
-        ValidationEvent event;
-        event.event_id = event_id++;
-        event.tool_name = "spotbugs";
-        event.event_type = ValidationEventType::LINT_ISSUE;
-        
-        // Get bug type as error code
-        yyjson_val *type = yyjson_obj_get(bug, "type");
-        if (type && yyjson_is_str(type)) {
-            event.error_code = yyjson_get_str(type);
-        }
-        
-        // Get category and map event type
-        yyjson_val *category = yyjson_obj_get(bug, "category");
-        if (category && yyjson_is_str(category)) {
-            std::string category_str = yyjson_get_str(category);
-            event.category = category_str;
-            
-            // Map SpotBugs categories to event types
-            if (category_str == "SECURITY") {
-                event.event_type = ValidationEventType::SECURITY_FINDING;
-                event.category = "security";
-            } else if (category_str == "PERFORMANCE") {
-                event.event_type = ValidationEventType::PERFORMANCE_ISSUE;
-                event.category = "performance";
-            } else if (category_str == "CORRECTNESS") {
-                event.event_type = ValidationEventType::LINT_ISSUE;
-                event.category = "correctness";
-            } else if (category_str == "BAD_PRACTICE") {
-                event.event_type = ValidationEventType::LINT_ISSUE;
-                event.category = "code_quality";
-            } else {
-                event.event_type = ValidationEventType::LINT_ISSUE;
-                event.category = "static_analysis";
-            }
-        } else {
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.category = "static_analysis";
-        }
-        
-        // Get priority and map to status
-        yyjson_val *priority = yyjson_obj_get(bug, "priority");
-        if (priority && yyjson_is_str(priority)) {
-            std::string priority_str = yyjson_get_str(priority);
-            event.severity = priority_str;
-            
-            // Map SpotBugs priority to ValidationEventStatus (1=highest, 3=lowest)
-            if (priority_str == "1") {
-                event.status = ValidationEventStatus::ERROR;
-            } else if (priority_str == "2") {
-                event.status = ValidationEventStatus::WARNING;
-            } else { // priority 3
-                event.status = ValidationEventStatus::INFO;
-            }
-        } else {
-            event.severity = "medium";
-            event.status = ValidationEventStatus::WARNING;
-        }
-        
-        // Get short message as main message
-        yyjson_val *short_message = yyjson_obj_get(bug, "ShortMessage");
-        if (short_message && yyjson_is_str(short_message)) {
-            event.message = yyjson_get_str(short_message);
-        }
-        
-        // Get long message as suggestion
-        yyjson_val *long_message = yyjson_obj_get(bug, "LongMessage");
-        if (long_message && yyjson_is_str(long_message)) {
-            event.suggestion = yyjson_get_str(long_message);
-        }
-        
-        // Get source line information
-        yyjson_val *source_line = yyjson_obj_get(bug, "SourceLine");
-        if (source_line && yyjson_is_obj(source_line)) {
-            // Check if this is the primary source line
-            yyjson_val *primary = yyjson_obj_get(source_line, "primary");
-            if (primary && yyjson_is_bool(primary) && yyjson_get_bool(primary)) {
-                // Get source path
-                yyjson_val *sourcepath = yyjson_obj_get(source_line, "sourcepath");
-                if (sourcepath && yyjson_is_str(sourcepath)) {
-                    event.file_path = yyjson_get_str(sourcepath);
-                }
-                
-                // Get line number (use start line)
-                yyjson_val *start_line = yyjson_obj_get(source_line, "start");
-                if (start_line && yyjson_is_str(start_line)) {
-                    event.line_number = std::stoll(yyjson_get_str(start_line));
-                } else {
-                    event.line_number = -1;
-                }
-                
-                // SpotBugs doesn't provide column information
-                event.column_number = -1;
-            }
-        }
-        
-        // Get method information for function context
-        yyjson_val *method = yyjson_obj_get(bug, "Method");
-        if (method && yyjson_is_obj(method)) {
-            yyjson_val *primary = yyjson_obj_get(method, "primary");
-            if (primary && yyjson_is_bool(primary) && yyjson_get_bool(primary)) {
-                yyjson_val *method_name = yyjson_obj_get(method, "name");
-                yyjson_val *classname = yyjson_obj_get(method, "classname");
-                
-                if (method_name && yyjson_is_str(method_name) && classname && yyjson_is_str(classname)) {
-                    event.function_name = std::string(yyjson_get_str(classname)) + "." + std::string(yyjson_get_str(method_name));
-                }
-            }
-        }
-        
-        // Set raw output and structured data
-        event.raw_output = content;
-        event.structured_data = "spotbugs_json";
-        
-        events.push_back(event);
-    }
-    
-    yyjson_doc_free(doc);
-}
 
-void ParseKtlintJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    // Parse JSON using yyjson
-    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
-    if (!doc) {
-        throw IOException("Failed to parse ktlint JSON");
-    }
-    
-    yyjson_val *root = yyjson_doc_get_root(doc);
-    if (!yyjson_is_arr(root)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid ktlint JSON: root is not an array");
-    }
-    
-    // Parse each file entry
-    size_t file_idx, file_max;
-    yyjson_val *file_entry;
-    int64_t event_id = 1;
-    
-    yyjson_arr_foreach(root, file_idx, file_max, file_entry) {
-        if (!yyjson_is_obj(file_entry)) continue;
-        
-        // Get file path
-        std::string file_path;
-        yyjson_val *file = yyjson_obj_get(file_entry, "file");
-        if (file && yyjson_is_str(file)) {
-            file_path = yyjson_get_str(file);
-        }
-        
-        // Get errors array
-        yyjson_val *errors = yyjson_obj_get(file_entry, "errors");
-        if (!errors || !yyjson_is_arr(errors)) continue;
-        
-        // Parse each error
-        size_t error_idx, error_max;
-        yyjson_val *error;
-        
-        yyjson_arr_foreach(errors, error_idx, error_max, error) {
-            if (!yyjson_is_obj(error)) continue;
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "ktlint";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.category = "code_style";
-            event.file_path = file_path;
-            
-            // Get line number
-            yyjson_val *line = yyjson_obj_get(error, "line");
-            if (line && yyjson_is_int(line)) {
-                event.line_number = yyjson_get_int(line);
-            } else {
-                event.line_number = -1;
-            }
-            
-            // Get column number
-            yyjson_val *column = yyjson_obj_get(error, "column");
-            if (column && yyjson_is_int(column)) {
-                event.column_number = yyjson_get_int(column);
-            } else {
-                event.column_number = -1;
-            }
-            
-            // Get rule name as error code
-            yyjson_val *rule = yyjson_obj_get(error, "rule");
-            if (rule && yyjson_is_str(rule)) {
-                event.error_code = yyjson_get_str(rule);
-            }
-            
-            // Get message
-            yyjson_val *message = yyjson_obj_get(error, "message");
-            if (message && yyjson_is_str(message)) {
-                event.message = yyjson_get_str(message);
-            }
-            
-            // ktlint doesn't provide explicit severity, so we infer from rule types
-            std::string rule_str = event.error_code;
-            if (rule_str.find("max-line-length") != std::string::npos || 
-                rule_str.find("no-wildcard-imports") != std::string::npos) {
-                event.status = ValidationEventStatus::WARNING;
-                event.severity = "warning";
-            } else if (rule_str.find("indent") != std::string::npos || 
-                       rule_str.find("final-newline") != std::string::npos) {
-                event.status = ValidationEventStatus::ERROR;
-                event.severity = "error";
-            } else {
-                // Default to warning for style issues
-                event.status = ValidationEventStatus::WARNING;
-                event.severity = "warning";
-            }
-            
-            // Set raw output and structured data
-            event.raw_output = content;
-            event.structured_data = "ktlint_json";
-            
-            events.push_back(event);
-        }
-    }
-    
-    yyjson_doc_free(doc);
-}
 
 void ParseHadolintJSON(const std::string& content, std::vector<ValidationEvent>& events) {
     // Parse JSON using yyjson
@@ -3471,206 +2085,6 @@ void ParseTflintJSON(const std::string& content, std::vector<ValidationEvent>& e
     yyjson_doc_free(doc);
 }
 
-void ParseKubeScoreJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    // Parse JSON using yyjson
-    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
-    if (!doc) {
-        throw IOException("Failed to parse kube-score JSON");
-    }
-    
-    yyjson_val *root = yyjson_doc_get_root(doc);
-    if (!yyjson_is_arr(root)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid kube-score JSON: root is not an array");
-    }
-    
-    // Parse each Kubernetes object
-    size_t obj_idx, obj_max;
-    yyjson_val *k8s_object;
-    int64_t event_id = 1;
-    
-    yyjson_arr_foreach(root, obj_idx, obj_max, k8s_object) {
-        if (!yyjson_is_obj(k8s_object)) continue;
-        
-        // Get object metadata
-        std::string object_name;
-        std::string file_name;
-        std::string resource_kind;
-        std::string namespace_name = "default";
-        int line_number = -1;
-        
-        yyjson_val *obj_name = yyjson_obj_get(k8s_object, "object_name");
-        if (obj_name && yyjson_is_str(obj_name)) {
-            object_name = yyjson_get_str(obj_name);
-        }
-        
-        yyjson_val *file_name_val = yyjson_obj_get(k8s_object, "file_name");
-        if (file_name_val && yyjson_is_str(file_name_val)) {
-            file_name = yyjson_get_str(file_name_val);
-        }
-        
-        yyjson_val *file_row = yyjson_obj_get(k8s_object, "file_row");
-        if (file_row && yyjson_is_int(file_row)) {
-            line_number = yyjson_get_int(file_row);
-        }
-        
-        // Get resource kind from type_meta
-        yyjson_val *type_meta = yyjson_obj_get(k8s_object, "type_meta");
-        if (type_meta && yyjson_is_obj(type_meta)) {
-            yyjson_val *kind = yyjson_obj_get(type_meta, "kind");
-            if (kind && yyjson_is_str(kind)) {
-                resource_kind = yyjson_get_str(kind);
-            }
-        }
-        
-        // Get namespace from object_meta
-        yyjson_val *object_meta = yyjson_obj_get(k8s_object, "object_meta");
-        if (object_meta && yyjson_is_obj(object_meta)) {
-            yyjson_val *ns = yyjson_obj_get(object_meta, "namespace");
-            if (ns && yyjson_is_str(ns)) {
-                namespace_name = yyjson_get_str(ns);
-            }
-        }
-        
-        // Get checks array
-        yyjson_val *checks = yyjson_obj_get(k8s_object, "checks");
-        if (!checks || !yyjson_is_arr(checks)) continue;
-        
-        // Parse each check
-        size_t check_idx, check_max;
-        yyjson_val *check;
-        
-        yyjson_arr_foreach(checks, check_idx, check_max, check) {
-            if (!yyjson_is_obj(check)) continue;
-            
-            // Get grade to determine if this is an issue
-            yyjson_val *grade = yyjson_obj_get(check, "grade");
-            if (!grade || !yyjson_is_str(grade)) continue;
-            
-            std::string grade_str = yyjson_get_str(grade);
-            
-            // Skip OK checks unless they have comments
-            yyjson_val *comments = yyjson_obj_get(check, "comments");
-            bool has_comments = comments && yyjson_is_arr(comments) && yyjson_arr_size(comments) > 0;
-            
-            if (grade_str == "OK" && !has_comments) continue;
-            
-            // Get check information
-            yyjson_val *check_info = yyjson_obj_get(check, "check");
-            std::string check_id;
-            std::string check_name;
-            std::string check_comment;
-            
-            if (check_info && yyjson_is_obj(check_info)) {
-                yyjson_val *id = yyjson_obj_get(check_info, "id");
-                if (id && yyjson_is_str(id)) {
-                    check_id = yyjson_get_str(id);
-                }
-                
-                yyjson_val *name = yyjson_obj_get(check_info, "name");
-                if (name && yyjson_is_str(name)) {
-                    check_name = yyjson_get_str(name);
-                }
-                
-                yyjson_val *comment = yyjson_obj_get(check_info, "comment");
-                if (comment && yyjson_is_str(comment)) {
-                    check_comment = yyjson_get_str(comment);
-                }
-            }
-            
-            // Create validation event for each comment or one general event
-            if (has_comments) {
-                size_t comment_idx, comment_max;
-                yyjson_val *comment_obj;
-                
-                yyjson_arr_foreach(comments, comment_idx, comment_max, comment_obj) {
-                    if (!yyjson_is_obj(comment_obj)) continue;
-                    
-                    ValidationEvent event;
-                    event.event_id = event_id++;
-                    event.tool_name = "kube-score";
-                    event.event_type = ValidationEventType::LINT_ISSUE;
-                    event.category = "kubernetes";
-                    event.file_path = file_name;
-                    event.line_number = line_number;
-                    event.column_number = -1;
-                    event.error_code = check_id;
-                    event.function_name = object_name + " (" + resource_kind + ")";
-                    
-                    // Map grade to status
-                    if (grade_str == "CRITICAL") {
-                        event.status = ValidationEventStatus::ERROR;
-                        event.severity = "critical";
-                    } else if (grade_str == "WARNING") {
-                        event.status = ValidationEventStatus::WARNING;
-                        event.severity = "warning";
-                    } else {
-                        event.status = ValidationEventStatus::INFO;
-                        event.severity = "info";
-                    }
-                    
-                    // Get comment details
-                    yyjson_val *summary = yyjson_obj_get(comment_obj, "summary");
-                    yyjson_val *description = yyjson_obj_get(comment_obj, "description");
-                    yyjson_val *path = yyjson_obj_get(comment_obj, "path");
-                    
-                    if (summary && yyjson_is_str(summary)) {
-                        event.message = yyjson_get_str(summary);
-                    } else {
-                        event.message = check_name;
-                    }
-                    
-                    if (description && yyjson_is_str(description)) {
-                        event.suggestion = yyjson_get_str(description);
-                    }
-                    
-                    // Add path context if available
-                    if (path && yyjson_is_str(path) && strlen(yyjson_get_str(path)) > 0) {
-                        event.test_name = yyjson_get_str(path);
-                    }
-                    
-                    event.raw_output = content;
-                    event.structured_data = "kube_score_json";
-                    
-                    events.push_back(event);
-                }
-            } else {
-                // Create general event for non-OK checks without specific comments
-                ValidationEvent event;
-                event.event_id = event_id++;
-                event.tool_name = "kube-score";
-                event.event_type = ValidationEventType::LINT_ISSUE;
-                event.category = "kubernetes";
-                event.file_path = file_name;
-                event.line_number = line_number;
-                event.column_number = -1;
-                event.error_code = check_id;
-                event.function_name = object_name + " (" + resource_kind + ")";
-                event.message = check_name;
-                event.suggestion = check_comment;
-                
-                // Map grade to status
-                if (grade_str == "CRITICAL") {
-                    event.status = ValidationEventStatus::ERROR;
-                    event.severity = "critical";
-                } else if (grade_str == "WARNING") {
-                    event.status = ValidationEventStatus::WARNING;
-                    event.severity = "warning";
-                } else {
-                    event.status = ValidationEventStatus::INFO;
-                    event.severity = "info";
-                }
-                
-                event.raw_output = content;
-                event.structured_data = "kube_score_json";
-                
-                events.push_back(event);
-            }
-        }
-    }
-    
-    yyjson_doc_free(doc);
-}
 
 
 void ParseGenericLint(const std::string& content, std::vector<ValidationEvent>& events) {
@@ -3810,61 +2224,210 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
     // Parse content based on detected format (same logic as read_test_results)
     switch (format) {
         case TestResultFormat::PYTEST_JSON:
-            ParsePytestJSON(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                }
+                // Note: Legacy ParsePytestJSON removed - fully replaced by modular PytestJSONParser
+            }
             break;
         case TestResultFormat::DUCKDB_TEST:
             ParseDuckDBTestOutput(content, global_state->events);
             break;
         case TestResultFormat::ESLINT_JSON:
-            ParseESLintJSON(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    // Insert parsed events into the global state
+                    // (removed debugging throws - parser registration fix worked!)
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                } else {
+                    throw std::runtime_error("parse_test_results: ESLint modular parser NOT found in registry");
+                }
+            }
             break;
         case TestResultFormat::GOTEST_JSON:
-            ParseGoTestJSON(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                }
+                // Note: Legacy ParseGoTestJSON removed - fully replaced by modular GoTestJSONParser
+            }
             break;
         case TestResultFormat::MAKE_ERROR:
-            ParseMakeErrors(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                }
+                // Note: Legacy ParseMakeErrors removed - fully replaced by modular MakeParser
+            }
             break;
         case TestResultFormat::PYTEST_TEXT:
-            ParsePytestText(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                } else {
+                    // Fallback to legacy parser if modular parser not found
+                    ParsePytestText(content, global_state->events);
+                }
+            }
             break;
         case TestResultFormat::GENERIC_LINT:
             ParseGenericLint(content, global_state->events);
             break;
         case TestResultFormat::RUBOCOP_JSON:
-            ParseRuboCopJSON(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                }
+                // Note: Legacy ParseRuboCopJSON removed - fully replaced by modular RuboCopJSONParser
+            }
             break;
         case TestResultFormat::CARGO_TEST_JSON:
-            ParseCargoTestJSON(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                }
+                // Note: Legacy ParseCargoTestJSON removed - fully replaced by modular CargoTestJSONParser
+            }
             break;
         case TestResultFormat::SWIFTLINT_JSON:
-            ParseSwiftLintJSON(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                }
+                // Note: Legacy ParseSwiftLintJSON removed - fully replaced by modular SwiftLintJSONParser
+            }
             break;
         case TestResultFormat::PHPSTAN_JSON:
-            ParsePHPStanJSON(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                }
+                // Note: Legacy ParsePHPStanJSON removed - fully replaced by modular PHPStanJSONParser
+            }
             break;
         case TestResultFormat::SHELLCHECK_JSON:
-            ParseShellCheckJSON(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                } else {
+                    throw std::runtime_error("parse_test_results: ShellCheck JSON modular parser not found in registry");
+                }
+            }
             break;
         case TestResultFormat::STYLELINT_JSON:
-            ParseStylelintJSON(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                } else {
+                    throw std::runtime_error("parse_test_results: Stylelint JSON modular parser not found in registry");
+                }
+            }
             break;
         case TestResultFormat::CLIPPY_JSON:
-            ParseClippyJSON(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                } else {
+                    throw std::runtime_error("parse_test_results: Clippy JSON modular parser not found in registry");
+                }
+            }
             break;
         case TestResultFormat::MARKDOWNLINT_JSON:
-            ParseMarkdownlintJSON(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                } else {
+                    throw std::runtime_error("parse_test_results: Markdownlint JSON modular parser not found in registry");
+                }
+            }
             break;
         case TestResultFormat::YAMLLINT_JSON:
-            ParseYamllintJSON(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                } else {
+                    throw std::runtime_error("parse_test_results: Yamllint JSON modular parser not found in registry");
+                }
+            }
             break;
         case TestResultFormat::BANDIT_JSON:
-            ParseBanditJSON(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                } else {
+                    throw std::runtime_error("parse_test_results: Bandit JSON modular parser not found in registry");
+                }
+            }
             break;
         case TestResultFormat::SPOTBUGS_JSON:
-            ParseSpotBugsJSON(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                } else {
+                    throw std::runtime_error("parse_test_results: SpotBugs JSON modular parser not found in registry");
+                }
+            }
             break;
         case TestResultFormat::KTLINT_JSON:
-            ParseKtlintJSON(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                } else {
+                    throw std::runtime_error("parse_test_results: Ktlint JSON modular parser not found in registry");
+                }
+            }
             break;
         case TestResultFormat::HADOLINT_JSON:
             ParseHadolintJSON(content, global_state->events);
@@ -3879,7 +2442,14 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
             ParseTflintJSON(content, global_state->events);
             break;
         case TestResultFormat::KUBE_SCORE_JSON:
-            ParseKubeScoreJSON(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                }
+            }
             break;
         case TestResultFormat::CMAKE_BUILD:
             duck_hunt::CMakeParser::ParseCMakeBuild(content, global_state->events);
@@ -3924,34 +2494,60 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
             duck_hunt::NUnitXUnitTextParser::ParseNUnitXUnit(content, global_state->events);
             break;
         case TestResultFormat::PYLINT_TEXT:
-            ParsePylintText(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                }
+            }
             break;
         case TestResultFormat::FLAKE8_TEXT:
-            ParseFlake8Text(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                }
+            }
             break;
         case TestResultFormat::BLACK_TEXT:
-            ParseBlackText(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                }
+            }
             break;
         case TestResultFormat::MYPY_TEXT:
-            ParseMypyText(content, global_state->events);
-            break;
-        case TestResultFormat::DOCKER_BUILD:
-            ParseDockerBuild(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                }
+            }
             break;
         case TestResultFormat::BAZEL_BUILD:
             ParseBazelBuild(content, global_state->events);
-            break;
-        case TestResultFormat::ISORT_TEXT:
-            ParseIsortText(content, global_state->events);
-            break;
-        case TestResultFormat::BANDIT_TEXT:
-            ParseBanditText(content, global_state->events);
             break;
         case TestResultFormat::AUTOPEP8_TEXT:
             ParseAutopep8Text(content, global_state->events);
             break;
         case TestResultFormat::YAPF_TEXT:
-            ParseYapfText(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(TestResultFormat::YAPF_TEXT);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                }
+            }
             break;
         case TestResultFormat::COVERAGE_TEXT:
             duck_hunt::CoverageParser::ParseCoverageText(content, global_state->events);
@@ -3959,26 +2555,50 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
         case TestResultFormat::PYTEST_COV_TEXT:
             duck_hunt::CoverageParser::ParsePytestCovText(content, global_state->events);
             break;
-        case TestResultFormat::GITHUB_ACTIONS_TEXT:
-            ParseGitHubActionsText(content, global_state->events);
-            break;
-        case TestResultFormat::GITLAB_CI_TEXT:
-            ParseGitLabCIText(content, global_state->events);
-            break;
-        case TestResultFormat::JENKINS_TEXT:
-            ParseJenkinsText(content, global_state->events);
+        case TestResultFormat::GITHUB_CLI:
+        case TestResultFormat::CLANG_TIDY_TEXT:
+            // These formats are handled by the modular parser registry at the end
             break;
         case TestResultFormat::DRONE_CI_TEXT:
-            ParseDroneCIText(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                }
+            }
             break;
         case TestResultFormat::TERRAFORM_TEXT:
-            ParseTerraformText(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                }
+            }
             break;
         case TestResultFormat::ANSIBLE_TEXT:
-            ParseAnsibleText(content, global_state->events);
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(TestResultFormat::ANSIBLE_TEXT);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                }
+            }
             break;
         default:
-            // For unknown formats, don't create any events
+            // Try the modular parser registry for new parsers
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    auto events = parser->parse(content);
+                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                }
+            }
             break;
     }
     
@@ -4031,791 +2651,10 @@ TableFunction GetParseTestResultsFunction() {
 
 
 
-void ParsePylintText(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    
-    // Regex patterns for Pylint output
-    std::regex pylint_module_header(R"(\*+\s*Module\s+(.+))");
-    std::regex pylint_message(R"(([CWERF]):\s*(\d+),\s*(\d+):\s*(.+?)\s+\(([^)]+)\))");  // C:  1, 0: message (code)
-    std::regex pylint_message_simple(R"(([CWERF]):\s*(\d+),\s*(\d+):\s*(.+))");  // C:  1, 0: message
-    std::regex pylint_rating(R"(Your code has been rated at ([\d\.-]+)/10)");
-    std::regex pylint_statistics(R"((\d+)\s+statements\s+analysed)");
-    
-    std::string current_module;
-    
-    while (std::getline(stream, line)) {
-        std::smatch match;
-        
-        // Check for module header
-        if (std::regex_search(line, match, pylint_module_header)) {
-            current_module = match[1].str();
-            continue;
-        }
-        
-        // Check for Pylint message with error code
-        if (std::regex_search(line, match, pylint_message)) {
-            std::string severity_char = match[1].str();
-            std::string line_str = match[2].str();
-            std::string column_str = match[3].str();
-            std::string message = match[4].str();
-            std::string error_code = match[5].str();
-            
-            int64_t line_number = 0;
-            int64_t column_number = 0;
-            
-            try {
-                line_number = std::stoi(line_str);
-                column_number = std::stoi(column_str);
-            } catch (...) {
-                // If parsing fails, keep as 0
-            }
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            
-            // Map Pylint severity to ValidationEventStatus
-            if (severity_char == "E" || severity_char == "F") {
-                event.severity = "error";
-                event.status = ValidationEventStatus::ERROR;
-                event.event_type = ValidationEventType::BUILD_ERROR;
-            } else if (severity_char == "W") {
-                event.severity = "warning";
-                event.status = ValidationEventStatus::WARNING;
-            } else if (severity_char == "C" || severity_char == "R") {
-                event.severity = "info";
-                event.status = ValidationEventStatus::INFO;
-            } else {
-                event.severity = "warning";
-                event.status = ValidationEventStatus::WARNING;
-            }
-            
-            event.message = message;
-            event.file_path = current_module.empty() ? "unknown" : current_module;
-            event.line_number = line_number;
-            event.column_number = column_number;
-            event.error_code = error_code;
-            event.tool_name = "pylint";
-            event.category = "code_quality";
-            event.raw_output = line;
-            event.structured_data = "{\"severity_char\": \"" + severity_char + "\", \"error_code\": \"" + error_code + "\"}";
-            
-            events.push_back(event);
-        }
-        // Check for Pylint message without explicit error code
-        else if (std::regex_search(line, match, pylint_message_simple)) {
-            std::string severity_char = match[1].str();
-            std::string line_str = match[2].str();
-            std::string column_str = match[3].str();
-            std::string message = match[4].str();
-            
-            int64_t line_number = 0;
-            int64_t column_number = 0;
-            
-            try {
-                line_number = std::stoi(line_str);
-                column_number = std::stoi(column_str);
-            } catch (...) {
-                // If parsing fails, keep as 0
-            }
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            
-            // Map Pylint severity to ValidationEventStatus
-            if (severity_char == "E" || severity_char == "F") {
-                event.severity = "error";
-                event.status = ValidationEventStatus::ERROR;
-                event.event_type = ValidationEventType::BUILD_ERROR;
-            } else if (severity_char == "W") {
-                event.severity = "warning";
-                event.status = ValidationEventStatus::WARNING;
-            } else if (severity_char == "C" || severity_char == "R") {
-                event.severity = "info";
-                event.status = ValidationEventStatus::INFO;
-            } else {
-                event.severity = "warning";
-                event.status = ValidationEventStatus::WARNING;
-            }
-            
-            event.message = message;
-            event.file_path = current_module.empty() ? "unknown" : current_module;
-            event.line_number = line_number;
-            event.column_number = column_number;
-            event.tool_name = "pylint";
-            event.category = "code_quality";
-            event.raw_output = line;
-            event.structured_data = "{\"severity_char\": \"" + severity_char + "\"}";
-            
-            events.push_back(event);
-        }
-        // Check for rating information
-        else if (std::regex_search(line, match, pylint_rating)) {
-            std::string rating = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::SUMMARY;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "Code quality rating: " + rating + "/10";
-            event.tool_name = "pylint";
-            event.category = "code_quality";
-            event.raw_output = line;
-            event.structured_data = "{\"rating\": \"" + rating + "\"}";
-            
-            events.push_back(event);
-        }
-    }
-}
 
-void ParseFlake8Text(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    
-    // Regex pattern for Flake8 output: file.py:line:column: error_code message
-    std::regex flake8_message(R"(([^:]+):(\d+):(\d+):\s*([FEWC]\d+)\s*(.+))");
-    
-    while (std::getline(stream, line)) {
-        std::smatch match;
-        
-        if (std::regex_search(line, match, flake8_message)) {
-            std::string file_path = match[1].str();
-            std::string line_str = match[2].str();
-            std::string column_str = match[3].str();
-            std::string error_code = match[4].str();
-            std::string message = match[5].str();
-            
-            int64_t line_number = 0;
-            int64_t column_number = 0;
-            
-            try {
-                line_number = std::stoi(line_str);
-                column_number = std::stoi(column_str);
-            } catch (...) {
-                // If parsing fails, keep as 0
-            }
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            
-            // Map Flake8 error codes to severity
-            if (error_code.front() == 'F') {
-                // F codes are pyflakes errors (logical errors)
-                event.severity = "error";
-                event.status = ValidationEventStatus::ERROR;
-                event.event_type = ValidationEventType::BUILD_ERROR;
-            } else if (error_code.front() == 'E') {
-                // E codes are PEP 8 errors (style errors)
-                event.severity = "error";
-                event.status = ValidationEventStatus::ERROR;
-            } else if (error_code.front() == 'W') {
-                // W codes are PEP 8 warnings
-                event.severity = "warning";
-                event.status = ValidationEventStatus::WARNING;
-            } else if (error_code.front() == 'C') {
-                // C codes are complexity warnings
-                event.severity = "warning";
-                event.status = ValidationEventStatus::WARNING;
-            } else {
-                event.severity = "warning";
-                event.status = ValidationEventStatus::WARNING;
-            }
-            
-            event.message = message;
-            event.file_path = file_path;
-            event.line_number = line_number;
-            event.column_number = column_number;
-            event.error_code = error_code;
-            event.tool_name = "flake8";
-            event.category = "style_guide";
-            event.raw_output = line;
-            event.structured_data = "{\"error_code\": \"" + error_code + "\", \"error_type\": \"" + std::string(1, error_code.front()) + "\"}";
-            
-            events.push_back(event);
-        }
-    }
-}
 
-void ParseBlackText(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    
-    // Regex patterns for Black output
-    std::regex would_reformat(R"(would reformat (.+))");
-    std::regex reformat_summary(R"((\d+) files? would be reformatted, (\d+) files? would be left unchanged)");
-    std::regex all_done_summary(R"(All done! ✨ 🍰 ✨)");
-    std::regex diff_header(R"(--- (.+)\s+\(original\))");
-    
-    bool in_diff_mode = false;
-    std::string current_file;
-    
-    while (std::getline(stream, line)) {
-        std::smatch match;
-        
-        // Check for "would reformat" messages
-        if (std::regex_search(line, match, would_reformat)) {
-            std::string file_path = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "File would be reformatted by Black";
-            event.file_path = file_path;
-            event.tool_name = "black";
-            event.category = "code_formatting";
-            event.raw_output = line;
-            event.structured_data = "{\"action\": \"would_reformat\"}";
-            
-            events.push_back(event);
-        }
-        // Check for reformat summary
-        else if (std::regex_search(line, match, reformat_summary)) {
-            std::string reformat_count = match[1].str();
-            std::string unchanged_count = match[2].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.severity = "warning";
-            event.status = ValidationEventStatus::WARNING;
-            event.message = reformat_count + " files would be reformatted, " + unchanged_count + " files would be left unchanged";
-            event.tool_name = "black";
-            event.category = "code_formatting";
-            event.raw_output = line;
-            event.structured_data = "{\"reformat_count\": " + reformat_count + ", \"unchanged_count\": " + unchanged_count + "}";
-            
-            events.push_back(event);
-        }
-        // Check for "All done!" success message
-        else if (std::regex_search(line, match, all_done_summary)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::SUMMARY;
-            event.severity = "info";
-            event.status = ValidationEventStatus::PASS;
-            event.message = "Black formatting check completed successfully";
-            event.tool_name = "black";
-            event.category = "code_formatting";
-            event.raw_output = line;
-            event.structured_data = "{\"action\": \"success\"}";
-            
-            events.push_back(event);
-        }
-        // Check for diff header (unified diff mode)
-        else if (std::regex_search(line, match, diff_header)) {
-            current_file = match[1].str();
-            in_diff_mode = true;
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "Black would apply formatting changes";
-            event.file_path = current_file;
-            event.tool_name = "black";
-            event.category = "code_formatting";
-            event.raw_output = line;
-            event.structured_data = "{\"action\": \"diff_start\", \"file\": \"" + current_file + "\"}";
-            
-            events.push_back(event);
-        }
-        // Handle diff content (lines starting with + or -)
-        else if (in_diff_mode && (line.front() == '+' || line.front() == '-') && line.size() > 1) {
-            // Skip pure markers like +++/---
-            if (line.substr(0, 3) != "+++" && line.substr(0, 3) != "---") {
-                ValidationEvent event;
-                event.event_id = event_id++;
-                event.event_type = ValidationEventType::LINT_ISSUE;
-                event.severity = "info";
-                event.status = ValidationEventStatus::INFO;
-                
-                if (line.front() == '+') {
-                    event.message = "Black would add: " + line.substr(1);
-                } else {
-                    event.message = "Black would remove: " + line.substr(1);
-                }
-                
-                event.file_path = current_file;
-                event.tool_name = "black";
-                event.category = "code_formatting";
-                event.raw_output = line;
-                event.structured_data = "{\"action\": \"diff_line\", \"type\": \"" + std::string(1, line.front()) + "\"}";
-                
-                events.push_back(event);
-            }
-        }
-        // Reset diff mode on empty lines or when encountering new files
-        else if (line.empty() || line.find("would reformat") != std::string::npos) {
-            in_diff_mode = false;
-            current_file.clear();
-        }
-    }
-}
 
-void ParseMypyText(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    
-    // Regex patterns for mypy output
-    std::regex mypy_message(R"(([^:]+):(\d+):\s*(error|warning|note):\s*(.+?)\s*\[([^\]]+)\])");
-    std::regex mypy_message_no_code(R"(([^:]+):(\d+):\s*(error|warning|note):\s*(.+))");
-    std::regex mypy_summary(R"(Found (\d+) errors? in (\d+) files? \(checked (\d+) files?\))");
-    std::regex mypy_success(R"(Success: no issues found in (\d+) source files?)");
-    std::regex mypy_revealed_type(R"((.+):(\d+):\s*note:\s*Revealed type is \"(.+)\")");
-    
-    while (std::getline(stream, line)) {
-        std::smatch match;
-        
-        // Check for mypy message with error code
-        if (std::regex_search(line, match, mypy_message)) {
-            std::string file_path = match[1].str();
-            std::string line_str = match[2].str();
-            std::string severity = match[3].str();
-            std::string message = match[4].str();
-            std::string error_code = match[5].str();
-            
-            int64_t line_number = 0;
-            
-            try {
-                line_number = std::stoi(line_str);
-            } catch (...) {
-                // If parsing fails, keep as 0
-            }
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            
-            // Map mypy severity to ValidationEventStatus
-            if (severity == "error") {
-                event.event_type = ValidationEventType::BUILD_ERROR;
-                event.severity = "error";
-                event.status = ValidationEventStatus::ERROR;
-            } else if (severity == "warning") {
-                event.event_type = ValidationEventType::LINT_ISSUE;
-                event.severity = "warning";
-                event.status = ValidationEventStatus::WARNING;
-            } else if (severity == "note") {
-                event.event_type = ValidationEventType::LINT_ISSUE;
-                event.severity = "info";
-                event.status = ValidationEventStatus::INFO;
-            } else {
-                event.event_type = ValidationEventType::LINT_ISSUE;
-                event.severity = "warning";
-                event.status = ValidationEventStatus::WARNING;
-            }
-            
-            event.message = message;
-            event.file_path = file_path;
-            event.line_number = line_number;
-            event.error_code = error_code;
-            event.tool_name = "mypy";
-            event.category = "type_checking";
-            event.raw_output = line;
-            event.structured_data = "{\"error_code\": \"" + error_code + "\", \"severity\": \"" + severity + "\"}";
-            
-            events.push_back(event);
-        }
-        // Check for mypy message without error code
-        else if (std::regex_search(line, match, mypy_message_no_code)) {
-            std::string file_path = match[1].str();
-            std::string line_str = match[2].str();
-            std::string severity = match[3].str();
-            std::string message = match[4].str();
-            
-            int64_t line_number = 0;
-            
-            try {
-                line_number = std::stoi(line_str);
-            } catch (...) {
-                // If parsing fails, keep as 0
-            }
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            
-            // Map mypy severity to ValidationEventStatus
-            if (severity == "error") {
-                event.event_type = ValidationEventType::BUILD_ERROR;
-                event.severity = "error";
-                event.status = ValidationEventStatus::ERROR;
-            } else if (severity == "warning") {
-                event.event_type = ValidationEventType::LINT_ISSUE;
-                event.severity = "warning";
-                event.status = ValidationEventStatus::WARNING;
-            } else if (severity == "note") {
-                event.event_type = ValidationEventType::LINT_ISSUE;
-                event.severity = "info";
-                event.status = ValidationEventStatus::INFO;
-            } else {
-                event.event_type = ValidationEventType::LINT_ISSUE;
-                event.severity = "warning";
-                event.status = ValidationEventStatus::WARNING;
-            }
-            
-            event.message = message;
-            event.file_path = file_path;
-            event.line_number = line_number;
-            event.tool_name = "mypy";
-            event.category = "type_checking";
-            event.raw_output = line;
-            event.structured_data = "{\"severity\": \"" + severity + "\"}";
-            
-            events.push_back(event);
-        }
-        // Check for summary with errors
-        else if (std::regex_search(line, match, mypy_summary)) {
-            std::string error_count = match[1].str();
-            std::string file_count = match[2].str();
-            std::string checked_count = match[3].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.severity = "error";
-            event.status = ValidationEventStatus::ERROR;
-            event.message = "Found " + error_count + " errors in " + file_count + " files (checked " + checked_count + " files)";
-            event.tool_name = "mypy";
-            event.category = "type_checking";
-            event.raw_output = line;
-            event.structured_data = "{\"error_count\": " + error_count + ", \"file_count\": " + file_count + ", \"checked_count\": " + checked_count + "}";
-            
-            events.push_back(event);
-        }
-        // Check for success message
-        else if (std::regex_search(line, match, mypy_success)) {
-            std::string checked_count = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::SUMMARY;
-            event.severity = "info";
-            event.status = ValidationEventStatus::PASS;
-            event.message = "Success: no issues found in " + checked_count + " source files";
-            event.tool_name = "mypy";
-            event.category = "type_checking";
-            event.raw_output = line;
-            event.structured_data = "{\"checked_count\": " + checked_count + "}";
-            
-            events.push_back(event);
-        }
-    }
-}
 
-void ParseDockerBuild(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    
-    // Regex patterns for Docker build output
-    std::regex docker_step(R"(Step (\d+/\d+) : (.+))");
-    std::regex docker_image_id(R"( ---> ([a-f0-9]{12}))");
-    std::regex docker_running_in(R"( ---> Running in ([a-f0-9]{12}))");
-    std::regex docker_removing(R"(Removing intermediate container ([a-f0-9]{12}))");
-    std::regex docker_successfully_built(R"(Successfully built ([a-f0-9]{12}))");
-    std::regex docker_successfully_tagged(R"(Successfully tagged (.+))");
-    std::regex docker_error_command(R"(The command '(.+)' returned a non-zero code: (\d+))");
-    std::regex docker_npm_err(R"(npm ERR! (.+))");
-    std::regex docker_buildkit_step(R"(=> \[([^\]]+)\] (.+))");
-    std::regex docker_buildkit_timing(R"(\[(\+)\] Building ([\d\.]+)s \((\d+/\d+)\) FINISHED)");
-    std::regex docker_security_vuln(R"(✗ (High|Medium|Low|Critical) severity vulnerability found in (.+))");
-    std::regex docker_cve(R"(Vulnerability: (CVE-\d{4}-\d{4,}))");
-    std::regex docker_package_vuln(R"(Package: (.+))");
-    std::regex docker_webpack_error(R"(ERROR in (.+))");
-    std::regex docker_webpack_warning(R"(WARNING in (.+))");
-    std::regex docker_module_not_found(R"(Module not found: Error: Can't resolve '(.+)' in '(.+)')");
-    
-    std::string current_step;
-    std::string current_container;
-    std::string current_vulnerability_package;
-    std::string current_cve;
-    bool in_security_scan = false;
-    bool in_npm_error = false;
-    
-    while (std::getline(stream, line)) {
-        std::smatch match;
-        
-        // Check for security scanning section
-        if (line.find("SECURITY SCANNING:") != std::string::npos) {
-            in_security_scan = true;
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::SECURITY_FINDING;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "Docker security scan initiated";
-            event.tool_name = "docker";
-            event.category = "security";
-            event.raw_output = line;
-            event.structured_data = "{\"action\": \"security_scan_start\"}";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Check for Docker step
-        if (std::regex_search(line, match, docker_step)) {
-            current_step = match[1].str();
-            std::string command = match[2].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "Docker step: " + command;
-            event.tool_name = "docker";
-            event.category = "build_step";
-            event.raw_output = line;
-            event.structured_data = "{\"step\": \"" + current_step + "\", \"command\": \"" + command + "\"}";
-            
-            events.push_back(event);
-        }
-        // Check for Docker container running
-        else if (std::regex_search(line, match, docker_running_in)) {
-            current_container = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::DEBUG_EVENT;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "Running in container " + current_container;
-            event.tool_name = "docker";
-            event.category = "container";
-            event.raw_output = line;
-            event.structured_data = "{\"container_id\": \"" + current_container + "\", \"action\": \"running\"}";
-            
-            events.push_back(event);
-        }
-        // Check for successful build
-        else if (std::regex_search(line, match, docker_successfully_built)) {
-            std::string image_id = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::SUMMARY;
-            event.severity = "info";
-            event.status = ValidationEventStatus::PASS;
-            event.message = "Docker image built successfully";
-            event.tool_name = "docker";
-            event.category = "build_success";
-            event.raw_output = line;
-            event.structured_data = "{\"image_id\": \"" + image_id + "\", \"action\": \"build_success\"}";
-            
-            events.push_back(event);
-        }
-        // Check for successful tagging
-        else if (std::regex_search(line, match, docker_successfully_tagged)) {
-            std::string tag = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::SUMMARY;
-            event.severity = "info";
-            event.status = ValidationEventStatus::PASS;
-            event.message = "Docker image tagged successfully: " + tag;
-            event.tool_name = "docker";
-            event.category = "build_success";
-            event.raw_output = line;
-            event.structured_data = "{\"tag\": \"" + tag + "\", \"action\": \"tag_success\"}";
-            
-            events.push_back(event);
-        }
-        // Check for command errors
-        else if (std::regex_search(line, match, docker_error_command)) {
-            std::string command = match[1].str();
-            std::string exit_code = match[2].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.severity = "error";
-            event.status = ValidationEventStatus::ERROR;
-            event.message = "Docker command failed: " + command;
-            event.error_code = "exit_" + exit_code;
-            event.tool_name = "docker";
-            event.category = "build_error";
-            event.raw_output = line;
-            event.structured_data = "{\"command\": \"" + command + "\", \"exit_code\": " + exit_code + "}";
-            
-            events.push_back(event);
-        }
-        // Check for npm errors
-        else if (std::regex_search(line, match, docker_npm_err)) {
-            std::string error_msg = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.severity = "error";
-            event.status = ValidationEventStatus::ERROR;
-            event.message = "npm error: " + error_msg;
-            event.tool_name = "npm";
-            event.category = "package_error";
-            event.raw_output = line;
-            event.structured_data = "{\"error_message\": \"" + error_msg + "\", \"tool\": \"npm\"}";
-            
-            events.push_back(event);
-        }
-        // Check for webpack errors
-        else if (std::regex_search(line, match, docker_webpack_error)) {
-            std::string file_path = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.severity = "error";
-            event.status = ValidationEventStatus::ERROR;
-            event.message = "Webpack error in file";
-            event.file_path = file_path;
-            event.tool_name = "webpack";
-            event.category = "build_error";
-            event.raw_output = line;
-            event.structured_data = "{\"file\": \"" + file_path + "\", \"tool\": \"webpack\"}";
-            
-            events.push_back(event);
-        }
-        // Check for webpack warnings
-        else if (std::regex_search(line, match, docker_webpack_warning)) {
-            std::string file_path = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.severity = "warning";
-            event.status = ValidationEventStatus::WARNING;
-            event.message = "Webpack warning in file";
-            event.file_path = file_path;
-            event.tool_name = "webpack";
-            event.category = "build_warning";
-            event.raw_output = line;
-            event.structured_data = "{\"file\": \"" + file_path + "\", \"tool\": \"webpack\"}";
-            
-            events.push_back(event);
-        }
-        // Check for module not found errors
-        else if (std::regex_search(line, match, docker_module_not_found)) {
-            std::string module = match[1].str();
-            std::string path = match[2].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.severity = "error";
-            event.status = ValidationEventStatus::ERROR;
-            event.message = "Module not found: " + module;
-            event.file_path = path;
-            event.error_code = "MODULE_NOT_FOUND";
-            event.tool_name = "webpack";
-            event.category = "dependency_error";
-            event.raw_output = line;
-            event.structured_data = "{\"missing_module\": \"" + module + "\", \"path\": \"" + path + "\"}";
-            
-            events.push_back(event);
-        }
-        // Check for security vulnerabilities
-        else if (in_security_scan && std::regex_search(line, match, docker_security_vuln)) {
-            std::string severity = match[1].str();
-            std::string package = match[2].str();
-            current_vulnerability_package = package;
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::SECURITY_FINDING;
-            
-            // Map security severity
-            if (severity == "Critical" || severity == "High") {
-                event.severity = "error";
-                event.status = ValidationEventStatus::ERROR;
-            } else if (severity == "Medium") {
-                event.severity = "warning";
-                event.status = ValidationEventStatus::WARNING;
-            } else {
-                event.severity = "info";
-                event.status = ValidationEventStatus::INFO;
-            }
-            
-            event.message = severity + " severity vulnerability found in " + package;
-            event.tool_name = "docker_scan";
-            event.category = "security";
-            event.raw_output = line;
-            event.structured_data = "{\"severity\": \"" + severity + "\", \"package\": \"" + package + "\"}";
-            
-            events.push_back(event);
-        }
-        // Check for CVE information
-        else if (in_security_scan && std::regex_search(line, match, docker_cve)) {
-            current_cve = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::SECURITY_FINDING;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "CVE identified: " + current_cve;
-            event.error_code = current_cve;
-            event.tool_name = "docker_scan";
-            event.category = "security";
-            event.raw_output = line;
-            event.structured_data = "{\"cve\": \"" + current_cve + "\", \"package\": \"" + current_vulnerability_package + "\"}";
-            
-            events.push_back(event);
-        }
-        // Check for BuildKit output
-        else if (std::regex_search(line, match, docker_buildkit_step)) {
-            std::string step_name = match[1].str();
-            std::string step_desc = match[2].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::DEBUG_EVENT;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "BuildKit step: " + step_desc;
-            event.tool_name = "docker_buildkit";
-            event.category = "build_step";
-            event.raw_output = line;
-            event.structured_data = "{\"step_name\": \"" + step_name + "\", \"description\": \"" + step_desc + "\"}";
-            
-            events.push_back(event);
-        }
-        // Check for BuildKit completion
-        else if (std::regex_search(line, match, docker_buildkit_timing)) {
-            std::string duration = match[2].str();
-            std::string steps = match[3].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::SUMMARY;
-            event.severity = "info";
-            event.status = ValidationEventStatus::PASS;
-            event.message = "BuildKit build completed in " + duration + "s";
-            event.tool_name = "docker_buildkit";
-            event.category = "build_success";
-            event.raw_output = line;
-            event.structured_data = "{\"duration\": \"" + duration + "\", \"steps\": \"" + steps + "\"}";
-            
-            events.push_back(event);
-        }
-        
-        // Reset security scan flag when we encounter regular Docker output
-        if (in_security_scan && line.find("CACHING INFORMATION:") != std::string::npos) {
-            in_security_scan = false;
-        }
-    }
-}
 
 void ParseBazelBuild(const std::string& content, std::vector<ValidationEvent>& events) {
     std::istringstream stream(content);
@@ -5208,725 +3047,7 @@ void ParseBazelBuild(const std::string& content, std::vector<ValidationEvent>& e
     }
 }
 
-void ParseIsortText(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    
-    // Regex patterns for isort output
-    std::regex isort_error(R"(ERROR: ([^:]+\.py) Imports are incorrectly sorted and/or formatted\.)");
-    std::regex isort_fixing(R"(Fixing ([^:]+\.py))");
-    std::regex isort_diff_header(R"(--- ([^:]+\.py):before\s+(.+))");
-    std::regex isort_parse_error(R"(ERROR: ([^:]+\.py) (.+))");
-    std::regex isort_warning(R"(WARNING: ([^:]+\.py) (.+))");
-    std::regex isort_summary(R"(Successfully formatted (\d+) files?, (\d+) files? reformatted\.)");
-    std::regex isort_dry_run(R"((\d+) files? would be reformatted, (\d+) files? would be left unchanged\.)");
-    std::regex isort_config_setting(R"(([^:]+):\s*(.+))");
-    std::regex isort_verbose_parsing(R"(Parsing ([^:]+\.py))");
-    std::regex isort_verbose_placing(R"(Placing imports for ([^:]+\.py))");
-    std::regex isort_check_error(R"(ERROR: isort found an import in the wrong position\.)");
-    std::regex isort_file_line(R"(File: ([^:]+\.py))");
-    std::regex isort_line_number(R"(Line: (\d+))");
-    std::regex isort_expected(R"(Expected: (.+))");
-    std::regex isort_actual(R"(Actual: (.+))");
-    std::regex isort_skipped(R"(Skipped (\d+) files?)");
-    std::regex isort_permission_denied(R"(ERROR: Permission denied: ([^:]+\.py))");
-    std::regex isort_syntax_error(R"(ERROR: ([^:]+\.py) Unable to parse file\. (.+))");
-    std::regex isort_encoding_warning(R"(WARNING: ([^:]+\.py) Unable to determine encoding\.)");
-    std::regex isort_execution_time(R"(Total execution time: ([\d\.]+)s)");
-    std::regex isort_final_summary(R"(Files processed: (\d+))");
-    
-    std::string current_file;
-    std::string current_error_context;
-    bool in_diff_section = false;
-    bool in_config_section = false;
-    bool in_check_mode = false;
-    int current_line_number = -1;
-    
-    while (std::getline(stream, line)) {
-        std::smatch match;
-        
-        // Check for configuration section
-        if (line.find("import-order-style:") != std::string::npos || 
-            line.find("profile:") != std::string::npos ||
-            line.find("line-length:") != std::string::npos) {
-            in_config_section = true;
-        }
-        
-        // Check for diff section
-        if (line.find("---") != std::string::npos && line.find(":before") != std::string::npos) {
-            in_diff_section = true;
-        } else if (line.find("+++") != std::string::npos && line.find(":after") != std::string::npos) {
-            in_diff_section = true;
-        } else if (in_diff_section && line.empty()) {
-            in_diff_section = false;
-        }
-        
-        // Parse import sorting errors
-        if (std::regex_search(line, match, isort_error)) {
-            std::string file_path = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.severity = "error";
-            event.status = ValidationEventStatus::ERROR;
-            event.message = "Imports are incorrectly sorted and/or formatted";
-            event.file_path = file_path;
-            event.tool_name = "isort";
-            event.category = "import_order";
-            event.error_code = "IMPORT_ORDER";
-            event.raw_output = line;
-            event.structured_data = "{\"file\": \"" + file_path + "\", \"issue\": \"incorrect_import_order\"}";
-            
-            events.push_back(event);
-        }
-        // Parse fixing messages
-        else if (std::regex_search(line, match, isort_fixing)) {
-            std::string file_path = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "Fixing import order";
-            event.file_path = file_path;
-            event.tool_name = "isort";
-            event.category = "import_fix";
-            event.raw_output = line;
-            event.structured_data = "{\"file\": \"" + file_path + "\", \"action\": \"fixing_imports\"}";
-            
-            events.push_back(event);
-        }
-        // Parse verbose parsing messages
-        else if (std::regex_search(line, match, isort_verbose_parsing)) {
-            std::string file_path = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::DEBUG_EVENT;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "Parsing Python file";
-            event.file_path = file_path;
-            event.tool_name = "isort";
-            event.category = "parsing";
-            event.raw_output = line;
-            event.structured_data = "{\"file\": \"" + file_path + "\", \"action\": \"parsing\"}";
-            
-            events.push_back(event);
-        }
-        // Parse verbose placing messages
-        else if (std::regex_search(line, match, isort_verbose_placing)) {
-            std::string file_path = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::DEBUG_EVENT;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "Placing imports";
-            event.file_path = file_path;
-            event.tool_name = "isort";
-            event.category = "placing";
-            event.raw_output = line;
-            event.structured_data = "{\"file\": \"" + file_path + "\", \"action\": \"placing_imports\"}";
-            
-            events.push_back(event);
-        }
-        // Parse check-only mode errors
-        else if (std::regex_search(line, match, isort_check_error)) {
-            in_check_mode = true;
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.severity = "error";
-            event.status = ValidationEventStatus::ERROR;
-            event.message = "Import found in wrong position";
-            event.tool_name = "isort";
-            event.category = "import_position";
-            event.error_code = "WRONG_POSITION";
-            event.raw_output = line;
-            event.structured_data = "{\"check_mode\": true, \"issue\": \"wrong_import_position\"}";
-            
-            events.push_back(event);
-        }
-        // Parse file context in check mode
-        else if (in_check_mode && std::regex_search(line, match, isort_file_line)) {
-            current_file = match[1].str();
-        }
-        // Parse line number in check mode
-        else if (in_check_mode && std::regex_search(line, match, isort_line_number)) {
-            current_line_number = std::stoi(match[1].str());
-        }
-        // Parse expected vs actual in check mode
-        else if (in_check_mode && std::regex_search(line, match, isort_expected)) {
-            std::string expected = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "Expected: " + expected;
-            event.file_path = current_file;
-            event.line_number = current_line_number;
-            event.tool_name = "isort";
-            event.category = "import_expectation";
-            event.raw_output = line;
-            event.structured_data = "{\"file\": \"" + current_file + "\", \"expected\": \"" + expected + "\"}";
-            
-            events.push_back(event);
-        }
-        else if (in_check_mode && std::regex_search(line, match, isort_actual)) {
-            std::string actual = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.severity = "warning";
-            event.status = ValidationEventStatus::WARNING;
-            event.message = "Actual: " + actual;
-            event.file_path = current_file;
-            event.line_number = current_line_number;
-            event.tool_name = "isort";
-            event.category = "import_actual";
-            event.raw_output = line;
-            event.structured_data = "{\"file\": \"" + current_file + "\", \"actual\": \"" + actual + "\"}";
-            
-            events.push_back(event);
-        }
-        // Parse parse/syntax errors
-        else if (std::regex_search(line, match, isort_parse_error) || 
-                 std::regex_search(line, match, isort_syntax_error)) {
-            std::string file_path = match[1].str();
-            std::string error_msg = match[2].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.severity = "error";
-            event.status = ValidationEventStatus::ERROR;
-            event.message = error_msg;
-            event.file_path = file_path;
-            event.tool_name = "isort";
-            event.category = "parse_error";
-            event.error_code = "PARSE_ERROR";
-            event.raw_output = line;
-            event.structured_data = "{\"file\": \"" + file_path + "\", \"error\": \"" + error_msg + "\"}";
-            
-            events.push_back(event);
-        }
-        // Parse permission errors
-        else if (std::regex_search(line, match, isort_permission_denied)) {
-            std::string file_path = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.severity = "error";
-            event.status = ValidationEventStatus::ERROR;
-            event.message = "Permission denied";
-            event.file_path = file_path;
-            event.tool_name = "isort";
-            event.category = "permission_error";
-            event.error_code = "PERMISSION_DENIED";
-            event.raw_output = line;
-            event.structured_data = "{\"file\": \"" + file_path + "\", \"error\": \"permission_denied\"}";
-            
-            events.push_back(event);
-        }
-        // Parse encoding warnings
-        else if (std::regex_search(line, match, isort_encoding_warning)) {
-            std::string file_path = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.severity = "warning";
-            event.status = ValidationEventStatus::WARNING;
-            event.message = "Unable to determine encoding";
-            event.file_path = file_path;
-            event.tool_name = "isort";
-            event.category = "encoding_warning";
-            event.raw_output = line;
-            event.structured_data = "{\"file\": \"" + file_path + "\", \"warning\": \"encoding_issue\"}";
-            
-            events.push_back(event);
-        }
-        // Parse success summary
-        else if (std::regex_search(line, match, isort_summary)) {
-            int formatted = std::stoi(match[1].str());
-            int reformatted = std::stoi(match[2].str());
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::SUMMARY;
-            event.severity = "info";
-            event.status = ValidationEventStatus::PASS;
-            event.message = "Successfully formatted " + std::to_string(formatted) + " files, " + 
-                           std::to_string(reformatted) + " files reformatted";
-            event.tool_name = "isort";
-            event.category = "format_summary";
-            event.raw_output = line;
-            event.structured_data = "{\"formatted\": " + std::to_string(formatted) + 
-                                   ", \"reformatted\": " + std::to_string(reformatted) + "}";
-            
-            events.push_back(event);
-        }
-        // Parse dry-run summary
-        else if (std::regex_search(line, match, isort_dry_run)) {
-            int would_reformat = std::stoi(match[1].str());
-            int unchanged = std::stoi(match[2].str());
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::SUMMARY;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = std::to_string(would_reformat) + " files would be reformatted, " + 
-                           std::to_string(unchanged) + " files would be left unchanged";
-            event.tool_name = "isort";
-            event.category = "dry_run_summary";
-            event.raw_output = line;
-            event.structured_data = "{\"would_reformat\": " + std::to_string(would_reformat) + 
-                                   ", \"unchanged\": " + std::to_string(unchanged) + ", \"dry_run\": true}";
-            
-            events.push_back(event);
-        }
-        // Parse skipped files
-        else if (std::regex_search(line, match, isort_skipped)) {
-            int skipped = std::stoi(match[1].str());
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::SUMMARY;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "Skipped " + std::to_string(skipped) + " files";
-            event.tool_name = "isort";
-            event.category = "skipped_files";
-            event.raw_output = line;
-            event.structured_data = "{\"skipped\": " + std::to_string(skipped) + "}";
-            
-            events.push_back(event);
-        }
-        // Parse execution time
-        else if (std::regex_search(line, match, isort_execution_time)) {
-            double exec_time = std::stod(match[1].str());
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::PERFORMANCE_METRIC;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "Total execution time: " + match[1].str() + "s";
-            event.tool_name = "isort";
-            event.category = "performance";
-            event.execution_time = exec_time;
-            event.raw_output = line;
-            event.structured_data = "{\"execution_time\": " + match[1].str() + "}";
-            
-            events.push_back(event);
-        }
-        // Parse configuration settings
-        else if (in_config_section && std::regex_search(line, match, isort_config_setting)) {
-            std::string setting = match[1].str();
-            std::string value = match[2].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::DEBUG_EVENT;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "Configuration: " + setting + " = " + value;
-            event.tool_name = "isort";
-            event.category = "configuration";
-            event.raw_output = line;
-            event.structured_data = "{\"setting\": \"" + setting + "\", \"value\": \"" + value + "\"}";
-            
-            events.push_back(event);
-        }
-        
-        // Reset check mode context when we hit an empty line after check details
-        if (in_check_mode && line.empty()) {
-            in_check_mode = false;
-            current_file.clear();
-            current_line_number = -1;
-        }
-        
-        // Reset config section when we hit "All done!" or similar
-        if (line.find("All done!") != std::string::npos || 
-            line.find("files would be reformatted") != std::string::npos) {
-            in_config_section = false;
-        }
-    }
-}
 
-void ParseBanditText(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    
-    // Regex patterns for bandit text output
-    std::regex bandit_issue_header(R"(>> Issue: \[([^:]+):([^\]]+)\] (.+))");
-    std::regex bandit_severity(R"(Severity: (Low|Medium|High)\s+Confidence: (Low|Medium|High))");
-    std::regex bandit_cwe(R"(CWE: (CWE-\d+) \(([^)]+)\))");
-    std::regex bandit_more_info(R"(More Info: (https://bandit\.readthedocs\.io[^\s]+))");
-    std::regex bandit_location(R"(Location: ([^:]+):(\d+):(\d+))");
-    std::regex bandit_info_log(R"(\[main\]\s+(INFO|WARNING|ERROR)\s+(.+))");
-    std::regex bandit_run_started(R"(Run started:(.+))");
-    std::regex bandit_total_lines(R"(Total lines of code: (\d+))");
-    std::regex bandit_skipped_lines(R"(Total lines skipped \(#nosec\): (\d+))");
-    std::regex bandit_severity_summary(R"((Low|Medium|High|Undefined): (\d+))");
-    std::regex bandit_confidence_summary(R"((Low|Medium|High|Undefined): (\d+))");
-    std::regex bandit_files_skipped(R"(Files skipped \((\d+)\):)");
-    std::regex bandit_final_log(R"(\[bandit\]\s+(INFO|WARNING|ERROR)\s+(.+))");
-    std::regex bandit_issues_found(R"(Found (\d+) issues with security implications)");
-    std::regex bandit_execution_time(R"(Total execution time: ([\d\.]+) seconds)");
-    std::regex bandit_python_version(R"(running on Python ([\d\.]+))");
-    
-    std::string current_test_id;
-    std::string current_test_name;
-    std::string current_severity;
-    std::string current_confidence;
-    std::string current_file;
-    std::string current_cwe;
-    std::string current_more_info;
-    int current_line = -1;
-    int current_column = -1;
-    bool in_issue_block = false;
-    bool in_severity_summary = false;
-    bool in_confidence_summary = false;
-    
-    while (std::getline(stream, line)) {
-        std::smatch match;
-        
-        // Parse issue header
-        if (std::regex_search(line, match, bandit_issue_header)) {
-            current_test_id = match[1].str();
-            current_test_name = match[2].str();
-            std::string description = match[3].str();
-            in_issue_block = true;
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::SECURITY_FINDING;
-            event.severity = "unknown";  // Will be updated when we parse severity line
-            event.status = ValidationEventStatus::WARNING;
-            event.message = description;
-            event.tool_name = "bandit";
-            event.category = "security";
-            event.error_code = current_test_id;
-            event.test_name = current_test_name;
-            event.raw_output = line;
-            event.structured_data = "{\"test_id\": \"" + current_test_id + "\", \"test_name\": \"" + current_test_name + "\", \"description\": \"" + description + "\"}";
-            
-            events.push_back(event);
-        }
-        // Parse severity and confidence
-        else if (in_issue_block && std::regex_search(line, match, bandit_severity)) {
-            current_severity = match[1].str();
-            current_confidence = match[2].str();
-            
-            // Update the last event with severity information
-            if (!events.empty()) {
-                auto& last_event = events.back();
-                last_event.severity = current_severity == "High" ? "error" : 
-                                     current_severity == "Medium" ? "warning" : "info";
-                last_event.status = current_severity == "High" ? ValidationEventStatus::ERROR :
-                                   current_severity == "Medium" ? ValidationEventStatus::WARNING : ValidationEventStatus::INFO;
-                
-                // Update structured data with severity and confidence
-                last_event.structured_data = "{\"test_id\": \"" + current_test_id + 
-                                             "\", \"test_name\": \"" + current_test_name + 
-                                             "\", \"severity\": \"" + current_severity + 
-                                             "\", \"confidence\": \"" + current_confidence + "\"}";
-            }
-        }
-        // Parse CWE information
-        else if (in_issue_block && std::regex_search(line, match, bandit_cwe)) {
-            current_cwe = match[1].str();
-            std::string cwe_url = match[2].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::SECURITY_FINDING;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "CWE reference: " + current_cwe;
-            event.tool_name = "bandit";
-            event.category = "cwe_reference";
-            event.error_code = current_cwe;
-            event.raw_output = line;
-            event.structured_data = "{\"cwe\": \"" + current_cwe + "\", \"url\": \"" + cwe_url + "\"}";
-            
-            events.push_back(event);
-        }
-        // Parse more info URL
-        else if (in_issue_block && std::regex_search(line, match, bandit_more_info)) {
-            current_more_info = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::DEBUG_EVENT;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "More information available";
-            event.tool_name = "bandit";
-            event.category = "documentation";
-            event.suggestion = current_more_info;
-            event.raw_output = line;
-            event.structured_data = "{\"more_info\": \"" + current_more_info + "\"}";
-            
-            events.push_back(event);
-        }
-        // Parse location
-        else if (in_issue_block && std::regex_search(line, match, bandit_location)) {
-            current_file = match[1].str();
-            current_line = std::stoi(match[2].str());
-            current_column = std::stoi(match[3].str());
-            
-            // Update the first event in this block with location information
-            if (!events.empty()) {
-                for (auto& event : events) {
-                    if (event.error_code == current_test_id && event.file_path.empty()) {
-                        event.file_path = current_file;
-                        event.line_number = current_line;
-                        event.column_number = current_column;
-                        break;
-                    }
-                }
-            }
-        }
-        // Parse main info logs
-        else if (std::regex_search(line, match, bandit_info_log)) {
-            std::string log_level = match[1].str();
-            std::string log_message = match[2].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::DEBUG_EVENT;
-            event.severity = log_level == "ERROR" ? "error" : 
-                            log_level == "WARNING" ? "warning" : "info";
-            event.status = log_level == "ERROR" ? ValidationEventStatus::ERROR :
-                          log_level == "WARNING" ? ValidationEventStatus::WARNING : ValidationEventStatus::INFO;
-            event.message = log_message;
-            event.tool_name = "bandit";
-            event.category = "initialization";
-            event.raw_output = line;
-            event.structured_data = "{\"log_level\": \"" + log_level + "\", \"message\": \"" + log_message + "\"}";
-            
-            events.push_back(event);
-        }
-        // Parse run started
-        else if (std::regex_search(line, match, bandit_run_started)) {
-            std::string timestamp = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::DEBUG_EVENT;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "Security scan started";
-            event.tool_name = "bandit";
-            event.category = "scan_start";
-            event.raw_output = line;
-            event.structured_data = "{\"timestamp\": \"" + timestamp + "\", \"action\": \"scan_start\"}";
-            
-            events.push_back(event);
-        }
-        // Parse Python version
-        else if (std::regex_search(line, match, bandit_python_version)) {
-            std::string python_version = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::DEBUG_EVENT;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "Running on Python " + python_version;
-            event.tool_name = "bandit";
-            event.category = "environment";
-            event.raw_output = line;
-            event.structured_data = "{\"python_version\": \"" + python_version + "\"}";
-            
-            events.push_back(event);
-        }
-        // Parse total lines of code
-        else if (std::regex_search(line, match, bandit_total_lines)) {
-            int total_lines = std::stoi(match[1].str());
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::SUMMARY;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "Total lines of code analyzed: " + std::to_string(total_lines);
-            event.tool_name = "bandit";
-            event.category = "code_metrics";
-            event.raw_output = line;
-            event.structured_data = "{\"total_lines\": " + std::to_string(total_lines) + "}";
-            
-            events.push_back(event);
-        }
-        // Parse skipped lines
-        else if (std::regex_search(line, match, bandit_skipped_lines)) {
-            int skipped_lines = std::stoi(match[1].str());
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::SUMMARY;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "Lines skipped (#nosec): " + std::to_string(skipped_lines);
-            event.tool_name = "bandit";
-            event.category = "code_metrics";
-            event.raw_output = line;
-            event.structured_data = "{\"skipped_lines\": " + std::to_string(skipped_lines) + "}";
-            
-            events.push_back(event);
-        }
-        // Parse severity summary
-        else if (line.find("Total issues (by severity):") != std::string::npos) {
-            in_severity_summary = true;
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::SUMMARY;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "Security issues summary by severity";
-            event.tool_name = "bandit";
-            event.category = "severity_summary";
-            event.raw_output = line;
-            event.structured_data = "{\"summary_type\": \"severity\"}";
-            
-            events.push_back(event);
-        }
-        else if (in_severity_summary && std::regex_search(line, match, bandit_severity_summary)) {
-            std::string severity_level = match[1].str();
-            int count = std::stoi(match[2].str());
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::SUMMARY;
-            event.severity = severity_level == "High" ? "error" : 
-                            severity_level == "Medium" ? "warning" : "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = severity_level + " severity issues: " + std::to_string(count);
-            event.tool_name = "bandit";
-            event.category = "severity_count";
-            event.raw_output = line;
-            event.structured_data = "{\"severity\": \"" + severity_level + "\", \"count\": " + std::to_string(count) + "}";
-            
-            events.push_back(event);
-        }
-        // Parse confidence summary
-        else if (line.find("Total issues (by confidence):") != std::string::npos) {
-            in_confidence_summary = true;
-            in_severity_summary = false;
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::SUMMARY;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "Security issues summary by confidence";
-            event.tool_name = "bandit";
-            event.category = "confidence_summary";
-            event.raw_output = line;
-            event.structured_data = "{\"summary_type\": \"confidence\"}";
-            
-            events.push_back(event);
-        }
-        else if (in_confidence_summary && std::regex_search(line, match, bandit_confidence_summary)) {
-            std::string confidence_level = match[1].str();
-            int count = std::stoi(match[2].str());
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::SUMMARY;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = confidence_level + " confidence issues: " + std::to_string(count);
-            event.tool_name = "bandit";
-            event.category = "confidence_count";
-            event.raw_output = line;
-            event.structured_data = "{\"confidence\": \"" + confidence_level + "\", \"count\": " + std::to_string(count) + "}";
-            
-            events.push_back(event);
-        }
-        // Parse final bandit logs
-        else if (std::regex_search(line, match, bandit_final_log)) {
-            std::string log_level = match[1].str();
-            std::string log_message = match[2].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::SUMMARY;
-            event.severity = log_level == "ERROR" ? "error" : 
-                            log_level == "WARNING" ? "warning" : "info";
-            event.status = log_level == "ERROR" ? ValidationEventStatus::ERROR :
-                          log_level == "WARNING" ? ValidationEventStatus::WARNING : ValidationEventStatus::PASS;
-            event.message = log_message;
-            event.tool_name = "bandit";
-            event.category = "scan_completion";
-            event.raw_output = line;
-            event.structured_data = "{\"log_level\": \"" + log_level + "\", \"message\": \"" + log_message + "\"}";
-            
-            events.push_back(event);
-        }
-        // Parse issues found count
-        else if (std::regex_search(line, match, bandit_issues_found)) {
-            int issues_count = std::stoi(match[1].str());
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::SUMMARY;
-            event.severity = issues_count > 0 ? "warning" : "info";
-            event.status = issues_count > 0 ? ValidationEventStatus::WARNING : ValidationEventStatus::PASS;
-            event.message = "Found " + std::to_string(issues_count) + " security issues";
-            event.tool_name = "bandit";
-            event.category = "issues_summary";
-            event.raw_output = line;
-            event.structured_data = "{\"issues_found\": " + std::to_string(issues_count) + "}";
-            
-            events.push_back(event);
-        }
-        // Parse execution time
-        else if (std::regex_search(line, match, bandit_execution_time)) {
-            double exec_time = std::stod(match[1].str());
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::PERFORMANCE_METRIC;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "Security scan completed in " + match[1].str() + " seconds";
-            event.tool_name = "bandit";
-            event.category = "performance";
-            event.execution_time = exec_time;
-            event.raw_output = line;
-            event.structured_data = "{\"execution_time\": " + match[1].str() + "}";
-            
-            events.push_back(event);
-        }
-        
-        // Reset issue block when we hit the separator
-        if (line.find("--------------------------------------------------") != std::string::npos) {
-            in_issue_block = false;
-        }
-        
-        // Reset summary flags when appropriate
-        if (line.find("Files skipped") != std::string::npos) {
-            in_severity_summary = false;
-            in_confidence_summary = false;
-        }
-    }
-}
 
 void ParseAutopep8Text(const std::string& content, std::vector<ValidationEvent>& events) {
     std::istringstream stream(content);
@@ -6304,412 +3425,6 @@ void ParseAutopep8Text(const std::string& content, std::vector<ValidationEvent>&
     }
 }
 
-void ParseYapfText(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    
-    // Regex patterns for yapf output
-    std::regex diff_start_yapf(R"(--- a/(.+) \(original\))");
-    std::regex diff_fixed_yapf(R"(\+\+\+ b/(.+) \(reformatted\))");
-    std::regex reformatted_file(R"(Reformatted (.+))");
-    std::regex yapf_command(R"(yapf (--[^\s]+.+))");
-    std::regex processing_verbose(R"(Processing (.+))");
-    std::regex style_config(R"(Style configuration: (.+))");
-    std::regex line_length_config(R"(Line length: (\d+))");
-    std::regex indent_width_config(R"(Indent width: (\d+))");
-    std::regex files_processed(R"(Files processed: (\d+))");
-    std::regex files_reformatted(R"(Files reformatted: (\d+))");
-    std::regex files_no_changes(R"(Files with no changes: (\d+))");
-    std::regex execution_time(R"(Total execution time: ([\d\.]+)s)");
-    std::regex check_error(R"(ERROR: Files would be reformatted but yapf was run with --check)");
-    std::regex yapf_error(R"(yapf: error: (.+))");
-    std::regex syntax_error(R"(ERROR: ([^:]+\.py):(\d+):(\d+): (.+))");
-    std::regex encoding_warning(R"(WARNING: ([^:]+\.py): cannot determine encoding)");
-    std::regex info_no_changes(R"(INFO: ([^:]+\.py): no changes needed)");
-    std::regex files_left_unchanged(R"((\d+) files reformatted, (\d+) files left unchanged\.)");
-    
-    std::smatch match;
-    std::string current_file;
-    bool in_diff = false;
-    bool in_config = false;
-    
-    while (std::getline(stream, line)) {
-        // Handle yapf diff sections
-        if (std::regex_search(line, match, diff_start_yapf)) {
-            current_file = match[1].str();
-            in_diff = true;
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = current_file;
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "formatting";
-            event.message = "File formatting changes detected";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle reformatted file patterns
-        if (std::regex_search(line, match, reformatted_file)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = match[1].str();
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "formatting";
-            event.message = "File reformatted";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle yapf command patterns
-        if (std::regex_search(line, match, yapf_command)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "configuration";
-            event.message = "Command: yapf " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle verbose processing
-        if (std::regex_search(line, match, processing_verbose)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = match[1].str();
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "processing";
-            event.message = "Processing file";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle style configuration
-        if (std::regex_search(line, match, style_config)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "configuration";
-            event.message = "Style configuration: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle line length configuration
-        if (std::regex_search(line, match, line_length_config)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "configuration";
-            event.message = "Line length: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle indent width configuration
-        if (std::regex_search(line, match, indent_width_config)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "configuration";
-            event.message = "Indent width: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle summary statistics
-        if (std::regex_search(line, match, files_processed)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "summary";
-            event.message = "Files processed: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        if (std::regex_search(line, match, files_reformatted)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "summary";
-            event.message = "Files reformatted: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        if (std::regex_search(line, match, files_no_changes)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "summary";
-            event.message = "Files with no changes: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        if (std::regex_search(line, match, execution_time)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "performance";
-            event.message = "Execution time: " + match[1].str() + "s";
-            event.execution_time = std::stod(match[1].str());
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle combined summary (e.g., "5 files reformatted, 3 files left unchanged.")
-        if (std::regex_search(line, match, files_left_unchanged)) {
-            ValidationEvent event1;
-            event1.event_id = event_id++;
-            event1.tool_name = "yapf";
-            event1.event_type = ValidationEventType::SUMMARY;
-            event1.file_path = "";
-            event1.line_number = -1;
-            event1.column_number = -1;
-            event1.status = ValidationEventStatus::INFO;
-            event1.severity = "info";
-            event1.category = "summary";
-            event1.message = "Files reformatted: " + match[1].str();
-            event1.execution_time = 0.0;
-            event1.raw_output = content;
-            event1.structured_data = "yapf_text";
-            
-            ValidationEvent event2;
-            event2.event_id = event_id++;
-            event2.tool_name = "yapf";
-            event2.event_type = ValidationEventType::SUMMARY;
-            event2.file_path = "";
-            event2.line_number = -1;
-            event2.column_number = -1;
-            event2.status = ValidationEventStatus::INFO;
-            event2.severity = "info";
-            event2.category = "summary";
-            event2.message = "Files left unchanged: " + match[2].str();
-            event2.execution_time = 0.0;
-            event2.raw_output = content;
-            event2.structured_data = "yapf_text";
-            
-            events.push_back(event1);
-            events.push_back(event2);
-            continue;
-        }
-        
-        // Handle check mode error
-        if (std::regex_search(line, match, check_error)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::ERROR;
-            event.severity = "error";
-            event.category = "check_mode";
-            event.message = "Files would be reformatted but yapf was run with --check";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle yapf errors
-        if (std::regex_search(line, match, yapf_error)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::ERROR;
-            event.severity = "error";
-            event.category = "command_error";
-            event.message = match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle syntax errors
-        if (std::regex_search(line, match, syntax_error)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = match[1].str();
-            event.line_number = std::stoi(match[2].str());
-            event.column_number = std::stoi(match[3].str());
-            event.status = ValidationEventStatus::ERROR;
-            event.severity = "error";
-            event.category = "syntax";
-            event.message = match[4].str();
-            event.error_code = "SyntaxError";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle encoding warnings
-        if (std::regex_search(line, match, encoding_warning)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = match[1].str();
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::WARNING;
-            event.severity = "warning";
-            event.category = "encoding";
-            event.message = "Cannot determine encoding";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle info messages (no changes needed)
-        if (std::regex_search(line, match, info_no_changes)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "yapf";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = match[1].str();
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "formatting";
-            event.message = "No changes needed";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "yapf_text";
-            
-            events.push_back(event);
-            continue;
-        }
-    }
-}
 
 
 void ParsePytestCovText(const std::string& content, std::vector<ValidationEvent>& events) {
@@ -7279,2107 +3994,6 @@ void ParsePytestCovText(const std::string& content, std::vector<ValidationEvent>
         }
     }
 }
-
-void ParseGitHubActionsText(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    
-    // Regex patterns for GitHub Actions output
-    std::regex timestamp_prefix(R"(^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{7}Z)\s+(.+))");
-    std::regex section_start(R"(##\[section\]Starting:\s+(.+))");
-    std::regex section_finish(R"(##\[section\]Finishing:\s+(.+))");
-    std::regex task_header_start(R"(={70,})");
-    std::regex task_info(R"(^(Task|Description|Version|Author|Help)\s*:\s*(.+))");
-    std::regex agent_info(R"(^Agent (name|machine name|version):\s*(?:'(.+)'|(.+)))");  
-    std::regex environment_info(R"(^(Operating System|Runner image|Environment details))");
-    std::regex git_operation(R"((/usr/bin/git\s+.+|Syncing repository:|From https://github\.com/.+))");
-    std::regex group_start(R"(##\[group\](.+))");
-    std::regex group_end(R"(##\[endgroup\])");
-    std::regex error_message(R"(##\[error\](.+))");
-    std::regex warning_message(R"(##\[warning\](.+))");
-    std::regex command_output_start(R"(={20,}\s*Starting Command Output\s*={20,})");
-    std::regex npm_command(R"(^>\s+([^@]+)@([^\s]+)\s+(.+))");
-    std::regex test_result(R"((PASS|FAIL)\s+(.+))");
-    std::regex jest_summary(R"(Test Suites:\s*(\d+)\s*failed,\s*(\d+)\s*passed,\s*(\d+)\s*total)");
-    std::regex jest_test_summary(R"(Tests:\s*(\d+)\s*failed,\s*(\d+)\s*passed,\s*(\d+)\s*total)");
-    std::regex jest_timing(R"(Time:\s*([\d\.]+)s)");
-    std::regex process_exit_code(R"(##\[error\]Process completed with exit code (\d+)\.)");
-    std::regex job_completed(R"(Job completed:\s*(.+))");
-    std::regex job_result(R"(Result:\s*(Succeeded|Failed|Canceled))");
-    std::regex elapsed_time(R"(Elapsed time:\s*(\d{2}:\d{2}:\d{2}))");
-    std::regex job_summary(R"(##\[section\]Job summary:)");
-    std::regex step_status(R"(-\s*([^:]+):\s*(Succeeded|Failed|Succeeded \\(with warnings\\)))");
-    std::regex error_details_section(R"(##\[section\]Error details:)");
-    std::regex performance_section(R"(##\[section\]Performance metrics:)");
-    std::regex recommendations_section(R"(##\[section\]Recommendations:)");
-    std::regex webpack_build(R"(Hash:\s*([a-f0-9]+))");
-    std::regex webpack_asset(R"(\s+([^\s]+)\s+([\d\.]+\s+[KMG]iB)\s+(\d+)\s+\[emitted\].*)");
-    std::regex eslint_warning(R"((\d+):(\d+)\s+(warning|error)\s+(.+)\s+([a-z-]+))");
-    std::regex coverage_info(R"(Publishing test results from '(.+)'))");
-    std::regex published_results(R"(Published (\d+) test result\\(s\\))");
-    std::regex resource_usage(R"((Disk space|Memory usage|CPU usage):\s*(.+))");
-    std::regex duration_metric(R"(-\s*([^:]+):\s*([\d\.]+)\s*(seconds|second|minutes|minute))");
-    std::regex recommendation_item(R"(-\s*(.+))");
-    
-    std::smatch match;
-    std::string current_section = "";
-    std::string current_task = "";
-    std::string current_timestamp = "";
-    bool in_task_header = false;
-    bool in_command_output = false;
-    bool in_job_summary = false;
-    bool in_error_details = false;
-    bool in_performance_metrics = false;
-    bool in_recommendations = false;
-    
-    while (std::getline(stream, line)) {
-        // Extract timestamp and content
-        if (std::regex_search(line, match, timestamp_prefix)) {
-            current_timestamp = match[1].str();
-            line = match[2].str();
-        }
-        
-        // Handle section starts
-        if (std::regex_search(line, match, section_start)) {
-            current_section = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "github-actions";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "section_start";
-            event.message = "Starting: " + current_section;
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "github_actions_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle section finishes
-        if (std::regex_search(line, match, section_finish)) {
-            std::string finished_section = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "github-actions";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "section_finish";
-            event.message = "Finished: " + finished_section;
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "github_actions_text";
-            
-            events.push_back(event);
-            current_section = "";
-            continue;
-        }
-        
-        // Handle task header start
-        if (std::regex_search(line, match, task_header_start)) {
-            in_task_header = true;
-            continue;
-        }
-        
-        // Handle task information
-        if (in_task_header && std::regex_search(line, match, task_info)) {
-            std::string info_type = match[1].str();
-            std::string info_value = match[2].str();
-            
-            if (info_type == "Task") {
-                current_task = info_value;
-            }
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "github-actions";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "task_info";
-            event.message = info_type + ": " + info_value;
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "github_actions_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle task header end
-        if (in_task_header && std::regex_search(line, match, task_header_start)) {
-            in_task_header = false;
-            continue;
-        }
-        
-        // Handle agent information
-        if (std::regex_search(line, match, agent_info)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "github-actions";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "agent_info";
-            event.message = line;
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "github_actions_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle command output start
-        if (std::regex_search(line, match, command_output_start)) {
-            in_command_output = true;
-            continue;
-        }
-        
-        // Handle npm commands
-        if (in_command_output && std::regex_search(line, match, npm_command)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "github-actions";
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "npm_command";
-            event.message = "npm " + match[3].str() + " for " + match[1].str() + "@" + match[2].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "github_actions_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle test results
-        if (std::regex_search(line, match, test_result)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "github-actions";
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.file_path = match[2].str();
-            event.line_number = -1;
-            event.column_number = -1;
-            
-            std::string status = match[1].str();
-            if (status == "PASS") {
-                event.status = ValidationEventStatus::PASS;
-                event.severity = "info";
-            } else {
-                event.status = ValidationEventStatus::FAIL;
-                event.severity = "error";
-            }
-            
-            event.category = "test_execution";
-            event.message = "Test " + status + ": " + match[2].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "github_actions_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle Jest test summary
-        if (std::regex_search(line, match, jest_summary)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "github-actions";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            
-            std::string failed = match[1].str();
-            if (failed != "0") {
-                event.status = ValidationEventStatus::FAIL;
-                event.severity = "error";
-            } else {
-                event.status = ValidationEventStatus::PASS;
-                event.severity = "info";
-            }
-            
-            event.category = "test_summary";
-            event.message = "Test Suites: " + failed + " failed, " + match[2].str() + " passed, " + match[3].str() + " total";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "github_actions_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle Jest individual test summary
-        if (std::regex_search(line, match, jest_test_summary)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "github-actions";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            
-            std::string failed = match[1].str();
-            if (failed != "0") {
-                event.status = ValidationEventStatus::FAIL;
-                event.severity = "error";
-            } else {
-                event.status = ValidationEventStatus::PASS;
-                event.severity = "info";
-            }
-            
-            event.category = "test_summary";
-            event.message = "Tests: " + failed + " failed, " + match[2].str() + " passed, " + match[3].str() + " total";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "github_actions_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle process exit codes
-        if (std::regex_search(line, match, process_exit_code)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "github-actions";
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::FAIL;
-            event.severity = "error";
-            event.category = "process_error";
-            event.message = "Process completed with exit code " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "github_actions_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle job completion
-        if (std::regex_search(line, match, job_completed)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "github-actions";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "job_completion";
-            event.message = "Job completed: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "github_actions_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle job result
-        if (std::regex_search(line, match, job_result)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "github-actions";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            
-            std::string result = match[1].str();
-            if (result == "Succeeded") {
-                event.status = ValidationEventStatus::PASS;
-                event.severity = "info";
-            } else if (result == "Failed") {
-                event.status = ValidationEventStatus::FAIL;
-                event.severity = "error";
-            } else {
-                event.status = ValidationEventStatus::INFO;
-                event.severity = "warning";
-            }
-            
-            event.category = "job_result";
-            event.message = "Job result: " + result;
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "github_actions_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle elapsed time
-        if (std::regex_search(line, match, elapsed_time)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "github-actions";
-            event.event_type = ValidationEventType::PERFORMANCE_METRIC;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "timing";
-            event.message = "Elapsed time: " + match[1].str();
-            
-            // Convert time string to seconds
-            std::string time_str = match[1].str();
-            std::istringstream time_stream(time_str);
-            std::string hours_str, minutes_str, seconds_str;
-            std::getline(time_stream, hours_str, ':');
-            std::getline(time_stream, minutes_str, ':');
-            std::getline(time_stream, seconds_str);
-            
-            double total_seconds = std::stod(hours_str) * 3600 + std::stod(minutes_str) * 60 + std::stod(seconds_str);
-            event.execution_time = total_seconds;
-            event.raw_output = content;
-            event.structured_data = "github_actions_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle job summary section
-        if (std::regex_search(line, match, job_summary)) {
-            in_job_summary = true;
-            continue;
-        }
-        
-        // Handle step status in job summary
-        if (in_job_summary && std::regex_search(line, match, step_status)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "github-actions";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            
-            std::string step_name = match[1].str();
-            std::string status = match[2].str();
-            
-            if (status == "Succeeded") {
-                event.status = ValidationEventStatus::PASS;
-                event.severity = "info";
-            } else if (status == "Failed") {
-                event.status = ValidationEventStatus::FAIL;
-                event.severity = "error";
-            } else {
-                event.status = ValidationEventStatus::WARNING;
-                event.severity = "warning";
-            }
-            
-            event.category = "step_summary";
-            event.message = step_name + ": " + status;
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "github_actions_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle error details section
-        if (std::regex_search(line, match, error_details_section)) {
-            in_error_details = true;
-            in_job_summary = false;
-            continue;
-        }
-        
-        // Handle performance metrics section
-        if (std::regex_search(line, match, performance_section)) {
-            in_performance_metrics = true;
-            in_error_details = false;
-            continue;
-        }
-        
-        // Handle recommendations section
-        if (std::regex_search(line, match, recommendations_section)) {
-            in_recommendations = true;
-            in_performance_metrics = false;
-            continue;
-        }
-        
-        // Handle duration metrics in performance section
-        if (in_performance_metrics && std::regex_search(line, match, duration_metric)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "github-actions";
-            event.event_type = ValidationEventType::PERFORMANCE_METRIC;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "performance_metric";
-            event.message = match[1].str() + ": " + match[2].str() + " " + match[3].str();
-            event.execution_time = std::stod(match[2].str());
-            event.raw_output = content;
-            event.structured_data = "github_actions_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle resource usage
-        if (std::regex_search(line, match, resource_usage)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "github-actions";
-            event.event_type = ValidationEventType::PERFORMANCE_METRIC;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "resource_usage";
-            event.message = match[1].str() + ": " + match[2].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "github_actions_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle recommendations
-        if (in_recommendations && std::regex_search(line, match, recommendation_item)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "github-actions";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::WARNING;
-            event.severity = "warning";
-            event.category = "recommendation";
-            event.message = match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "github_actions_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle webpack build info
-        if (std::regex_search(line, match, webpack_build)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "github-actions";
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "webpack_build";
-            event.message = "Webpack build hash: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "github_actions_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle ESLint warnings in webpack output
-        if (std::regex_search(line, match, eslint_warning)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "github-actions";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = "";
-            event.line_number = std::stoi(match[1].str());
-            event.column_number = std::stoi(match[2].str());
-            
-            std::string level = match[3].str();
-            if (level == "error") {
-                event.status = ValidationEventStatus::FAIL;
-                event.severity = "error";
-            } else {
-                event.status = ValidationEventStatus::WARNING;
-                event.severity = "warning";
-            }
-            
-            event.category = "eslint";
-            event.message = match[4].str() + " (" + match[5].str() + ")";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "github_actions_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle coverage publishing
-        if (std::regex_search(line, match, coverage_info)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "github-actions";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "test_publishing";
-            event.message = "Publishing test results from: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "github_actions_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle published test results count
-        if (std::regex_search(line, match, published_results)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "github-actions";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "test_publishing";
-            event.message = "Published " + match[1].str() + " test results";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "github_actions_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle general error messages
-        if (std::regex_search(line, match, error_message)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "github-actions";
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::FAIL;
-            event.severity = "error";
-            event.category = "error";
-            event.message = match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "github_actions_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle general warning messages
-        if (std::regex_search(line, match, warning_message)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "github-actions";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::WARNING;
-            event.severity = "warning";
-            event.category = "warning";
-            event.message = match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "github_actions_text";
-            
-            events.push_back(event);
-            continue;
-        }
-    }
-}
-
-void ParseGitLabCIText(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    
-    // Regex patterns for GitLab CI output
-    std::regex runner_info(R"(Running with gitlab-runner ([0-9.]+) \(([a-f0-9]+)\))");
-    std::regex executor_info(R"(on (.+) using (.+) driver with image (.+))");
-    std::regex git_repo_info(R"(Getting source from Git repository)");
-    std::regex git_fetch(R"(Fetching changes with git depth set to (\d+)...)");
-    std::regex git_checkout(R"(Checking out ([a-f0-9]+) as (.+)...)");
-    std::regex step_execution(R"(Executing \"(.+)\" stage of the job script)");
-    std::regex command_execution(R"(^\$ (.+))");
-    std::regex bundle_install(R"(Bundle complete! (\d+) Gemfile dependencies, (\d+) gems now installed)");
-    std::regex rspec_result(R"((\d+) examples?, (\d+) failures?)");
-    std::regex rspec_timing(R"(Finished in ([\d.]+) seconds \(files took ([\d.]+) seconds to load\))");
-    std::regex rspec_failure(R"(^\s+(\d+)\) (.+))");
-    std::regex rspec_file_line(R"(# (.+):(\d+):in)");
-    std::regex rubocop_inspect(R"(Inspecting (\d+) files)");
-    std::regex rubocop_offense(R"((.+):(\d+):(\d+): ([WCE]): (.+): (.+))");
-    std::regex rubocop_summary(R"((\d+) files inspected, (\d+) offenses? detected)");
-    std::regex job_status(R"(Job (succeeded|failed))");
-    
-    std::smatch match;
-    std::string current_step = "";
-    std::string current_command = "";
-    bool in_rspec_failures = false;
-    bool in_rubocop_offenses = false;
-    
-    while (std::getline(stream, line)) {
-        // Parse GitLab runner information
-        if (std::regex_search(line, match, runner_info)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "gitlab-ci";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "runner_info";
-            event.message = "GitLab Runner " + match[1].str() + " (" + match[2].str() + ")";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "gitlab_ci_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse executor information
-        if (std::regex_search(line, match, executor_info)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "gitlab-ci";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "executor_info";
-            event.message = "Running on " + match[1].str() + " using " + match[2].str() + " with image " + match[3].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "gitlab_ci_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse step execution
-        if (std::regex_search(line, match, step_execution)) {
-            current_step = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "gitlab-ci";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "step_execution";
-            event.message = "Executing " + current_step + " stage";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "gitlab_ci_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse command execution
-        if (std::regex_search(line, match, command_execution)) {
-            current_command = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "gitlab-ci";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "command_execution";
-            event.message = "Executing: " + current_command;
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "gitlab_ci_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse RSpec results
-        if (std::regex_search(line, match, rspec_result)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "rspec";
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = std::stoi(match[2].str()) > 0 ? ValidationEventStatus::ERROR : ValidationEventStatus::PASS;
-            event.severity = std::stoi(match[2].str()) > 0 ? "error" : "info";
-            event.category = "test_summary";
-            event.message = match[1].str() + " examples, " + match[2].str() + " failures";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "gitlab_ci_text";
-            
-            events.push_back(event);
-            
-            if (std::stoi(match[2].str()) > 0) {
-                in_rspec_failures = true;
-            }
-            continue;
-        }
-        
-        // Parse RSpec timing
-        if (std::regex_search(line, match, rspec_timing)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "rspec";
-            event.event_type = ValidationEventType::PERFORMANCE_METRIC;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "timing";
-            event.message = "Finished in " + match[1].str() + " seconds (files took " + match[2].str() + " seconds to load)";
-            event.execution_time = std::stod(match[1].str());
-            event.raw_output = content;
-            event.structured_data = "gitlab_ci_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse RSpec failures
-        if (in_rspec_failures && std::regex_search(line, match, rspec_failure)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "rspec";
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::ERROR;
-            event.severity = "error";
-            event.category = "test_failure";
-            event.test_name = match[2].str();
-            event.message = "RSpec failure: " + match[2].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "gitlab_ci_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse RuboCop inspection
-        if (std::regex_search(line, match, rubocop_inspect)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "rubocop";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "inspection";
-            event.message = "Inspecting " + match[1].str() + " files";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "gitlab_ci_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse RuboCop offenses
-        if (std::regex_search(line, match, rubocop_offense)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "rubocop";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = match[1].str();
-            event.line_number = std::stoi(match[2].str());
-            event.column_number = std::stoi(match[3].str());
-            
-            std::string severity_char = match[4].str();
-            if (severity_char == "E") {
-                event.status = ValidationEventStatus::ERROR;
-                event.severity = "error";
-            } else if (severity_char == "W") {
-                event.status = ValidationEventStatus::WARNING;
-                event.severity = "warning";
-            } else {
-                event.status = ValidationEventStatus::INFO;
-                event.severity = "info";
-            }
-            
-            event.category = "style_issue";
-            event.error_code = match[5].str();
-            event.message = match[6].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "gitlab_ci_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse RuboCop summary
-        if (std::regex_search(line, match, rubocop_summary)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "rubocop";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = std::stoi(match[2].str()) > 0 ? ValidationEventStatus::WARNING : ValidationEventStatus::PASS;
-            event.severity = std::stoi(match[2].str()) > 0 ? "warning" : "info";
-            event.category = "summary";
-            event.message = match[1].str() + " files inspected, " + match[2].str() + " offenses detected";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "gitlab_ci_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse job status
-        if (std::regex_search(line, match, job_status)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "gitlab-ci";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = match[1].str() == "succeeded" ? ValidationEventStatus::PASS : ValidationEventStatus::ERROR;
-            event.severity = match[1].str() == "succeeded" ? "info" : "error";
-            event.category = "job_status";
-            event.message = "Job " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "gitlab_ci_text";
-            
-            events.push_back(event);
-            continue;
-        }
-    }
-}
-
-void ParseJenkinsText(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    
-    // Regex patterns for Jenkins output
-    std::regex build_start(R"(Started by user (.+))");
-    std::regex workspace_info(R"(Building in workspace (.+))");
-    std::regex git_checkout(R"(Checking out Revision ([a-f0-9]+) \((.+)\))");
-    std::regex pipeline_start(R"(\[Pipeline\] Start of Pipeline)");
-    std::regex pipeline_end(R"(\[Pipeline\] End of Pipeline)");
-    std::regex pipeline_stage(R"(\[Pipeline\] \{ \((.+)\))");
-    std::regex pipeline_step(R"(\[Pipeline\] (.+))");
-    std::regex shell_command(R"(^\+ (.+))");
-    std::regex npm_install(R"(added (\d+) packages .* in ([\d.]+)s)");
-    std::regex npm_vulnerabilities(R"(found (\d+) vulnerabilit)");
-    std::regex webpack_build(R"(Hash: ([a-f0-9]+))");
-    std::regex webpack_asset(R"(\s+([^\s]+)\s+([\d\.]+\s+[KMG]iB)\s+(\d+)\s+\[emitted\])");
-    std::regex jest_test_pass(R"(PASS (.+))");
-    std::regex jest_test_fail(R"(FAIL (.+))");
-    std::regex jest_summary(R"(Test Suites: (\d+) failed, (\d+) passed, (\d+) total)");
-    std::regex jest_test_summary(R"(Tests: (\d+) failed, (\d+) passed, (\d+) total)");
-    std::regex docker_build_start(R"(Sending build context to Docker daemon\s+([\d.]+[KMG]?B))");
-    std::regex docker_step(R"(Step (\d+)/(\d+) : (.+))");
-    std::regex docker_success(R"(Successfully built ([a-f0-9]+))");
-    std::regex docker_tagged(R"(Successfully tagged (.+))");
-    std::regex build_failure(R"(ERROR: Build step failed with exception)");
-    std::regex java_exception(R"(([a-zA-Z.]+Exception): (.+))");
-    std::regex jenkins_stack_trace(R"(\s+at ([a-zA-Z0-9_.]+)\(([^)]+)\))");
-    std::regex build_result(R"(Finished: (SUCCESS|FAILURE|UNSTABLE|ABORTED))");
-    
-    std::smatch match;
-    std::string current_stage = "";
-    std::string current_user = "";
-    bool in_pipeline = false;
-    bool in_docker_build = false;
-    bool in_exception = false;
-    
-    while (std::getline(stream, line)) {
-        // Parse build start information
-        if (std::regex_search(line, match, build_start)) {
-            current_user = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "jenkins";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "build_start";
-            event.message = "Build started by user: " + current_user;
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "jenkins_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse workspace information
-        if (std::regex_search(line, match, workspace_info)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "jenkins";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "workspace";
-            event.message = "Building in workspace: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "jenkins_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse pipeline stages
-        if (std::regex_search(line, match, pipeline_stage)) {
-            current_stage = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "jenkins";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "pipeline_stage";
-            event.message = "Starting stage: " + current_stage;
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "jenkins_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse Jest test results
-        if (std::regex_search(line, match, jest_test_pass)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "jest";
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.file_path = match[1].str();
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::PASS;
-            event.severity = "info";
-            event.category = "test_pass";
-            event.message = "Test passed: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "jenkins_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        if (std::regex_search(line, match, jest_test_fail)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "jest";
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.file_path = match[1].str();
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::FAIL;
-            event.severity = "error";
-            event.category = "test_failure";
-            event.message = "Test failed: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "jenkins_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse Jest test summary
-        if (std::regex_search(line, match, jest_summary)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "jest";
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = std::stoi(match[1].str()) > 0 ? ValidationEventStatus::FAIL : ValidationEventStatus::PASS;
-            event.severity = std::stoi(match[1].str()) > 0 ? "error" : "info";
-            event.category = "test_summary";
-            event.message = "Test Suites: " + match[1].str() + " failed, " + match[2].str() + " passed, " + match[3].str() + " total";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "jenkins_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse Docker build information
-        if (std::regex_search(line, match, docker_build_start)) {
-            in_docker_build = true;
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "docker";
-            event.event_type = ValidationEventType::DEBUG_INFO;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "docker_build";
-            event.message = "Docker build context: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "jenkins_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse Docker build success
-        if (std::regex_search(line, match, docker_success)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "docker";
-            event.event_type = ValidationEventType::DEBUG_INFO;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::PASS;
-            event.severity = "info";
-            event.category = "docker_success";
-            event.message = "Successfully built image: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "jenkins_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse build exceptions
-        if (std::regex_search(line, match, build_failure)) {
-            in_exception = true;
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "jenkins";
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::ERROR;
-            event.severity = "error";
-            event.category = "build_failure";
-            event.message = "Build step failed with exception";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "jenkins_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse Java exceptions
-        if (in_exception && std::regex_search(line, match, java_exception)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "jenkins";
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::ERROR;
-            event.severity = "error";
-            event.category = "java_exception";
-            event.error_code = match[1].str();
-            event.message = match[1].str() + ": " + match[2].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "jenkins_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse build result
-        if (std::regex_search(line, match, build_result)) {
-            std::string result = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "jenkins";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            
-            if (result == "SUCCESS") {
-                event.status = ValidationEventStatus::PASS;
-                event.severity = "info";
-            } else if (result == "FAILURE") {
-                event.status = ValidationEventStatus::FAIL;
-                event.severity = "error";
-            } else if (result == "UNSTABLE") {
-                event.status = ValidationEventStatus::WARNING;
-                event.severity = "warning";
-            } else {
-                event.status = ValidationEventStatus::ERROR;
-                event.severity = "error";
-            }
-            
-            event.category = "build_result";
-            event.message = "Build finished: " + result;
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "jenkins_text";
-            
-            events.push_back(event);
-            continue;
-        }
-    }
-}
-
-void ParseDroneCIText(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    
-    // Regex patterns for DroneCI output
-    std::regex drone_step_start(R"(\[drone:exec\] .* starting build step: (.+))");
-    std::regex drone_step_complete(R"(\[drone:exec\] .* completed build step: (.+) \(exit code (\d+)\))");
-    std::regex drone_pipeline_complete(R"(\[drone:exec\] .* pipeline execution complete)");
-    std::regex drone_pipeline_failed(R"(\[drone:exec\] .* pipeline failed with exit code (\d+))");
-    std::regex git_clone(R"(\+ git clone (.+) \.)");
-    std::regex git_checkout(R"(\+ git checkout ([a-f0-9]+))");
-    std::regex npm_install(R"(added (\d+) packages .* in ([\d.]+)s)");
-    std::regex npm_vulnerabilities(R"(found (\d+) vulnerabilit)");
-    std::regex jest_test_pass(R"(PASS (.+) \(([\d.]+) s\))");
-    std::regex jest_test_fail(R"(FAIL (.+) \(([\d.]+) s\))");
-    std::regex jest_test_item(R"(✓ (.+) \((\d+) ms\))");
-    std::regex jest_test_fail_item(R"(✗ (.+) \(([\d.]+) s\))");
-    std::regex jest_summary(R"(Test Suites: (\d+) failed, (\d+) passed, (\d+) total)");
-    std::regex jest_test_summary(R"(Tests: (\d+) failed, (\d+) passed, (\d+) total)");
-    std::regex jest_timing(R"(Time: ([\d.]+) s)");
-    std::regex webpack_build(R"(Hash: ([a-f0-9]+))");
-    std::regex webpack_warning(R"(Module Warning \(from ([^)]+)\):)");
-    std::regex eslint_warning(R"((\d+):(\d+)\s+(warning|error)\s+(.+)\s+([a-z-]+))");
-    std::regex docker_build_start(R"(Sending build context to Docker daemon\s+([\d.]+[KMG]?B))");
-    std::regex docker_step(R"(Step (\d+)/(\d+) : (.+))");
-    std::regex docker_success(R"(Successfully built ([a-f0-9]+))");
-    std::regex docker_tagged(R"(Successfully tagged (.+))");
-    std::regex curl_notification(R"(\+ curl -X POST .* --data '(.+)' )");
-    
-    std::smatch match;
-    std::string current_step = "";
-    bool in_jest_failure = false;
-    
-    while (std::getline(stream, line)) {
-        // Parse DroneCI step start
-        if (std::regex_search(line, match, drone_step_start)) {
-            current_step = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "drone-ci";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "step_start";
-            event.message = "Starting build step: " + current_step;
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "drone_ci_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse DroneCI step completion
-        if (std::regex_search(line, match, drone_step_complete)) {
-            std::string step_name = match[1].str();
-            int exit_code = std::stoi(match[2].str());
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "drone-ci";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = exit_code == 0 ? ValidationEventStatus::PASS : ValidationEventStatus::FAIL;
-            event.severity = exit_code == 0 ? "info" : "error";
-            event.category = "step_complete";
-            event.message = "Completed build step: " + step_name + " (exit code " + std::to_string(exit_code) + ")";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "drone_ci_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse Jest test results
-        if (std::regex_search(line, match, jest_test_pass)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "jest";
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.file_path = match[1].str();
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::PASS;
-            event.severity = "info";
-            event.category = "test_pass";
-            event.message = "Test passed: " + match[1].str();
-            event.execution_time = std::stod(match[2].str());
-            event.raw_output = content;
-            event.structured_data = "drone_ci_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        if (std::regex_search(line, match, jest_test_fail)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "jest";
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.file_path = match[1].str();
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::FAIL;
-            event.severity = "error";
-            event.category = "test_failure";
-            event.message = "Test failed: " + match[1].str();
-            event.execution_time = std::stod(match[2].str());
-            event.raw_output = content;
-            event.structured_data = "drone_ci_text";
-            
-            events.push_back(event);
-            in_jest_failure = true;
-            continue;
-        }
-        
-        // Parse individual test failures
-        if (std::regex_search(line, match, jest_test_fail_item)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "jest";
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::FAIL;
-            event.severity = "error";
-            event.category = "test_failure";
-            event.test_name = match[1].str();
-            event.message = "Test failure: " + match[1].str();
-            event.execution_time = std::stod(match[2].str());
-            event.raw_output = content;
-            event.structured_data = "drone_ci_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse Jest test summary
-        if (std::regex_search(line, match, jest_summary)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "jest";
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = std::stoi(match[1].str()) > 0 ? ValidationEventStatus::FAIL : ValidationEventStatus::PASS;
-            event.severity = std::stoi(match[1].str()) > 0 ? "error" : "info";
-            event.category = "test_summary";
-            event.message = "Test Suites: " + match[1].str() + " failed, " + match[2].str() + " passed, " + match[3].str() + " total";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "drone_ci_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse ESLint warnings
-        if (std::regex_search(line, match, eslint_warning)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "eslint";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = "/drone/src/src/services/auth.js"; // Default from sample
-            event.line_number = std::stoi(match[1].str());
-            event.column_number = std::stoi(match[2].str());
-            event.status = match[3].str() == "error" ? ValidationEventStatus::ERROR : ValidationEventStatus::WARNING;
-            event.severity = match[3].str();
-            event.category = "lint_issue";
-            event.error_code = match[5].str();
-            event.message = match[4].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "drone_ci_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse Docker build success
-        if (std::regex_search(line, match, docker_success)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "docker";
-            event.event_type = ValidationEventType::DEBUG_INFO;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::PASS;
-            event.severity = "info";
-            event.category = "docker_success";
-            event.message = "Successfully built image: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "drone_ci_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse pipeline completion
-        if (std::regex_search(line, match, drone_pipeline_complete)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "drone-ci";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "pipeline_complete";
-            event.message = "Pipeline execution complete";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "drone_ci_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse pipeline failure
-        if (std::regex_search(line, match, drone_pipeline_failed)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "drone-ci";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::FAIL;
-            event.severity = "error";
-            event.category = "pipeline_failure";
-            event.message = "Pipeline failed with exit code " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "drone_ci_text";
-            
-            events.push_back(event);
-            continue;
-        }
-    }
-}
-
-void ParseTerraformText(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    std::smatch match;
-    
-    // Terraform regex patterns
-    std::regex terraform_version(R"(Terraform v(\d+\.\d+\.\d+))");
-    std::regex provider_info(R"(\+ provider registry\.terraform\.io/hashicorp/(\w+) v([\d\.]+))");
-    std::regex resource_create(R"(# (\S+) will be created)");
-    std::regex resource_update(R"(# (\S+) will be updated in-place)");
-    std::regex resource_destroy(R"(# (\S+) will be destroyed)");
-    std::regex plan_summary(R"(Plan: (\d+) to add, (\d+) to change, (\d+) to destroy)");
-    std::regex resource_creating(R"((\S+): Creating\.\.\.)");
-    std::regex resource_creation_complete(R"((\S+): Creation complete after (\d+)s \[id=(.+)\])");
-    std::regex resource_modifying(R"((\S+): Modifying\.\.\. \[id=(.+)\])");
-    std::regex resource_modification_complete(R"((\S+): Modifications complete after (\d+)s \[id=(.+)\])");
-    std::regex resource_destroying(R"((\S+): Destroying\.\.\. \[id=(.+)\])");
-    std::regex resource_destruction_complete(R"((\S+): Destruction complete after (\d+)s)");
-    std::regex apply_complete(R"(Apply complete! Resources: (\d+) added, (\d+) changed, (\d+) destroyed)");
-    std::regex terraform_error(R"(Error: (.+))");
-    std::regex terraform_warning(R"(Warning: (.+))");
-    std::regex terraform_output(R"((\w+) = (.+))");
-    std::regex version_warning(R"(Your version of Terraform is out of date!)");
-    
-    while (std::getline(stream, line)) {
-        // Parse Terraform version
-        if (std::regex_search(line, match, terraform_version)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "terraform";
-            event.event_type = ValidationEventType::DEBUG_INFO;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "version";
-            event.message = "Terraform version: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "terraform_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse provider information
-        if (std::regex_search(line, match, provider_info)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "terraform";
-            event.event_type = ValidationEventType::DEBUG_INFO;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "provider";
-            event.message = "Provider " + match[1].str() + " version " + match[2].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "terraform_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse resource creation plan
-        if (std::regex_search(line, match, resource_create)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "terraform";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "plan_create";
-            event.message = "Will create resource: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "terraform_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse resource update plan
-        if (std::regex_search(line, match, resource_update)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "terraform";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::WARNING;
-            event.severity = "warning";
-            event.category = "plan_update";
-            event.message = "Will update resource: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "terraform_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse resource destroy plan
-        if (std::regex_search(line, match, resource_destroy)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "terraform";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::WARNING;
-            event.severity = "warning";
-            event.category = "plan_destroy";
-            event.message = "Will destroy resource: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "terraform_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse plan summary
-        if (std::regex_search(line, match, plan_summary)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "terraform";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "plan_summary";
-            event.message = "Plan: " + match[1].str() + " to add, " + match[2].str() + " to change, " + match[3].str() + " to destroy";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "terraform_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse resource creation
-        if (std::regex_search(line, match, resource_creating)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "terraform";
-            event.event_type = ValidationEventType::DEBUG_INFO;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "resource_creating";
-            event.message = "Creating resource: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "terraform_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse resource creation complete
-        if (std::regex_search(line, match, resource_creation_complete)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "terraform";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::PASS;
-            event.severity = "info";
-            event.category = "resource_created";
-            event.message = "Created resource: " + match[1].str() + " in " + match[2].str() + "s";
-            event.execution_time = std::stod(match[2].str());
-            event.raw_output = content;
-            event.structured_data = "terraform_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse apply complete
-        if (std::regex_search(line, match, apply_complete)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "terraform";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::PASS;
-            event.severity = "info";
-            event.category = "apply_complete";
-            event.message = "Apply complete: " + match[1].str() + " added, " + match[2].str() + " changed, " + match[3].str() + " destroyed";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "terraform_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse errors
-        if (std::regex_search(line, match, terraform_error)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "terraform";
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::ERROR;
-            event.severity = "error";
-            event.category = "terraform_error";
-            event.message = match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "terraform_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse warnings
-        if (std::regex_search(line, match, terraform_warning)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "terraform";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::WARNING;
-            event.severity = "warning";
-            event.category = "terraform_warning";
-            event.message = match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "terraform_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse outputs
-        if (std::regex_search(line, match, terraform_output)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "terraform";
-            event.event_type = ValidationEventType::DEBUG_INFO;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "output";
-            event.message = "Output " + match[1].str() + " = " + match[2].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "terraform_text";
-            
-            events.push_back(event);
-            continue;
-        }
-    }
-}
-
-void ParseAnsibleText(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    std::smatch match;
-    
-    // Ansible regex patterns
-    std::regex play_start(R"(PLAY \[([^\]]+)\] \*+)");
-    std::regex task_start(R"(TASK \[([^\]]+)\] \*+)");
-    std::regex task_ok(R"(ok: \[([^\]]+)\]( => \((.+)\))?)");
-    std::regex task_changed(R"(changed: \[([^\]]+)\]( => \((.+)\))?)");
-    std::regex task_skipping(R"(skipping: \[([^\]]+)\]( => \((.+)\))?)");
-    std::regex task_failed(R"(fatal: \[([^\]]+)\]: FAILED! => (.+))");
-    std::regex task_unreachable(R"(fatal: \[([^\]]+)\]: UNREACHABLE! => (.+))");
-    std::regex handler_running(R"(RUNNING HANDLER \[([^\]]+)\] \*+)");
-    std::regex play_recap_start(R"(PLAY RECAP \*+)");
-    std::regex play_recap_host(R"((\S+)\s+:\s+ok=(\d+)\s+changed=(\d+)\s+unreachable=(\d+)\s+failed=(\d+)\s+skipped=(\d+)\s+rescued=(\d+)\s+ignored=(\d+))");
-    std::regex ansible_error(R"(ERROR! (.+))");
-    std::regex ansible_warning(R"(\[WARNING\]: (.+))");
-    std::regex deprecation_warning(R"(\[DEPRECATION WARNING\]: (.+))");
-    std::regex retry_failed(R"(FAILED - RETRYING: (.+) \((\d+) retries left\))");
-    std::regex task_retry_exhausted(R"(fatal: \[([^\]]+)\]: FAILED! => \{\"attempts\": (\d+), .+\"msg\": \"(.+)\"\})");
-    std::regex config_diff(R"(--- (.+))");
-    std::regex ansible_notified(R"(NOTIFIED: \[([^\]]+)\] \*+)");
-    
-    bool in_play_recap = false;
-    std::string current_play = "";
-    std::string current_task = "";
-    
-    while (std::getline(stream, line)) {
-        // Parse play start
-        if (std::regex_search(line, match, play_start)) {
-            current_play = match[1].str();
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "ansible";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "play_start";
-            event.message = "Starting play: " + current_play;
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "ansible_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse task start
-        if (std::regex_search(line, match, task_start)) {
-            current_task = match[1].str();
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "ansible";
-            event.event_type = ValidationEventType::DEBUG_INFO;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "task_start";
-            event.message = "Starting task: " + current_task;
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "ansible_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse task OK
-        if (std::regex_search(line, match, task_ok)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "ansible";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::PASS;
-            event.severity = "info";
-            event.category = "task_ok";
-            event.message = "Task OK on host: " + match[1].str() + " (" + current_task + ")";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "ansible_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse task changed
-        if (std::regex_search(line, match, task_changed)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "ansible";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::WARNING;
-            event.severity = "info";
-            event.category = "task_changed";
-            event.message = "Task changed on host: " + match[1].str() + " (" + current_task + ")";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "ansible_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse task skipped
-        if (std::regex_search(line, match, task_skipping)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "ansible";
-            event.event_type = ValidationEventType::DEBUG_INFO;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::SKIP;
-            event.severity = "info";
-            event.category = "task_skipped";
-            event.message = "Task skipped on host: " + match[1].str() + " (" + current_task + ")";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "ansible_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse task failed
-        if (std::regex_search(line, match, task_failed)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "ansible";
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::FAIL;
-            event.severity = "error";
-            event.category = "task_failed";
-            event.message = "Task failed on host: " + match[1].str() + " (" + current_task + ")";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "ansible_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse task unreachable
-        if (std::regex_search(line, match, task_unreachable)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "ansible";
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::ERROR;
-            event.severity = "error";
-            event.category = "host_unreachable";
-            event.message = "Host unreachable: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "ansible_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse running handler
-        if (std::regex_search(line, match, handler_running)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "ansible";
-            event.event_type = ValidationEventType::DEBUG_INFO;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "handler_running";
-            event.message = "Running handler: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "ansible_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse play recap start
-        if (std::regex_search(line, match, play_recap_start)) {
-            in_play_recap = true;
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "ansible";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "play_recap_start";
-            event.message = "Playbook execution summary";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "ansible_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse play recap host stats
-        if (in_play_recap && std::regex_search(line, match, play_recap_host)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "ansible";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            
-            int failed = std::stoi(match[5].str());
-            int unreachable = std::stoi(match[4].str());
-            
-            if (failed > 0 || unreachable > 0) {
-                event.status = ValidationEventStatus::FAIL;
-                event.severity = "error";
-            } else {
-                event.status = ValidationEventStatus::PASS;
-                event.severity = "info";
-            }
-            
-            event.category = "host_summary";
-            event.message = "Host " + match[1].str() + ": ok=" + match[2].str() + " changed=" + match[3].str() + 
-                           " unreachable=" + match[4].str() + " failed=" + match[5].str() + " skipped=" + match[6].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "ansible_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse errors
-        if (std::regex_search(line, match, ansible_error)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "ansible";
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::ERROR;
-            event.severity = "error";
-            event.category = "ansible_error";
-            event.message = match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "ansible_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse warnings
-        if (std::regex_search(line, match, ansible_warning)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "ansible";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::WARNING;
-            event.severity = "warning";
-            event.category = "ansible_warning";
-            event.message = match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "ansible_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse deprecation warnings
-        if (std::regex_search(line, match, deprecation_warning)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "ansible";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::WARNING;
-            event.severity = "warning";
-            event.category = "deprecation_warning";
-            event.message = match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "ansible_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse retry failures
-        if (std::regex_search(line, match, retry_failed)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "ansible";
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::WARNING;
-            event.severity = "warning";
-            event.category = "retry_failed";
-            event.message = "Retrying: " + match[1].str() + " (" + match[2].str() + " retries left)";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "ansible_text";
-            
-            events.push_back(event);
-            continue;
-        }
-    }
-}
-
 // Phase 3A: Multi-file processing implementation
 
 std::vector<std::string> GetFilesFromPattern(ClientContext& context, const std::string& pattern) {
@@ -9466,8 +4080,8 @@ void ProcessMultipleFiles(ClientContext& context, const std::vector<std::string>
         
         try {
             // Read file content
-            std::string content = ReadContentFromSource(file_path);
-            
+            std::string content = ReadContentFromSource(context, file_path);
+
             // Detect format if AUTO
             TestResultFormat detected_format = format;
             if (format == TestResultFormat::AUTO) {
@@ -9480,39 +4094,95 @@ void ProcessMultipleFiles(ClientContext& context, const std::vector<std::string>
             // Dispatch to appropriate parser based on format
             switch (detected_format) {
                 case TestResultFormat::PYTEST_JSON:
-                    ParsePytestJSON(content, file_events);
+                    {
+                        auto& registry = ParserRegistry::getInstance();
+                        auto parser = registry.getParser(detected_format);
+                        if (parser) {
+                            file_events = parser->parse(content);
+                        }
+                        // Note: Legacy ParsePytestJSON removed - fully replaced by modular PytestJSONParser
+                    }
                     break;
                 case TestResultFormat::GOTEST_JSON:
-                    ParseGoTestJSON(content, file_events);
+                    {
+                        auto& registry = ParserRegistry::getInstance();
+                        auto parser = registry.getParser(detected_format);
+                        if (parser) {
+                            file_events = parser->parse(content);
+                        }
+                        // Note: Legacy ParseGoTestJSON removed - fully replaced by modular GoTestJSONParser
+                    }
                     break;
                 case TestResultFormat::ESLINT_JSON:
-                    ParseESLintJSON(content, file_events);
+                    {
+                        auto& registry = ParserRegistry::getInstance();
+                        auto parser = registry.getParser(detected_format);
+                        if (parser) {
+                            file_events = parser->parse(content);
+                        }
+                        // Note: Legacy ParseESLintJSON removed - fully replaced by modular ESLintJSONParser
+                    }
                     break;
                 case TestResultFormat::PYTEST_TEXT:
                     ParsePytestText(content, file_events);
                     break;
                 case TestResultFormat::GITHUB_ACTIONS_TEXT:
-                    ParseGitHubActionsText(content, file_events);
+                    // GitHub Actions is handled as a workflow engine - not a direct test tool
+                    break;
+                case TestResultFormat::GITHUB_CLI:
+                case TestResultFormat::CLANG_TIDY_TEXT:
+                    // These formats are handled by the modular parser registry at the end
                     break;
                 case TestResultFormat::GITLAB_CI_TEXT:
-                    ParseGitLabCIText(content, file_events);
+                    // GitLab CI is handled as a workflow engine - not a direct test tool
                     break;
                 case TestResultFormat::JENKINS_TEXT:
-                    ParseJenkinsText(content, file_events);
+                    // Jenkins is handled as a workflow engine - not a direct test tool
                     break;
                 case TestResultFormat::DRONE_CI_TEXT:
-                    ParseDroneCIText(content, file_events);
+                    {
+                        auto& registry = ParserRegistry::getInstance();
+                        auto parser = registry.getParser(detected_format);
+                        if (parser) {
+                            auto events = parser->parse(content);
+                            file_events.insert(file_events.end(), events.begin(), events.end());
+                        }
+                    }
                     break;
                 case TestResultFormat::TERRAFORM_TEXT:
-                    ParseTerraformText(content, file_events);
+                    {
+                        auto& registry = ParserRegistry::getInstance();
+                        auto parser = registry.getParser(detected_format);
+                        if (parser) {
+                            auto events = parser->parse(content);
+                            file_events.insert(file_events.end(), events.begin(), events.end());
+                        }
+                    }
                     break;
                 case TestResultFormat::ANSIBLE_TEXT:
-                    ParseAnsibleText(content, file_events);
+                    {
+                        auto& registry = ParserRegistry::getInstance();
+                        auto parser = registry.getParser(detected_format);
+                        if (parser) {
+                            auto events = parser->parse(content);
+                            file_events.insert(file_events.end(), events.begin(), events.end());
+                        }
+                    }
                     break;
                 // Add other formats as needed...
                 default:
-                    // For unsupported formats, continue to next file
-                    continue;
+                    // Try the modular parser registry for new parsers
+                    {
+                        auto& registry = ParserRegistry::getInstance();
+                        auto parser = registry.getParser(detected_format);
+                        if (parser) {
+                            file_events = parser->parse(content);
+                        } else {
+                            // For truly unsupported formats, continue to next file
+                            continue;
+                        }
+                    }
+                    break;
             }
             
             // Enrich events with multi-file metadata

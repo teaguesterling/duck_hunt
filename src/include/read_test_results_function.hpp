@@ -65,7 +65,9 @@ enum class TestResultFormat : uint8_t {
     JENKINS_TEXT = 54,
     DRONE_CI_TEXT = 55,
     TERRAFORM_TEXT = 56,
-    ANSIBLE_TEXT = 57
+    ANSIBLE_TEXT = 57,
+    GITHUB_CLI = 58,
+    CLANG_TIDY_TEXT = 59
 };
 
 // Bind data for read_test_results table function
@@ -97,7 +99,7 @@ std::string TestResultFormatToString(TestResultFormat format);
 TestResultFormat StringToTestResultFormat(const std::string& str);
 
 // Content reading utilities
-std::string ReadContentFromSource(const std::string& source);
+std::string ReadContentFromSource(ClientContext& context, const std::string& source);
 bool IsValidJSON(const std::string& content);
 
 // Phase 3A: Multi-file processing utilities
@@ -150,19 +152,10 @@ void ParseRuboCopJSON(const std::string& content, std::vector<ValidationEvent>& 
 void ParseCargoTestJSON(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseSwiftLintJSON(const std::string& content, std::vector<ValidationEvent>& events);
 void ParsePHPStanJSON(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseShellCheckJSON(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseStylelintJSON(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseClippyJSON(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseMarkdownlintJSON(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseYamllintJSON(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseBanditJSON(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseSpotBugsJSON(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseKtlintJSON(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseHadolintJSON(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseLintrJSON(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseSqlfluffJSON(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseTflintJSON(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseKubeScoreJSON(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseCMakeBuild(const std::string& content, std::vector<ValidationEvent>& events);
 void ParsePythonBuild(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseNodeBuild(const std::string& content, std::vector<ValidationEvent>& events);
@@ -181,19 +174,8 @@ void ParsePylintText(const std::string& content, std::vector<ValidationEvent>& e
 void ParseFlake8Text(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseBlackText(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseMypyText(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseDockerBuild(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseBazelBuild(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseIsortText(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseBanditText(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseAutopep8Text(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseYapfText(const std::string& content, std::vector<ValidationEvent>& events);
 void ParseCoverageText(const std::string& content, std::vector<ValidationEvent>& events);
-void ParsePytestCovText(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseGitHubActionsText(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseGitLabCIText(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseJenkinsText(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseDroneCIText(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseTerraformText(const std::string& content, std::vector<ValidationEvent>& events);
-void ParseAnsibleText(const std::string& content, std::vector<ValidationEvent>& events);
 
 } // namespace duckdb

@@ -3,11 +3,6 @@ cmake_minimum_required(VERSION 3.5)
 # Set extension name here
 set(TARGET_NAME duck_hunt)
 
-# DuckDB's extension distribution supports vcpkg. As such, dependencies can be added in ./vcpkg.json and then
-# used in cmake with find_package. Feel free to remove or replace with other dependencies.
-# Note that it should also be removed from vcpkg.json to prevent needlessly installing it..
-find_package(OpenSSL REQUIRED)
-
 set(EXTENSION_NAME ${TARGET_NAME}_extension)
 set(LOADABLE_EXTENSION_NAME ${TARGET_NAME}_loadable_extension)
 
@@ -55,6 +50,7 @@ set(EXTENSION_SOURCES
     src/parsers/tool_outputs/bandit_json_parser.cpp
     src/parsers/tool_outputs/spotbugs_json_parser.cpp
     src/parsers/tool_outputs/ktlint_json_parser.cpp
+    src/parsers/tool_outputs/kubescore_json_parser.cpp
     
     # Phase 6: Text Parser Extraction - Batch 1
     src/parsers/test_frameworks/junit_text_parser.cpp
@@ -90,14 +86,29 @@ set(EXTENSION_SOURCES
     # Phase 8: Build System Parser Extraction - Batch 3
     src/parsers/build_systems/cargo_parser.cpp
     src/parsers/build_systems/cmake_parser.cpp
+    
+    # New parsers - CI Systems and improved linting tools
+    src/parsers/ci_systems/github_cli_parser.cpp
+    src/parsers/ci_systems/drone_ci_text_parser.cpp
+    src/parsers/ci_systems/terraform_text_parser.cpp
+    src/parsers/linting_tools/clang_tidy_parser.cpp
+    src/parsers/linting_tools/yapf_text_parser.cpp
+    
+    # Phase 2 Final: Infrastructure Tools
+    src/parsers/infrastructure_tools/ansible_text_parser.cpp
+    
+    # Phase 3: Workflow Engine Implementation
+    src/read_workflow_logs_function.cpp
+    src/parse_workflow_logs_function.cpp
+    src/workflow_engine_interface.cpp
+    src/parsers/workflow_engines/github_actions_parser.cpp
+    src/parsers/workflow_engines/gitlab_ci_parser.cpp
+    src/parsers/workflow_engines/jenkins_parser.cpp
+    src/parsers/workflow_engines/docker_parser.cpp
 )
 
 build_static_extension(${TARGET_NAME} ${EXTENSION_SOURCES})
 build_loadable_extension(${TARGET_NAME} " " ${EXTENSION_SOURCES})
-
-# Link OpenSSL in both the static library as the loadable extension
-target_link_libraries(${EXTENSION_NAME} OpenSSL::SSL OpenSSL::Crypto)
-target_link_libraries(${LOADABLE_EXTENSION_NAME} OpenSSL::SSL OpenSSL::Crypto)
 
 install(
   TARGETS ${EXTENSION_NAME}

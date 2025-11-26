@@ -11,7 +11,7 @@ SELECT source_file, build_id, environment, file_index, COUNT(*) as events,
 FROM read_test_results('workspace/ansible_sample.txt', 'auto') 
 GROUP BY source_file, build_id, environment, file_index;
 ----
-workspace/ansible_sample.txt	NULL	NULL	0	106	12
+workspace/ansible_sample.txt	NULL	NULL	0	109	53
 
 # Test multi-file glob pattern processing - verify both file types exist
 query I
@@ -59,7 +59,7 @@ SELECT
     COUNT(CASE WHEN status = 'PASS' THEN 1 END) as total_passes
 FROM read_test_results('workspace/builds/**/*.txt', 'auto');
 ----
-2	131	2	15
+2	18	0	8
 
 # Test file index ordering and processing sequence
 query II

@@ -1,0 +1,40 @@
+Running with gitlab-runner 15.4.0 (43b2dc3d)
+  on gitlab-runner-xyz ABC123
+Preparing the "docker" executor
+Using Docker executor with image node:16 ...
+Pulling docker image node:16 ...
+Using docker image sha256:abcd1234... for node:16 with digest node@sha256:efgh5678...
+
+Preparing environment
+00:01
+Running on runner-xyz-project-123-concurrent-0 via gitlab-runner-xyz...
+
+Getting source from Git repository
+00:02
+Fetching changes with git depth set to 20...
+Initialized empty Git repository in /builds/user/repo/.git/
+Created fresh repository.
+Checking out a1b2c3d4 as main...
+
+Skipping Git submodules setup
+
+Executing "step_script" stage of the job script
+00:05
+$ npm ci
+npm WARN deprecated package@1.0.0
+added 1234 packages in 10s
+
+$ npm run test
+> test
+> jest
+
+PASS src/test.js
+  ✓ should work (5 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       1 passed, 1 total
+Snapshots:   0 total
+Time:        2.345s
+
+Job succeeded
+Pipeline #456 passed
