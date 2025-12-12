@@ -79,6 +79,48 @@ SELECT COUNT(*) FROM parse_test_results('invalid json}', 'auto');
 ----
 0
 
+# Test status_badge function - string overload
+query IIII
+SELECT status_badge('ok'), status_badge('fail'), status_badge('warn'), status_badge('running');
+----
+[ OK ]	[FAIL]	[WARN]	[ .. ]
+
+# Test status_badge function - case insensitivity and aliases
+query III
+SELECT status_badge('PASSED'), status_badge('ERROR'), status_badge('warning');
+----
+[ OK ]	[FAIL]	[WARN]
+
+# Test status_badge function - unknown status
+query I
+SELECT status_badge('unknown_status');
+----
+[ ?? ]
+
+# Test status_badge function - count overload with 3 args
+query IIII
+SELECT status_badge(0, 0, false), status_badge(1, 0, false), status_badge(0, 5, false), status_badge(0, 0, true);
+----
+[ OK ]	[FAIL]	[WARN]	[ .. ]
+
+# Test status_badge function - count overload with 2 args
+query III
+SELECT status_badge(0, 0), status_badge(3, 0), status_badge(0, 2);
+----
+[ OK ]	[FAIL]	[WARN]
+
+# Test status_badge function - error takes precedence over warning
+query I
+SELECT status_badge(5, 10, false);
+----
+[FAIL]
+
+# Test status_badge function - running takes precedence over errors
+query I
+SELECT status_badge(5, 10, true);
+----
+[ .. ]
+
 # Clean up
 statement ok
 DROP TABLE test_data;

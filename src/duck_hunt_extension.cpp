@@ -12,6 +12,7 @@
 #include "include/read_workflow_logs_function.hpp"
 #include "include/parse_workflow_logs_function.hpp"
 #include "include/validation_event_types.hpp"
+#include "include/status_badge_function.hpp"
 #include "core/parser_registry.hpp"
 
 // Include parser headers to force registration
@@ -97,6 +98,10 @@ static void LoadInternal(ExtensionLoader &loader) {
 	
 	auto parse_workflow_logs_function = GetParseWorkflowLogsFunction();
 	loader.RegisterFunction(parse_workflow_logs_function);
+
+	// Register scalar utility functions
+	auto status_badge_function = GetStatusBadgeFunction();
+	loader.RegisterFunction(status_badge_function);
 }
 
 void DuckHuntExtension::Load(ExtensionLoader &loader) {
