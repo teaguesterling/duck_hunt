@@ -6,33 +6,33 @@ require duck_hunt
 
 # Test 1: ESLint JSON auto-detection
 query I
-SELECT tool_name FROM parse_test_results('[{"filePath":"/test.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"test","line":1,"column":8}]}]', 'auto');
+SELECT tool_name FROM parse_duck_hunt_log('[{"filePath":"/test.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"test","line":1,"column":8}]}]', 'auto');
 ----
 eslint
 
 # Test 2: Go test JSON auto-detection
 query I
-SELECT tool_name FROM parse_test_results('{"Action":"run","Package":"github.com/test","Test":"TestExample"}
+SELECT tool_name FROM parse_duck_hunt_log('{"Action":"run","Package":"github.com/test","Test":"TestExample"}
 {"Action":"fail","Package":"github.com/test","Test":"TestExample","Elapsed":0.001}', 'auto');
 ----
 go_test
 
 # Test 3: Generic lint auto-detection
 query I
-SELECT tool_name FROM parse_test_results('src/main.c:15:5: error: undeclared variable', 'auto');
+SELECT tool_name FROM parse_duck_hunt_log('src/main.c:15:5: error: undeclared variable', 'auto');
 ----
 lint
 
 # Test 4: Make error auto-detection
 query I
-SELECT DISTINCT tool_name FROM parse_test_results('src/main.c:15:5: error: undeclared_var
+SELECT DISTINCT tool_name FROM parse_duck_hunt_log('src/main.c:15:5: error: undeclared_var
 make: *** [Makefile:23: build/main] Error 1', 'auto');
 ----
 make
 
 # Test 5: DuckDB test auto-detection
 query I
-SELECT tool_name FROM parse_test_results('[0/41] (0%): test/sql/basic.test
+SELECT tool_name FROM parse_duck_hunt_log('[0/41] (0%): test/sql/basic.test
 [1/41] (2%): test/sql/advanced.test
 41 test cases:
   - 40 passed
@@ -42,14 +42,14 @@ duckdb_test
 
 # Test 6: Pytest text auto-detection
 query I
-SELECT DISTINCT tool_name FROM parse_test_results('test_module.py::test_function PASSED
+SELECT DISTINCT tool_name FROM parse_duck_hunt_log('test_module.py::test_function PASSED
 test_module.py::test_another FAILED', 'auto');
 ----
 pytest
 
 # Test 7: Format priority testing - DuckDB test should be detected before make error
 query I
-SELECT DISTINCT tool_name FROM parse_test_results('[0/41] (0%): test/sql/basic.test
+SELECT DISTINCT tool_name FROM parse_duck_hunt_log('[0/41] (0%): test/sql/basic.test
 41 test cases:
   - 40 passed
   - 1 failed
@@ -60,38 +60,38 @@ duckdb_test
 
 # Test 8: Format priority testing - ESLint JSON should be detected before generic lint
 query I
-SELECT tool_name FROM parse_test_results('[{"filePath":"/test.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"test error","line":1,"column":8}]}]', 'auto');
+SELECT tool_name FROM parse_duck_hunt_log('[{"filePath":"/test.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"test error","line":1,"column":8}]}]', 'auto');
 ----
 eslint
 
 # Test 9: Unknown format handling
 query I
-SELECT COUNT(*) FROM parse_test_results('random text that matches no patterns', 'auto');
+SELECT COUNT(*) FROM parse_duck_hunt_log('random text that matches no patterns', 'auto');
 ----
 0
 
 # Test 10: Invalid JSON handling with auto-detection
 query I
-SELECT COUNT(*) FROM parse_test_results('{"invalid": json}', 'auto');
+SELECT COUNT(*) FROM parse_duck_hunt_log('{"invalid": json}', 'auto');
 ----
 0
 
 # Test 11: Empty content handling
 query I
-SELECT COUNT(*) FROM parse_test_results('', 'auto');
+SELECT COUNT(*) FROM parse_duck_hunt_log('', 'auto');
 ----
 0
 
 # Test 12: Whitespace-only content handling
 query I
-SELECT COUNT(*) FROM parse_test_results('   
+SELECT COUNT(*) FROM parse_duck_hunt_log('   
    ', 'auto');
 ----
 0
 
 # Test 13: Mixed format content - should detect the first recognizable format
 query I
-SELECT tool_name FROM parse_test_results('{"Action":"run","Package":"github.com/test","Test":"TestExample"}
+SELECT tool_name FROM parse_duck_hunt_log('{"Action":"run","Package":"github.com/test","Test":"TestExample"}
 {"Action":"pass","Package":"github.com/test","Test":"TestExample","Elapsed":0.001}
 src/main.c:15:5: error: undeclared variable', 'auto');
 ----
@@ -100,11 +100,11 @@ go_test
 # Test 14: Test explicit format override vs auto-detection
 statement ok
 CREATE TABLE explicit_format AS 
-SELECT * FROM parse_test_results('src/main.c:15:5: error: undeclared variable', 'generic_lint');
+SELECT * FROM parse_duck_hunt_log('src/main.c:15:5: error: undeclared variable', 'generic_lint');
 
 statement ok
 CREATE TABLE auto_detected AS 
-SELECT * FROM parse_test_results('src/main.c:15:5: error: undeclared variable', 'auto');
+SELECT * FROM parse_duck_hunt_log('src/main.c:15:5: error: undeclared variable', 'auto');
 
 # Verify both produce the same results
 query I
@@ -120,7 +120,7 @@ SELECT COUNT(*) FROM (
 
 # Test 15: Complex ESLint JSON structure auto-detection
 query I
-SELECT tool_name FROM parse_test_results('[
+SELECT tool_name FROM parse_duck_hunt_log('[
   {
     "filePath": "/src/components/Button.js",
     "messages": [

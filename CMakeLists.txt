@@ -12,7 +12,7 @@ include_directories(src/include)
 set(EXTENSION_SOURCES 
     src/duck_hunt_extension.cpp
     src/validation_event_types.cpp
-    src/read_test_results_function.cpp
+    src/read_duck_hunt_log_function.cpp
     
     # Core modular architecture
     src/core/parser_registry.cpp

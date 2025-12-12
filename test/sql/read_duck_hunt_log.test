@@ -1,5 +1,5 @@
-# name: test/sql/read_test_results.test
-# description: test read_test_results function with file inputs
+# name: test/sql/read_duck_hunt_log.test
+# description: test read_duck_hunt_log function with file inputs
 # group: [sql]
 
 require duck_hunt
@@ -7,7 +7,7 @@ require duck_hunt
 # Test 1: Read ESLint JSON file
 statement ok
 CREATE TABLE eslint_file_results AS 
-SELECT * FROM read_test_results('workspace/eslint_sample.json', 'eslint_json');
+SELECT * FROM read_duck_hunt_log('workspace/eslint_sample.json', 'eslint_json');
 
 # Verify ESLint file parsing results
 query IIII
@@ -22,7 +22,7 @@ GROUP BY tool_name;
 # Test 2: Read Go test JSONL file
 statement ok
 CREATE TABLE gotest_file_results AS 
-SELECT * FROM read_test_results('workspace/gotest_sample.jsonl', 'gotest_json');
+SELECT * FROM read_duck_hunt_log('workspace/gotest_sample.jsonl', 'gotest_json');
 
 # Verify Go test file parsing results
 query IIII
@@ -37,7 +37,7 @@ GROUP BY tool_name;
 # Test 3: Read make error file
 statement ok
 CREATE TABLE make_file_results AS 
-SELECT * FROM read_test_results('workspace/make_error_sample.txt', 'make_error');
+SELECT * FROM read_duck_hunt_log('workspace/make_error_sample.txt', 'make_error');
 
 # Verify make error file parsing results
 query III
@@ -51,7 +51,7 @@ GROUP BY tool_name;
 # Test 4: Read clang-tidy file
 statement ok
 CREATE TABLE clang_tidy_file_results AS 
-SELECT * FROM read_test_results('workspace/clang_tidy_sample.txt', 'generic_lint');
+SELECT * FROM read_duck_hunt_log('workspace/clang_tidy_sample.txt', 'generic_lint');
 
 # Verify clang-tidy file parsing results
 query III
@@ -65,7 +65,7 @@ GROUP BY tool_name;
 # Test 5: Auto-detection with file
 query II
 SELECT tool_name, COUNT(*) as event_count
-FROM read_test_results('workspace/eslint_sample.json', 'auto')
+FROM read_duck_hunt_log('workspace/eslint_sample.json', 'auto')
 GROUP BY tool_name;
 ----
 eslint	3
@@ -83,7 +83,7 @@ SELECT COUNT(*) FROM (
          column_number, function_name, status, severity, category, 
          message, suggestion, error_code, test_name, execution_time, 
          raw_output, structured_data
-  FROM read_test_results('workspace/eslint_sample.json', 'eslint_json')
+  FROM read_duck_hunt_log('workspace/eslint_sample.json', 'eslint_json')
   WHERE event_id IS NOT NULL 
     AND tool_name IS NOT NULL
     AND event_type IS NOT NULL
@@ -95,14 +95,14 @@ SELECT COUNT(*) FROM (
 # Test 9: Verify event_id sequencing
 query III
 SELECT MIN(event_id) as min_id, MAX(event_id) as max_id, COUNT(*) as total_events
-FROM read_test_results('workspace/eslint_sample.json', 'eslint_json');
+FROM read_duck_hunt_log('workspace/eslint_sample.json', 'eslint_json');
 ----
 1	3	3
 
 # Test 10: Verify file_path extraction
 query I
 SELECT COUNT(DISTINCT file_path) as unique_files
-FROM read_test_results('workspace/eslint_sample.json', 'eslint_json');
+FROM read_duck_hunt_log('workspace/eslint_sample.json', 'eslint_json');
 ----
 2
 

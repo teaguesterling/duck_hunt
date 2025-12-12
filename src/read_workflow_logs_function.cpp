@@ -1,5 +1,5 @@
 #include "read_workflow_logs_function.hpp"
-#include "read_test_results_function.hpp"
+#include "read_duck_hunt_log_function.hpp"
 #include "workflow_engine_interface.hpp"
 
 // Include parser implementations for static build

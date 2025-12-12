@@ -58,9 +58,9 @@ src/
 │   ├── pipeline_analyzer.hpp
 │   └── pipeline_analyzer.cpp
 └── table_functions/                 # DuckDB integration
-    ├── read_test_results_function.hpp
-    ├── read_test_results_function.cpp  # Now just orchestration
-    └── parse_test_results_function.cpp
+    ├── read_duck_hunt_log_function.hpp
+    ├── read_duck_hunt_log_function.cpp  # Now just orchestration
+    └── parse_duck_hunt_log_function.cpp
 ```
 
 ### Key Design Patterns

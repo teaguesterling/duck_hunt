@@ -2,7 +2,7 @@
 
 #include <string>
 #include "../include/validation_event_types.hpp"
-#include "../include/read_test_results_function.hpp"
+#include "../include/read_duck_hunt_log_function.hpp"
 
 namespace duckdb {
 

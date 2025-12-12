@@ -8,11 +8,14 @@ Duck Hunt provides powerful SQL-based analysis of development tool outputs throu
 
 ### Core Functions
 
-- **`read_test_results(file_path, format := 'AUTO')`** - Parse test results and build outputs from files
-- **`parse_test_results(content, format := 'AUTO')`** - Parse test results and build outputs from strings
+- **`read_duck_hunt_log(file_path, format := 'AUTO')`** - Parse test results and build outputs from files
+- **`parse_duck_hunt_log(content, format := 'AUTO')`** - Parse test results and build outputs from strings
 - **`read_workflow_logs(file_path, format := 'AUTO')`** - Parse CI/CD workflow logs with hierarchical structure
 
-### Supported Formats (44 Total)
+### Supported Formats (45 Total)
+
+#### Dynamic Pattern Matching
+- **`regexp:<pattern>`** - Custom regex patterns with named capture groups for parsing any log format
 
 #### Test Frameworks (9 Total)
 - **pytest** (JSON & text output)
@@ -132,13 +135,13 @@ All parsers output a standardized schema optimized for agent analysis:
 **Capture build logs and analyze in real-time:**
 ```bash
 # Capture make output to both stderr and DuckDB for analysis
-make | tee /dev/stderr | ./build/release/duckdb -s "COPY ( SELECT * EXCLUDE (raw_output) FROM read_test_results('/dev/stdin', 'auto') ) TO '.build-logs/$(git rev-parse --short HEAD).json' (APPEND true);"
+make | tee /dev/stderr | ./build/release/duckdb -s "COPY ( SELECT * EXCLUDE (raw_output) FROM read_duck_hunt_log('/dev/stdin', 'auto') ) TO '.build-logs/$(git rev-parse --short HEAD).json' (APPEND true);"
 
 # Analyze build errors from stdin pipe
-cat make.out | ./build/release/duckdb -json -s "SELECT * EXCLUDE (raw_output) FROM read_test_results('/dev/stdin', 'auto') WHERE severity='error';"
+cat make.out | ./build/release/duckdb -json -s "SELECT * EXCLUDE (raw_output) FROM read_duck_hunt_log('/dev/stdin', 'auto') WHERE severity='error';"
 
 # Real-time error monitoring during builds
-./build.sh | ./build/release/duckdb -json -s "SELECT tool_name, COUNT(*) as error_count, GROUP_CONCAT(message, '\n') as errors FROM read_test_results('/dev/stdin', 'auto') WHERE status='ERROR' GROUP BY tool_name;"
+./build.sh | ./build/release/duckdb -json -s "SELECT tool_name, COUNT(*) as error_count, GROUP_CONCAT(message, '\n') as errors FROM read_duck_hunt_log('/dev/stdin', 'auto') WHERE status='ERROR' GROUP BY tool_name;"
 ```
 
 ### Advanced Error Pattern Analysis
@@ -150,7 +153,7 @@ SELECT pattern_id, COUNT(*) as occurrence_count,
        MIN(similarity_score) as min_similarity,
        MAX(similarity_score) as max_similarity,
        ANY_VALUE(message) as representative_message
-FROM read_test_results('build_logs/**/*.log', 'auto')
+FROM read_duck_hunt_log('build_logs/**/*.log', 'auto')
 WHERE pattern_id != -1
 GROUP BY pattern_id
 ORDER BY occurrence_count DESC;
@@ -158,14 +161,14 @@ ORDER BY occurrence_count DESC;
 -- Analyze error root causes
 SELECT root_cause_category, COUNT(*) as error_count,
        GROUP_CONCAT(DISTINCT tool_name) as affected_tools
-FROM read_test_results('ci_logs/**/*.txt', 'auto') 
+FROM read_duck_hunt_log('ci_logs/**/*.txt', 'auto') 
 WHERE root_cause_category IS NOT NULL
 GROUP BY root_cause_category
 ORDER BY error_count DESC;
 
 -- Find anomalous errors (low similarity to known patterns)
 SELECT file_path, line_number, message, similarity_score
-FROM read_test_results('logs/**/*.log', 'auto')
+FROM read_duck_hunt_log('logs/**/*.log', 'auto')
 WHERE similarity_score < 0.3 AND pattern_id != -1
 ORDER BY similarity_score;
 ```
@@ -174,7 +177,7 @@ ORDER BY similarity_score;
 ```sql
 -- Parse CMake build output to find compilation errors
 SELECT file_path, line_number, message, category
-FROM read_test_results('build.log', 'cmake_build')
+FROM read_duck_hunt_log('build.log', 'cmake_build')
 WHERE status = 'ERROR' AND category = 'compilation'
 ORDER BY file_path, line_number;
 ```
@@ -183,19 +186,19 @@ ORDER BY file_path, line_number;
 ```sql
 -- Analyze Python test failures
 SELECT test_name, message, execution_time
-FROM read_test_results('pytest_output.json', 'pytest_json')
+FROM read_duck_hunt_log('pytest_output.json', 'pytest_json')
 WHERE status = 'FAILED'
 ORDER BY execution_time DESC;
 
 -- Analyze RSpec test failures across Ruby test suites
 SELECT test_name, message, file_path, line_number
-FROM read_test_results('rspec_output.txt', 'rspec_text')
+FROM read_duck_hunt_log('rspec_output.txt', 'rspec_text')
 WHERE status = 'FAIL'
 ORDER BY file_path, line_number;
 
 -- Monitor Google Test performance across C++ test suites
 SELECT function_name, AVG(execution_time) as avg_time, COUNT(*) as test_count
-FROM read_test_results('gtest_output.txt', 'gtest_text')
+FROM read_duck_hunt_log('gtest_output.txt', 'gtest_text')
 WHERE status = 'PASS'
 GROUP BY function_name
 ORDER BY avg_time DESC;
@@ -203,7 +206,7 @@ ORDER BY avg_time DESC;
 -- Analyze .NET test results from NUnit and xUnit frameworks
 SELECT tool_name, status, COUNT(*) as test_count, 
        AVG(execution_time) as avg_execution_time
-FROM read_test_results('nunit_xunit_output.txt', 'nunit_xunit_text')
+FROM read_duck_hunt_log('nunit_xunit_output.txt', 'nunit_xunit_text')
 GROUP BY tool_name, status
 ORDER BY tool_name, status;
 ```
@@ -212,7 +215,7 @@ ORDER BY tool_name, status;
 ```sql
 -- Compare error rates across different build systems
 SELECT tool_name, category, COUNT(*) as error_count
-FROM read_test_results('all_builds.log', 'AUTO')
+FROM read_duck_hunt_log('all_builds.log', 'AUTO')
 WHERE status = 'ERROR'
 GROUP BY tool_name, category
 ORDER BY error_count DESC;
@@ -223,7 +226,7 @@ ORDER BY error_count DESC;
 -- Get ESLint rule violation summary
 SELECT error_code, COUNT(*) as violations, 
        AVG(line_number) as avg_line
-FROM read_test_results('eslint_output.json', 'eslint_json')
+FROM read_duck_hunt_log('eslint_output.json', 'eslint_json')
 WHERE status IN ('ERROR', 'WARNING')
 GROUP BY error_code
 ORDER BY violations DESC;
@@ -237,14 +240,14 @@ SELECT tool_name,
        SUM(CASE WHEN status = 'PASS' THEN 1 ELSE 0 END) as passed,
        SUM(CASE WHEN status = 'FAIL' THEN 1 ELSE 0 END) as failed,
        AVG(execution_time) as avg_execution_time
-FROM read_test_results('all_test_outputs/*.txt', 'AUTO')
+FROM read_duck_hunt_log('all_test_outputs/*.txt', 'AUTO')
 WHERE event_type = 'TEST_RESULT'
 GROUP BY tool_name
 ORDER BY total_tests DESC;
 
 -- Analyze JavaScript test suites (Mocha/Chai) for performance bottlenecks
 SELECT function_name, test_name, execution_time, message
-FROM read_test_results('mocha_output.txt', 'mocha_chai_text')
+FROM read_duck_hunt_log('mocha_output.txt', 'mocha_chai_text')
 WHERE status = 'PASS' AND execution_time > 1000  -- Tests taking > 1 second
 ORDER BY execution_time DESC;
 ```
@@ -253,7 +256,7 @@ ORDER BY execution_time DESC;
 ```sql
 -- Find all compilation errors for agent remediation
 SELECT file_path, line_number, column_number, message, suggestion
-FROM parse_test_results(?, 'AUTO')  -- ? = build output from agent
+FROM parse_duck_hunt_log(?, 'AUTO')  -- ? = build output from agent
 WHERE event_type = 'BUILD_ERROR' AND category = 'compilation'
 ORDER BY file_path, line_number;
 ```
@@ -304,14 +307,14 @@ ORDER BY event_id;
 -- Analyze Valgrind memory errors for debugging
 SELECT tool_name, category, COUNT(*) as error_count, 
        GROUP_CONCAT(DISTINCT file_path) as affected_files
-FROM read_test_results('valgrind_output.txt', 'valgrind')
+FROM read_duck_hunt_log('valgrind_output.txt', 'valgrind')
 WHERE event_type IN ('memory_error', 'memory_leak')
 GROUP BY tool_name, category
 ORDER BY error_count DESC;
 
 -- Extract memory leak details with stack traces
 SELECT file_path, function_name, message, structured_data
-FROM read_test_results('valgrind_output.txt', 'valgrind')
+FROM read_duck_hunt_log('valgrind_output.txt', 'valgrind')
 WHERE event_type = 'memory_leak' AND category = 'memory_leak'
 ORDER BY file_path;
 ```
@@ -321,23 +324,79 @@ ORDER BY file_path;
 -- Analyze GDB/LLDB crashes and debugging events
 SELECT tool_name, event_type, COUNT(*) as event_count,
        GROUP_CONCAT(DISTINCT category) as categories
-FROM read_test_results('gdb_output.txt', 'gdb_lldb')
+FROM read_duck_hunt_log('gdb_output.txt', 'gdb_lldb')
 WHERE event_type IN ('crash_signal', 'debug_event')
 GROUP BY tool_name, event_type
 ORDER BY event_count DESC;
 
 -- Extract crash details with stack traces
 SELECT file_path, line_number, function_name, message, error_code
-FROM read_test_results('debugger.log', 'gdb_lldb')
+FROM read_duck_hunt_log('debugger.log', 'gdb_lldb')
 WHERE event_type = 'crash_signal'
 ORDER BY file_path, line_number;
 
 -- Find all breakpoint hits for debugging workflow
 SELECT function_name, file_path, line_number, message
-FROM read_test_results('debug_session.txt', 'auto')
+FROM read_duck_hunt_log('debug_session.txt', 'auto')
 WHERE category = 'breakpoint_hit'
 ORDER BY event_id;
 ```
+
+### Dynamic Regexp Parser
+
+Parse any log format using custom regex patterns with named capture groups. Named groups are automatically mapped to the ValidationEvent schema:
+
+| Named Group | Maps To | Description |
+|-------------|---------|-------------|
+| `severity`, `level` | status, severity | ERROR, WARNING, INFO, etc. |
+| `message`, `msg`, `description` | message | The main error/warning message |
+| `file`, `file_path`, `path` | file_path | Path to the file |
+| `line`, `line_number`, `lineno` | line_number | Line number |
+| `column`, `col` | column_number | Column number |
+| `code`, `error_code`, `rule` | error_code | Error code or rule ID |
+| `category`, `type` | category | Category of the issue |
+| `test_name`, `test`, `name` | test_name | Test name |
+| `suggestion`, `fix`, `hint` | suggestion | Suggested fix |
+| `tool`, `tool_name` | tool_name | Override the tool name |
+
+**Examples:**
+
+```sql
+-- Parse custom application logs
+SELECT severity, message, file_path, line_number
+FROM parse_duck_hunt_log('
+myapp.ERROR.database: Connection failed at line 42
+myapp.WARNING.cache: Cache miss for key abc123
+myapp.ERROR.api: Timeout after 30s',
+'regexp:myapp\.(?P<severity>ERROR|WARNING)\.(?P<category>\w+):\s+(?P<message>.+)');
+
+-- Parse GCC-style compiler output with custom pattern
+SELECT file_path, line_number, severity, message
+FROM read_duck_hunt_log('build.log',
+'regexp:(?P<file>[^:]+):(?P<line>\d+):\s+(?P<severity>error|warning):\s+(?P<message>.+)');
+
+-- Parse test output with test names and results
+SELECT test_name, status, message
+FROM parse_duck_hunt_log('
+FAIL test_user_auth: Expected 200, got 401
+PASS test_data_fetch: All assertions passed
+FAIL test_validation: Invalid input format',
+'regexp:(?P<severity>FAIL|PASS)\s+(?P<test_name>\w+):\s+(?P<message>.+)');
+
+-- Parse custom CI/CD logs with error codes
+SELECT error_code, severity, message
+FROM parse_duck_hunt_log('
+[E001] Build failed: missing dependency
+[W002] Deprecated API usage detected
+[E003] Test coverage below threshold',
+'regexp:\[(?P<code>[EW]\d+)\]\s+(?P<message>.+)');
+```
+
+**Notes:**
+- Supports both Python-style `(?P<name>...)` and ECMAScript-style `(?<name>...)` named groups
+- Lines not matching the pattern are skipped
+- If no matches found, returns a single summary event
+- Multi-file glob patterns are not supported with regexp format (use single files)
 
 ## Auto-Detection
 
@@ -458,7 +517,7 @@ Duck Hunt currently supports 40+ formats across test frameworks, linting tools, 
 - **composer** (PHP) - Dependency management
 
 **Target**: ~60+ total formats covering 90% of development tool ecosystem
-**Current**: 44+ formats (73% coverage)
+**Current**: 45+ formats (75% coverage) + dynamic regexp parser for unlimited custom formats
 
 ### ✅ Already Implemented (Comprehensive Coverage)
 - **Test Frameworks**: pytest, Go test, Cargo test, JUnit, RSpec, Mocha/Chai, Google Test, NUnit/xUnit, DuckDB test

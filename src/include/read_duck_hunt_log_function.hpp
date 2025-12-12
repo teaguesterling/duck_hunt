@@ -67,30 +67,32 @@ enum class TestResultFormat : uint8_t {
     TERRAFORM_TEXT = 56,
     ANSIBLE_TEXT = 57,
     GITHUB_CLI = 58,
-    CLANG_TIDY_TEXT = 59
+    CLANG_TIDY_TEXT = 59,
+    REGEXP = 60  // Dynamic regexp pattern
 };
 
-// Bind data for read_test_results table function
-struct ReadTestResultsBindData : public TableFunctionData {
+// Bind data for read_duck_hunt_log table function
+struct ReadDuckHuntLogBindData : public TableFunctionData {
     std::string source;
     TestResultFormat format;
-    
-    ReadTestResultsBindData() {}
+    std::string regexp_pattern;  // For REGEXP format: stores the user-provided pattern
+
+    ReadDuckHuntLogBindData() {}
 };
 
-// Global state for read_test_results table function
-struct ReadTestResultsGlobalState : public GlobalTableFunctionState {
+// Global state for read_duck_hunt_log table function
+struct ReadDuckHuntLogGlobalState : public GlobalTableFunctionState {
     std::vector<ValidationEvent> events;
     idx_t max_threads;
     
-    ReadTestResultsGlobalState() : max_threads(1) {}
+    ReadDuckHuntLogGlobalState() : max_threads(1) {}
 };
 
-// Local state for read_test_results table function
-struct ReadTestResultsLocalState : public LocalTableFunctionState {
+// Local state for read_duck_hunt_log table function
+struct ReadDuckHuntLogLocalState : public LocalTableFunctionState {
     idx_t chunk_offset;
     
-    ReadTestResultsLocalState() : chunk_offset(0) {}
+    ReadDuckHuntLogLocalState() : chunk_offset(0) {}
 };
 
 // Format detection
@@ -111,34 +113,37 @@ std::string ExtractBuildIdFromPath(const std::string& file_path);
 std::string ExtractEnvironmentFromPath(const std::string& file_path);
 
 // Main table function
-TableFunction GetReadTestResultsFunction();
-TableFunction GetParseTestResultsFunction();
+TableFunction GetReadDuckHuntLogFunction();
+TableFunction GetParseDuckHuntLogFunction();
 
-// Table function implementation for read_test_results (file-based)
-unique_ptr<FunctionData> ReadTestResultsBind(ClientContext &context, TableFunctionBindInput &input,
+// Table function implementation for read_duck_hunt_log (file-based)
+unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFunctionBindInput &input,
                                             vector<LogicalType> &return_types, vector<string> &names);
 
-unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &context, TableFunctionInitInput &input);
+unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &context, TableFunctionInitInput &input);
 
-unique_ptr<LocalTableFunctionState> ReadTestResultsInitLocal(ExecutionContext &context, TableFunctionInitInput &input, 
+unique_ptr<LocalTableFunctionState> ReadDuckHuntLogInitLocal(ExecutionContext &context, TableFunctionInitInput &input, 
                                                             GlobalTableFunctionState *global_state);
 
-void ReadTestResultsFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output);
+void ReadDuckHuntLogFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output);
 
-// Table function implementation for parse_test_results (string-based)
-unique_ptr<FunctionData> ParseTestResultsBind(ClientContext &context, TableFunctionBindInput &input,
+// Table function implementation for parse_duck_hunt_log (string-based)
+unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunctionBindInput &input,
                                              vector<LogicalType> &return_types, vector<string> &names);
 
-unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &context, TableFunctionInitInput &input);
+unique_ptr<GlobalTableFunctionState> ParseDuckHuntLogInitGlobal(ClientContext &context, TableFunctionInitInput &input);
 
-unique_ptr<LocalTableFunctionState> ParseTestResultsInitLocal(ExecutionContext &context, TableFunctionInitInput &input, 
+unique_ptr<LocalTableFunctionState> ParseDuckHuntLogInitLocal(ExecutionContext &context, TableFunctionInitInput &input, 
                                                              GlobalTableFunctionState *global_state);
 
-void ParseTestResultsFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output);
+void ParseDuckHuntLogFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output);
 
 // Helper function to populate DataChunk from ValidationEvents
 void PopulateDataChunkFromEvents(DataChunk &output, const std::vector<ValidationEvent> &events, 
                                 idx_t start_offset, idx_t chunk_size);
+
+// Dynamic regexp parser
+void ParseWithRegexp(const std::string& content, const std::string& pattern, std::vector<ValidationEvent>& events);
 
 // Format-specific parsers
 void ParsePytestJSON(const std::string& content, std::vector<ValidationEvent>& events);

@@ -24,20 +24,20 @@ During Phase 2 modernization, we discovered that workflow engines (GitHub Action
 
 ### Option 1: Internal C++ Delegation (Rejected)
 ```sql
-SELECT * FROM read_test_results('https://api.github.com/repos/.../logs', 'github-ci');
+SELECT * FROM read_duck_hunt_log('https://api.github.com/repos/.../logs', 'github-ci');
 ```
 **Issues**: Loses workflow structure, no selective parsing, mixed abstraction levels
 
 ### Option 2: Recursive SQL Parsing (Considered)
 ```sql
-SELECT unnest(parse_test_results(r.raw_output, 'auto'), recursive:=true) 
-FROM read_test_results('https://api.github.com/repos/.../logs', 'github-ci') AS r
+SELECT unnest(parse_duck_hunt_log(r.raw_output, 'auto'), recursive:=true) 
+FROM read_duck_hunt_log('https://api.github.com/repos/.../logs', 'github-ci') AS r
 ```
 **Issues**: Complex SQL, large raw_output fields, API complexity
 
 ### Option 3: Separate Workflow Functions (Selected)
 ```sql
-SELECT unnest(parse_test_results(w.stage_log, w.stage_type), recursive:=true) 
+SELECT unnest(parse_duck_hunt_log(w.stage_log, w.stage_type), recursive:=true) 
 FROM read_workflow_logs('https://api.github.com/repos/.../logs', 'github-ci') AS w
 ```
 **Benefits**: Clean separation, clear semantics, flexible, composable
@@ -81,7 +81,7 @@ SELECT
     w.stage_name,
     tool_results.*
 FROM read_workflow_logs('https://api.github.com/repos/.../logs', 'github-ci') AS w
-CROSS JOIN LATERAL parse_test_results(w.stage_log, w.stage_type) AS tool_results
+CROSS JOIN LATERAL parse_duck_hunt_log(w.stage_log, w.stage_type) AS tool_results
 WHERE w.stage_type != 'infrastructure';
 ```
 
@@ -100,7 +100,7 @@ SELECT
     t.file_path,
     t.line_number
 FROM failed_stages f
-CROSS JOIN LATERAL parse_test_results(f.stage_log, f.stage_type) AS t
+CROSS JOIN LATERAL parse_duck_hunt_log(f.stage_log, f.stage_type) AS t
 WHERE t.status = 'ERROR';
 ```
 

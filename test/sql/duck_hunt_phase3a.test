@@ -8,7 +8,7 @@ require duck_hunt
 query IIIIII
 SELECT source_file, build_id, environment, file_index, COUNT(*) as events, 
        COUNT(CASE WHEN status = 'PASS' THEN 1 END) as passes
-FROM read_test_results('workspace/ansible_sample.txt', 'auto') 
+FROM read_duck_hunt_log('workspace/ansible_sample.txt', 'auto') 
 GROUP BY source_file, build_id, environment, file_index;
 ----
 workspace/ansible_sample.txt	NULL	NULL	0	109	53
@@ -18,7 +18,7 @@ query I
 SELECT COUNT(*) as files_with_ansible
 FROM (
     SELECT source_file 
-    FROM read_test_results('workspace/builds/**/*.txt', 'auto') 
+    FROM read_duck_hunt_log('workspace/builds/**/*.txt', 'auto') 
     WHERE source_file LIKE '%ansible%'
     GROUP BY source_file
 );
@@ -29,7 +29,7 @@ query I
 SELECT COUNT(*) as files_with_terraform  
 FROM (
     SELECT source_file
-    FROM read_test_results('workspace/builds/**/*.txt', 'auto') 
+    FROM read_duck_hunt_log('workspace/builds/**/*.txt', 'auto') 
     WHERE source_file LIKE '%terraform%'
     GROUP BY source_file
 );
@@ -39,14 +39,14 @@ FROM (
 # Test build ID extraction (verify we get 2 distinct files, build IDs may vary by platform)
 query I
 SELECT COUNT(DISTINCT source_file) as file_count
-FROM read_test_results('workspace/builds/**/*.txt', 'auto');
+FROM read_duck_hunt_log('workspace/builds/**/*.txt', 'auto');
 ----
 2
 
 # Test CI logs file processing (verify individual pytest files can be read)
 query I
 SELECT COUNT(*) as events_found
-FROM read_test_results('workspace/ci-logs/staging/pytest-results.txt', 'pytest_text');
+FROM read_duck_hunt_log('workspace/ci-logs/staging/pytest-results.txt', 'pytest_text');
 ----
 4
 
@@ -57,7 +57,7 @@ SELECT
     COUNT(*) as total_events,
     COUNT(CASE WHEN status = 'FAIL' THEN 1 END) as total_failures,
     COUNT(CASE WHEN status = 'PASS' THEN 1 END) as total_passes
-FROM read_test_results('workspace/builds/**/*.txt', 'auto');
+FROM read_duck_hunt_log('workspace/builds/**/*.txt', 'auto');
 ----
 2	18	0	8
 
@@ -65,7 +65,7 @@ FROM read_test_results('workspace/builds/**/*.txt', 'auto');
 query II
 SELECT (source_file LIKE '%terraform%')::INTEGER as is_terraform,
        (source_file LIKE '%ansible%')::INTEGER as is_ansible
-FROM read_test_results('workspace/builds/**/*.txt', 'auto')
+FROM read_duck_hunt_log('workspace/builds/**/*.txt', 'auto')
 GROUP BY source_file
 ORDER BY source_file;
 ----
@@ -76,7 +76,7 @@ ORDER BY source_file;
 query I
 SELECT COUNT(*) FROM (
     SELECT source_file, build_id, environment, file_index, event_type, status
-    FROM read_test_results('workspace/ci-logs/staging/pytest-results.txt', 'pytest_text')
+    FROM read_duck_hunt_log('workspace/ci-logs/staging/pytest-results.txt', 'pytest_text')
     LIMIT 1
 );
 ----
@@ -84,6 +84,6 @@ SELECT COUNT(*) FROM (
 
 # Test empty results for non-existent patterns
 query I
-SELECT COUNT(*) FROM read_test_results('workspace/nonexistent/**/*.txt', 'auto');
+SELECT COUNT(*) FROM read_duck_hunt_log('workspace/nonexistent/**/*.txt', 'auto');
 ----
 0

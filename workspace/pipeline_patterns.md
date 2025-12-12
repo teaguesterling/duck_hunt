@@ -6,7 +6,7 @@ Duck Hunt enables powerful real-time data processing patterns by combining stand
 
 ```bash
 # Basic pattern: Tool output → Duck Hunt → Database
-<tool_command> | duckdb database.db -s "INSERT INTO test_results FROM read_test_results('/dev/stdin');"
+<tool_command> | duckdb database.db -s "INSERT INTO test_results FROM read_duck_hunt_log('/dev/stdin');"
 ```
 
 ## Real-World Examples
@@ -14,28 +14,28 @@ Duck Hunt enables powerful real-time data processing patterns by combining stand
 ### 1. Direct Database Ingestion
 ```bash
 # Store pytest results directly in database
-pytest --json tests/ | duckdb test_repository.db -s "INSERT INTO test_results FROM read_test_results('/dev/stdin');"
+pytest --json tests/ | duckdb test_repository.db -s "INSERT INTO test_results FROM read_duck_hunt_log('/dev/stdin');"
 
 # Store eslint results with metadata
-eslint --format json src/ | duckdb quality.db -s "INSERT INTO lint_results SELECT NOW() as timestamp, * FROM read_test_results('/dev/stdin');"
+eslint --format json src/ | duckdb quality.db -s "INSERT INTO lint_results SELECT NOW() as timestamp, * FROM read_duck_hunt_log('/dev/stdin');"
 ```
 
 ### 2. Timestamped Archival with Transformation
 ```bash
 # Archive test results with timestamps for trend analysis
-pytest --json tests/ | duckdb -s "COPY (SELECT NOW() AS timestamp, * FROM read_test_results('/dev/stdin')) TO '/dev/stdout' (FORMAT json);" > test_results/run_$(date +%Y%m%d%H%M%S).json
+pytest --json tests/ | duckdb -s "COPY (SELECT NOW() AS timestamp, * FROM read_duck_hunt_log('/dev/stdin')) TO '/dev/stdout' (FORMAT json);" > test_results/run_$(date +%Y%m%d%H%M%S).json
 
 # Add custom metadata during ingestion
-cargo test --message-format json | duckdb ci.db -s "INSERT INTO build_results SELECT '${BUILD_ID}' as build_id, '${BRANCH}' as branch, NOW() as timestamp, * FROM read_test_results('/dev/stdin');"
+cargo test --message-format json | duckdb ci.db -s "INSERT INTO build_results SELECT '${BUILD_ID}' as build_id, '${BRANCH}' as branch, NOW() as timestamp, * FROM read_duck_hunt_log('/dev/stdin');"
 ```
 
 ### 3. Multi-Tool Unified Processing
 ```bash
 # Combine multiple tools into unified schema
 {
-  pytest --json tests/ | duckdb -s "SELECT 'pytest' as source, * FROM read_test_results('/dev/stdin');"
-  eslint --format json src/ | duckdb -s "SELECT 'eslint' as source, * FROM read_test_results('/dev/stdin');"
-  cargo test --message-format json | duckdb -s "SELECT 'cargo' as source, * FROM read_test_results('/dev/stdin');"
+  pytest --json tests/ | duckdb -s "SELECT 'pytest' as source, * FROM read_duck_hunt_log('/dev/stdin');"
+  eslint --format json src/ | duckdb -s "SELECT 'eslint' as source, * FROM read_duck_hunt_log('/dev/stdin');"
+  cargo test --message-format json | duckdb -s "SELECT 'cargo' as source, * FROM read_duck_hunt_log('/dev/stdin');"
 } | duckdb analytics.db -s "COPY (SELECT * FROM read_csv('/dev/stdin', header=true)) TO analytics_results;"
 ```
 
@@ -43,7 +43,7 @@ cargo test --message-format json | duckdb ci.db -s "INSERT INTO build_results SE
 ```bash
 # Check for failures and alert if needed
 pytest --json tests/ | duckdb -s "
-  WITH results AS (SELECT * FROM read_test_results('/dev/stdin'))
+  WITH results AS (SELECT * FROM read_duck_hunt_log('/dev/stdin'))
   SELECT 
     COUNT(*) as total_tests,
     COUNT(CASE WHEN status = 'FAIL' THEN 1 END) as failures,
@@ -63,7 +63,7 @@ eslint --format json src/ | duckdb quality_trends.db -s "
     category,
     COUNT(*) as issue_count,
     COUNT(CASE WHEN status = 'ERROR' THEN 1 END) as error_count
-  FROM read_test_results('/dev/stdin')
+  FROM read_duck_hunt_log('/dev/stdin')
   GROUP BY 1, 2, 3
   ON CONFLICT (date, tool_name, category) 
   DO UPDATE SET issue_count = excluded.issue_count, error_count = excluded.error_count
@@ -131,7 +131,7 @@ ORDER BY 2 DESC, 3 DESC;
         '${{ github.actor }}' as author,
         NOW() as timestamp,
         * 
-      FROM read_test_results('/dev/stdin')
+      FROM read_duck_hunt_log('/dev/stdin')
     "
 ```
 
@@ -142,8 +142,8 @@ stage('Quality Analysis') {
         sh '''
             # Combine multiple quality tools
             {
-                eslint --format json src/ | duckdb -s "SELECT 'eslint' as tool, * FROM read_test_results('/dev/stdin');"
-                pytest --json tests/ | duckdb -s "SELECT 'pytest' as tool, * FROM read_test_results('/dev/stdin');"
+                eslint --format json src/ | duckdb -s "SELECT 'eslint' as tool, * FROM read_duck_hunt_log('/dev/stdin');"
+                pytest --json tests/ | duckdb -s "SELECT 'pytest' as tool, * FROM read_duck_hunt_log('/dev/stdin');"
             } | duckdb quality.db -s "
                 INSERT INTO build_quality 
                 SELECT '${BUILD_NUMBER}' as build_id, * FROM read_csv('/dev/stdin', header=true)

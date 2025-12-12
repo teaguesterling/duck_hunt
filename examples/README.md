@@ -30,7 +30,7 @@ examples/
        root_cause_category,
        COUNT(*) as occurrences,
        COUNT(DISTINCT pattern_id) as unique_patterns
-   FROM read_test_results('workspace/**/*.txt', 'auto')
+   FROM read_duck_hunt_log('workspace/**/*.txt', 'auto')
    WHERE root_cause_category IS NOT NULL
    GROUP BY root_cause_category
    ORDER BY occurrences DESC;
@@ -181,9 +181,9 @@ predictions AS (
 Replace `'workspace/**/*.txt'` with your actual file patterns:
 ```sql
 -- Examples for different directory structures
-read_test_results('logs/ci-cd/**/*.json', 'auto')           -- CI/CD logs
-read_test_results('results/*/test-output.xml', 'auto')     -- XML test results  
-read_test_results('builds/{2024,2023}/**/*.log', 'auto')   -- Yearly organization
+read_duck_hunt_log('logs/ci-cd/**/*.json', 'auto')           -- CI/CD logs
+read_duck_hunt_log('results/*/test-output.xml', 'auto')     -- XML test results  
+read_duck_hunt_log('builds/{2024,2023}/**/*.log', 'auto')   -- Yearly organization
 ```
 
 ### Time Window Adjustments
@@ -213,12 +213,12 @@ WHEN correlation_strength >= 0.6 THEN 'STRONG' -- Different correlation sensitiv
 ### Query Optimization Tips
 ```sql
 -- Good: Filter early and use indexes
-SELECT * FROM read_test_results('data/**/*.txt', 'auto')
+SELECT * FROM read_duck_hunt_log('data/**/*.txt', 'auto')
 WHERE pattern_id IS NOT NULL AND status IN ('ERROR', 'FAIL')
 LIMIT 1000;
 
 -- Better: Focus on specific patterns or time periods
-SELECT * FROM read_test_results('data/**/*.txt', 'auto')
+SELECT * FROM read_duck_hunt_log('data/**/*.txt', 'auto')
 WHERE file_index >= 100 AND root_cause_category = 'network';
 ```
 

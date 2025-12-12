@@ -1,4 +1,4 @@
-#include "include/read_test_results_function.hpp"
+#include "include/read_duck_hunt_log_function.hpp"
 #include "include/validation_event_types.hpp"
 #include "core/parser_registry.hpp"
 #include "parsers/test_frameworks/junit_text_parser.hpp"
@@ -767,11 +767,14 @@ std::string TestResultFormatToString(TestResultFormat format) {
         case TestResultFormat::DRONE_CI_TEXT: return "drone_ci_text";
         case TestResultFormat::TERRAFORM_TEXT: return "terraform_text";
         case TestResultFormat::ANSIBLE_TEXT: return "ansible_text";
+        case TestResultFormat::REGEXP: return "regexp";
         default: return "unknown";
     }
 }
 
 TestResultFormat StringToTestResultFormat(const std::string& str) {
+    // Check for regexp: prefix (dynamic pattern matching)
+    if (str.rfind("regexp:", 0) == 0) return TestResultFormat::REGEXP;
     if (str == "auto") return TestResultFormat::AUTO;
     if (str == "pytest_json") return TestResultFormat::PYTEST_JSON;
     if (str == "gotest_json") return TestResultFormat::GOTEST_JSON;
@@ -867,23 +870,32 @@ bool IsValidJSON(const std::string& content) {
     return !trimmed.empty() && (trimmed[0] == '{' || trimmed[0] == '[');
 }
 
-unique_ptr<FunctionData> ReadTestResultsBind(ClientContext &context, TableFunctionBindInput &input,
+unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFunctionBindInput &input,
                                             vector<LogicalType> &return_types, vector<string> &names) {
-    auto bind_data = make_uniq<ReadTestResultsBindData>();
+    auto bind_data = make_uniq<ReadDuckHuntLogBindData>();
     
     // Get source parameter (required)
     if (input.inputs.empty()) {
-        throw BinderException("read_test_results requires at least one parameter (source)");
+        throw BinderException("read_duck_hunt_log requires at least one parameter (source)");
     }
     bind_data->source = input.inputs[0].ToString();
-    
+
     // Get format parameter (optional, defaults to auto)
     if (input.inputs.size() > 1) {
-        bind_data->format = StringToTestResultFormat(input.inputs[1].ToString());
+        std::string format_str = input.inputs[1].ToString();
+        bind_data->format = StringToTestResultFormat(format_str);
+
+        // For REGEXP format, extract the pattern after the "regexp:" prefix
+        if (bind_data->format == TestResultFormat::REGEXP) {
+            if (format_str.length() <= 7) {
+                throw BinderException("regexp: format requires a pattern after the prefix, e.g., 'regexp:(?P<severity>ERROR|WARN):\\s+(?P<message>.*)'");
+            }
+            bind_data->regexp_pattern = format_str.substr(7);  // Remove "regexp:" prefix
+        }
     } else {
         bind_data->format = TestResultFormat::AUTO;
     }
-    
+
     // Define return schema
     return_types = {
         LogicalType::BIGINT,   // event_id
@@ -929,9 +941,9 @@ unique_ptr<FunctionData> ReadTestResultsBind(ClientContext &context, TableFuncti
     return std::move(bind_data);
 }
 
-unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &context, TableFunctionInitInput &input) {
-    auto &bind_data = input.bind_data->Cast<ReadTestResultsBindData>();
-    auto global_state = make_uniq<ReadTestResultsGlobalState>();
+unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &context, TableFunctionInitInput &input) {
+    auto &bind_data = input.bind_data->Cast<ReadDuckHuntLogBindData>();
+    auto global_state = make_uniq<ReadDuckHuntLogGlobalState>();
     
     // Phase 3A: Check if source contains glob patterns or multiple files
     auto &fs = FileSystem::GetFileSystem(context);
@@ -1332,6 +1344,10 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                     }
                 }
                 break;
+            case TestResultFormat::REGEXP:
+                // Dynamic regexp parser - uses user-provided pattern
+                ParseWithRegexp(content, bind_data.regexp_pattern, global_state->events);
+                break;
             default:
                 // Try the modular parser registry for new parsers
                 {
@@ -1344,7 +1360,7 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
                 }
                 break;
         }
-        
+
         // For single files, populate basic metadata
         if (!global_state->events.empty()) {
             for (auto& event : global_state->events) {
@@ -1364,14 +1380,14 @@ unique_ptr<GlobalTableFunctionState> ReadTestResultsInitGlobal(ClientContext &co
     return std::move(global_state);
 }
 
-unique_ptr<LocalTableFunctionState> ReadTestResultsInitLocal(ExecutionContext &context, TableFunctionInitInput &input,
+unique_ptr<LocalTableFunctionState> ReadDuckHuntLogInitLocal(ExecutionContext &context, TableFunctionInitInput &input,
                                                             GlobalTableFunctionState *global_state) {
-    return make_uniq<ReadTestResultsLocalState>();
+    return make_uniq<ReadDuckHuntLogLocalState>();
 }
 
-void ReadTestResultsFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output) {
-    auto &global_state = data_p.global_state->Cast<ReadTestResultsGlobalState>();
-    auto &local_state = data_p.local_state->Cast<ReadTestResultsLocalState>();
+void ReadDuckHuntLogFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output) {
+    auto &global_state = data_p.global_state->Cast<ReadDuckHuntLogGlobalState>();
+    auto &local_state = data_p.local_state->Cast<ReadDuckHuntLogLocalState>();
     
     // Populate output chunk
     PopulateDataChunkFromEvents(output, global_state.events, local_state.chunk_offset, STANDARD_VECTOR_SIZE);
@@ -2086,6 +2102,214 @@ void ParseTflintJSON(const std::string& content, std::vector<ValidationEvent>& e
 }
 
 
+// Dynamic regexp parser implementation
+// Parses content using a user-provided regex pattern with named capture groups.
+// Named groups are mapped to ValidationEvent fields:
+//   - severity/level: Maps to status/severity (error, warning, info)
+//   - message/msg: The message text
+//   - file/file_path/path: File path
+//   - line/line_number/lineno: Line number
+//   - column/col/column_number: Column number
+//   - code/error_code/rule: Error code
+//   - category/type: Category
+//   - test_name/test/name: Test name
+//   - suggestion/fix/hint: Suggestion text
+//   - tool/tool_name: Tool name
+void ParseWithRegexp(const std::string& content, const std::string& pattern, std::vector<ValidationEvent>& events) {
+    // Extract named group names from the pattern
+    // Supports both Python-style (?P<name>...) and ECMAScript-style (?<name>...)
+    std::vector<std::string> group_names;
+    std::regex name_extractor(R"(\(\?(?:P)?<([a-zA-Z_][a-zA-Z0-9_]*)>)");
+    std::string::const_iterator search_start = pattern.cbegin();
+    std::smatch name_match;
+
+    while (std::regex_search(search_start, pattern.cend(), name_match, name_extractor)) {
+        group_names.push_back(name_match[1].str());
+        search_start = name_match.suffix().first;
+    }
+
+    // Convert Python-style named groups to std::regex compatible format
+    // (?P<name>...) -> (?:...) but we keep track of positions
+    std::string modified_pattern = std::regex_replace(pattern, std::regex(R"(\(\?P<([a-zA-Z_][a-zA-Z0-9_]*)>)"), "(?:");
+    // Also handle ECMAScript-style (?<name>...) -> (?:...)
+    modified_pattern = std::regex_replace(modified_pattern, std::regex(R"(\(\?<([a-zA-Z_][a-zA-Z0-9_]*)>)"), "(?:");
+
+    // Actually, std::regex in C++11/14 doesn't support named groups, so we need to use indexed groups.
+    // We'll convert named groups to regular groups and track which index corresponds to which name.
+    // (?P<name>...) and (?<name>...) become (...)
+    modified_pattern = std::regex_replace(pattern, std::regex(R"(\(\?P?<[a-zA-Z_][a-zA-Z0-9_]*>)"), "(");
+
+    std::regex user_regex;
+    try {
+        user_regex = std::regex(modified_pattern);
+    } catch (const std::regex_error& e) {
+        // If regex compilation fails, create an error event
+        ValidationEvent error_event;
+        error_event.event_id = 1;
+        error_event.tool_name = "regexp";
+        error_event.event_type = ValidationEventType::BUILD_ERROR;
+        error_event.status = ValidationEventStatus::ERROR;
+        error_event.severity = "error";
+        error_event.category = "parse_error";
+        error_event.message = std::string("Invalid regex pattern: ") + e.what();
+        error_event.line_number = -1;
+        error_event.column_number = -1;
+        events.push_back(error_event);
+        return;
+    }
+
+    // Build a map from group name to index
+    std::map<std::string, size_t> name_to_index;
+    for (size_t i = 0; i < group_names.size(); i++) {
+        name_to_index[group_names[i]] = i + 1;  // Groups are 1-indexed
+    }
+
+    // Helper function to get group value by name
+    auto getGroupValue = [&](const std::smatch& match, const std::vector<std::string>& names) -> std::string {
+        for (const auto& name : names) {
+            auto it = name_to_index.find(name);
+            if (it != name_to_index.end() && it->second < match.size() && match[it->second].matched) {
+                return match[it->second].str();
+            }
+        }
+        return "";
+    };
+
+    // Parse content line by line
+    std::istringstream stream(content);
+    std::string line;
+    int64_t event_id = 1;
+    int line_num = 0;
+
+    while (std::getline(stream, line)) {
+        line_num++;
+        std::smatch match;
+
+        if (std::regex_search(line, match, user_regex)) {
+            ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "regexp";
+            event.event_type = ValidationEventType::LINT_ISSUE;
+
+            // Map captured groups to event fields
+            std::string severity = getGroupValue(match, {"severity", "level"});
+            if (!severity.empty()) {
+                std::string severity_lower = severity;
+                std::transform(severity_lower.begin(), severity_lower.end(), severity_lower.begin(), ::tolower);
+
+                if (severity_lower == "error" || severity_lower == "fatal" || severity_lower == "fail" || severity_lower == "failed") {
+                    event.status = ValidationEventStatus::ERROR;
+                    event.severity = "error";
+                } else if (severity_lower == "warning" || severity_lower == "warn") {
+                    event.status = ValidationEventStatus::WARNING;
+                    event.severity = "warning";
+                } else if (severity_lower == "info" || severity_lower == "note" || severity_lower == "debug") {
+                    event.status = ValidationEventStatus::INFO;
+                    event.severity = "info";
+                } else {
+                    event.status = ValidationEventStatus::WARNING;
+                    event.severity = severity;
+                }
+            } else {
+                event.status = ValidationEventStatus::WARNING;
+                event.severity = "warning";
+            }
+
+            // Message field
+            std::string message = getGroupValue(match, {"message", "msg", "description", "text"});
+            if (!message.empty()) {
+                event.message = message;
+            } else {
+                // If no message group, use the entire matched line
+                event.message = match[0].str();
+            }
+
+            // File path
+            std::string file_path = getGroupValue(match, {"file", "file_path", "path", "filename"});
+            if (!file_path.empty()) {
+                event.file_path = file_path;
+            }
+
+            // Line number
+            std::string line_str = getGroupValue(match, {"line", "line_number", "lineno", "line_num"});
+            if (!line_str.empty()) {
+                try {
+                    event.line_number = std::stoi(line_str);
+                } catch (...) {
+                    event.line_number = line_num;  // Fall back to input line number
+                }
+            } else {
+                event.line_number = line_num;
+            }
+
+            // Column number
+            std::string col_str = getGroupValue(match, {"column", "col", "column_number", "colno"});
+            if (!col_str.empty()) {
+                try {
+                    event.column_number = std::stoi(col_str);
+                } catch (...) {
+                    event.column_number = -1;
+                }
+            } else {
+                event.column_number = -1;
+            }
+
+            // Error code
+            std::string error_code = getGroupValue(match, {"code", "error_code", "rule", "rule_id"});
+            if (!error_code.empty()) {
+                event.error_code = error_code;
+            }
+
+            // Category
+            std::string category = getGroupValue(match, {"category", "type", "class"});
+            if (!category.empty()) {
+                event.category = category;
+            } else {
+                event.category = "regexp_match";
+            }
+
+            // Test name
+            std::string test_name = getGroupValue(match, {"test_name", "test", "name"});
+            if (!test_name.empty()) {
+                event.test_name = test_name;
+            }
+
+            // Suggestion
+            std::string suggestion = getGroupValue(match, {"suggestion", "fix", "hint"});
+            if (!suggestion.empty()) {
+                event.suggestion = suggestion;
+            }
+
+            // Tool name (can be overridden by pattern)
+            std::string tool = getGroupValue(match, {"tool", "tool_name"});
+            if (!tool.empty()) {
+                event.tool_name = tool;
+            }
+
+            event.raw_output = line;
+            event.execution_time = 0.0;
+
+            events.push_back(event);
+        }
+    }
+
+    // If no events were created, add a summary event
+    if (events.empty()) {
+        ValidationEvent summary_event;
+        summary_event.event_id = 1;
+        summary_event.tool_name = "regexp";
+        summary_event.event_type = ValidationEventType::LINT_ISSUE;
+        summary_event.status = ValidationEventStatus::INFO;
+        summary_event.severity = "info";
+        summary_event.category = "regexp_summary";
+        summary_event.message = "No matches found for the provided pattern";
+        summary_event.line_number = -1;
+        summary_event.column_number = -1;
+        summary_event.execution_time = 0.0;
+        events.push_back(summary_event);
+    }
+}
+
 
 void ParseGenericLint(const std::string& content, std::vector<ValidationEvent>& events) {
     std::istringstream stream(content);
@@ -2146,24 +2370,33 @@ void ParseGenericLint(const std::string& content, std::vector<ValidationEvent>& 
 }
 
 // Parse test results implementation for string input
-unique_ptr<FunctionData> ParseTestResultsBind(ClientContext &context, TableFunctionBindInput &input,
+unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunctionBindInput &input,
                                               vector<LogicalType> &return_types, vector<string> &names) {
-    auto bind_data = make_uniq<ReadTestResultsBindData>();
+    auto bind_data = make_uniq<ReadDuckHuntLogBindData>();
     
     // Get content parameter (required)
     if (input.inputs.empty()) {
-        throw BinderException("parse_test_results requires at least one parameter (content)");
+        throw BinderException("parse_duck_hunt_log requires at least one parameter (content)");
     }
     bind_data->source = input.inputs[0].ToString();
-    
+
     // Get format parameter (optional, defaults to auto)
     if (input.inputs.size() > 1) {
-        bind_data->format = StringToTestResultFormat(input.inputs[1].ToString());
+        std::string format_str = input.inputs[1].ToString();
+        bind_data->format = StringToTestResultFormat(format_str);
+
+        // For REGEXP format, extract the pattern after the "regexp:" prefix
+        if (bind_data->format == TestResultFormat::REGEXP) {
+            if (format_str.length() <= 7) {
+                throw BinderException("regexp: format requires a pattern after the prefix, e.g., 'regexp:(?P<severity>ERROR|WARN):\\s+(?P<message>.*)'");
+            }
+            bind_data->regexp_pattern = format_str.substr(7);  // Remove "regexp:" prefix
+        }
     } else {
         bind_data->format = TestResultFormat::AUTO;
     }
-    
-    // Define return schema (same as read_test_results)
+
+    // Define return schema (same as read_duck_hunt_log)
     return_types = {
         LogicalType::BIGINT,   // event_id
         LogicalType::VARCHAR,  // tool_name
@@ -2208,9 +2441,9 @@ unique_ptr<FunctionData> ParseTestResultsBind(ClientContext &context, TableFunct
     return std::move(bind_data);
 }
 
-unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &context, TableFunctionInitInput &input) {
-    auto &bind_data = input.bind_data->Cast<ReadTestResultsBindData>();
-    auto global_state = make_uniq<ReadTestResultsGlobalState>();
+unique_ptr<GlobalTableFunctionState> ParseDuckHuntLogInitGlobal(ClientContext &context, TableFunctionInitInput &input) {
+    auto &bind_data = input.bind_data->Cast<ReadDuckHuntLogBindData>();
+    auto global_state = make_uniq<ReadDuckHuntLogGlobalState>();
     
     // Use source directly as content (no file reading)
     std::string content = bind_data.source;
@@ -2221,7 +2454,7 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
         format = DetectTestResultFormat(content);
     }
     
-    // Parse content based on detected format (same logic as read_test_results)
+    // Parse content based on detected format (same logic as read_duck_hunt_log)
     switch (format) {
         case TestResultFormat::PYTEST_JSON:
             {
@@ -2247,7 +2480,7 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
                     // (removed debugging throws - parser registration fix worked!)
                     global_state->events.insert(global_state->events.end(), events.begin(), events.end());
                 } else {
-                    throw std::runtime_error("parse_test_results: ESLint modular parser NOT found in registry");
+                    throw std::runtime_error("parse_duck_hunt_log: ESLint modular parser NOT found in registry");
                 }
             }
             break;
@@ -2341,7 +2574,7 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
                     auto events = parser->parse(content);
                     global_state->events.insert(global_state->events.end(), events.begin(), events.end());
                 } else {
-                    throw std::runtime_error("parse_test_results: ShellCheck JSON modular parser not found in registry");
+                    throw std::runtime_error("parse_duck_hunt_log: ShellCheck JSON modular parser not found in registry");
                 }
             }
             break;
@@ -2353,7 +2586,7 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
                     auto events = parser->parse(content);
                     global_state->events.insert(global_state->events.end(), events.begin(), events.end());
                 } else {
-                    throw std::runtime_error("parse_test_results: Stylelint JSON modular parser not found in registry");
+                    throw std::runtime_error("parse_duck_hunt_log: Stylelint JSON modular parser not found in registry");
                 }
             }
             break;
@@ -2365,7 +2598,7 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
                     auto events = parser->parse(content);
                     global_state->events.insert(global_state->events.end(), events.begin(), events.end());
                 } else {
-                    throw std::runtime_error("parse_test_results: Clippy JSON modular parser not found in registry");
+                    throw std::runtime_error("parse_duck_hunt_log: Clippy JSON modular parser not found in registry");
                 }
             }
             break;
@@ -2377,7 +2610,7 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
                     auto events = parser->parse(content);
                     global_state->events.insert(global_state->events.end(), events.begin(), events.end());
                 } else {
-                    throw std::runtime_error("parse_test_results: Markdownlint JSON modular parser not found in registry");
+                    throw std::runtime_error("parse_duck_hunt_log: Markdownlint JSON modular parser not found in registry");
                 }
             }
             break;
@@ -2389,7 +2622,7 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
                     auto events = parser->parse(content);
                     global_state->events.insert(global_state->events.end(), events.begin(), events.end());
                 } else {
-                    throw std::runtime_error("parse_test_results: Yamllint JSON modular parser not found in registry");
+                    throw std::runtime_error("parse_duck_hunt_log: Yamllint JSON modular parser not found in registry");
                 }
             }
             break;
@@ -2401,7 +2634,7 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
                     auto events = parser->parse(content);
                     global_state->events.insert(global_state->events.end(), events.begin(), events.end());
                 } else {
-                    throw std::runtime_error("parse_test_results: Bandit JSON modular parser not found in registry");
+                    throw std::runtime_error("parse_duck_hunt_log: Bandit JSON modular parser not found in registry");
                 }
             }
             break;
@@ -2413,7 +2646,7 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
                     auto events = parser->parse(content);
                     global_state->events.insert(global_state->events.end(), events.begin(), events.end());
                 } else {
-                    throw std::runtime_error("parse_test_results: SpotBugs JSON modular parser not found in registry");
+                    throw std::runtime_error("parse_duck_hunt_log: SpotBugs JSON modular parser not found in registry");
                 }
             }
             break;
@@ -2425,7 +2658,7 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
                     auto events = parser->parse(content);
                     global_state->events.insert(global_state->events.end(), events.begin(), events.end());
                 } else {
-                    throw std::runtime_error("parse_test_results: Ktlint JSON modular parser not found in registry");
+                    throw std::runtime_error("parse_duck_hunt_log: Ktlint JSON modular parser not found in registry");
                 }
             }
             break;
@@ -2589,6 +2822,10 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
                 }
             }
             break;
+        case TestResultFormat::REGEXP:
+            // Dynamic regexp parser - uses user-provided pattern
+            ParseWithRegexp(content, bind_data.regexp_pattern, global_state->events);
+            break;
         default:
             // Try the modular parser registry for new parsers
             {
@@ -2601,39 +2838,39 @@ unique_ptr<GlobalTableFunctionState> ParseTestResultsInitGlobal(ClientContext &c
             }
             break;
     }
-    
+
     // Phase 3B: Process error patterns for intelligent categorization
     ProcessErrorPatterns(global_state->events);
     
     return std::move(global_state);
 }
 
-unique_ptr<LocalTableFunctionState> ParseTestResultsInitLocal(ExecutionContext &context, TableFunctionInitInput &input,
+unique_ptr<LocalTableFunctionState> ParseDuckHuntLogInitLocal(ExecutionContext &context, TableFunctionInitInput &input,
                                                               GlobalTableFunctionState *global_state) {
-    return make_uniq<ReadTestResultsLocalState>();
+    return make_uniq<ReadDuckHuntLogLocalState>();
 }
 
-void ParseTestResultsFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output) {
-    auto &global_state = data_p.global_state->Cast<ReadTestResultsGlobalState>();
-    auto &local_state = data_p.local_state->Cast<ReadTestResultsLocalState>();
+void ParseDuckHuntLogFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output) {
+    auto &global_state = data_p.global_state->Cast<ReadDuckHuntLogGlobalState>();
+    auto &local_state = data_p.local_state->Cast<ReadDuckHuntLogLocalState>();
     
-    // Populate output chunk (same logic as read_test_results)
+    // Populate output chunk (same logic as read_duck_hunt_log)
     PopulateDataChunkFromEvents(output, global_state.events, local_state.chunk_offset, STANDARD_VECTOR_SIZE);
     
     // Update offset for next chunk
     local_state.chunk_offset += output.size();
 }
 
-TableFunction GetReadTestResultsFunction() {
-    TableFunction function("read_test_results", {LogicalType::VARCHAR, LogicalType::VARCHAR}, 
-                          ReadTestResultsFunction, ReadTestResultsBind, ReadTestResultsInitGlobal, ReadTestResultsInitLocal);
+TableFunction GetReadDuckHuntLogFunction() {
+    TableFunction function("read_duck_hunt_log", {LogicalType::VARCHAR, LogicalType::VARCHAR}, 
+                          ReadDuckHuntLogFunction, ReadDuckHuntLogBind, ReadDuckHuntLogInitGlobal, ReadDuckHuntLogInitLocal);
     
     return function;
 }
 
-TableFunction GetParseTestResultsFunction() {
-    TableFunction function("parse_test_results", {LogicalType::VARCHAR, LogicalType::VARCHAR}, 
-                          ParseTestResultsFunction, ParseTestResultsBind, ParseTestResultsInitGlobal, ParseTestResultsInitLocal);
+TableFunction GetParseDuckHuntLogFunction() {
+    TableFunction function("parse_duck_hunt_log", {LogicalType::VARCHAR, LogicalType::VARCHAR}, 
+                          ParseDuckHuntLogFunction, ParseDuckHuntLogBind, ParseDuckHuntLogInitGlobal, ParseDuckHuntLogInitLocal);
     
     return function;
 }
@@ -4169,6 +4406,10 @@ void ProcessMultipleFiles(ClientContext& context, const std::vector<std::string>
                         }
                     }
                     break;
+                case TestResultFormat::REGEXP:
+                    // REGEXP format requires pattern, which isn't available in multi-file processing
+                    // Skip this file - users should use single-file mode for regexp parsing
+                    continue;
                 // Add other formats as needed...
                 default:
                     // Try the modular parser registry for new parsers

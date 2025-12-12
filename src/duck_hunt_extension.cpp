@@ -8,7 +8,7 @@
 #include <duckdb/parser/parsed_data/create_scalar_function_info.hpp>
 
 // Duck Hunt specific includes
-#include "include/read_test_results_function.hpp"
+#include "include/read_duck_hunt_log_function.hpp"
 #include "include/read_workflow_logs_function.hpp"
 #include "include/parse_workflow_logs_function.hpp"
 #include "include/validation_event_types.hpp"
@@ -86,11 +86,11 @@ static void LoadInternal(ExtensionLoader &loader) {
 	registry.registerParser(make_uniq<YapfTextParser>());
 	
 	// Register table functions for test result parsing
-	auto read_test_results_function = GetReadTestResultsFunction();
-	loader.RegisterFunction(read_test_results_function);
+	auto read_duck_hunt_log_function = GetReadDuckHuntLogFunction();
+	loader.RegisterFunction(read_duck_hunt_log_function);
 	
-	auto parse_test_results_function = GetParseTestResultsFunction();
-	loader.RegisterFunction(parse_test_results_function);
+	auto parse_duck_hunt_log_function = GetParseDuckHuntLogFunction();
+	loader.RegisterFunction(parse_duck_hunt_log_function);
 	
 	// Phase 3: Register workflow log parsing functions
 	auto read_workflow_logs_function = GetReadWorkflowLogsFunction();

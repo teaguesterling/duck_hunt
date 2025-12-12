@@ -7,7 +7,7 @@ require duck_hunt
 # Test 1: RuboCop JSON format parsing
 statement ok
 CREATE TABLE rubocop_results AS 
-SELECT * FROM read_test_results('workspace/rubocop_sample.json', 'rubocop_json');
+SELECT * FROM read_duck_hunt_log('workspace/rubocop_sample.json', 'rubocop_json');
 
 # Verify RuboCop parsing results
 query IIII
@@ -22,7 +22,7 @@ GROUP BY tool_name;
 # Test 2: Cargo test JSON format parsing
 statement ok
 CREATE TABLE cargo_results AS 
-SELECT * FROM read_test_results('workspace/cargo_test_sample.json', 'cargo_test_json');
+SELECT * FROM read_duck_hunt_log('workspace/cargo_test_sample.json', 'cargo_test_json');
 
 # Verify Cargo test parsing results
 query IIII
@@ -36,13 +36,13 @@ GROUP BY tool_name;
 
 # Test 3: RuboCop auto-detection
 query I
-SELECT DISTINCT tool_name FROM parse_test_results('{"files":[{"path":"test.rb","offenses":[{"severity":"error","cop_name":"TestCop","message":"Test message","location":{"start_line":1,"start_column":1}}]}]}', 'auto');
+SELECT DISTINCT tool_name FROM parse_duck_hunt_log('{"files":[{"path":"test.rb","offenses":[{"severity":"error","cop_name":"TestCop","message":"Test message","location":{"start_line":1,"start_column":1}}]}]}', 'auto');
 ----
 rubocop
 
 # Test 4: Cargo test auto-detection
 query I
-SELECT DISTINCT tool_name FROM parse_test_results('{"type":"test","event":"started","name":"test::example"}
+SELECT DISTINCT tool_name FROM parse_duck_hunt_log('{"type":"test","event":"started","name":"test::example"}
 {"type":"test","event":"ok","name":"test::example","exec_time":0.001}', 'auto');
 ----
 cargo_test
@@ -50,21 +50,21 @@ cargo_test
 # Test 5: RuboCop field validation
 query IIII
 SELECT file_path, line_number, error_code, severity
-FROM parse_test_results('{"files":[{"path":"/src/test.rb","offenses":[{"severity":"convention","cop_name":"Style/TestRule","message":"Test convention","location":{"start_line":5,"start_column":10}}]}]}', 'rubocop_json');
+FROM parse_duck_hunt_log('{"files":[{"path":"/src/test.rb","offenses":[{"severity":"convention","cop_name":"Style/TestRule","message":"Test convention","location":{"start_line":5,"start_column":10}}]}]}', 'rubocop_json');
 ----
 /src/test.rb	5	Style/TestRule	convention
 
 # Test 6: Cargo test field validation
 query IIII
 SELECT test_name, status, execution_time > 0 as has_time, message
-FROM parse_test_results('{"type":"test","event":"started","name":"module::test_function"}
+FROM parse_duck_hunt_log('{"type":"test","event":"started","name":"module::test_function"}
 {"type":"test","event":"failed","name":"module::test_function","exec_time":0.123,"stdout":"assertion failed"}', 'cargo_test_json');
 ----
 module::test_function	FAIL	true	Test failed: assertion failed
 
 # Test 7: RuboCop severity mapping
 query II
-SELECT severity, status FROM parse_test_results('{"files":[{"path":"test.rb","offenses":[{"severity":"error","cop_name":"TestCop","message":"Error msg","location":{"start_line":1,"start_column":1}},{"severity":"warning","cop_name":"TestCop2","message":"Warning msg","location":{"start_line":2,"start_column":1}},{"severity":"convention","cop_name":"TestCop3","message":"Convention msg","location":{"start_line":3,"start_column":1}}]}]}', 'rubocop_json')
+SELECT severity, status FROM parse_duck_hunt_log('{"files":[{"path":"test.rb","offenses":[{"severity":"error","cop_name":"TestCop","message":"Error msg","location":{"start_line":1,"start_column":1}},{"severity":"warning","cop_name":"TestCop2","message":"Warning msg","location":{"start_line":2,"start_column":1}},{"severity":"convention","cop_name":"TestCop3","message":"Convention msg","location":{"start_line":3,"start_column":1}}]}]}', 'rubocop_json')
 ORDER BY event_id;
 ----
 error	ERROR
@@ -73,60 +73,60 @@ convention	WARNING
 
 # Test 8: Cargo test ignored status
 query II
-SELECT status, message FROM parse_test_results('{"type":"test","event":"started","name":"test::ignored_test"}
+SELECT status, message FROM parse_duck_hunt_log('{"type":"test","event":"started","name":"test::ignored_test"}
 {"type":"test","event":"ignored","name":"test::ignored_test","exec_time":0.001}', 'cargo_test_json');
 ----
 SKIP	Test ignored
 
 # Test 9: RuboCop with no offenses
 query I
-SELECT COUNT(*) FROM parse_test_results('{"files":[{"path":"test.rb","offenses":[]}]}', 'rubocop_json');
+SELECT COUNT(*) FROM parse_duck_hunt_log('{"files":[{"path":"test.rb","offenses":[]}]}', 'rubocop_json');
 ----
 0
 
 # Test 10: Cargo test with failure details
 query I
-SELECT message LIKE '%assertion failed%' as has_failure_details FROM parse_test_results('{"type":"test","event":"started","name":"test::failing"}
+SELECT message LIKE '%assertion failed%' as has_failure_details FROM parse_duck_hunt_log('{"type":"test","event":"started","name":"test::failing"}
 {"type":"test","event":"failed","name":"test::failing","exec_time":0.001,"stdout":"assertion failed: expected true"}', 'cargo_test_json');
 ----
 true
 
 # Test 11: RuboCop event type validation
 query I
-SELECT DISTINCT event_type FROM parse_test_results('{"files":[{"path":"test.rb","offenses":[{"severity":"error","cop_name":"TestCop","message":"Test","location":{"start_line":1,"start_column":1}}]}]}', 'rubocop_json');
+SELECT DISTINCT event_type FROM parse_duck_hunt_log('{"files":[{"path":"test.rb","offenses":[{"severity":"error","cop_name":"TestCop","message":"Test","location":{"start_line":1,"start_column":1}}]}]}', 'rubocop_json');
 ----
 lint_issue
 
 # Test 12: Cargo test event type validation
 query I
-SELECT DISTINCT event_type FROM parse_test_results('{"type":"test","event":"started","name":"test::example"}
+SELECT DISTINCT event_type FROM parse_duck_hunt_log('{"type":"test","event":"started","name":"test::example"}
 {"type":"test","event":"ok","name":"test::example","exec_time":0.001}', 'cargo_test_json');
 ----
 test_result
 
 # Test 13: RuboCop category field
 query I
-SELECT DISTINCT category FROM parse_test_results('{"files":[{"path":"test.rb","offenses":[{"severity":"error","cop_name":"TestCop","message":"Test","location":{"start_line":1,"start_column":1}}]}]}', 'rubocop_json');
+SELECT DISTINCT category FROM parse_duck_hunt_log('{"files":[{"path":"test.rb","offenses":[{"severity":"error","cop_name":"TestCop","message":"Test","location":{"start_line":1,"start_column":1}}]}]}', 'rubocop_json');
 ----
 code_quality
 
 # Test 14: Cargo test category field
 query I
-SELECT DISTINCT category FROM parse_test_results('{"type":"test","event":"started","name":"test::example"}
+SELECT DISTINCT category FROM parse_duck_hunt_log('{"type":"test","event":"started","name":"test::example"}
 {"type":"test","event":"ok","name":"test::example","exec_time":0.001}', 'cargo_test_json');
 ----
 test
 
 # Test 15: RuboCop location parsing
 query II
-SELECT line_number, column_number FROM parse_test_results('{"files":[{"path":"test.rb","offenses":[{"severity":"error","cop_name":"TestCop","message":"Test","location":{"start_line":15,"start_column":25}}]}]}', 'rubocop_json');
+SELECT line_number, column_number FROM parse_duck_hunt_log('{"files":[{"path":"test.rb","offenses":[{"severity":"error","cop_name":"TestCop","message":"Test","location":{"start_line":15,"start_column":25}}]}]}', 'rubocop_json');
 ----
 15	25
 
 # Test 16: SwiftLint JSON format parsing
 statement ok
 CREATE TABLE swiftlint_results AS 
-SELECT * FROM read_test_results('workspace/swiftlint_sample.json', 'swiftlint_json');
+SELECT * FROM read_duck_hunt_log('workspace/swiftlint_sample.json', 'swiftlint_json');
 
 # Verify SwiftLint parsing results
 query IIII
@@ -141,7 +141,7 @@ GROUP BY tool_name;
 # Test 17: PHPStan JSON format parsing
 statement ok
 CREATE TABLE phpstan_results AS 
-SELECT * FROM read_test_results('workspace/phpstan_sample.json', 'phpstan_json');
+SELECT * FROM read_duck_hunt_log('workspace/phpstan_sample.json', 'phpstan_json');
 
 # Verify PHPStan parsing results
 query IIII
@@ -155,51 +155,51 @@ GROUP BY tool_name;
 
 # Test 18: SwiftLint auto-detection
 query I
-SELECT DISTINCT tool_name FROM parse_test_results('[{"file":"test.swift","rule_id":"test_rule","severity":"warning","reason":"Test message","line":1,"column":1}]', 'auto');
+SELECT DISTINCT tool_name FROM parse_duck_hunt_log('[{"file":"test.swift","rule_id":"test_rule","severity":"warning","reason":"Test message","line":1,"column":1}]', 'auto');
 ----
 swiftlint
 
 # Test 19: PHPStan auto-detection
 query I
-SELECT DISTINCT tool_name FROM parse_test_results('{"totals":{"errors":1},"files":{"/test.php":{"errors":1,"messages":[{"message":"Test error","line":1,"ignorable":false}]}}}', 'auto');
+SELECT DISTINCT tool_name FROM parse_duck_hunt_log('{"totals":{"errors":1},"files":{"/test.php":{"errors":1,"messages":[{"message":"Test error","line":1,"ignorable":false}]}}}', 'auto');
 ----
 phpstan
 
 # Test 20: SwiftLint field validation
 query IIII
 SELECT file_path, line_number, error_code, severity
-FROM parse_test_results('[{"file":"/src/Test.swift","rule_id":"force_cast","severity":"error","reason":"Force casts should be avoided","line":10,"column":5}]', 'swiftlint_json');
+FROM parse_duck_hunt_log('[{"file":"/src/Test.swift","rule_id":"force_cast","severity":"error","reason":"Force casts should be avoided","line":10,"column":5}]', 'swiftlint_json');
 ----
 /src/Test.swift	10	force_cast	error
 
 # Test 21: PHPStan field validation
 query IIII
 SELECT file_path, line_number, status, category
-FROM parse_test_results('{"files":{"/src/Test.php":{"messages":[{"message":"Test error","line":25,"ignorable":false}]}}}', 'phpstan_json');
+FROM parse_duck_hunt_log('{"files":{"/src/Test.php":{"messages":[{"message":"Test error","line":25,"ignorable":false}]}}}', 'phpstan_json');
 ----
 /src/Test.php	25	ERROR	static_analysis
 
 # Test 22: SwiftLint event type validation
 query I
-SELECT DISTINCT event_type FROM parse_test_results('[{"file":"test.swift","rule_id":"test_rule","severity":"warning","reason":"Test","line":1,"column":1}]', 'swiftlint_json');
+SELECT DISTINCT event_type FROM parse_duck_hunt_log('[{"file":"test.swift","rule_id":"test_rule","severity":"warning","reason":"Test","line":1,"column":1}]', 'swiftlint_json');
 ----
 lint_issue
 
 # Test 23: PHPStan event type validation
 query I
-SELECT DISTINCT event_type FROM parse_test_results('{"files":{"test.php":{"messages":[{"message":"Test","line":1,"ignorable":false}]}}}', 'phpstan_json');
+SELECT DISTINCT event_type FROM parse_duck_hunt_log('{"files":{"test.php":{"messages":[{"message":"Test","line":1,"ignorable":false}]}}}', 'phpstan_json');
 ----
 lint_issue
 
 # Test 24: SwiftLint suggestion field (type)
 query I
-SELECT suggestion FROM parse_test_results('[{"file":"test.swift","rule_id":"test_rule","type":"Force Cast","severity":"error","reason":"Test","line":1,"column":1}]', 'swiftlint_json');
+SELECT suggestion FROM parse_duck_hunt_log('[{"file":"test.swift","rule_id":"test_rule","type":"Force Cast","severity":"error","reason":"Test","line":1,"column":1}]', 'swiftlint_json');
 ----
 Force Cast
 
 # Test 25: PHPStan ignorable status mapping
 query II
-SELECT status, severity FROM parse_test_results('{"files":{"test.php":{"messages":[{"message":"Ignorable issue","line":1,"ignorable":true},{"message":"Critical issue","line":2,"ignorable":false}]}}}', 'phpstan_json')
+SELECT status, severity FROM parse_duck_hunt_log('{"files":{"test.php":{"messages":[{"message":"Ignorable issue","line":1,"ignorable":true},{"message":"Critical issue","line":2,"ignorable":false}]}}}', 'phpstan_json')
 ORDER BY event_id;
 ----
 WARNING	warning
@@ -208,7 +208,7 @@ ERROR	error
 # Test 26: ShellCheck JSON format parsing
 statement ok
 CREATE TABLE shellcheck_results AS 
-SELECT * FROM read_test_results('workspace/shellcheck_sample.json', 'shellcheck_json');
+SELECT * FROM read_duck_hunt_log('workspace/shellcheck_sample.json', 'shellcheck_json');
 
 # Verify ShellCheck parsing results
 query IIII
@@ -222,20 +222,20 @@ GROUP BY tool_name;
 
 # Test 27: ShellCheck auto-detection
 query I
-SELECT DISTINCT tool_name FROM parse_test_results('[{"file":"test.sh","line":1,"column":1,"level":"error","code":"SC2086","message":"Test message"}]', 'auto');
+SELECT DISTINCT tool_name FROM parse_duck_hunt_log('[{"file":"test.sh","line":1,"column":1,"level":"error","code":"SC2086","message":"Test message"}]', 'auto');
 ----
 shellcheck
 
 # Test 28: ShellCheck field validation
 query IIII
 SELECT file_path, line_number, error_code, severity
-FROM parse_test_results('[{"file":"/src/script.sh","line":10,"column":5,"level":"warning","code":"SC2034","message":"Variable unused"}]', 'shellcheck_json');
+FROM parse_duck_hunt_log('[{"file":"/src/script.sh","line":10,"column":5,"level":"warning","code":"SC2034","message":"Variable unused"}]', 'shellcheck_json');
 ----
 /src/script.sh	10	SC2034	warning
 
 # Test 29: ShellCheck severity mapping
 query II
-SELECT severity, status FROM parse_test_results('[{"file":"test.sh","line":1,"column":1,"level":"error","code":"SC1","message":"Error"},{"file":"test.sh","line":2,"column":1,"level":"warning","code":"SC2","message":"Warning"},{"file":"test.sh","line":3,"column":1,"level":"info","code":"SC3","message":"Info"},{"file":"test.sh","line":4,"column":1,"level":"style","code":"SC4","message":"Style"}]', 'shellcheck_json')
+SELECT severity, status FROM parse_duck_hunt_log('[{"file":"test.sh","line":1,"column":1,"level":"error","code":"SC1","message":"Error"},{"file":"test.sh","line":2,"column":1,"level":"warning","code":"SC2","message":"Warning"},{"file":"test.sh","line":3,"column":1,"level":"info","code":"SC3","message":"Info"},{"file":"test.sh","line":4,"column":1,"level":"style","code":"SC4","message":"Style"}]', 'shellcheck_json')
 ORDER BY event_id;
 ----
 error	ERROR
@@ -245,20 +245,20 @@ style	WARNING
 
 # Test 30: ShellCheck event type and category validation
 query II
-SELECT DISTINCT event_type, category FROM parse_test_results('[{"file":"test.sh","line":1,"column":1,"level":"error","code":"SC2086","message":"Test"}]', 'shellcheck_json');
+SELECT DISTINCT event_type, category FROM parse_duck_hunt_log('[{"file":"test.sh","line":1,"column":1,"level":"error","code":"SC2086","message":"Test"}]', 'shellcheck_json');
 ----
 lint_issue	shell_script
 
 # Test 31: ShellCheck fix suggestion detection
 query I
-SELECT suggestion FROM parse_test_results('[{"file":"test.sh","line":1,"column":1,"level":"error","code":"SC2086","message":"Test","fix":{"replacements":[{"line":1,"column":1,"replacement":"\"$var\""}]}}]', 'shellcheck_json');
+SELECT suggestion FROM parse_duck_hunt_log('[{"file":"test.sh","line":1,"column":1,"level":"error","code":"SC2086","message":"Test","fix":{"replacements":[{"line":1,"column":1,"replacement":"\"$var\""}]}}]', 'shellcheck_json');
 ----
 Fix available
 
 # Test 32: stylelint JSON format parsing
 statement ok
 CREATE TABLE stylelint_results AS 
-SELECT * FROM read_test_results('workspace/stylelint_sample.json', 'stylelint_json');
+SELECT * FROM read_duck_hunt_log('workspace/stylelint_sample.json', 'stylelint_json');
 
 # Verify stylelint parsing results
 query IIII
@@ -272,20 +272,20 @@ GROUP BY tool_name;
 
 # Test 33: stylelint auto-detection
 query I
-SELECT DISTINCT tool_name FROM parse_test_results('[{"source":"test.css","warnings":[{"line":1,"column":1,"rule":"color-no-invalid-hex","severity":"error","text":"Invalid hex color"}]}]', 'auto');
+SELECT DISTINCT tool_name FROM parse_duck_hunt_log('[{"source":"test.css","warnings":[{"line":1,"column":1,"rule":"color-no-invalid-hex","severity":"error","text":"Invalid hex color"}]}]', 'auto');
 ----
 stylelint
 
 # Test 34: stylelint field validation
 query IIII
 SELECT file_path, line_number, error_code, severity
-FROM parse_test_results('[{"source":"/styles/main.css","warnings":[{"line":10,"column":5,"rule":"color-no-invalid-hex","severity":"error","text":"Invalid hex color"}]}]', 'stylelint_json');
+FROM parse_duck_hunt_log('[{"source":"/styles/main.css","warnings":[{"line":10,"column":5,"rule":"color-no-invalid-hex","severity":"error","text":"Invalid hex color"}]}]', 'stylelint_json');
 ----
 /styles/main.css	10	color-no-invalid-hex	error
 
 # Test 35: stylelint severity mapping
 query II
-SELECT severity, status FROM parse_test_results('[{"source":"test.css","warnings":[{"line":1,"column":1,"rule":"rule1","severity":"error","text":"Error"},{"line":2,"column":1,"rule":"rule2","severity":"warning","text":"Warning"}]}]', 'stylelint_json')
+SELECT severity, status FROM parse_duck_hunt_log('[{"source":"test.css","warnings":[{"line":1,"column":1,"rule":"rule1","severity":"error","text":"Error"},{"line":2,"column":1,"rule":"rule2","severity":"warning","text":"Warning"}]}]', 'stylelint_json')
 ORDER BY event_id;
 ----
 error	ERROR
@@ -293,20 +293,20 @@ warning	WARNING
 
 # Test 36: stylelint event type and category validation
 query II
-SELECT DISTINCT event_type, category FROM parse_test_results('[{"source":"test.css","warnings":[{"line":1,"column":1,"rule":"color-no-invalid-hex","severity":"error","text":"Invalid hex color"}]}]', 'stylelint_json');
+SELECT DISTINCT event_type, category FROM parse_duck_hunt_log('[{"source":"test.css","warnings":[{"line":1,"column":1,"rule":"color-no-invalid-hex","severity":"error","text":"Invalid hex color"}]}]', 'stylelint_json');
 ----
 lint_issue	css_style
 
 # Test 37: stylelint with no warnings
 query I
-SELECT COUNT(*) FROM parse_test_results('[{"source":"clean.css","warnings":[]}]', 'stylelint_json');
+SELECT COUNT(*) FROM parse_duck_hunt_log('[{"source":"clean.css","warnings":[]}]', 'stylelint_json');
 ----
 0
 
 # Test 38: Clippy JSON format parsing
 statement ok
 CREATE TABLE clippy_results AS 
-SELECT * FROM read_test_results('workspace/clippy_sample.json', 'clippy_json');
+SELECT * FROM read_duck_hunt_log('workspace/clippy_sample.json', 'clippy_json');
 
 # Verify Clippy parsing results
 query II
@@ -318,20 +318,20 @@ GROUP BY tool_name;
 
 # Test 39: Clippy auto-detection
 query I
-SELECT DISTINCT tool_name FROM parse_test_results('{"message":{"message":"test warning","spans":[{"file_name":"test.rs","line_start":1,"column_start":1,"is_primary":true}],"level":"warn"}}', 'auto');
+SELECT DISTINCT tool_name FROM parse_duck_hunt_log('{"message":{"message":"test warning","spans":[{"file_name":"test.rs","line_start":1,"column_start":1,"is_primary":true}],"level":"warn"}}', 'auto');
 ----
 clippy
 
 # Test 40: Clippy field validation
 query IIII
 SELECT file_path, line_number, error_code, severity
-FROM parse_test_results('{"message":{"message":"test warning","code":{"code":"test_lint"},"spans":[{"file_name":"src/test.rs","line_start":10,"column_start":5,"is_primary":true}],"level":"warn"}}', 'clippy_json');
+FROM parse_duck_hunt_log('{"message":{"message":"test warning","code":{"code":"test_lint"},"spans":[{"file_name":"src/test.rs","line_start":10,"column_start":5,"is_primary":true}],"level":"warn"}}', 'clippy_json');
 ----
 src/test.rs	10	test_lint	warn
 
 # Test 41: Clippy severity mapping
 query II
-SELECT severity, status FROM parse_test_results('{"message":{"message":"test error","level":"error","spans":[{"file_name":"test.rs","line_start":1,"column_start":1,"is_primary":true}]}}
+SELECT severity, status FROM parse_duck_hunt_log('{"message":{"message":"test error","level":"error","spans":[{"file_name":"test.rs","line_start":1,"column_start":1,"is_primary":true}]}}
 {"message":{"message":"test warning","level":"warn","spans":[{"file_name":"test.rs","line_start":2,"column_start":1,"is_primary":true}]}}', 'clippy_json')
 ORDER BY event_id;
 ----
@@ -340,20 +340,20 @@ warn	WARNING
 
 # Test 42: Clippy event type and category validation
 query II
-SELECT DISTINCT event_type, category FROM parse_test_results('{"message":{"message":"test warning","spans":[{"file_name":"test.rs","line_start":1,"column_start":1,"is_primary":true}],"level":"warn"}}', 'clippy_json');
+SELECT DISTINCT event_type, category FROM parse_duck_hunt_log('{"message":{"message":"test warning","spans":[{"file_name":"test.rs","line_start":1,"column_start":1,"is_primary":true}],"level":"warn"}}', 'clippy_json');
 ----
 lint_issue	code_quality
 
 # Test 43: Clippy suggestion extraction
 query I
-SELECT suggestion FROM parse_test_results('{"message":{"message":"test warning","spans":[{"file_name":"test.rs","line_start":1,"column_start":1,"is_primary":true,"suggested_replacement":"fixed_code"}],"level":"warn"}}', 'clippy_json');
+SELECT suggestion FROM parse_duck_hunt_log('{"message":{"message":"test warning","spans":[{"file_name":"test.rs","line_start":1,"column_start":1,"is_primary":true,"suggested_replacement":"fixed_code"}],"level":"warn"}}', 'clippy_json');
 ----
 fixed_code
 
 # Test 44: markdownlint JSON format parsing
 statement ok
 CREATE TABLE markdownlint_results AS 
-SELECT * FROM read_test_results('workspace/markdownlint_sample.json', 'markdownlint_json');
+SELECT * FROM read_duck_hunt_log('workspace/markdownlint_sample.json', 'markdownlint_json');
 
 # Verify markdownlint parsing results
 query II
@@ -365,33 +365,33 @@ GROUP BY tool_name;
 
 # Test 45: markdownlint auto-detection
 query I
-SELECT DISTINCT tool_name FROM parse_test_results('[{"fileName":"test.md","lineNumber":1,"ruleNames":["MD041"],"ruleDescription":"First line heading issue"}]', 'auto');
+SELECT DISTINCT tool_name FROM parse_duck_hunt_log('[{"fileName":"test.md","lineNumber":1,"ruleNames":["MD041"],"ruleDescription":"First line heading issue"}]', 'auto');
 ----
 markdownlint
 
 # Test 46: markdownlint field validation
 query IIII
 SELECT file_path, line_number, error_code, category
-FROM parse_test_results('[{"fileName":"docs/README.md","lineNumber":5,"ruleNames":["MD032","blanks-around-lists"],"ruleDescription":"Lists should be surrounded by blank lines"}]', 'markdownlint_json');
+FROM parse_duck_hunt_log('[{"fileName":"docs/README.md","lineNumber":5,"ruleNames":["MD032","blanks-around-lists"],"ruleDescription":"Lists should be surrounded by blank lines"}]', 'markdownlint_json');
 ----
 docs/README.md	5	MD032	documentation
 
 # Test 47: markdownlint event type validation
 query I
-SELECT DISTINCT event_type FROM parse_test_results('[{"fileName":"test.md","lineNumber":1,"ruleNames":["MD041"],"ruleDescription":"Test"}]', 'markdownlint_json');
+SELECT DISTINCT event_type FROM parse_duck_hunt_log('[{"fileName":"test.md","lineNumber":1,"ruleNames":["MD041"],"ruleDescription":"Test"}]', 'markdownlint_json');
 ----
 lint_issue
 
 # Test 48: markdownlint suggestion extraction from errorDetail
 query I
-SELECT suggestion FROM parse_test_results('[{"fileName":"test.md","lineNumber":1,"ruleNames":["MD013"],"ruleDescription":"Line length","errorDetail":"Expected: 80; Actual: 95"}]', 'markdownlint_json');
+SELECT suggestion FROM parse_duck_hunt_log('[{"fileName":"test.md","lineNumber":1,"ruleNames":["MD013"],"ruleDescription":"Line length","errorDetail":"Expected: 80; Actual: 95"}]', 'markdownlint_json');
 ----
 Expected: 80; Actual: 95
 
 # Test 49: yamllint JSON format parsing
 statement ok
 CREATE TABLE yamllint_results AS 
-SELECT * FROM read_test_results('workspace/yamllint_sample.json', 'yamllint_json');
+SELECT * FROM read_duck_hunt_log('workspace/yamllint_sample.json', 'yamllint_json');
 
 # Verify yamllint parsing results
 query III
@@ -403,20 +403,20 @@ GROUP BY tool_name;
 
 # Test 50: yamllint auto-detection
 query I
-SELECT DISTINCT tool_name FROM parse_test_results('[{"file":"test.yml","line":1,"column":1,"level":"error","rule":"indentation","message":"wrong indentation"}]', 'auto');
+SELECT DISTINCT tool_name FROM parse_duck_hunt_log('[{"file":"test.yml","line":1,"column":1,"level":"error","rule":"indentation","message":"wrong indentation"}]', 'auto');
 ----
 yamllint
 
 # Test 51: yamllint field validation
 query IIII
 SELECT file_path, line_number, error_code, category
-FROM parse_test_results('[{"file":"config.yaml","line":5,"column":10,"level":"error","rule":"line_length","message":"line too long"}]', 'yamllint_json');
+FROM parse_duck_hunt_log('[{"file":"config.yaml","line":5,"column":10,"level":"error","rule":"line_length","message":"line too long"}]', 'yamllint_json');
 ----
 config.yaml	5	line_length	configuration
 
 # Test 52: yamllint severity mapping
 query II
-SELECT severity, status FROM parse_test_results('[{"file":"test.yml","line":1,"column":1,"level":"error","rule":"test","message":"Error"},{"file":"test.yml","line":2,"column":1,"level":"warning","rule":"test2","message":"Warning"}]', 'yamllint_json')
+SELECT severity, status FROM parse_duck_hunt_log('[{"file":"test.yml","line":1,"column":1,"level":"error","rule":"test","message":"Error"},{"file":"test.yml","line":2,"column":1,"level":"warning","rule":"test2","message":"Warning"}]', 'yamllint_json')
 ORDER BY event_id;
 ----
 error	ERROR
@@ -425,7 +425,7 @@ warning	WARNING
 # Test 53: Bandit JSON format parsing
 statement ok
 CREATE TABLE bandit_results AS 
-SELECT * FROM read_test_results('workspace/bandit_sample.json', 'bandit_json');
+SELECT * FROM read_duck_hunt_log('workspace/bandit_sample.json', 'bandit_json');
 
 # Verify Bandit parsing results
 query IIII
@@ -439,20 +439,20 @@ GROUP BY tool_name;
 
 # Test 54: Bandit auto-detection
 query I
-SELECT DISTINCT tool_name FROM parse_test_results('{"results":[{"test_id":"B101","issue_severity":"HIGH","issue_confidence":"HIGH","filename":"test.py","line_number":1,"issue_text":"Test security issue"}]}', 'auto');
+SELECT DISTINCT tool_name FROM parse_duck_hunt_log('{"results":[{"test_id":"B101","issue_severity":"HIGH","issue_confidence":"HIGH","filename":"test.py","line_number":1,"issue_text":"Test security issue"}]}', 'auto');
 ----
 bandit
 
 # Test 55: Bandit field validation
 query IIII
 SELECT file_path, line_number, error_code, severity
-FROM parse_test_results('{"results":[{"filename":"src/auth.py","line_number":45,"test_id":"B608","issue_severity":"HIGH","issue_confidence":"HIGH","issue_text":"SQL injection vulnerability"}]}', 'bandit_json');
+FROM parse_duck_hunt_log('{"results":[{"filename":"src/auth.py","line_number":45,"test_id":"B608","issue_severity":"HIGH","issue_confidence":"HIGH","issue_text":"SQL injection vulnerability"}]}', 'bandit_json');
 ----
 src/auth.py	45	B608	HIGH
 
 # Test 56: Bandit severity mapping
 query II
-SELECT severity, status FROM parse_test_results('{"results":[{"filename":"test.py","line_number":1,"test_id":"B101","issue_severity":"HIGH","issue_text":"High severity"},{"filename":"test.py","line_number":2,"test_id":"B102","issue_severity":"MEDIUM","issue_text":"Medium severity"},{"filename":"test.py","line_number":3,"test_id":"B103","issue_severity":"LOW","issue_text":"Low severity"}]}', 'bandit_json')
+SELECT severity, status FROM parse_duck_hunt_log('{"results":[{"filename":"test.py","line_number":1,"test_id":"B101","issue_severity":"HIGH","issue_text":"High severity"},{"filename":"test.py","line_number":2,"test_id":"B102","issue_severity":"MEDIUM","issue_text":"Medium severity"},{"filename":"test.py","line_number":3,"test_id":"B103","issue_severity":"LOW","issue_text":"Low severity"}]}', 'bandit_json')
 ORDER BY event_id;
 ----
 HIGH	ERROR
@@ -461,26 +461,26 @@ LOW	INFO
 
 # Test 57: Bandit event type and category validation
 query II
-SELECT DISTINCT event_type, category FROM parse_test_results('{"results":[{"filename":"test.py","line_number":1,"test_id":"B101","issue_severity":"HIGH","issue_text":"Security issue"}]}', 'bandit_json');
+SELECT DISTINCT event_type, category FROM parse_duck_hunt_log('{"results":[{"filename":"test.py","line_number":1,"test_id":"B101","issue_severity":"HIGH","issue_text":"Security issue"}]}', 'bandit_json');
 ----
 security_finding	security
 
 # Test 58: Bandit CWE suggestion extraction
 query I
-SELECT suggestion FROM parse_test_results('{"results":[{"filename":"test.py","line_number":1,"test_id":"B608","issue_severity":"HIGH","issue_text":"SQL injection","issue_cwe":{"id":89,"link":"https://cwe.mitre.org/data/definitions/89.html"}}]}', 'bandit_json');
+SELECT suggestion FROM parse_duck_hunt_log('{"results":[{"filename":"test.py","line_number":1,"test_id":"B608","issue_severity":"HIGH","issue_text":"SQL injection","issue_cwe":{"id":89,"link":"https://cwe.mitre.org/data/definitions/89.html"}}]}', 'bandit_json');
 ----
 CWE-89: https://cwe.mitre.org/data/definitions/89.html
 
 # Test 59: Bandit function name extraction
 query I
-SELECT function_name FROM parse_test_results('{"results":[{"filename":"test.py","line_number":1,"test_id":"B101","test_name":"hardcoded_password_funcarg","issue_severity":"HIGH","issue_text":"Hardcoded password"}]}', 'bandit_json');
+SELECT function_name FROM parse_duck_hunt_log('{"results":[{"filename":"test.py","line_number":1,"test_id":"B101","test_name":"hardcoded_password_funcarg","issue_severity":"HIGH","issue_text":"Hardcoded password"}]}', 'bandit_json');
 ----
 hardcoded_password_funcarg
 
 # Test 60: SpotBugs JSON format parsing
 statement ok
 CREATE TABLE spotbugs_results AS 
-SELECT * FROM read_test_results('workspace/spotbugs_sample.json', 'spotbugs_json');
+SELECT * FROM read_duck_hunt_log('workspace/spotbugs_sample.json', 'spotbugs_json');
 
 # Verify SpotBugs parsing results
 query IIIII
@@ -495,20 +495,20 @@ GROUP BY tool_name;
 
 # Test 61: SpotBugs auto-detection
 query I
-SELECT DISTINCT tool_name FROM parse_test_results('{"BugCollection":{"BugInstance":[{"type":"NP_NULL_ON_SOME_PATH","priority":"2","category":"CORRECTNESS","ShortMessage":"Null pointer dereference"}]}}', 'auto');
+SELECT DISTINCT tool_name FROM parse_duck_hunt_log('{"BugCollection":{"BugInstance":[{"type":"NP_NULL_ON_SOME_PATH","priority":"2","category":"CORRECTNESS","ShortMessage":"Null pointer dereference"}]}}', 'auto');
 ----
 spotbugs
 
 # Test 62: SpotBugs field validation
 query IIII
 SELECT file_path, line_number, error_code, category
-FROM parse_test_results('{"BugCollection":{"BugInstance":[{"type":"SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE","priority":"1","category":"SECURITY","ShortMessage":"SQL injection","SourceLine":{"sourcepath":"com/example/Database.java","start":"45","primary":true}}]}}', 'spotbugs_json');
+FROM parse_duck_hunt_log('{"BugCollection":{"BugInstance":[{"type":"SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE","priority":"1","category":"SECURITY","ShortMessage":"SQL injection","SourceLine":{"sourcepath":"com/example/Database.java","start":"45","primary":true}}]}}', 'spotbugs_json');
 ----
 com/example/Database.java	45	SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE	security
 
 # Test 63: SpotBugs priority mapping
 query II
-SELECT severity, status FROM parse_test_results('{"BugCollection":{"BugInstance":[{"type":"HIGH_PRIORITY","priority":"1","category":"SECURITY","ShortMessage":"High"},{"type":"MED_PRIORITY","priority":"2","category":"CORRECTNESS","ShortMessage":"Medium"},{"type":"LOW_PRIORITY","priority":"3","category":"BAD_PRACTICE","ShortMessage":"Low"}]}}', 'spotbugs_json')
+SELECT severity, status FROM parse_duck_hunt_log('{"BugCollection":{"BugInstance":[{"type":"HIGH_PRIORITY","priority":"1","category":"SECURITY","ShortMessage":"High"},{"type":"MED_PRIORITY","priority":"2","category":"CORRECTNESS","ShortMessage":"Medium"},{"type":"LOW_PRIORITY","priority":"3","category":"BAD_PRACTICE","ShortMessage":"Low"}]}}', 'spotbugs_json')
 ORDER BY event_id;
 ----
 1	ERROR
@@ -517,7 +517,7 @@ ORDER BY event_id;
 
 # Test 64: SpotBugs category mapping to event types
 query II
-SELECT category, event_type FROM parse_test_results('{"BugCollection":{"BugInstance":[{"type":"SEC_BUG","priority":"1","category":"SECURITY","ShortMessage":"Security issue"},{"type":"PERF_BUG","priority":"2","category":"PERFORMANCE","ShortMessage":"Performance issue"},{"type":"CORRECT_BUG","priority":"2","category":"CORRECTNESS","ShortMessage":"Correctness issue"},{"type":"PRACTICE_BUG","priority":"3","category":"BAD_PRACTICE","ShortMessage":"Bad practice"}]}}', 'spotbugs_json')
+SELECT category, event_type FROM parse_duck_hunt_log('{"BugCollection":{"BugInstance":[{"type":"SEC_BUG","priority":"1","category":"SECURITY","ShortMessage":"Security issue"},{"type":"PERF_BUG","priority":"2","category":"PERFORMANCE","ShortMessage":"Performance issue"},{"type":"CORRECT_BUG","priority":"2","category":"CORRECTNESS","ShortMessage":"Correctness issue"},{"type":"PRACTICE_BUG","priority":"3","category":"BAD_PRACTICE","ShortMessage":"Bad practice"}]}}', 'spotbugs_json')
 ORDER BY event_id;
 ----
 security	security_finding
@@ -527,20 +527,20 @@ code_quality	lint_issue
 
 # Test 65: SpotBugs function name extraction
 query I
-SELECT function_name FROM parse_test_results('{"BugCollection":{"BugInstance":[{"type":"NP_NULL","priority":"2","category":"CORRECTNESS","ShortMessage":"Null pointer","Method":{"classname":"com.example.Service","name":"processData","primary":true}}]}}', 'spotbugs_json');
+SELECT function_name FROM parse_duck_hunt_log('{"BugCollection":{"BugInstance":[{"type":"NP_NULL","priority":"2","category":"CORRECTNESS","ShortMessage":"Null pointer","Method":{"classname":"com.example.Service","name":"processData","primary":true}}]}}', 'spotbugs_json');
 ----
 com.example.Service.processData
 
 # Test 66: SpotBugs suggestion extraction from LongMessage
 query I
-SELECT suggestion FROM parse_test_results('{"BugCollection":{"BugInstance":[{"type":"NP_NULL","priority":"2","category":"CORRECTNESS","ShortMessage":"Null pointer","LongMessage":"Possible null pointer dereference of user in com.example.Service.processData(User)"}]}}', 'spotbugs_json');
+SELECT suggestion FROM parse_duck_hunt_log('{"BugCollection":{"BugInstance":[{"type":"NP_NULL","priority":"2","category":"CORRECTNESS","ShortMessage":"Null pointer","LongMessage":"Possible null pointer dereference of user in com.example.Service.processData(User)"}]}}', 'spotbugs_json');
 ----
 Possible null pointer dereference of user in com.example.Service.processData(User)
 
 # Test 67: ktlint JSON format parsing
 statement ok
 CREATE TABLE ktlint_results AS 
-SELECT * FROM read_test_results('workspace/ktlint_sample.json', 'ktlint_json');
+SELECT * FROM read_duck_hunt_log('workspace/ktlint_sample.json', 'ktlint_json');
 
 # Verify ktlint parsing results
 query IIII
@@ -554,20 +554,20 @@ GROUP BY tool_name;
 
 # Test 68: ktlint auto-detection
 query I
-SELECT DISTINCT tool_name FROM parse_test_results('[{"file":"Test.kt","errors":[{"line":1,"column":1,"message":"Missing newline","rule":"final-newline"}]}]', 'auto');
+SELECT DISTINCT tool_name FROM parse_duck_hunt_log('[{"file":"Test.kt","errors":[{"line":1,"column":1,"message":"Missing newline","rule":"final-newline"}]}]', 'auto');
 ----
 ktlint
 
 # Test 69: ktlint field validation
 query IIIII
 SELECT file_path, line_number, column_number, error_code, category
-FROM parse_test_results('[{"file":"src/main/kotlin/Example.kt","errors":[{"line":15,"column":25,"message":"Unnecessary semicolon","rule":"no-semi"}]}]', 'ktlint_json');
+FROM parse_duck_hunt_log('[{"file":"src/main/kotlin/Example.kt","errors":[{"line":15,"column":25,"message":"Unnecessary semicolon","rule":"no-semi"}]}]', 'ktlint_json');
 ----
 src/main/kotlin/Example.kt	15	25	no-semi	code_style
 
 # Test 70: ktlint rule-based severity mapping
 query II
-SELECT error_code, status FROM parse_test_results('[{"file":"Test.kt","errors":[{"line":1,"column":1,"message":"Missing newline at end of file","rule":"final-newline"},{"line":2,"column":1,"message":"Line too long","rule":"max-line-length"},{"line":3,"column":1,"message":"Wrong indentation","rule":"indent"}]}]', 'ktlint_json')
+SELECT error_code, status FROM parse_duck_hunt_log('[{"file":"Test.kt","errors":[{"line":1,"column":1,"message":"Missing newline at end of file","rule":"final-newline"},{"line":2,"column":1,"message":"Line too long","rule":"max-line-length"},{"line":3,"column":1,"message":"Wrong indentation","rule":"indent"}]}]', 'ktlint_json')
 ORDER BY event_id;
 ----
 final-newline	ERROR
@@ -576,19 +576,19 @@ indent	ERROR
 
 # Test 71: ktlint event type validation
 query I
-SELECT DISTINCT event_type FROM parse_test_results('[{"file":"Test.kt","errors":[{"line":1,"column":1,"message":"Style issue","rule":"style-rule"}]}]', 'ktlint_json');
+SELECT DISTINCT event_type FROM parse_duck_hunt_log('[{"file":"Test.kt","errors":[{"line":1,"column":1,"message":"Style issue","rule":"style-rule"}]}]', 'ktlint_json');
 ----
 lint_issue
 
 # Test 72: ktlint category validation
 query I
-SELECT DISTINCT category FROM parse_test_results('[{"file":"Test.kt","errors":[{"line":1,"column":1,"message":"Style issue","rule":"style-rule"}]}]', 'ktlint_json');
+SELECT DISTINCT category FROM parse_duck_hunt_log('[{"file":"Test.kt","errors":[{"line":1,"column":1,"message":"Style issue","rule":"style-rule"}]}]', 'ktlint_json');
 ----
 code_style
 
 # Test 73: ktlint multi-file parsing
 query II
-SELECT file_path, COUNT(*) as error_count FROM parse_test_results('[{"file":"File1.kt","errors":[{"line":1,"column":1,"message":"Error 1","rule":"rule1"}]},{"file":"File2.kt","errors":[{"line":2,"column":2,"message":"Error 2","rule":"rule2"},{"line":3,"column":3,"message":"Error 3","rule":"rule3"}]}]', 'ktlint_json')
+SELECT file_path, COUNT(*) as error_count FROM parse_duck_hunt_log('[{"file":"File1.kt","errors":[{"line":1,"column":1,"message":"Error 1","rule":"rule1"}]},{"file":"File2.kt","errors":[{"line":2,"column":2,"message":"Error 2","rule":"rule2"},{"line":3,"column":3,"message":"Error 3","rule":"rule3"}]}]', 'ktlint_json')
 GROUP BY file_path ORDER BY file_path;
 ----
 File1.kt	1
@@ -597,7 +597,7 @@ File2.kt	2
 # Test 74: hadolint JSON format parsing
 statement ok
 CREATE TABLE hadolint_results AS 
-SELECT * FROM read_test_results('workspace/hadolint_sample.json', 'hadolint_json');
+SELECT * FROM read_duck_hunt_log('workspace/hadolint_sample.json', 'hadolint_json');
 
 # Verify hadolint parsing results
 query IIIII
@@ -612,20 +612,20 @@ GROUP BY tool_name;
 
 # Test 75: hadolint auto-detection
 query I
-SELECT DISTINCT tool_name FROM parse_test_results('[{"file":"Dockerfile","line":1,"column":1,"level":"error","code":"DL3006","message":"Always tag the version"}]', 'auto');
+SELECT DISTINCT tool_name FROM parse_duck_hunt_log('[{"file":"Dockerfile","line":1,"column":1,"level":"error","code":"DL3006","message":"Always tag the version"}]', 'auto');
 ----
 hadolint
 
 # Test 76: hadolint field validation
 query IIIII
 SELECT file_path, line_number, column_number, error_code, category
-FROM parse_test_results('[{"file":"Dockerfile","line":5,"column":1,"level":"warning","code":"DL3008","message":"Pin versions in apt get install"}]', 'hadolint_json');
+FROM parse_duck_hunt_log('[{"file":"Dockerfile","line":5,"column":1,"level":"warning","code":"DL3008","message":"Pin versions in apt get install"}]', 'hadolint_json');
 ----
 Dockerfile	5	1	DL3008	dockerfile
 
 # Test 77: hadolint level mapping
 query II
-SELECT severity, status FROM parse_test_results('[{"file":"Dockerfile","line":1,"column":1,"level":"error","code":"DL1","message":"Error"},{"file":"Dockerfile","line":2,"column":1,"level":"warning","code":"DL2","message":"Warning"},{"file":"Dockerfile","line":3,"column":1,"level":"info","code":"DL3","message":"Info"},{"file":"Dockerfile","line":4,"column":1,"level":"style","code":"DL4","message":"Style"}]', 'hadolint_json')
+SELECT severity, status FROM parse_duck_hunt_log('[{"file":"Dockerfile","line":1,"column":1,"level":"error","code":"DL1","message":"Error"},{"file":"Dockerfile","line":2,"column":1,"level":"warning","code":"DL2","message":"Warning"},{"file":"Dockerfile","line":3,"column":1,"level":"info","code":"DL3","message":"Info"},{"file":"Dockerfile","line":4,"column":1,"level":"style","code":"DL4","message":"Style"}]', 'hadolint_json')
 ORDER BY event_id;
 ----
 error	ERROR
@@ -635,19 +635,19 @@ style	WARNING
 
 # Test 78: hadolint event type validation
 query I
-SELECT DISTINCT event_type FROM parse_test_results('[{"file":"Dockerfile","line":1,"column":1,"level":"error","code":"DL3006","message":"Docker issue"}]', 'hadolint_json');
+SELECT DISTINCT event_type FROM parse_duck_hunt_log('[{"file":"Dockerfile","line":1,"column":1,"level":"error","code":"DL3006","message":"Docker issue"}]', 'hadolint_json');
 ----
 lint_issue
 
 # Test 79: hadolint category validation
 query I
-SELECT DISTINCT category FROM parse_test_results('[{"file":"Dockerfile","line":1,"column":1,"level":"error","code":"DL3006","message":"Docker issue"}]', 'hadolint_json');
+SELECT DISTINCT category FROM parse_duck_hunt_log('[{"file":"Dockerfile","line":1,"column":1,"level":"error","code":"DL3006","message":"Docker issue"}]', 'hadolint_json');
 ----
 dockerfile
 
 # Test 80: hadolint multi-file Docker project
 query II
-SELECT file_path, COUNT(*) as issue_count FROM parse_test_results('[{"file":"Dockerfile","line":1,"column":1,"level":"error","code":"DL3006","message":"Issue 1"},{"file":"Dockerfile.prod","line":2,"column":1,"level":"warning","code":"DL3008","message":"Issue 2"},{"file":"docker/app/Dockerfile","line":3,"column":1,"level":"info","code":"DL3009","message":"Issue 3"}]', 'hadolint_json')
+SELECT file_path, COUNT(*) as issue_count FROM parse_duck_hunt_log('[{"file":"Dockerfile","line":1,"column":1,"level":"error","code":"DL3006","message":"Issue 1"},{"file":"Dockerfile.prod","line":2,"column":1,"level":"warning","code":"DL3008","message":"Issue 2"},{"file":"docker/app/Dockerfile","line":3,"column":1,"level":"info","code":"DL3009","message":"Issue 3"}]', 'hadolint_json')
 GROUP BY file_path ORDER BY file_path;
 ----
 Dockerfile	1
@@ -657,7 +657,7 @@ docker/app/Dockerfile	1
 # Test 81: lintr JSON format parsing
 statement ok
 CREATE TABLE lintr_results AS 
-SELECT * FROM read_test_results('workspace/lintr_sample.json', 'lintr_json');
+SELECT * FROM read_duck_hunt_log('workspace/lintr_sample.json', 'lintr_json');
 
 # Verify lintr parsing results
 query IIII
@@ -671,20 +671,20 @@ GROUP BY tool_name;
 
 # Test 82: lintr auto-detection
 query I
-SELECT DISTINCT tool_name FROM parse_test_results('[{"filename":"test.R","line_number":1,"column_number":1,"type":"style","message":"Use snake_case","linter":"object_name_linter"}]', 'auto');
+SELECT DISTINCT tool_name FROM parse_duck_hunt_log('[{"filename":"test.R","line_number":1,"column_number":1,"type":"style","message":"Use snake_case","linter":"object_name_linter"}]', 'auto');
 ----
 lintr
 
 # Test 83: lintr field validation
 query IIIII
 SELECT file_path, line_number, column_number, error_code, category
-FROM parse_test_results('[{"filename":"analysis/script.R","line_number":15,"column_number":8,"type":"warning","message":"Line too long","linter":"line_length_linter"}]', 'lintr_json');
+FROM parse_duck_hunt_log('[{"filename":"analysis/script.R","line_number":15,"column_number":8,"type":"warning","message":"Line too long","linter":"line_length_linter"}]', 'lintr_json');
 ----
 analysis/script.R	15	8	line_length_linter	r_code_style
 
 # Test 84: lintr type mapping
 query II
-SELECT severity, status FROM parse_test_results('[{"filename":"test.R","line_number":1,"column_number":1,"type":"error","message":"Error","linter":"test1"},{"filename":"test.R","line_number":2,"column_number":1,"type":"warning","message":"Warning","linter":"test2"},{"filename":"test.R","line_number":3,"column_number":1,"type":"style","message":"Style","linter":"test3"}]', 'lintr_json')
+SELECT severity, status FROM parse_duck_hunt_log('[{"filename":"test.R","line_number":1,"column_number":1,"type":"error","message":"Error","linter":"test1"},{"filename":"test.R","line_number":2,"column_number":1,"type":"warning","message":"Warning","linter":"test2"},{"filename":"test.R","line_number":3,"column_number":1,"type":"style","message":"Style","linter":"test3"}]', 'lintr_json')
 ORDER BY event_id;
 ----
 error	ERROR
@@ -693,25 +693,25 @@ style	WARNING
 
 # Test 85: lintr event type validation
 query I
-SELECT DISTINCT event_type FROM parse_test_results('[{"filename":"test.R","line_number":1,"column_number":1,"type":"style","message":"R style issue","linter":"style_linter"}]', 'lintr_json');
+SELECT DISTINCT event_type FROM parse_duck_hunt_log('[{"filename":"test.R","line_number":1,"column_number":1,"type":"style","message":"R style issue","linter":"style_linter"}]', 'lintr_json');
 ----
 lint_issue
 
 # Test 86: lintr category validation
 query I
-SELECT DISTINCT category FROM parse_test_results('[{"filename":"test.R","line_number":1,"column_number":1,"type":"style","message":"R style issue","linter":"style_linter"}]', 'lintr_json');
+SELECT DISTINCT category FROM parse_duck_hunt_log('[{"filename":"test.R","line_number":1,"column_number":1,"type":"style","message":"R style issue","linter":"style_linter"}]', 'lintr_json');
 ----
 r_code_style
 
 # Test 87: lintr code suggestion extraction
 query I
-SELECT suggestion FROM parse_test_results('[{"filename":"test.R","line_number":1,"column_number":1,"type":"style","message":"Use snake_case","linter":"object_name_linter","line":"calculateMean <- function(x) {"}]', 'lintr_json');
+SELECT suggestion FROM parse_duck_hunt_log('[{"filename":"test.R","line_number":1,"column_number":1,"type":"style","message":"Use snake_case","linter":"object_name_linter","line":"calculateMean <- function(x) {"}]', 'lintr_json');
 ----
 Code: calculateMean <- function(x) {
 
 # Test 88: lintr multi-file R project
 query II
-SELECT file_path, COUNT(*) as issue_count FROM parse_test_results('[{"filename":"analysis/data.R","line_number":1,"column_number":1,"type":"style","message":"Issue 1","linter":"linter1"},{"filename":"models/regression.R","line_number":2,"column_number":2,"type":"warning","message":"Issue 2","linter":"linter2"},{"filename":"utils/helpers.R","line_number":3,"column_number":3,"type":"error","message":"Issue 3","linter":"linter3"}]', 'lintr_json')
+SELECT file_path, COUNT(*) as issue_count FROM parse_duck_hunt_log('[{"filename":"analysis/data.R","line_number":1,"column_number":1,"type":"style","message":"Issue 1","linter":"linter1"},{"filename":"models/regression.R","line_number":2,"column_number":2,"type":"warning","message":"Issue 2","linter":"linter2"},{"filename":"utils/helpers.R","line_number":3,"column_number":3,"type":"error","message":"Issue 3","linter":"linter3"}]', 'lintr_json')
 GROUP BY file_path ORDER BY file_path;
 ----
 analysis/data.R	1
@@ -721,7 +721,7 @@ utils/helpers.R	1
 # Test 89: sqlfluff JSON format parsing
 statement ok
 CREATE TABLE sqlfluff_results AS 
-SELECT * FROM read_test_results('workspace/sqlfluff_sample.json', 'sqlfluff_json');
+SELECT * FROM read_duck_hunt_log('workspace/sqlfluff_sample.json', 'sqlfluff_json');
 
 # Verify sqlfluff parsing results
 query III
@@ -733,44 +733,44 @@ GROUP BY tool_name;
 
 # Test 90: sqlfluff auto-detection
 query I
-SELECT DISTINCT tool_name FROM parse_test_results('[{"filepath":"test.sql","violations":[{"line_no":1,"line_pos":1,"code":"L003","description":"Expected indentation","rule":"indentation"}]}]', 'auto');
+SELECT DISTINCT tool_name FROM parse_duck_hunt_log('[{"filepath":"test.sql","violations":[{"line_no":1,"line_pos":1,"code":"L003","description":"Expected indentation","rule":"indentation"}]}]', 'auto');
 ----
 sqlfluff
 
 # Test 91: sqlfluff field validation
 query IIIII
 SELECT file_path, line_number, column_number, error_code, category
-FROM parse_test_results('[{"filepath":"queries/analytics.sql","violations":[{"line_no":10,"line_pos":5,"code":"L010","description":"Keywords must be consistently upper case","rule":"capitalisation.keywords"}]}]', 'sqlfluff_json');
+FROM parse_duck_hunt_log('[{"filepath":"queries/analytics.sql","violations":[{"line_no":10,"line_pos":5,"code":"L010","description":"Keywords must be consistently upper case","rule":"capitalisation.keywords"}]}]', 'sqlfluff_json');
 ----
 queries/analytics.sql	10	5	L010	sql_style
 
 # Test 92: sqlfluff violation parsing
 query II
-SELECT error_code, function_name FROM parse_test_results('[{"filepath":"test.sql","violations":[{"line_no":1,"line_pos":1,"code":"L003","description":"Indentation issue","rule":"indentation"}]}]', 'sqlfluff_json');
+SELECT error_code, function_name FROM parse_duck_hunt_log('[{"filepath":"test.sql","violations":[{"line_no":1,"line_pos":1,"code":"L003","description":"Indentation issue","rule":"indentation"}]}]', 'sqlfluff_json');
 ----
 L003	indentation
 
 # Test 93: sqlfluff event type validation
 query I
-SELECT DISTINCT event_type FROM parse_test_results('[{"filepath":"test.sql","violations":[{"line_no":1,"line_pos":1,"code":"L003","description":"SQL style issue","rule":"indentation"}]}]', 'sqlfluff_json');
+SELECT DISTINCT event_type FROM parse_duck_hunt_log('[{"filepath":"test.sql","violations":[{"line_no":1,"line_pos":1,"code":"L003","description":"SQL style issue","rule":"indentation"}]}]', 'sqlfluff_json');
 ----
 lint_issue
 
 # Test 94: sqlfluff category validation
 query I
-SELECT DISTINCT category FROM parse_test_results('[{"filepath":"test.sql","violations":[{"line_no":1,"line_pos":1,"code":"L003","description":"SQL style issue","rule":"indentation"}]}]', 'sqlfluff_json');
+SELECT DISTINCT category FROM parse_duck_hunt_log('[{"filepath":"test.sql","violations":[{"line_no":1,"line_pos":1,"code":"L003","description":"SQL style issue","rule":"indentation"}]}]', 'sqlfluff_json');
 ----
 sql_style
 
 # Test 95: sqlfluff suggestion extraction
 query I
-SELECT suggestion FROM parse_test_results('[{"filepath":"test.sql","violations":[{"line_no":1,"line_pos":1,"code":"L003","description":"Indentation issue","rule":"indentation"}]}]', 'sqlfluff_json');
+SELECT suggestion FROM parse_duck_hunt_log('[{"filepath":"test.sql","violations":[{"line_no":1,"line_pos":1,"code":"L003","description":"Indentation issue","rule":"indentation"}]}]', 'sqlfluff_json');
 ----
 Rule: indentation
 
 # Test 96: sqlfluff multi-file SQL project
 query II
-SELECT file_path, COUNT(*) as violation_count FROM parse_test_results('[{"filepath":"queries/users.sql","violations":[{"line_no":1,"line_pos":1,"code":"L001","description":"Issue 1","rule":"rule1"}]},{"filepath":"migrations/schema.sql","violations":[{"line_no":2,"line_pos":2,"code":"L002","description":"Issue 2","rule":"rule2"},{"line_no":3,"line_pos":3,"code":"L003","description":"Issue 3","rule":"rule3"}]}]', 'sqlfluff_json')
+SELECT file_path, COUNT(*) as violation_count FROM parse_duck_hunt_log('[{"filepath":"queries/users.sql","violations":[{"line_no":1,"line_pos":1,"code":"L001","description":"Issue 1","rule":"rule1"}]},{"filepath":"migrations/schema.sql","violations":[{"line_no":2,"line_pos":2,"code":"L002","description":"Issue 2","rule":"rule2"},{"line_no":3,"line_pos":3,"code":"L003","description":"Issue 3","rule":"rule3"}]}]', 'sqlfluff_json')
 GROUP BY file_path ORDER BY file_path;
 ----
 migrations/schema.sql	2
@@ -778,14 +778,14 @@ queries/users.sql	1
 
 # Test 97: sqlfluff with no violations
 query I
-SELECT COUNT(*) FROM parse_test_results('[{"filepath":"clean.sql","violations":[]}]', 'sqlfluff_json');
+SELECT COUNT(*) FROM parse_duck_hunt_log('[{"filepath":"clean.sql","violations":[]}]', 'sqlfluff_json');
 ----
 0
 
 # Test 98: tflint JSON format parsing
 statement ok
 CREATE TABLE tflint_results AS 
-SELECT * FROM read_test_results('workspace/tflint_sample.json', 'tflint_json');
+SELECT * FROM read_duck_hunt_log('workspace/tflint_sample.json', 'tflint_json');
 
 # Verify tflint parsing results
 query IIIII
@@ -800,20 +800,20 @@ GROUP BY tool_name;
 
 # Test 99: tflint auto-detection
 query I
-SELECT DISTINCT tool_name FROM parse_test_results('{"issues":[{"rule":{"name":"terraform_deprecated_interpolation","severity":"warning"},"message":"Test issue","range":{"filename":"main.tf","start":{"line":1,"column":1}}}],"errors":[]}', 'auto');
+SELECT DISTINCT tool_name FROM parse_duck_hunt_log('{"issues":[{"rule":{"name":"terraform_deprecated_interpolation","severity":"warning"},"message":"Test issue","range":{"filename":"main.tf","start":{"line":1,"column":1}}}],"errors":[]}', 'auto');
 ----
 tflint
 
 # Test 100: tflint field validation
 query IIIII
 SELECT file_path, line_number, column_number, error_code, category
-FROM parse_test_results('{"issues":[{"rule":{"name":"aws_instance_invalid_type","severity":"error"},"message":"Invalid instance type","range":{"filename":"main.tf","start":{"line":10,"column":5}}}]}', 'tflint_json');
+FROM parse_duck_hunt_log('{"issues":[{"rule":{"name":"aws_instance_invalid_type","severity":"error"},"message":"Invalid instance type","range":{"filename":"main.tf","start":{"line":10,"column":5}}}]}', 'tflint_json');
 ----
 main.tf	10	5	aws_instance_invalid_type	infrastructure
 
 # Test 101: tflint severity mapping
 query II
-SELECT severity, status FROM parse_test_results('{"issues":[{"rule":{"name":"test_error","severity":"error"},"message":"Error issue","range":{"filename":"test.tf","start":{"line":1,"column":1}}},{"rule":{"name":"test_warning","severity":"warning"},"message":"Warning issue","range":{"filename":"test.tf","start":{"line":2,"column":1}}},{"rule":{"name":"test_notice","severity":"notice"},"message":"Notice issue","range":{"filename":"test.tf","start":{"line":3,"column":1}}}]}', 'tflint_json')
+SELECT severity, status FROM parse_duck_hunt_log('{"issues":[{"rule":{"name":"test_error","severity":"error"},"message":"Error issue","range":{"filename":"test.tf","start":{"line":1,"column":1}}},{"rule":{"name":"test_warning","severity":"warning"},"message":"Warning issue","range":{"filename":"test.tf","start":{"line":2,"column":1}}},{"rule":{"name":"test_notice","severity":"notice"},"message":"Notice issue","range":{"filename":"test.tf","start":{"line":3,"column":1}}}]}', 'tflint_json')
 ORDER BY event_id;
 ----
 error	ERROR
@@ -822,25 +822,25 @@ notice	INFO
 
 # Test 102: tflint event type validation
 query I
-SELECT DISTINCT event_type FROM parse_test_results('{"issues":[{"rule":{"name":"terraform_issue","severity":"warning"},"message":"Terraform issue","range":{"filename":"main.tf","start":{"line":1,"column":1}}}]}', 'tflint_json');
+SELECT DISTINCT event_type FROM parse_duck_hunt_log('{"issues":[{"rule":{"name":"terraform_issue","severity":"warning"},"message":"Terraform issue","range":{"filename":"main.tf","start":{"line":1,"column":1}}}]}', 'tflint_json');
 ----
 lint_issue
 
 # Test 103: tflint category validation
 query I
-SELECT DISTINCT category FROM parse_test_results('{"issues":[{"rule":{"name":"terraform_issue","severity":"warning"},"message":"Terraform issue","range":{"filename":"main.tf","start":{"line":1,"column":1}}}]}', 'tflint_json');
+SELECT DISTINCT category FROM parse_duck_hunt_log('{"issues":[{"rule":{"name":"terraform_issue","severity":"warning"},"message":"Terraform issue","range":{"filename":"main.tf","start":{"line":1,"column":1}}}]}', 'tflint_json');
 ----
 infrastructure
 
 # Test 104: tflint suggestion extraction
 query I
-SELECT suggestion FROM parse_test_results('{"issues":[{"rule":{"name":"terraform_deprecated_interpolation","severity":"warning"},"message":"Use new syntax","range":{"filename":"main.tf","start":{"line":1,"column":1}}}]}', 'tflint_json');
+SELECT suggestion FROM parse_duck_hunt_log('{"issues":[{"rule":{"name":"terraform_deprecated_interpolation","severity":"warning"},"message":"Use new syntax","range":{"filename":"main.tf","start":{"line":1,"column":1}}}]}', 'tflint_json');
 ----
 Rule: terraform_deprecated_interpolation
 
 # Test 105: tflint multi-file Terraform project
 query II
-SELECT file_path, COUNT(*) as issue_count FROM parse_test_results('{"issues":[{"rule":{"name":"rule1","severity":"error"},"message":"Issue 1","range":{"filename":"main.tf","start":{"line":1,"column":1}}},{"rule":{"name":"rule2","severity":"warning"},"message":"Issue 2","range":{"filename":"variables.tf","start":{"line":2,"column":2}}},{"rule":{"name":"rule3","severity":"notice"},"message":"Issue 3","range":{"filename":"variables.tf","start":{"line":3,"column":3}}}]}', 'tflint_json')
+SELECT file_path, COUNT(*) as issue_count FROM parse_duck_hunt_log('{"issues":[{"rule":{"name":"rule1","severity":"error"},"message":"Issue 1","range":{"filename":"main.tf","start":{"line":1,"column":1}}},{"rule":{"name":"rule2","severity":"warning"},"message":"Issue 2","range":{"filename":"variables.tf","start":{"line":2,"column":2}}},{"rule":{"name":"rule3","severity":"notice"},"message":"Issue 3","range":{"filename":"variables.tf","start":{"line":3,"column":3}}}]}', 'tflint_json')
 GROUP BY file_path ORDER BY file_path;
 ----
 main.tf	1
@@ -848,14 +848,14 @@ variables.tf	2
 
 # Test 106: tflint with no issues
 query I
-SELECT COUNT(*) FROM parse_test_results('{"issues":[],"errors":[]}', 'tflint_json');
+SELECT COUNT(*) FROM parse_duck_hunt_log('{"issues":[],"errors":[]}', 'tflint_json');
 ----
 0
 
 # Test 107: kube-score JSON format parsing
 statement ok
 CREATE TABLE kube_score_results AS 
-SELECT * FROM read_test_results('workspace/kube_score_sample.json', 'kube_score_json');
+SELECT * FROM read_duck_hunt_log('workspace/kube_score_sample.json', 'kube_score_json');
 
 # Verify kube-score parsing results
 query IIII
@@ -869,20 +869,20 @@ GROUP BY tool_name;
 
 # Test 108: kube-score auto-detection
 query I
-SELECT DISTINCT tool_name FROM parse_test_results('[{"object_name":"test-app","type_meta":{"kind":"Deployment"},"file_name":"test.yaml","checks":[{"check":{"id":"container-resources","name":"Container Resources"},"grade":"WARNING","comments":[{"summary":"Resource limits not set"}]}]}]', 'auto');
+SELECT DISTINCT tool_name FROM parse_duck_hunt_log('[{"object_name":"test-app","type_meta":{"kind":"Deployment"},"file_name":"test.yaml","checks":[{"check":{"id":"container-resources","name":"Container Resources"},"grade":"WARNING","comments":[{"summary":"Resource limits not set"}]}]}]', 'auto');
 ----
 kube-score
 
 # Test 109: kube-score field validation
 query IIIII
 SELECT file_path, line_number, error_code, category, function_name
-FROM parse_test_results('[{"object_name":"my-app","type_meta":{"kind":"Deployment"},"file_name":"deployment.yaml","file_row":5,"checks":[{"check":{"id":"container-security-context","name":"Container Security"},"grade":"CRITICAL","comments":[{"summary":"Container runs as root"}]}]}]', 'kube_score_json');
+FROM parse_duck_hunt_log('[{"object_name":"my-app","type_meta":{"kind":"Deployment"},"file_name":"deployment.yaml","file_row":5,"checks":[{"check":{"id":"container-security-context","name":"Container Security"},"grade":"CRITICAL","comments":[{"summary":"Container runs as root"}]}]}]', 'kube_score_json');
 ----
 deployment.yaml	5	container-security-context	kubernetes	my-app (Deployment)
 
 # Test 110: kube-score severity mapping
 query II
-SELECT severity, status FROM parse_test_results('[{"object_name":"test","type_meta":{"kind":"Pod"},"file_name":"test.yaml","checks":[{"check":{"id":"test1"},"grade":"CRITICAL","comments":[{"summary":"Critical issue"}]},{"check":{"id":"test2"},"grade":"WARNING","comments":[{"summary":"Warning issue"}]}]}]', 'kube_score_json')
+SELECT severity, status FROM parse_duck_hunt_log('[{"object_name":"test","type_meta":{"kind":"Pod"},"file_name":"test.yaml","checks":[{"check":{"id":"test1"},"grade":"CRITICAL","comments":[{"summary":"Critical issue"}]},{"check":{"id":"test2"},"grade":"WARNING","comments":[{"summary":"Warning issue"}]}]}]', 'kube_score_json')
 ORDER BY event_id;
 ----
 critical	ERROR
@@ -890,25 +890,25 @@ warning	WARNING
 
 # Test 111: kube-score event type validation
 query I
-SELECT DISTINCT event_type FROM parse_test_results('[{"object_name":"test","type_meta":{"kind":"Service"},"file_name":"test.yaml","checks":[{"check":{"id":"service-check"},"grade":"WARNING","comments":[{"summary":"K8s issue"}]}]}]', 'kube_score_json');
+SELECT DISTINCT event_type FROM parse_duck_hunt_log('[{"object_name":"test","type_meta":{"kind":"Service"},"file_name":"test.yaml","checks":[{"check":{"id":"service-check"},"grade":"WARNING","comments":[{"summary":"K8s issue"}]}]}]', 'kube_score_json');
 ----
 lint_issue
 
 # Test 112: kube-score category validation
 query I
-SELECT DISTINCT category FROM parse_test_results('[{"object_name":"test","type_meta":{"kind":"Deployment"},"file_name":"test.yaml","checks":[{"check":{"id":"k8s-check"},"grade":"WARNING","comments":[{"summary":"Kubernetes issue"}]}]}]', 'kube_score_json');
+SELECT DISTINCT category FROM parse_duck_hunt_log('[{"object_name":"test","type_meta":{"kind":"Deployment"},"file_name":"test.yaml","checks":[{"check":{"id":"k8s-check"},"grade":"WARNING","comments":[{"summary":"Kubernetes issue"}]}]}]', 'kube_score_json');
 ----
 kubernetes
 
 # Test 113: kube-score suggestion extraction
 query I
-SELECT suggestion FROM parse_test_results('[{"object_name":"test","type_meta":{"kind":"Pod"},"file_name":"test.yaml","checks":[{"check":{"id":"test-check"},"grade":"WARNING","comments":[{"summary":"Issue summary","description":"Detailed description of the issue"}]}]}]', 'kube_score_json');
+SELECT suggestion FROM parse_duck_hunt_log('[{"object_name":"test","type_meta":{"kind":"Pod"},"file_name":"test.yaml","checks":[{"check":{"id":"test-check"},"grade":"WARNING","comments":[{"summary":"Issue summary","description":"Detailed description of the issue"}]}]}]', 'kube_score_json');
 ----
 Detailed description of the issue
 
 # Test 114: kube-score multi-resource Kubernetes project
 query II
-SELECT function_name, COUNT(*) as issue_count FROM parse_test_results('[{"object_name":"app","type_meta":{"kind":"Deployment"},"file_name":"app.yaml","checks":[{"check":{"id":"check1"},"grade":"WARNING","comments":[{"summary":"Issue 1"}]}]},{"object_name":"svc","type_meta":{"kind":"Service"},"file_name":"service.yaml","checks":[{"check":{"id":"check2"},"grade":"CRITICAL","comments":[{"summary":"Issue 2"},{"summary":"Issue 3"}]}]}]', 'kube_score_json')
+SELECT function_name, COUNT(*) as issue_count FROM parse_duck_hunt_log('[{"object_name":"app","type_meta":{"kind":"Deployment"},"file_name":"app.yaml","checks":[{"check":{"id":"check1"},"grade":"WARNING","comments":[{"summary":"Issue 1"}]}]},{"object_name":"svc","type_meta":{"kind":"Service"},"file_name":"service.yaml","checks":[{"check":{"id":"check2"},"grade":"CRITICAL","comments":[{"summary":"Issue 2"},{"summary":"Issue 3"}]}]}]', 'kube_score_json')
 GROUP BY function_name ORDER BY function_name;
 ----
 app (Deployment)	1
@@ -916,20 +916,20 @@ svc (Service)	2
 
 # Test 115: kube-score with path information
 query I
-SELECT test_name FROM parse_test_results('[{"object_name":"test","type_meta":{"kind":"Pod"},"file_name":"test.yaml","checks":[{"check":{"id":"test-check"},"grade":"WARNING","comments":[{"path":"spec.containers[0].resources","summary":"Resource issue"}]}]}]', 'kube_score_json');
+SELECT test_name FROM parse_duck_hunt_log('[{"object_name":"test","type_meta":{"kind":"Pod"},"file_name":"test.yaml","checks":[{"check":{"id":"test-check"},"grade":"WARNING","comments":[{"path":"spec.containers[0].resources","summary":"Resource issue"}]}]}]', 'kube_score_json');
 ----
 spec.containers[0].resources
 
 # Test 116: kube-score with no issues (only OK checks)
 query I
-SELECT COUNT(*) FROM parse_test_results('[{"object_name":"clean-app","type_meta":{"kind":"Deployment"},"file_name":"clean.yaml","checks":[{"check":{"id":"test-check"},"grade":"OK","comments":[]}]}]', 'kube_score_json');
+SELECT COUNT(*) FROM parse_duck_hunt_log('[{"object_name":"clean-app","type_meta":{"kind":"Deployment"},"file_name":"clean.yaml","checks":[{"check":{"id":"test-check"},"grade":"OK","comments":[]}]}]', 'kube_score_json');
 ----
 0
 
 # Test 117: CMake build output parsing
 statement ok
 CREATE TABLE cmake_results AS 
-SELECT * FROM read_test_results('workspace/cmake_sample.txt', 'cmake_build');
+SELECT * FROM read_duck_hunt_log('workspace/cmake_sample.txt', 'cmake_build');
 
 # Verify CMake parsing results
 query IIII
@@ -943,7 +943,7 @@ GROUP BY tool_name;
 
 # Test 118: CMake auto-detection
 query I
-SELECT DISTINCT tool_name FROM parse_test_results('CMake Error at CMakeLists.txt:25 (find_package):
+SELECT DISTINCT tool_name FROM parse_duck_hunt_log('CMake Error at CMakeLists.txt:25 (find_package):
 Could not find package
 gmake[1]: *** [all] Error 2
 Building CXX object main.cpp.o', 'auto');
@@ -953,14 +953,14 @@ cmake
 # Test 119: CMake compilation error parsing
 query IIIII
 SELECT file_path, line_number, column_number, category, severity
-FROM parse_test_results('/home/user/src/main.cpp:15:10: error: iostream file not found', 'cmake_build');
+FROM parse_duck_hunt_log('/home/user/src/main.cpp:15:10: error: iostream file not found', 'cmake_build');
 ----
 /home/user/src/main.cpp	15	10	compilation	error
 
 # Test 120: CMake configuration error parsing
 query IIII
 SELECT file_path, line_number, category, message LIKE '%Could not find%' as has_package_error
-FROM parse_test_results('CMake Error at CMakeLists.txt:25 (find_package):
+FROM parse_duck_hunt_log('CMake Error at CMakeLists.txt:25 (find_package):
   Could not find a package configuration file provided by "Boost"', 'cmake_build');
 ----
 CMakeLists.txt	25	configuration	true
@@ -968,13 +968,13 @@ CMakeLists.txt	25	configuration	true
 # Test 121: CMake linker error parsing
 query III
 SELECT function_name, category, suggestion LIKE '%Link the library%' as has_suggestion
-FROM parse_test_results('/usr/bin/ld: database.cpp: undefined reference to `mysql_init`', 'cmake_build');
+FROM parse_duck_hunt_log('/usr/bin/ld: database.cpp: undefined reference to `mysql_init`', 'cmake_build');
 ----
 mysql_init	linking	true
 
 # Test 122: CMake severity mapping
 query II
-SELECT category, status FROM parse_test_results('/home/test.cpp:10:5: error: syntax error
+SELECT category, status FROM parse_duck_hunt_log('/home/test.cpp:10:5: error: syntax error
 /home/test.cpp:15:8: warning: unused variable
 CMake Error at CMakeLists.txt:10:
 CMake Warning at CMakeLists.txt:20:', 'cmake_build')
@@ -987,7 +987,7 @@ configuration	WARNING
 
 # Test 122b: CMake warning variants (Deprecation Warning, Developer Warning)
 query III
-SELECT status, category, message LIKE '%Deprecation%' as is_deprecation FROM parse_test_results('CMake Deprecation Warning at /home/test/CMakeLists.txt:1 (cmake_minimum_required):
+SELECT status, category, message LIKE '%Deprecation%' as is_deprecation FROM parse_duck_hunt_log('CMake Deprecation Warning at /home/test/CMakeLists.txt:1 (cmake_minimum_required):
   Compatibility with CMake < 3.10 will be removed
 CMake Developer Warning at /home/test/CMakeLists.txt:5:
   Some developer warning message
@@ -1001,13 +1001,13 @@ WARNING	configuration	false
 
 # Test 123: CMake event type validation
 query I
-SELECT DISTINCT event_type FROM parse_test_results('/home/test.cpp:10:5: error: build failed', 'cmake_build');
+SELECT DISTINCT event_type FROM parse_duck_hunt_log('/home/test.cpp:10:5: error: build failed', 'cmake_build');
 ----
 build_error
 
 # Test 124: CMake category validation
 query I
-SELECT DISTINCT category FROM parse_test_results('/home/test.cpp:10:5: error: compilation failed
+SELECT DISTINCT category FROM parse_duck_hunt_log('/home/test.cpp:10:5: error: compilation failed
 /usr/bin/ld: undefined reference to test
 CMake Error at CMakeLists.txt:10:
 gmake[1]: *** [all] Error 2', 'cmake_build')
@@ -1020,7 +1020,7 @@ linking
 
 # Test 125: CMake multi-file project errors
 query II
-SELECT file_path, COUNT(*) as error_count FROM parse_test_results('/home/main.cpp:10:5: error: syntax error
+SELECT file_path, COUNT(*) as error_count FROM parse_duck_hunt_log('/home/main.cpp:10:5: error: syntax error
 /home/utils.cpp:15:8: warning: unused variable
 /home/config.cpp:20:1: error: missing semicolon', 'cmake_build')
 WHERE file_path IS NOT NULL
