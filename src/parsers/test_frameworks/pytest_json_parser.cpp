@@ -114,19 +114,35 @@ std::vector<ValidationEvent> PytestJSONParser::parse(const std::string& content)
             event.status = ValidationEventStatus::ERROR;
         }
         
-        // Extract call details
+        // Extract duration - check top level first, then inside call object
+        yyjson_val *duration = yyjson_obj_get(test, "duration");
+        if (duration && yyjson_is_num(duration)) {
+            event.execution_time = yyjson_get_real(duration);
+        }
+
+        // Extract longrepr (error message) - check top level first
+        yyjson_val *longrepr = yyjson_obj_get(test, "longrepr");
+        if (longrepr && yyjson_is_str(longrepr)) {
+            event.message = yyjson_get_str(longrepr);
+        }
+
+        // Also check inside call object (pytest-json-report format)
         yyjson_val *call = yyjson_obj_get(test, "call");
         if (call && yyjson_is_obj(call)) {
-            // Extract duration
-            yyjson_val *duration = yyjson_obj_get(call, "duration");
-            if (duration && yyjson_is_num(duration)) {
-                event.execution_time = yyjson_get_real(duration);
+            // Duration from call (if not already set)
+            if (event.execution_time == 0.0) {
+                yyjson_val *call_duration = yyjson_obj_get(call, "duration");
+                if (call_duration && yyjson_is_num(call_duration)) {
+                    event.execution_time = yyjson_get_real(call_duration);
+                }
             }
-            
-            // Extract longrepr (error message)
-            yyjson_val *longrepr = yyjson_obj_get(call, "longrepr");
-            if (longrepr && yyjson_is_str(longrepr)) {
-                event.message = yyjson_get_str(longrepr);
+
+            // Longrepr from call (if not already set)
+            if (event.message.empty()) {
+                yyjson_val *call_longrepr = yyjson_obj_get(call, "longrepr");
+                if (call_longrepr && yyjson_is_str(call_longrepr)) {
+                    event.message = yyjson_get_str(call_longrepr);
+                }
             }
         }
         

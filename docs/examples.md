@@ -24,9 +24,9 @@ FROM read_duck_hunt_log('test/samples/pytest.json', 'pytest_json');
 **Result:**
 |          test_name          | status | execution_time |
 |-----------------------------|--------|---------------:|
-| test_login_success          | PASS   | 0.0            |
-| test_login_invalid_password | FAIL   | 0.0            |
-| test_create_user            | PASS   | 0.0            |
+| test_login_success          | PASS   | 0.123          |
+| test_login_invalid_password | FAIL   | 0.456          |
+| test_create_user            | PASS   | 0.089          |
 
 ---
 
