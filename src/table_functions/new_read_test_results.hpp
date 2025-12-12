@@ -12,7 +12,7 @@ namespace duckdb {
  */
 class NewReadTestResultsFunction {
 public:
-    static void RegisterFunction(DatabaseInstance& db);
+    static void RegisterFunction(ExtensionLoader &loader);
     
 private:
     static void ReadTestResultsBind(ClientContext& context, TableFunctionBindInput& input, 
