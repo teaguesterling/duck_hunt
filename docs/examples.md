@@ -1,28 +1,255 @@
-# Usage Examples
+# Examples
 
-Comprehensive examples for using Duck Hunt in various scenarios.
+Real examples using Duck Hunt with sample files and actual query results.
+
+## pytest (JSON)
+
+**Sample:** [`test/samples/pytest.json`](../test/samples/pytest.json)
+```json
+{
+  "tests": [
+    {"nodeid": "tests/test_auth.py::test_login_success", "outcome": "passed", "duration": 0.123},
+    {"nodeid": "tests/test_auth.py::test_login_invalid_password", "outcome": "failed", "duration": 0.456},
+    {"nodeid": "tests/test_api.py::test_create_user", "outcome": "passed", "duration": 0.089}
+  ]
+}
+```
+
+**Query:**
+```sql
+SELECT test_name, status, execution_time
+FROM read_duck_hunt_log('test/samples/pytest.json', 'pytest_json');
+```
+
+**Result:**
+|          test_name          | status | execution_time |
+|-----------------------------|--------|---------------:|
+| test_login_success          | PASS   | 0.0            |
+| test_login_invalid_password | FAIL   | 0.0            |
+| test_create_user            | PASS   | 0.0            |
+
+---
+
+## ESLint (JSON)
+
+**Sample:** [`test/samples/eslint.json`](../test/samples/eslint.json)
+```json
+[{
+  "filePath": "/src/components/Button.tsx",
+  "messages": [
+    {"ruleId": "no-unused-vars", "severity": 2, "message": "'useState' is defined but never used.", "line": 1, "column": 10},
+    {"ruleId": "prefer-const", "severity": 1, "message": "'count' is never reassigned. Use 'const' instead.", "line": 5, "column": 7}
+  ]
+}]
+```
+
+**Query:**
+```sql
+SELECT file_path, line_number, error_code, message
+FROM read_duck_hunt_log('test/samples/eslint.json', 'eslint_json');
+```
+
+**Result:**
+|         file_path          | line_number |             error_code             |                      message                      |
+|----------------------------|------------:|------------------------------------|---------------------------------------------------|
+| /src/components/Button.tsx | 1           | no-unused-vars                     | 'useState' is defined but never used.             |
+| /src/components/Button.tsx | 5           | prefer-const                       | 'count' is never reassigned. Use 'const' instead. |
+| /src/utils/helpers.ts      | 12          | @typescript-eslint/no-explicit-any | Unexpected any. Specify a different type.         |
+
+---
+
+## GNU Make
+
+**Sample:** [`test/samples/make.out`](../test/samples/make.out)
+```
+gcc -Wall -Wextra -g -c src/main.c -o build/main.o
+src/main.c:15:5: error: 'undefined_var' undeclared (first use in this function)
+src/main.c:28:12: warning: unused variable 'temp' [-Wunused-variable]
+src/utils.c:8:9: error: assignment to expression with array type
+make: *** [Makefile:23: build/main.o] Error 1
+```
+
+**Query:**
+```sql
+SELECT file_path, line_number, severity, message
+FROM read_duck_hunt_log('test/samples/make.out', 'make_error');
+```
+
+**Result:**
+|  file_path  | line_number | severity |                                     message                                      |
+|-------------|------------:|----------|----------------------------------------------------------------------------------|
+| src/main.c  | 15          | error    | 'undefined_var' undeclared (first use in this function)                          |
+| src/main.c  | 15          | info     | each undeclared identifier is reported only once for each function it appears in |
+| src/main.c  | 28          | warning  | unused variable 'temp' [-Wunused-variable]                                       |
+| src/utils.c | 8           | error    | assignment to expression with array type                                         |
+| Makefile    | NULL        | error    | make: *** [Makefile:23: build/main.o] Error 1                                    |
+
+---
+
+## MyPy
+
+**Sample:** [`test/samples/mypy.txt`](../test/samples/mypy.txt)
+```
+src/api/routes.py:23: error: Argument 1 to "process" has incompatible type "str"; expected "int"  [arg-type]
+src/api/routes.py:45: error: "None" has no attribute "items"  [union-attr]
+src/models/user.py:12: warning: Unused "type: ignore" comment  [unused-ignore]
+src/utils/helpers.py:8: error: Missing return statement  [return]
+```
+
+**Query:**
+```sql
+SELECT file_path, line_number, error_code, message
+FROM read_duck_hunt_log('test/samples/mypy.txt', 'mypy_text');
+```
+
+**Result:**
+|      file_path       | line_number |  error_code   |                               message                               |
+|----------------------|------------:|---------------|---------------------------------------------------------------------|
+| src/api/routes.py    | 23          | arg-type      | Argument 1 to "process" has incompatible type "str"; expected "int" |
+| src/api/routes.py    | 45          | union-attr    | "None" has no attribute "items"                                     |
+| src/models/user.py   | 12          | unused-ignore | Unused "type: ignore" comment                                       |
+| src/utils/helpers.py | 8           | return        | Missing return statement                                            |
+
+---
+
+## Go Test (JSON)
+
+**Sample:** [`test/samples/gotest.json`](../test/samples/gotest.json)
+```json
+{"Time":"2024-01-15T10:30:00.123Z","Action":"pass","Package":"github.com/example/app","Test":"TestUserCreate","Elapsed":0.333}
+{"Time":"2024-01-15T10:30:01.200Z","Action":"fail","Package":"github.com/example/app","Test":"TestUserDelete","Elapsed":0.7}
+{"Time":"2024-01-15T10:30:01.500Z","Action":"skip","Package":"github.com/example/app","Test":"TestUserUpdate","Elapsed":0.2}
+```
+
+**Query:**
+```sql
+SELECT test_name, status, execution_time
+FROM read_duck_hunt_log('test/samples/gotest.json', 'gotest_json');
+```
+
+**Result:**
+|   test_name    | status | execution_time |
+|----------------|--------|---------------:|
+| TestUserCreate | PASS   | 0.333          |
+| TestUserDelete | FAIL   | 0.7            |
+| TestUserUpdate | SKIP   | 0.2            |
+
+---
+
+## GitHub Actions
+
+**Sample:** [`test/samples/github_actions.log`](../test/samples/github_actions.log)
+```
+2024-01-15T10:00:00.000Z ##[group]Run actions/checkout@v4
+2024-01-15T10:00:01.000Z Syncing repository: owner/repo
+2024-01-15T10:00:05.000Z ##[endgroup]
+2024-01-15T10:00:06.000Z ##[group]Run npm install
+2024-01-15T10:00:07.000Z npm WARN deprecated package@1.0.0: This package is deprecated
+2024-01-15T10:00:21.000Z ##[error]Process completed with exit code 1.
+```
+
+**Query:**
+```sql
+SELECT step_name, message, severity
+FROM read_duck_hunt_workflow_log('test/samples/github_actions.log', 'github_actions')
+WHERE length(message) > 0
+LIMIT 5;
+```
+
+**Result:**
+|        step_name        |                                        message                                         | severity |
+|-------------------------|----------------------------------------------------------------------------------------|----------|
+| Run actions/checkout@v4 | 2024-01-15T10:00:00.000Z ##[group]Run actions/checkout@v4                              | info     |
+| Run actions/checkout@v4 | 2024-01-15T10:00:01.000Z Syncing repository: owner/repo                                | info     |
+| Run actions/checkout@v4 | 2024-01-15T10:00:05.000Z ##[endgroup]                                                  | info     |
+| Run npm install         | 2024-01-15T10:00:06.000Z ##[group]Run npm install                                      | info     |
+| Run npm install         | 2024-01-15T10:00:07.000Z npm WARN deprecated package@1.0.0: This package is deprecated | warning  |
+
+---
+
+## Status Badges
+
+**Query:**
+```sql
+SELECT status_badge(status) as badge, tool_name, file_path, message
+FROM read_duck_hunt_log('test/samples/make.out', 'make_error')
+WHERE file_path NOT LIKE '%Makefile%';
+```
+
+**Result:**
+| badge  | tool_name |  file_path  |                                     message                                      |
+|--------|-----------|-------------|----------------------------------------------------------------------------------|
+| [FAIL] | make      | src/main.c  | 'undefined_var' undeclared (first use in this function)                          |
+| [ ?? ] | make      | src/main.c  | each undeclared identifier is reported only once for each function it appears in |
+| [WARN] | make      | src/main.c  | unused variable 'temp' [-Wunused-variable]                                       |
+| [FAIL] | make      | src/utils.c | assignment to expression with array type                                         |
+
+---
+
+## Aggregation
+
+**Query:**
+```sql
+SELECT tool_name,
+       COUNT(*) as total,
+       COUNT(*) FILTER (WHERE status = 'ERROR') as errors,
+       COUNT(*) FILTER (WHERE status = 'WARNING') as warnings
+FROM read_duck_hunt_log('test/samples/make.out', 'make_error')
+GROUP BY tool_name;
+```
+
+**Result:**
+| tool_name | total | errors | warnings |
+|-----------|------:|-------:|---------:|
+| make      | 5     | 3      | 1        |
+
+---
+
+## Dynamic Regexp Parser
+
+**Input (inline):**
+```
+ERROR: Connection failed
+WARNING: Retrying in 5s
+ERROR: Max retries exceeded
+INFO: Shutting down
+```
+
+**Query:**
+```sql
+SELECT severity, message
+FROM parse_duck_hunt_log(
+  'ERROR: Connection failed
+   WARNING: Retrying in 5s
+   ERROR: Max retries exceeded
+   INFO: Shutting down',
+  'regexp:(?P<severity>ERROR|WARNING|INFO):\s+(?P<message>.+)'
+);
+```
+
+**Result:**
+| severity |       message        |
+|----------|----------------------|
+| error    | Connection failed    |
+| warning  | Retrying in 5s       |
+| error    | Max retries exceeded |
+| info     | Shutting down        |
+
+---
 
 ## Pipeline Integration
 
-### Real-time Build Analysis
+### Bash: Real-time Analysis
 
 ```bash
-# Capture make output and analyze in real-time
-make 2>&1 | tee build.log | duckdb -s "
-  SELECT status_badge(status) as badge, file_path, message
+# Parse build output and show errors
+make 2>&1 | duckdb -markdown -s "
+  SELECT status_badge(status) as badge, file_path, line_number, message
   FROM read_duck_hunt_log('/dev/stdin', 'auto')
-  WHERE status IN ('ERROR', 'WARNING')
+  WHERE status = 'ERROR'
 "
 
-# Save build results to parquet for historical analysis
-make 2>&1 | duckdb -s "
-  COPY (
-    SELECT * EXCLUDE (raw_output)
-    FROM read_duck_hunt_log('/dev/stdin', 'auto')
-  ) TO 'builds/$(date +%Y%m%d).parquet'
-"
-
-# JSON output for CI integration
+# JSON output for CI
 ./build.sh 2>&1 | duckdb -json -s "
   SELECT tool_name, COUNT(*) as errors
   FROM read_duck_hunt_log('/dev/stdin', 'auto')
@@ -31,276 +258,14 @@ make 2>&1 | duckdb -s "
 "
 ```
 
-### Quality Gates
+### Quality Gate
 
 ```sql
--- Fail if more than 5 errors
-SELECT CASE WHEN error_count > 5 THEN 'FAIL' ELSE 'PASS' END as gate_status
-FROM (
-  SELECT COUNT(*) as error_count
-  FROM read_duck_hunt_log('build.log', 'auto')
-  WHERE status = 'ERROR'
-);
-
--- Fail if any security issues
-SELECT CASE WHEN COUNT(*) > 0 THEN 'FAIL' ELSE 'PASS' END as security_gate
-FROM read_duck_hunt_log('bandit_output.json', 'bandit_json')
-WHERE severity = 'error';
-```
-
-## Test Analysis
-
-### Cross-Framework Comparison
-
-```sql
--- Compare test results across frameworks
-SELECT
-  tool_name,
-  COUNT(*) as total,
-  SUM(CASE WHEN status = 'PASS' THEN 1 ELSE 0 END) as passed,
-  SUM(CASE WHEN status = 'FAIL' THEN 1 ELSE 0 END) as failed,
-  ROUND(AVG(execution_time), 3) as avg_time_sec
-FROM read_duck_hunt_log('test_outputs/*', 'auto')
-WHERE event_type = 'TEST_RESULT'
-GROUP BY tool_name
-ORDER BY failed DESC;
-```
-
-### Slow Test Detection
-
-```sql
--- Find slowest tests
-SELECT test_name, execution_time, tool_name
-FROM read_duck_hunt_log('pytest_output.json', 'pytest_json')
-WHERE status = 'PASS'
-ORDER BY execution_time DESC
-LIMIT 10;
-
--- Tests exceeding threshold
-SELECT test_name, execution_time
-FROM read_duck_hunt_log('test_results.json', 'auto')
-WHERE execution_time > 5.0
-ORDER BY execution_time DESC;
-```
-
-### Flaky Test Detection
-
-```sql
--- Find tests that both passed and failed across runs
-SELECT test_name,
-       COUNT(CASE WHEN status = 'PASS' THEN 1 END) as passes,
-       COUNT(CASE WHEN status = 'FAIL' THEN 1 END) as failures
-FROM read_duck_hunt_log('ci_logs/**/*.json', 'auto')
-WHERE event_type = 'TEST_RESULT'
-GROUP BY test_name
-HAVING passes > 0 AND failures > 0
-ORDER BY failures DESC;
-```
-
-## Build Error Analysis
-
-### Error Pattern Clustering
-
-```sql
--- Group similar errors by fingerprint
-SELECT
-  error_fingerprint,
-  COUNT(*) as occurrences,
-  ANY_VALUE(message) as example_message,
-  GROUP_CONCAT(DISTINCT file_path) as affected_files
-FROM read_duck_hunt_log('build_logs/*.log', 'auto')
-WHERE status = 'ERROR'
-GROUP BY error_fingerprint
-ORDER BY occurrences DESC;
-```
-
-### Root Cause Analysis
-
-```sql
--- Categorize errors by root cause
-SELECT
-  root_cause_category,
-  COUNT(*) as count,
-  GROUP_CONCAT(DISTINCT tool_name) as tools
-FROM read_duck_hunt_log('logs/**/*.log', 'auto')
-WHERE root_cause_category IS NOT NULL
-GROUP BY root_cause_category
-ORDER BY count DESC;
-```
-
-### Compilation Error Hotspots
-
-```sql
--- Find files with most errors
-SELECT file_path, COUNT(*) as error_count
-FROM read_duck_hunt_log('build.log', 'cmake_build')
-WHERE status = 'ERROR' AND category = 'compilation'
-GROUP BY file_path
-ORDER BY error_count DESC
-LIMIT 10;
-```
-
-## Linting Analysis
-
-### Rule Violation Summary
-
-```sql
--- ESLint rule violations
-SELECT error_code as rule, COUNT(*) as violations, severity
-FROM read_duck_hunt_log('eslint.json', 'eslint_json')
-GROUP BY error_code, severity
-ORDER BY violations DESC;
-```
-
-### Cross-Linter Report
-
-```sql
--- Aggregate issues from multiple linters
-SELECT
-  tool_name,
-  severity,
-  COUNT(*) as issues
-FROM read_duck_hunt_log('lint_outputs/*', 'auto')
-WHERE event_type = 'LINT_ISSUE'
-GROUP BY tool_name, severity
-ORDER BY tool_name, severity;
-```
-
-## CI/CD Workflow Analysis
-
-### GitHub Actions Failures
-
-```sql
--- Find failed steps in workflows
-SELECT
-  workflow_name,
-  job_name,
-  step_name,
-  message
-FROM read_duck_hunt_workflow_log('actions.log', 'github_actions')
-WHERE step_status = 'failure'
-ORDER BY event_id;
-```
-
-### Workflow Duration Analysis
-
-```sql
--- Job duration statistics
-SELECT
-  job_name,
-  COUNT(*) as runs,
-  ROUND(AVG(duration), 2) as avg_duration,
-  ROUND(MAX(duration), 2) as max_duration
-FROM read_duck_hunt_workflow_log('ci_logs/*.log', 'auto')
-WHERE hierarchy_level = 1 AND job_status IS NOT NULL
-GROUP BY job_name
-ORDER BY avg_duration DESC;
-```
-
-### Cross-CI Comparison
-
-```sql
--- Compare workflow systems
-SELECT
-  workflow_type,
-  COUNT(DISTINCT workflow_run_id) as runs,
-  SUM(CASE WHEN workflow_status = 'failure' THEN 1 ELSE 0 END) as failures,
-  ROUND(AVG(duration), 2) as avg_duration
-FROM read_duck_hunt_workflow_log('**/*.log', 'auto')
-WHERE hierarchy_level = 0
-GROUP BY workflow_type;
-```
-
-## Memory & Debugging
-
-### Valgrind Analysis
-
-```sql
--- Memory leak summary
-SELECT
-  category,
-  COUNT(*) as occurrences,
-  GROUP_CONCAT(DISTINCT file_path) as files
-FROM read_duck_hunt_log('valgrind.txt', 'valgrind')
-WHERE event_type = 'MEMORY_LEAK'
-GROUP BY category;
-```
-
-### Crash Analysis
-
-```sql
--- Extract crash information
-SELECT
-  file_path,
-  function_name,
-  error_code as signal,
-  message
-FROM read_duck_hunt_log('gdb_output.txt', 'gdb_lldb')
-WHERE event_type = 'CRASH_SIGNAL';
-```
-
-## Status Badges
-
-### Build Summary Dashboard
-
-```sql
--- Generate status badges for each tool
-SELECT
-  tool_name,
-  status_badge(
-    COUNT(CASE WHEN status = 'ERROR' THEN 1 END),
-    COUNT(CASE WHEN status = 'WARNING' THEN 1 END)
-  ) as badge,
-  COUNT(*) as total_events
-FROM read_duck_hunt_log('build.log', 'auto')
-GROUP BY tool_name;
-```
-
-### Overall Build Health
-
-```sql
-SELECT status_badge(
-  (SELECT COUNT(*) FROM read_duck_hunt_log('build.log', 'auto') WHERE status = 'ERROR'),
-  (SELECT COUNT(*) FROM read_duck_hunt_log('build.log', 'auto') WHERE status = 'WARNING')
-) as build_health;
-```
-
-## Dynamic Regexp Examples
-
-### Custom Log Format
-
-```sql
--- Parse custom application logs
-SELECT severity, category, message
-FROM parse_duck_hunt_log(
-  'myapp.ERROR.database: Connection timeout after 30s
-   myapp.WARNING.cache: Cache miss for user_123
-   myapp.ERROR.api: Invalid response from service',
-  'regexp:myapp\.(?P<severity>ERROR|WARNING)\.(?P<category>\w+):\s+(?P<message>.+)'
-);
-```
-
-### Custom CI Format
-
-```sql
--- Parse custom CI output
-SELECT error_code, message
-FROM parse_duck_hunt_log(
-  '[BUILD-001] Compilation failed in module core
-   [TEST-002] 3 tests failed in suite auth
-   [DEPLOY-001] Deployment to staging failed',
-  'regexp:\[(?P<code>[A-Z]+-\d+)\]\s+(?P<message>.+)'
-);
-```
-
-### Extracting Structured Data
-
-```sql
--- Parse logs with file:line:message format
-SELECT file_path, line_number, severity, message
-FROM parse_duck_hunt_log(
-  '/src/main.c:42:error:undefined reference
-   /src/utils.c:15:warning:unused variable',
-  'regexp:(?P<file>[^:]+):(?P<line>\d+):(?P<severity>\w+):(?P<message>.+)'
-);
+-- Fail if error count exceeds threshold
+SELECT CASE
+  WHEN COUNT(*) FILTER (WHERE status = 'ERROR') > 5 THEN 'FAIL'
+  WHEN COUNT(*) FILTER (WHERE status = 'WARNING') > 20 THEN 'WARN'
+  ELSE 'PASS'
+END as gate_status
+FROM read_duck_hunt_log('build.log', 'auto');
 ```
