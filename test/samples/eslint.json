@@ -1,0 +1,33 @@
+[
+  {
+    "filePath": "/src/components/Button.tsx",
+    "messages": [
+      {
+        "ruleId": "no-unused-vars",
+        "severity": 2,
+        "message": "'useState' is defined but never used.",
+        "line": 1,
+        "column": 10
+      },
+      {
+        "ruleId": "prefer-const",
+        "severity": 1,
+        "message": "'count' is never reassigned. Use 'const' instead.",
+        "line": 5,
+        "column": 7
+      }
+    ]
+  },
+  {
+    "filePath": "/src/utils/helpers.ts",
+    "messages": [
+      {
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "severity": 1,
+        "message": "Unexpected any. Specify a different type.",
+        "line": 12,
+        "column": 20
+      }
+    ]
+  }
+]

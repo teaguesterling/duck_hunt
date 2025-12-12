@@ -1,0 +1,13 @@
+gcc -Wall -Wextra -g -c src/main.c -o build/main.o
+src/main.c:15:5: error: 'undefined_var' undeclared (first use in this function)
+   15 |     undefined_var = 42;
+      |     ^~~~~~~~~~~~~
+src/main.c:15:5: note: each undeclared identifier is reported only once for each function it appears in
+src/main.c:28:12: warning: unused variable 'temp' [-Wunused-variable]
+   28 |     int    temp = 0;
+      |            ^~~~
+gcc -Wall -Wextra -g -c src/utils.c -o build/utils.o
+src/utils.c:8:9: error: assignment to expression with array type
+    8 |     str = "hello";
+      |         ^
+make: *** [Makefile:23: build/main.o] Error 1

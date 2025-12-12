@@ -1,0 +1,14 @@
+2024-01-15T10:00:00.000Z ##[group]Run actions/checkout@v4
+2024-01-15T10:00:01.000Z Syncing repository: owner/repo
+2024-01-15T10:00:05.000Z ##[endgroup]
+2024-01-15T10:00:06.000Z ##[group]Run npm install
+2024-01-15T10:00:07.000Z npm WARN deprecated package@1.0.0: This package is deprecated
+2024-01-15T10:00:15.000Z added 150 packages in 9s
+2024-01-15T10:00:15.000Z ##[endgroup]
+2024-01-15T10:00:16.000Z ##[group]Run npm test
+2024-01-15T10:00:17.000Z > app@1.0.0 test
+2024-01-15T10:00:20.000Z FAIL src/tests/api.test.js
+2024-01-15T10:00:20.500Z   ● Test suite failed to run
+2024-01-15T10:00:20.600Z     Cannot find module './missing' from 'api.test.js'
+2024-01-15T10:00:21.000Z ##[error]Process completed with exit code 1.
+2024-01-15T10:00:21.000Z ##[endgroup]

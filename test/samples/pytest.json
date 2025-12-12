@@ -1,0 +1,25 @@
+{
+  "tests": [
+    {
+      "nodeid": "tests/test_auth.py::test_login_success",
+      "outcome": "passed",
+      "duration": 0.123
+    },
+    {
+      "nodeid": "tests/test_auth.py::test_login_invalid_password",
+      "outcome": "failed",
+      "duration": 0.456,
+      "longrepr": "AssertionError: Expected status 401, got 200"
+    },
+    {
+      "nodeid": "tests/test_api.py::test_create_user",
+      "outcome": "passed",
+      "duration": 0.089
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 1,
+    "total": 3
+  }
+}

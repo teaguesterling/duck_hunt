@@ -1,0 +1,6 @@
+{"Time":"2024-01-15T10:30:00.123Z","Action":"run","Package":"github.com/example/app","Test":"TestUserCreate"}
+{"Time":"2024-01-15T10:30:00.456Z","Action":"pass","Package":"github.com/example/app","Test":"TestUserCreate","Elapsed":0.333}
+{"Time":"2024-01-15T10:30:00.500Z","Action":"run","Package":"github.com/example/app","Test":"TestUserDelete"}
+{"Time":"2024-01-15T10:30:01.200Z","Action":"fail","Package":"github.com/example/app","Test":"TestUserDelete","Elapsed":0.7,"Output":"    user_test.go:45: Expected nil error, got: user not found\n"}
+{"Time":"2024-01-15T10:30:01.300Z","Action":"run","Package":"github.com/example/app","Test":"TestUserUpdate"}
+{"Time":"2024-01-15T10:30:01.500Z","Action":"skip","Package":"github.com/example/app","Test":"TestUserUpdate","Elapsed":0.2}

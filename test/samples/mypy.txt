@@ -1,0 +1,5 @@
+src/api/routes.py:23: error: Argument 1 to "process" has incompatible type "str"; expected "int"  [arg-type]
+src/api/routes.py:45: error: "None" has no attribute "items"  [union-attr]
+src/models/user.py:12: warning: Unused "type: ignore" comment  [unused-ignore]
+src/utils/helpers.py:8: error: Missing return statement  [return]
+Found 3 errors in 2 files (checked 15 source files)
