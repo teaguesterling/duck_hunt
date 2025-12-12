@@ -985,6 +985,20 @@ compilation	WARNING
 configuration	ERROR
 configuration	WARNING
 
+# Test 122b: CMake warning variants (Deprecation Warning, Developer Warning)
+query III
+SELECT status, category, message LIKE '%Deprecation%' as is_deprecation FROM parse_test_results('CMake Deprecation Warning at /home/test/CMakeLists.txt:1 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed
+CMake Developer Warning at /home/test/CMakeLists.txt:5:
+  Some developer warning message
+CMake Warning at /home/test/CMakeLists.txt:10:
+  Standard warning message', 'cmake_build')
+ORDER BY event_id;
+----
+WARNING	configuration	true
+WARNING	configuration	false
+WARNING	configuration	false
+
 # Test 123: CMake event type validation
 query I
 SELECT DISTINCT event_type FROM parse_test_results('/home/test.cpp:10:5: error: build failed', 'cmake_build');
