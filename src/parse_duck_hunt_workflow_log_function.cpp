@@ -1,4 +1,4 @@
-#include "parse_workflow_logs_function.hpp"
+#include "parse_duck_hunt_workflow_log_function.hpp"
 #include "workflow_engine_interface.hpp"
 
 // Include parser implementations for static build
@@ -28,7 +28,7 @@ WorkflowLogFormat StringToWorkflowLogFormatForParse(const std::string& format_st
 }
 
 // Parse workflow logs from string content
-std::vector<WorkflowEvent> ParseWorkflowLogsFromString(const std::string& content, const std::string& format_str) {
+std::vector<WorkflowEvent> ParseDuckHuntWorkflowLogFromString(const std::string& content, const std::string& format_str) {
     try {
         if (content.empty()) {
             return {};
@@ -56,7 +56,7 @@ std::vector<WorkflowEvent> ParseWorkflowLogsFromString(const std::string& conten
         }
     
         if (parser) {
-            return parser->parseWorkflowLogs(content);
+            return parser->parseWorkflowLog(content);
         }
         
         return {};
@@ -67,7 +67,7 @@ std::vector<WorkflowEvent> ParseWorkflowLogsFromString(const std::string& conten
         WorkflowEvent error_event;
         
         error_event.base_event.event_id = 1;
-        error_event.base_event.tool_name = "parse_workflow_logs";
+        error_event.base_event.tool_name = "parse_duck_hunt_workflow_log";
         error_event.base_event.message = std::string("Parse error: ") + e.what();
         error_event.base_event.raw_output = content.substr(0, std::min(size_t(200), content.length()));
         error_event.base_event.event_type = ValidationEventType::SUMMARY;
@@ -83,20 +83,20 @@ std::vector<WorkflowEvent> ParseWorkflowLogsFromString(const std::string& conten
     }
 }
 
-struct ParseWorkflowLogsBindData : public TableFunctionData {
+struct ParseDuckHuntWorkflowLogBindData : public TableFunctionData {
     std::vector<WorkflowEvent> events;
 };
 
-struct ParseWorkflowLogsGlobalState : public GlobalTableFunctionState {
+struct ParseDuckHuntWorkflowLogGlobalState : public GlobalTableFunctionState {
     idx_t position = 0;
 };
 
-unique_ptr<FunctionData> ParseWorkflowLogsBind(ClientContext &context, TableFunctionBindInput &input,
+unique_ptr<FunctionData> ParseDuckHuntWorkflowLogBind(ClientContext &context, TableFunctionBindInput &input,
                                               vector<LogicalType> &return_types, vector<string> &names) {
-    auto result = make_uniq<ParseWorkflowLogsBindData>();
+    auto result = make_uniq<ParseDuckHuntWorkflowLogBindData>();
     
     if (input.inputs.empty()) {
-        throw BinderException("parse_workflow_logs requires at least one parameter (content)");
+        throw BinderException("parse_duck_hunt_workflow_log requires at least one parameter (content)");
     }
     
     std::string content = input.inputs[0].ToString();
@@ -107,9 +107,9 @@ unique_ptr<FunctionData> ParseWorkflowLogsBind(ClientContext &context, TableFunc
     }
     
     // Parse the workflow logs
-    result->events = ParseWorkflowLogsFromString(content, format);
+    result->events = ParseDuckHuntWorkflowLogFromString(content, format);
     
-    // Define return schema - same as read_workflow_logs
+    // Define return schema - same as read_duck_hunt_workflow_log
     return_types = {
         LogicalType::BIGINT,   // event_id
         LogicalType::VARCHAR,  // tool_name
@@ -171,13 +171,13 @@ unique_ptr<FunctionData> ParseWorkflowLogsBind(ClientContext &context, TableFunc
     return std::move(result);
 }
 
-unique_ptr<GlobalTableFunctionState> ParseWorkflowLogsInitGlobal(ClientContext &context, TableFunctionInitInput &input) {
-    return make_uniq<ParseWorkflowLogsGlobalState>();
+unique_ptr<GlobalTableFunctionState> ParseDuckHuntWorkflowLogInitGlobal(ClientContext &context, TableFunctionInitInput &input) {
+    return make_uniq<ParseDuckHuntWorkflowLogGlobalState>();
 }
 
-void ParseWorkflowLogsFunction(ClientContext &context, TableFunctionInput &data, DataChunk &output) {
-    auto &bind_data = data.bind_data->Cast<ParseWorkflowLogsBindData>();
-    auto &gstate = data.global_state->Cast<ParseWorkflowLogsGlobalState>();
+void ParseDuckHuntWorkflowLogFunction(ClientContext &context, TableFunctionInput &data, DataChunk &output) {
+    auto &bind_data = data.bind_data->Cast<ParseDuckHuntWorkflowLogBindData>();
+    auto &gstate = data.global_state->Cast<ParseDuckHuntWorkflowLogGlobalState>();
     
     idx_t count = 0;
     idx_t chunk_size = output.size();
@@ -238,9 +238,9 @@ void ParseWorkflowLogsFunction(ClientContext &context, TableFunctionInput &data,
     output.SetCardinality(count);
 }
 
-TableFunction GetParseWorkflowLogsFunction() {
-    TableFunction function("parse_workflow_logs", {LogicalType::VARCHAR, LogicalType::VARCHAR}, 
-                          ParseWorkflowLogsFunction, ParseWorkflowLogsBind, ParseWorkflowLogsInitGlobal);
+TableFunction GetParseDuckHuntWorkflowLogFunction() {
+    TableFunction function("parse_duck_hunt_workflow_log", {LogicalType::VARCHAR, LogicalType::VARCHAR}, 
+                          ParseDuckHuntWorkflowLogFunction, ParseDuckHuntWorkflowLogBind, ParseDuckHuntWorkflowLogInitGlobal);
     
     return function;
 }

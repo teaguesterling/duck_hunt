@@ -3,10 +3,10 @@
 #include "duckdb.hpp"
 #include "duckdb/function/table_function.hpp"
 #include "validation_event_types.hpp"
-#include "read_workflow_logs_function.hpp"
+#include "read_duck_hunt_workflow_log_function.hpp"
 
 namespace duckdb {
 
-TableFunction GetParseWorkflowLogsFunction();
+TableFunction GetParseDuckHuntWorkflowLogFunction();
 
 } // namespace duckdb

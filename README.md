@@ -4,14 +4,15 @@ A comprehensive DuckDB extension for parsing and analyzing test results, build o
 
 ## Features
 
-Duck Hunt provides powerful SQL-based analysis of development tool outputs through two main table functions:
+Duck Hunt provides powerful SQL-based analysis of development tool outputs through table functions and utilities:
 
 ### Core Functions
 
 #### Table Functions
 - **`read_duck_hunt_log(file_path, format := 'AUTO')`** - Parse test results and build outputs from files
 - **`parse_duck_hunt_log(content, format := 'AUTO')`** - Parse test results and build outputs from strings
-- **`read_workflow_logs(file_path, format := 'AUTO')`** - Parse CI/CD workflow logs with hierarchical structure
+- **`read_duck_hunt_workflow_log(file_path, format := 'AUTO')`** - Parse CI/CD workflow logs from files
+- **`parse_duck_hunt_workflow_log(content, format := 'AUTO')`** - Parse CI/CD workflow logs from strings
 
 #### Scalar Functions
 - **`status_badge(status)`** - Convert status string to badge: `[ OK ]`, `[FAIL]`, `[WARN]`, `[ .. ]`, `[ ?? ]`
@@ -295,7 +296,7 @@ SELECT status_badge(0, 0, true) as status;  -- Returns: [ .. ]
 ```sql
 -- Analyze GitHub Actions workflow failures
 SELECT workflow_name, job_name, step_name, message, step_status
-FROM read_workflow_logs('github_actions.log', 'github_actions')
+FROM read_duck_hunt_workflow_log('github_actions.log', 'github_actions')
 WHERE step_status IN ('failure', 'error')
 ORDER BY event_id;
 
@@ -303,7 +304,7 @@ ORDER BY event_id;
 SELECT hierarchy_level, workflow_type, job_name, step_name,
        COUNT(*) as event_count,
        SUM(CASE WHEN status = 'ERROR' THEN 1 ELSE 0 END) as errors
-FROM read_workflow_logs('workflow_logs/*.log', 'auto')
+FROM read_duck_hunt_workflow_log('workflow_log/*.log', 'auto')
 GROUP BY hierarchy_level, workflow_type, job_name, step_name
 ORDER BY hierarchy_level, event_count DESC;
 
@@ -312,20 +313,20 @@ SELECT workflow_type,
        COUNT(DISTINCT workflow_run_id) as runs,
        AVG(duration) as avg_duration,
        SUM(CASE WHEN workflow_status = 'failure' THEN 1 ELSE 0 END) as failures
-FROM read_workflow_logs('ci_logs/**/*.log', 'auto')
+FROM read_duck_hunt_workflow_log('ci_logs/**/*.log', 'auto')
 WHERE hierarchy_level = 0
 GROUP BY workflow_type
 ORDER BY avg_duration DESC;
 
 -- Analyze Jenkins build stages
 SELECT job_name, step_name, step_status, duration, message
-FROM read_workflow_logs('jenkins_console.log', 'jenkins')
+FROM read_duck_hunt_workflow_log('jenkins_console.log', 'jenkins')
 WHERE hierarchy_level >= 2
 ORDER BY event_id;
 
 -- Find Docker build layer failures
 SELECT step_name, message, severity
-FROM read_workflow_logs('docker_build.log', 'docker_build')
+FROM read_duck_hunt_workflow_log('docker_build.log', 'docker_build')
 WHERE status = 'ERROR' AND hierarchy_level = 2
 ORDER BY event_id;
 ```

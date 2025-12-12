@@ -9,7 +9,7 @@ class GitLabCIParser : public WorkflowEngineParser {
 public:
     bool canParse(const std::string& content) const override;
     WorkflowLogFormat getFormat() const override { return WorkflowLogFormat::GITLAB_CI; }
-    std::vector<WorkflowEvent> parseWorkflowLogs(const std::string& content) const override;
+    std::vector<WorkflowEvent> parseWorkflowLog(const std::string& content) const override;
     int getPriority() const override { return 140; } // High priority for GitLab CI
     std::string getName() const override { return "GitLabCIParser"; }
 

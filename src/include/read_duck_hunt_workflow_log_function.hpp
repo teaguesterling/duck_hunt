@@ -42,41 +42,41 @@ void ParseGitLabCILog(const std::string& content, std::vector<WorkflowEvent>& ev
 void ParseJenkinsLog(const std::string& content, std::vector<WorkflowEvent>& events);
 void ParseDockerBuildLog(const std::string& content, std::vector<WorkflowEvent>& events);
 
-// Bind data structure for read_workflow_logs
-struct ReadWorkflowLogsBindData : public TableFunctionData {
+// Bind data structure for read_duck_hunt_workflow_log
+struct ReadDuckHuntWorkflowLogBindData : public TableFunctionData {
     std::string source;
     WorkflowLogFormat format;
     
-    ReadWorkflowLogsBindData() {}
+    ReadDuckHuntWorkflowLogBindData() {}
 };
 
-// Global state for read_workflow_logs table function
-struct ReadWorkflowLogsGlobalState : public GlobalTableFunctionState {
+// Global state for read_duck_hunt_workflow_log table function
+struct ReadDuckHuntWorkflowLogGlobalState : public GlobalTableFunctionState {
     std::vector<WorkflowEvent> events;
     idx_t max_threads;
 
-    ReadWorkflowLogsGlobalState() : max_threads(1) {}
+    ReadDuckHuntWorkflowLogGlobalState() : max_threads(1) {}
 };
 
-// Local state for read_workflow_logs table function
-struct ReadWorkflowLogsLocalState : public LocalTableFunctionState {
+// Local state for read_duck_hunt_workflow_log table function
+struct ReadDuckHuntWorkflowLogLocalState : public LocalTableFunctionState {
     idx_t chunk_offset;
     
-    ReadWorkflowLogsLocalState() : chunk_offset(0) {}
+    ReadDuckHuntWorkflowLogLocalState() : chunk_offset(0) {}
 };
 
 // Main table function
-TableFunction GetReadWorkflowLogsFunction();
+TableFunction GetReadDuckHuntWorkflowLogFunction();
 
 // Table function implementation
-unique_ptr<FunctionData> ReadWorkflowLogsBind(ClientContext &context, TableFunctionBindInput &input,
+unique_ptr<FunctionData> ReadDuckHuntWorkflowLogBind(ClientContext &context, TableFunctionBindInput &input,
                                             vector<LogicalType> &return_types, vector<string> &names);
 
-unique_ptr<GlobalTableFunctionState> ReadWorkflowLogsInitGlobal(ClientContext &context, TableFunctionInitInput &input);
+unique_ptr<GlobalTableFunctionState> ReadDuckHuntWorkflowLogInitGlobal(ClientContext &context, TableFunctionInitInput &input);
 
-unique_ptr<LocalTableFunctionState> ReadWorkflowLogsInitLocal(ExecutionContext &context, TableFunctionInitInput &input, 
+unique_ptr<LocalTableFunctionState> ReadDuckHuntWorkflowLogInitLocal(ExecutionContext &context, TableFunctionInitInput &input, 
                                                             GlobalTableFunctionState *global_state);
 
-void ReadWorkflowLogsFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output);
+void ReadDuckHuntWorkflowLogFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output);
 
 } // namespace duckdb

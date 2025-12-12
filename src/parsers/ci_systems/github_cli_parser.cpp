@@ -6,7 +6,7 @@
 namespace duckdb {
 
 bool GitHubCliParser::canParse(const std::string& content) const {
-    return isGitHubRunsList(content) || isGitHubRunView(content) || isGitHubWorkflowLogs(content);
+    return isGitHubRunsList(content) || isGitHubRunView(content) || isGitHubWorkflowLog(content);
 }
 
 bool GitHubCliParser::isGitHubRunsList(const std::string& content) const {
@@ -35,7 +35,7 @@ bool GitHubCliParser::isGitHubRunView(const std::string& content) const {
     return std::regex_search(content, job_pattern);
 }
 
-bool GitHubCliParser::isGitHubWorkflowLogs(const std::string& content) const {
+bool GitHubCliParser::isGitHubWorkflowLog(const std::string& content) const {
     // Check for GitHub Actions workflow log patterns
     if (content.find("##[group]") != std::string::npos ||
         content.find("##[endgroup]") != std::string::npos ||
@@ -65,8 +65,8 @@ std::vector<ValidationEvent> GitHubCliParser::parse(const std::string& content) 
         return parseRunsList(content);
     } else if (isGitHubRunView(content)) {
         return parseRunView(content);
-    } else if (isGitHubWorkflowLogs(content)) {
-        return parseWorkflowLogs(content);
+    } else if (isGitHubWorkflowLog(content)) {
+        return parseWorkflowLog(content);
     }
     
     return {};
@@ -209,7 +209,7 @@ std::vector<ValidationEvent> GitHubCliParser::parseRunView(const std::string& co
     return events;
 }
 
-std::vector<ValidationEvent> GitHubCliParser::parseWorkflowLogs(const std::string& content) const {
+std::vector<ValidationEvent> GitHubCliParser::parseWorkflowLog(const std::string& content) const {
     std::vector<ValidationEvent> events;
     std::istringstream stream(content);
     std::string line;

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "validation_event_types.hpp"
-#include "read_workflow_logs_function.hpp"
+#include "read_duck_hunt_workflow_log_function.hpp"
 #include "duckdb/common/types.hpp"
 #include <string>
 #include <vector>
@@ -24,7 +24,7 @@ public:
     virtual WorkflowLogFormat getFormat() const = 0;
     
     // Parse workflow logs into events with hierarchical structure
-    virtual std::vector<WorkflowEvent> parseWorkflowLogs(const std::string& content) const = 0;
+    virtual std::vector<WorkflowEvent> parseWorkflowLog(const std::string& content) const = 0;
     
     // Get parser priority (higher = checked first)
     virtual int getPriority() const { return 100; }

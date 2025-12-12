@@ -1,5 +1,5 @@
 #include "github_actions_parser.hpp"
-#include "read_workflow_logs_function.hpp"
+#include "read_duck_hunt_workflow_log_function.hpp"
 #include "duckdb/common/string_util.hpp"
 #include <sstream>
 
@@ -19,7 +19,7 @@ bool GitHubActionsParser::canParse(const std::string& content) const {
     }
 }
 
-std::vector<WorkflowEvent> GitHubActionsParser::parseWorkflowLogs(const std::string& content) const {
+std::vector<WorkflowEvent> GitHubActionsParser::parseWorkflowLog(const std::string& content) const {
     std::vector<WorkflowEvent> events;
     
     try {
@@ -392,7 +392,7 @@ std::vector<WorkflowEvent> GitHubActionsParser::convertToEvents(const std::vecto
     return events;
 }
 
-// NOTE: Parser registration is handled manually in ReadWorkflowLogsInitGlobal
+// NOTE: Parser registration is handled manually in ReadDuckHuntWorkflowLogInitGlobal
 // to avoid static initialization order issues across platforms.
 // Do not use REGISTER_WORKFLOW_PARSER macro here.
 

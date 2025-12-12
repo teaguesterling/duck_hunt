@@ -1,5 +1,5 @@
 #include "docker_parser.hpp"
-#include "read_workflow_logs_function.hpp"
+#include "read_duck_hunt_workflow_log_function.hpp"
 #include "duckdb/common/string_util.hpp"
 #include <sstream>
 
@@ -18,7 +18,7 @@ bool DockerParser::canParse(const std::string& content) const {
            content.find("Sending build context") != std::string::npos;
 }
 
-std::vector<WorkflowEvent> DockerParser::parseWorkflowLogs(const std::string& content) const {
+std::vector<WorkflowEvent> DockerParser::parseWorkflowLog(const std::string& content) const {
     std::vector<WorkflowEvent> events;
     
     // Parse builds and stages
@@ -365,7 +365,7 @@ std::vector<WorkflowEvent> DockerParser::convertToEvents(const std::vector<Docke
     return events;
 }
 
-// NOTE: Parser registration is handled manually in ReadWorkflowLogsInitGlobal
+// NOTE: Parser registration is handled manually in ReadDuckHuntWorkflowLogInitGlobal
 // to avoid static initialization order issues across platforms.
 // Do not use REGISTER_WORKFLOW_PARSER macro here.
 

@@ -1,4 +1,4 @@
-#include "read_workflow_logs_function.hpp"
+#include "read_duck_hunt_workflow_log_function.hpp"
 #include "read_duck_hunt_log_function.hpp"
 #include "workflow_engine_interface.hpp"
 
@@ -88,14 +88,14 @@ WorkflowLogFormat DetectWorkflowLogFormat(const std::string& content) {
 }
 
 
-// Bind function for read_workflow_logs
-unique_ptr<FunctionData> ReadWorkflowLogsBind(ClientContext &context, TableFunctionBindInput &input,
+// Bind function for read_duck_hunt_workflow_log
+unique_ptr<FunctionData> ReadDuckHuntWorkflowLogBind(ClientContext &context, TableFunctionBindInput &input,
                                             vector<LogicalType> &return_types, vector<string> &names) {
-    auto bind_data = make_uniq<ReadWorkflowLogsBindData>();
+    auto bind_data = make_uniq<ReadDuckHuntWorkflowLogBindData>();
     
     // Get source parameter (required)
     if (input.inputs.empty()) {
-        throw BinderException("read_workflow_logs requires at least one parameter (source)");
+        throw BinderException("read_duck_hunt_workflow_log requires at least one parameter (source)");
     }
     bind_data->source = input.inputs[0].ToString();
     
@@ -173,10 +173,10 @@ unique_ptr<FunctionData> ReadWorkflowLogsBind(ClientContext &context, TableFunct
     return std::move(bind_data);
 }
 
-// Global initialization for read_workflow_logs
-unique_ptr<GlobalTableFunctionState> ReadWorkflowLogsInitGlobal(ClientContext &context, TableFunctionInitInput &input) {
-    auto &bind_data = input.bind_data->Cast<ReadWorkflowLogsBindData>();
-    auto global_state = make_uniq<ReadWorkflowLogsGlobalState>();
+// Global initialization for read_duck_hunt_workflow_log
+unique_ptr<GlobalTableFunctionState> ReadDuckHuntWorkflowLogInitGlobal(ClientContext &context, TableFunctionInitInput &input) {
+    auto &bind_data = input.bind_data->Cast<ReadDuckHuntWorkflowLogBindData>();
+    auto global_state = make_uniq<ReadDuckHuntWorkflowLogGlobalState>();
 
     // Read source content
     std::string content;
@@ -229,24 +229,24 @@ unique_ptr<GlobalTableFunctionState> ReadWorkflowLogsInitGlobal(ClientContext &c
 
     if (parser_ptr) {
         // Parse using the found parser
-        std::vector<WorkflowEvent> parsed_events = parser_ptr->parseWorkflowLogs(content);
+        std::vector<WorkflowEvent> parsed_events = parser_ptr->parseWorkflowLog(content);
         global_state->events = std::move(parsed_events);
     }
 
     return std::move(global_state);
 }
 
-// Local initialization for read_workflow_logs
-unique_ptr<LocalTableFunctionState> ReadWorkflowLogsInitLocal(ExecutionContext &context, TableFunctionInitInput &input, 
+// Local initialization for read_duck_hunt_workflow_log
+unique_ptr<LocalTableFunctionState> ReadDuckHuntWorkflowLogInitLocal(ExecutionContext &context, TableFunctionInitInput &input, 
                                                             GlobalTableFunctionState *global_state) {
-    return make_uniq<ReadWorkflowLogsLocalState>();
+    return make_uniq<ReadDuckHuntWorkflowLogLocalState>();
 }
 
 // Main table function implementation
-void ReadWorkflowLogsFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output) {
-    auto &bind_data = data_p.bind_data->Cast<ReadWorkflowLogsBindData>();
-    auto &global_state = data_p.global_state->Cast<ReadWorkflowLogsGlobalState>();
-    auto &local_state = data_p.local_state->Cast<ReadWorkflowLogsLocalState>();
+void ReadDuckHuntWorkflowLogFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output) {
+    auto &bind_data = data_p.bind_data->Cast<ReadDuckHuntWorkflowLogBindData>();
+    auto &global_state = data_p.global_state->Cast<ReadDuckHuntWorkflowLogGlobalState>();
+    auto &local_state = data_p.local_state->Cast<ReadDuckHuntWorkflowLogLocalState>();
 
     idx_t current_row = local_state.chunk_offset;
     idx_t events_count = global_state.events.size();
@@ -317,9 +317,9 @@ void ReadWorkflowLogsFunction(ClientContext &context, TableFunctionInput &data_p
 }
 
 // Create the table function
-TableFunction GetReadWorkflowLogsFunction() {
-    TableFunction function("read_workflow_logs", {LogicalType::VARCHAR, LogicalType::VARCHAR}, 
-                          ReadWorkflowLogsFunction, ReadWorkflowLogsBind, ReadWorkflowLogsInitGlobal, ReadWorkflowLogsInitLocal);
+TableFunction GetReadDuckHuntWorkflowLogFunction() {
+    TableFunction function("read_duck_hunt_workflow_log", {LogicalType::VARCHAR, LogicalType::VARCHAR}, 
+                          ReadDuckHuntWorkflowLogFunction, ReadDuckHuntWorkflowLogBind, ReadDuckHuntWorkflowLogInitGlobal, ReadDuckHuntWorkflowLogInitLocal);
     
     return function;
 }

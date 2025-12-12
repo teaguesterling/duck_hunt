@@ -98,8 +98,8 @@ set(EXTENSION_SOURCES
     src/parsers/infrastructure_tools/ansible_text_parser.cpp
     
     # Phase 3: Workflow Engine Implementation
-    src/read_workflow_logs_function.cpp
-    src/parse_workflow_logs_function.cpp
+    src/read_duck_hunt_workflow_log_function.cpp
+    src/parse_duck_hunt_workflow_log_function.cpp
     src/workflow_engine_interface.cpp
     src/parsers/workflow_engines/github_actions_parser.cpp
     src/parsers/workflow_engines/gitlab_ci_parser.cpp

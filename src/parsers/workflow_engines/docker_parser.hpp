@@ -9,7 +9,7 @@ class DockerParser : public WorkflowEngineParser {
 public:
     bool canParse(const std::string& content) const override;
     WorkflowLogFormat getFormat() const override { return WorkflowLogFormat::DOCKER_BUILD; }
-    std::vector<WorkflowEvent> parseWorkflowLogs(const std::string& content) const override;
+    std::vector<WorkflowEvent> parseWorkflowLog(const std::string& content) const override;
     int getPriority() const override { return 120; } // High priority for Docker builds
     std::string getName() const override { return "DockerParser"; }
 

@@ -9,8 +9,8 @@
 
 // Duck Hunt specific includes
 #include "include/read_duck_hunt_log_function.hpp"
-#include "include/read_workflow_logs_function.hpp"
-#include "include/parse_workflow_logs_function.hpp"
+#include "include/read_duck_hunt_workflow_log_function.hpp"
+#include "include/parse_duck_hunt_workflow_log_function.hpp"
 #include "include/validation_event_types.hpp"
 #include "include/status_badge_function.hpp"
 #include "core/parser_registry.hpp"
@@ -93,11 +93,11 @@ static void LoadInternal(ExtensionLoader &loader) {
 	loader.RegisterFunction(parse_duck_hunt_log_function);
 	
 	// Phase 3: Register workflow log parsing functions
-	auto read_workflow_logs_function = GetReadWorkflowLogsFunction();
-	loader.RegisterFunction(read_workflow_logs_function);
+	auto read_duck_hunt_workflow_log_function = GetReadDuckHuntWorkflowLogFunction();
+	loader.RegisterFunction(read_duck_hunt_workflow_log_function);
 	
-	auto parse_workflow_logs_function = GetParseWorkflowLogsFunction();
-	loader.RegisterFunction(parse_workflow_logs_function);
+	auto parse_duck_hunt_workflow_log_function = GetParseDuckHuntWorkflowLogFunction();
+	loader.RegisterFunction(parse_duck_hunt_workflow_log_function);
 
 	// Register scalar utility functions
 	auto status_badge_function = GetStatusBadgeFunction();

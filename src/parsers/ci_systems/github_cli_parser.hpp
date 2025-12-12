@@ -23,11 +23,11 @@ public:
 private:
     bool isGitHubRunsList(const std::string& content) const;
     bool isGitHubRunView(const std::string& content) const;
-    bool isGitHubWorkflowLogs(const std::string& content) const;
+    bool isGitHubWorkflowLog(const std::string& content) const;
     
     std::vector<ValidationEvent> parseRunsList(const std::string& content) const;
     std::vector<ValidationEvent> parseRunView(const std::string& content) const;
-    std::vector<ValidationEvent> parseWorkflowLogs(const std::string& content) const;
+    std::vector<ValidationEvent> parseWorkflowLog(const std::string& content) const;
 };
 
 } // namespace duckdb

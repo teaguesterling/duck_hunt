@@ -1,5 +1,5 @@
 #include "workflow_engine_interface.hpp"
-#include "read_workflow_logs_function.hpp"
+#include "read_duck_hunt_workflow_log_function.hpp"
 #include "validation_event_types.hpp"
 #include "duckdb/common/string_util.hpp"
 #include <algorithm>

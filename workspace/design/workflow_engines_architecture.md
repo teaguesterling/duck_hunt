@@ -38,13 +38,13 @@ FROM read_duck_hunt_log('https://api.github.com/repos/.../logs', 'github-ci') AS
 ### Option 3: Separate Workflow Functions (Selected)
 ```sql
 SELECT unnest(parse_duck_hunt_log(w.stage_log, w.stage_type), recursive:=true) 
-FROM read_workflow_logs('https://api.github.com/repos/.../logs', 'github-ci') AS w
+FROM read_duck_hunt_workflow_log('https://api.github.com/repos/.../logs', 'github-ci') AS w
 ```
 **Benefits**: Clean separation, clear semantics, flexible, composable
 
 ## Implementation Design
 
-### New Function: `read_workflow_logs()`
+### New Function: `read_duck_hunt_workflow_log()`
 
 ```sql
 CREATE TYPE WorkflowStep AS (
@@ -71,7 +71,7 @@ SELECT
     status, 
     duration,
     runner_info
-FROM read_workflow_logs('https://api.github.com/repos/.../logs', 'github-ci');
+FROM read_duck_hunt_workflow_log('https://api.github.com/repos/.../logs', 'github-ci');
 ```
 
 #### Tool-level Analysis  
@@ -80,7 +80,7 @@ FROM read_workflow_logs('https://api.github.com/repos/.../logs', 'github-ci');
 SELECT 
     w.stage_name,
     tool_results.*
-FROM read_workflow_logs('https://api.github.com/repos/.../logs', 'github-ci') AS w
+FROM read_duck_hunt_workflow_log('https://api.github.com/repos/.../logs', 'github-ci') AS w
 CROSS JOIN LATERAL parse_duck_hunt_log(w.stage_log, w.stage_type) AS tool_results
 WHERE w.stage_type != 'infrastructure';
 ```
@@ -90,7 +90,7 @@ WHERE w.stage_type != 'infrastructure';
 -- Workflow context + tool details
 WITH failed_stages AS (
     SELECT stage_name, stage_log, stage_type 
-    FROM read_workflow_logs('...', 'github-ci') 
+    FROM read_duck_hunt_workflow_log('...', 'github-ci') 
     WHERE status = 'failed'
 )
 SELECT 
@@ -109,7 +109,7 @@ WHERE t.status = 'ERROR';
 ### Direct API Access via DuckDB httpfs
 ```sql
 -- Real-time CI/CD analytics
-SELECT * FROM read_workflow_logs(
+SELECT * FROM read_duck_hunt_workflow_log(
     'https://api.github.com/repos/teaguesterling/duck_hunt/actions/jobs/46423679607/logs', 
     'github-actions'
 );
@@ -118,7 +118,7 @@ SELECT * FROM read_workflow_logs(
 ### Authentication Support
 ```sql
 SET httpfs_token = 'ghp_xxxxxxxxxxxx';
-SELECT * FROM read_workflow_logs(
+SELECT * FROM read_duck_hunt_workflow_log(
     'https://api.github.com/repos/private/repo/actions/jobs/123/logs', 
     'github-actions'
 );
@@ -127,7 +127,7 @@ SELECT * FROM read_workflow_logs(
 ## Implementation Phases
 
 ### Phase 1: GitHub Actions
-- Create `read_workflow_logs` function
+- Create `read_duck_hunt_workflow_log` function
 - Parse GitHub Actions markers (`##[group]`, `[command]`)
 - Extract stage boundaries and metadata
 - Support API authentication

@@ -21,7 +21,7 @@ int main() {
     const auto* found_parser = registry.findParser(test_content);
     if (found_parser) {
         std::cout << "Found parser: " << found_parser->getName() << std::endl;
-        auto events = found_parser->parseWorkflowLogs(test_content);
+        auto events = found_parser->parseWorkflowLog(test_content);
         std::cout << "Parser returned " << events.size() << " events." << std::endl;
     } else {
         std::cout << "No parser found for this content." << std::endl;

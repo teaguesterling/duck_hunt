@@ -1,5 +1,5 @@
 #include "gitlab_ci_parser.hpp"
-#include "read_workflow_logs_function.hpp"
+#include "read_duck_hunt_workflow_log_function.hpp"
 #include "duckdb/common/string_util.hpp"
 #include <sstream>
 
@@ -15,7 +15,7 @@ bool GitLabCIParser::canParse(const std::string& content) const {
            content.find("Job succeeded") != std::string::npos;
 }
 
-std::vector<WorkflowEvent> GitLabCIParser::parseWorkflowLogs(const std::string& content) const {
+std::vector<WorkflowEvent> GitLabCIParser::parseWorkflowLog(const std::string& content) const {
     std::vector<WorkflowEvent> events;
     
     // Extract workflow metadata
@@ -287,7 +287,7 @@ std::vector<WorkflowEvent> GitLabCIParser::convertToEvents(const std::vector<Git
     return events;
 }
 
-// NOTE: Parser registration is handled manually in ReadWorkflowLogsInitGlobal
+// NOTE: Parser registration is handled manually in ReadDuckHuntWorkflowLogInitGlobal
 // to avoid static initialization order issues across platforms.
 // Do not use REGISTER_WORKFLOW_PARSER macro here.
 

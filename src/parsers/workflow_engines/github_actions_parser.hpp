@@ -9,7 +9,7 @@ class GitHubActionsParser : public WorkflowEngineParser {
 public:
     bool canParse(const std::string& content) const override;
     WorkflowLogFormat getFormat() const override { return WorkflowLogFormat::GITHUB_ACTIONS; }
-    std::vector<WorkflowEvent> parseWorkflowLogs(const std::string& content) const override;
+    std::vector<WorkflowEvent> parseWorkflowLog(const std::string& content) const override;
     int getPriority() const override { return 150; } // High priority for GitHub Actions
     std::string getName() const override { return "GitHubActionsParser"; }
 

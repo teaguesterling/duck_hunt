@@ -1,5 +1,5 @@
 #include "jenkins_parser.hpp"
-#include "read_workflow_logs_function.hpp"
+#include "read_duck_hunt_workflow_log_function.hpp"
 #include "duckdb/common/string_util.hpp"
 #include <sstream>
 
@@ -17,7 +17,7 @@ bool JenkinsParser::canParse(const std::string& content) const {
             (content.find("Build") != std::string::npos || content.find("Job") != std::string::npos));
 }
 
-std::vector<WorkflowEvent> JenkinsParser::parseWorkflowLogs(const std::string& content) const {
+std::vector<WorkflowEvent> JenkinsParser::parseWorkflowLog(const std::string& content) const {
     std::vector<WorkflowEvent> events;
     
     // Extract workflow metadata
@@ -313,7 +313,7 @@ std::vector<WorkflowEvent> JenkinsParser::convertToEvents(const std::vector<Jenk
     return events;
 }
 
-// NOTE: Parser registration is handled manually in ReadWorkflowLogsInitGlobal
+// NOTE: Parser registration is handled manually in ReadDuckHuntWorkflowLogInitGlobal
 // to avoid static initialization order issues across platforms.
 // Do not use REGISTER_WORKFLOW_PARSER macro here.
 
