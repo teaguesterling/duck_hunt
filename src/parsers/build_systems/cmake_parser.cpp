@@ -6,9 +6,10 @@
 namespace duck_hunt {
 
 bool CMakeParser::CanParse(const std::string& content) const {
-    // Check for CMake patterns
+    // Check for CMake patterns (including "CMake Deprecation Warning", "CMake Developer Warning", etc.)
+    bool has_cmake_warning = (content.find("CMake") != std::string::npos && content.find("Warning") != std::string::npos);
     return (content.find("CMake Error") != std::string::npos) ||
-           (content.find("CMake Warning") != std::string::npos) ||
+           has_cmake_warning ||
            (content.find("undefined reference") != std::string::npos) ||
            (content.find("collect2: error:") != std::string::npos) ||
            (content.find("gmake[") != std::string::npos && content.find("Error") != std::string::npos) ||
@@ -93,8 +94,8 @@ void CMakeParser::ParseCMakeBuild(const std::string& content, std::vector<duckdb
             
             events.push_back(event);
         }
-        // Parse CMake warnings
-        else if (line.find("CMake Warning") != std::string::npos) {
+        // Parse CMake warnings (including "CMake Warning", "CMake Deprecation Warning", "CMake Developer Warning")
+        else if (line.find("CMake") != std::string::npos && line.find("Warning") != std::string::npos) {
             duckdb::ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = "cmake";
