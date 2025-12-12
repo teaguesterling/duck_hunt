@@ -19,61 +19,75 @@ Duck Hunt provides powerful SQL-based analysis of development tool outputs throu
 - **`status_badge(error_count, warning_count)`** - Compute badge from error/warning counts
 - **`status_badge(error_count, warning_count, is_running)`** - Compute badge with running state
 
-### Supported Formats (45 Total)
+### Supported Formats
 
-#### Dynamic Pattern Matching
-- **`regexp:<pattern>`** - Custom regex patterns with named capture groups for parsing any log format
-
-#### Test Frameworks (9 Total)
-- **pytest** (JSON & text output)
-- **Go test** (JSON output) 
-- **Cargo test** (Rust JSON output)
-- **JUnit** (Java text output - JUnit 4/5, TestNG, Surefire, Gradle test results)
-- **RSpec** (Ruby text output - examples, failures, pending tests, execution times)
-- **Mocha/Chai** (JavaScript text output - context parsing, assertion failures, summary statistics)
-- **Google Test** (C++ console output - test suites, individual results, failure details)
-- **NUnit/xUnit** (C#/.NET console output - dual framework support, test summaries, stack traces)
-- **DuckDB test output** (custom format)
-
-#### Linting & Static Analysis Tools
-- **ESLint** (JavaScript/TypeScript)
-- **RuboCop** (Ruby)
-- **SwiftLint** (Swift)
-- **PHPStan** (PHP)
-- **Shellcheck** (Shell scripts)
-- **Stylelint** (CSS/SCSS)
-- **Clippy** (Rust)
-- **Markdownlint** (Markdown)
-- **yamllint** (YAML)
-- **Bandit** (Python security)
-- **SpotBugs** (Java)
-- **ktlint** (Kotlin)
-- **Hadolint** (Dockerfile)
-- **lintr** (R)
-- **sqlfluff** (SQL)
-- **tflint** (Terraform)
-
-#### Build Systems & DevOps Tools
-- **CMake** build output (errors, warnings, configuration issues)
-- **GNU Make** build output (compilation errors, linking issues, target failures)
-- **Python builds** (pip, setuptools, pytest, wheel building)
-- **Node.js builds** (npm, yarn, webpack, jest, eslint)
-- **Cargo builds** (Rust compilation, testing, clippy, formatting)
-- **Maven builds** (Java compilation, JUnit testing, checkstyle, spotbugs, PMD)
-- **Gradle builds** (Java/Android compilation, testing, checkstyle, spotbugs, android lint)
-- **MSBuild** (C#/.NET compilation, xUnit testing, code analyzers)
-- **kube-score** (Kubernetes manifests)
-- **Generic lint** (fallback parser for common error formats)
-
-#### Debugging & Analysis Tools
-- **Valgrind** (Memcheck, Helgrind, Cachegrind, Massif, DRD - memory analysis and thread debugging)
-- **GDB/LLDB** (Debugger output - crashes, breakpoints, stack traces, memory errors)
-
-#### CI/CD & Workflow Engines (4 Total)
-- **GitHub Actions** (Workflow logs with jobs, steps, and hierarchical structure)
-- **GitLab CI** (Pipeline logs with stages, jobs, and execution flow)
-- **Jenkins** (Build logs with stages, steps, and console output)
-- **Docker** (Build logs with layered structure and commands)
+| Format String | Tool | Description |
+|---------------|------|-------------|
+| `auto` | Auto-detect | Automatically detect format from content |
+| `regexp:<pattern>` | Dynamic | Custom regex with named capture groups |
+| **Test Frameworks** | | |
+| `pytest_json` | pytest | Python test framework JSON output |
+| `pytest_text` | pytest | Python test framework text output |
+| `gotest_json` | Go test | Go testing framework JSON output |
+| `cargo_test_json` | Cargo test | Rust test framework JSON output |
+| `junit_text` | JUnit | Java JUnit 4/5, TestNG, Surefire text output |
+| `rspec_text` | RSpec | Ruby test framework text output |
+| `mocha_chai_text` | Mocha/Chai | JavaScript test framework text output |
+| `gtest_text` | Google Test | C++ test framework text output |
+| `nunit_xunit_text` | NUnit/xUnit | .NET test frameworks text output |
+| `duckdb_test` | DuckDB | DuckDB test runner output |
+| **Linting & Static Analysis** | | |
+| `eslint_json` | ESLint | JavaScript/TypeScript linter JSON |
+| `rubocop_json` | RuboCop | Ruby linter JSON |
+| `swiftlint_json` | SwiftLint | Swift linter JSON |
+| `phpstan_json` | PHPStan | PHP static analyzer JSON |
+| `shellcheck_json` | Shellcheck | Shell script linter JSON |
+| `stylelint_json` | Stylelint | CSS/SCSS linter JSON |
+| `clippy_json` | Clippy | Rust linter JSON |
+| `markdownlint_json` | Markdownlint | Markdown linter JSON |
+| `yamllint_json` | yamllint | YAML linter JSON |
+| `bandit_json` | Bandit | Python security linter JSON |
+| `bandit_text` | Bandit | Python security linter text |
+| `spotbugs_json` | SpotBugs | Java bug finder JSON |
+| `ktlint_json` | ktlint | Kotlin linter JSON |
+| `hadolint_json` | Hadolint | Dockerfile linter JSON |
+| `lintr_json` | lintr | R linter JSON |
+| `sqlfluff_json` | sqlfluff | SQL linter JSON |
+| `tflint_json` | tflint | Terraform linter JSON |
+| `pylint_text` | Pylint | Python linter text output |
+| `flake8_text` | Flake8 | Python style checker text |
+| `black_text` | Black | Python formatter text |
+| `mypy_text` | MyPy | Python type checker text |
+| `isort_text` | isort | Python import sorter text |
+| `autopep8_text` | autopep8 | Python formatter text |
+| `yapf_text` | YAPF | Python formatter text |
+| `clang_tidy_text` | clang-tidy | C/C++ linter text |
+| `kube_score_json` | kube-score | Kubernetes manifest analyzer JSON |
+| `generic_lint` | Generic | Fallback for `file:line:col: severity: msg` format |
+| **Build Systems** | | |
+| `cmake_build` | CMake | CMake build output |
+| `make_error` | GNU Make | Make build errors and warnings |
+| `python_build` | Python | pip, setuptools, wheel build output |
+| `node_build` | Node.js | npm, yarn, webpack build output |
+| `cargo_build` | Cargo | Rust build output |
+| `maven_build` | Maven | Java Maven build output |
+| `gradle_build` | Gradle | Java/Android Gradle build output |
+| `msbuild` | MSBuild | .NET build output |
+| `bazel_build` | Bazel | Bazel build output |
+| `docker_build` | Docker | Docker build output |
+| **Debugging & Coverage** | | |
+| `valgrind` | Valgrind | Memory analyzer (Memcheck, Helgrind, etc.) |
+| `gdb_lldb` | GDB/LLDB | Debugger output (crashes, stack traces) |
+| `coverage_text` | Coverage | Code coverage text output |
+| `pytest_cov_text` | pytest-cov | pytest coverage text output |
+| **CI/CD & Infrastructure** | | |
+| `github_actions_text` | GitHub Actions | Workflow log output |
+| `github_cli` | GitHub CLI | gh command output |
+| `gitlab_ci_text` | GitLab CI | Pipeline log output |
+| `jenkins_text` | Jenkins | Build log output |
+| `drone_ci_text` | Drone CI | Pipeline log output |
+| `terraform_text` | Terraform | Infrastructure tool output |
+| `ansible_text` | Ansible | Playbook execution output |
 
 ## Schema
 
