@@ -8,9 +8,15 @@ Duck Hunt provides powerful SQL-based analysis of development tool outputs throu
 
 ### Core Functions
 
+#### Table Functions
 - **`read_duck_hunt_log(file_path, format := 'AUTO')`** - Parse test results and build outputs from files
 - **`parse_duck_hunt_log(content, format := 'AUTO')`** - Parse test results and build outputs from strings
 - **`read_workflow_logs(file_path, format := 'AUTO')`** - Parse CI/CD workflow logs with hierarchical structure
+
+#### Scalar Functions
+- **`status_badge(status)`** - Convert status string to badge: `[ OK ]`, `[FAIL]`, `[WARN]`, `[ .. ]`, `[ ?? ]`
+- **`status_badge(error_count, warning_count)`** - Compute badge from error/warning counts
+- **`status_badge(error_count, warning_count, is_running)`** - Compute badge with running state
 
 ### Supported Formats (45 Total)
 
@@ -259,6 +265,28 @@ SELECT file_path, line_number, column_number, message, suggestion
 FROM parse_duck_hunt_log(?, 'AUTO')  -- ? = build output from agent
 WHERE event_type = 'BUILD_ERROR' AND category = 'compilation'
 ORDER BY file_path, line_number;
+```
+
+### Status Badges
+```sql
+-- Add status badges to build summaries
+SELECT status_badge(status) as badge, tool_name, message
+FROM read_duck_hunt_log('build.log', 'auto')
+WHERE status IN ('ERROR', 'WARNING', 'PASS');
+-- Returns: [FAIL] make  undefined reference to 'foo'
+--          [WARN] gcc   unused variable 'x'
+--          [ OK ] test  All tests passed
+
+-- Compute badge from aggregated counts
+SELECT status_badge(
+    COUNT(CASE WHEN status = 'ERROR' THEN 1 END),
+    COUNT(CASE WHEN status = 'WARNING' THEN 1 END)
+) as overall_status
+FROM read_duck_hunt_log('build.log', 'auto');
+-- Returns: [FAIL] if any errors, [WARN] if warnings only, [ OK ] otherwise
+
+-- Show running status for live builds
+SELECT status_badge(0, 0, true) as status;  -- Returns: [ .. ]
 ```
 
 ### CI/CD Workflow Log Analysis
