@@ -93,10 +93,7 @@ All parsers produce a standardized schema:
 
 ```sql
 -- From source build
-LOAD './build/release/extension/duck_hunt/duck_hunt.duckdb_extension';
-
--- Or with unsigned extensions enabled
-SET allow_unsigned_extensions = true;
+INSTALL duck_hunt FROM community;
 LOAD duck_hunt;
 ```
 
