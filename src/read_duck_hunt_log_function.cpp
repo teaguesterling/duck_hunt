@@ -835,7 +835,7 @@ TestResultFormat StringToTestResultFormat(const std::string& str) {
     if (str == "terraform_text") return TestResultFormat::TERRAFORM_TEXT;
     if (str == "ansible_text") return TestResultFormat::ANSIBLE_TEXT;
     if (str == "unknown") return TestResultFormat::UNKNOWN;
-    return TestResultFormat::AUTO;  // Default to auto-detection
+    return TestResultFormat::UNKNOWN;  // Unknown format string
 }
 
 std::string ReadContentFromSource(ClientContext& context, const std::string& source) {
@@ -885,6 +885,11 @@ unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFuncti
         std::string format_str = input.inputs[1].ToString();
         bind_data->format = StringToTestResultFormat(format_str);
 
+        // Check for unknown format
+        if (bind_data->format == TestResultFormat::UNKNOWN) {
+            throw BinderException("Unknown format: '" + format_str + "'. Use 'auto' for auto-detection or see docs/formats.md for supported formats.");
+        }
+
         // For REGEXP format, extract the pattern after the "regexp:" prefix
         if (bind_data->format == TestResultFormat::REGEXP) {
             if (format_str.length() <= 7) {
@@ -915,6 +920,9 @@ unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFuncti
         LogicalType::DOUBLE,   // execution_time
         LogicalType::VARCHAR,  // raw_output
         LogicalType::VARCHAR,  // structured_data
+        // Log line tracking
+        LogicalType::INTEGER,  // log_line_start
+        LogicalType::INTEGER,  // log_line_end
         // Phase 3A: Multi-file processing metadata
         LogicalType::VARCHAR,  // source_file
         LogicalType::VARCHAR,  // build_id
@@ -926,12 +934,14 @@ unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFuncti
         LogicalType::BIGINT,   // pattern_id
         LogicalType::VARCHAR   // root_cause_category
     };
-    
+
     names = {
         "event_id", "tool_name", "event_type", "file_path", "line_number",
         "column_number", "function_name", "status", "severity", "category",
         "message", "suggestion", "error_code", "test_name", "execution_time",
         "raw_output", "structured_data",
+        // Log line tracking
+        "log_line_start", "log_line_end",
         // Phase 3A: Multi-file processing metadata
         "source_file", "build_id", "environment", "file_index",
         // Phase 3B: Error pattern analysis
@@ -1429,6 +1439,9 @@ void PopulateDataChunkFromEvents(DataChunk &output, const std::vector<Validation
         output.SetValue(col++, i, Value::DOUBLE(event.execution_time));
         output.SetValue(col++, i, Value(event.raw_output));
         output.SetValue(col++, i, Value(event.structured_data));
+        // Log line tracking
+        output.SetValue(col++, i, event.log_line_start == -1 ? Value() : Value::INTEGER(event.log_line_start));
+        output.SetValue(col++, i, event.log_line_end == -1 ? Value() : Value::INTEGER(event.log_line_end));
         // Phase 3A: Multi-file processing metadata
         output.SetValue(col++, i, Value(event.source_file));
         output.SetValue(col++, i, event.build_id.empty() ? Value() : Value(event.build_id));
@@ -2385,6 +2398,11 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
         std::string format_str = input.inputs[1].ToString();
         bind_data->format = StringToTestResultFormat(format_str);
 
+        // Check for unknown format
+        if (bind_data->format == TestResultFormat::UNKNOWN) {
+            throw BinderException("Unknown format: '" + format_str + "'. Use 'auto' for auto-detection or see docs/formats.md for supported formats.");
+        }
+
         // For REGEXP format, extract the pattern after the "regexp:" prefix
         if (bind_data->format == TestResultFormat::REGEXP) {
             if (format_str.length() <= 7) {
@@ -2415,6 +2433,9 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
         LogicalType::DOUBLE,   // execution_time
         LogicalType::VARCHAR,  // raw_output
         LogicalType::VARCHAR,  // structured_data
+        // Log line tracking
+        LogicalType::INTEGER,  // log_line_start
+        LogicalType::INTEGER,  // log_line_end
         // Phase 3A: Multi-file processing metadata
         LogicalType::VARCHAR,  // source_file
         LogicalType::VARCHAR,  // build_id
@@ -2426,12 +2447,14 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
         LogicalType::BIGINT,   // pattern_id
         LogicalType::VARCHAR   // root_cause_category
     };
-    
+
     names = {
         "event_id", "tool_name", "event_type", "file_path", "line_number",
         "column_number", "function_name", "status", "severity", "category",
         "message", "suggestion", "error_code", "test_name", "execution_time",
         "raw_output", "structured_data",
+        // Log line tracking
+        "log_line_start", "log_line_end",
         // Phase 3A: Multi-file processing metadata
         "source_file", "build_id", "environment", "file_index",
         // Phase 3B: Error pattern analysis

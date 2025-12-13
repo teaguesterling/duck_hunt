@@ -1,0 +1,48 @@
+# name: test/sql/invalid_format.test
+# description: test that invalid format strings throw errors
+# group: [sql]
+
+require duck_hunt
+
+# Test 1: Invalid format for read_duck_hunt_log should throw error
+statement error
+SELECT * FROM read_duck_hunt_log('test/samples/pytest.json', 'invalid_format');
+
+# Test 2: Invalid format for parse_duck_hunt_log should throw error
+statement error
+SELECT * FROM parse_duck_hunt_log('some content', 'bogus_format');
+
+# Test 3: Invalid format for read_duck_hunt_workflow_log should throw error
+statement error
+SELECT * FROM read_duck_hunt_workflow_log('test/samples/github_actions.log', 'not_a_real_format');
+
+# Test 4: Invalid format for parse_duck_hunt_workflow_log should throw error
+statement error
+SELECT * FROM parse_duck_hunt_workflow_log('some content', 'fake_workflow_format');
+
+# Test 5: Valid formats should still work (auto)
+statement ok
+CREATE TABLE test_auto AS SELECT * FROM read_duck_hunt_log('test/samples/pytest.json', 'auto');
+
+query I
+SELECT COUNT(*) FROM test_auto;
+----
+3
+
+# Test 6: Valid formats should still work (explicit)
+statement ok
+CREATE TABLE test_explicit AS SELECT * FROM read_duck_hunt_log('test/samples/pytest.json', 'pytest_json');
+
+query I
+SELECT COUNT(*) FROM test_explicit;
+----
+3
+
+# Test 7: Workflow valid format should work
+statement ok
+CREATE TABLE test_workflow AS SELECT * FROM read_duck_hunt_workflow_log('test/samples/github_actions.log', 'github_actions');
+
+query I
+SELECT COUNT(*) > 0 FROM test_workflow;
+----
+true

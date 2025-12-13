@@ -1,6 +1,6 @@
 # Schema Reference
 
-All Duck Hunt parsers output a standardized `ValidationEvent` schema with 38 fields organized into logical groups.
+All Duck Hunt parsers output a standardized `ValidationEvent` schema with 40 fields organized into logical groups.
 
 ## Core Fields
 
@@ -25,6 +25,30 @@ Essential fields present in most events.
 | `execution_time` | DOUBLE | Execution time in seconds |
 | `raw_output` | VARCHAR | Original raw output line |
 | `structured_data` | VARCHAR | Additional JSON metadata |
+
+## Log Line Tracking Fields
+
+Fields for tracking where each event originated within the source log file. Useful for context retrieval and drill-down workflows.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `log_line_start` | INTEGER | 1-indexed line number where event starts in log file (NULL for structured formats) |
+| `log_line_end` | INTEGER | 1-indexed line number where event ends in log file (NULL for structured formats) |
+
+**Note:** `line_number` refers to the source code line (e.g., line 15 in `main.c`), while `log_line_start`/`log_line_end` track the position within the log file itself.
+
+**Example:**
+```sql
+-- Get context around an error
+SELECT log_line_start, log_line_end, file_path, line_number, message
+FROM read_duck_hunt_log('build.log', 'make_error')
+WHERE status = 'ERROR';
+```
+
+| log_line_start | log_line_end | file_path | line_number | message |
+|----------------|--------------|-----------|-------------|---------|
+| 2 | 2 | src/main.c | 15 | 'undefined_var' undeclared |
+| 5 | 5 | src/main.c | 28 | unused variable 'temp' |
 
 ## Error Analysis Fields
 

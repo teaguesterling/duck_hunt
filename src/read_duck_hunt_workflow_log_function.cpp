@@ -104,7 +104,13 @@ unique_ptr<FunctionData> ReadDuckHuntWorkflowLogBind(ClientContext &context, Tab
     
     // Get format parameter (optional, defaults to auto)
     if (input.inputs.size() > 1) {
-        bind_data->format = StringToWorkflowLogFormat(input.inputs[1].ToString());
+        std::string format_str = input.inputs[1].ToString();
+        bind_data->format = StringToWorkflowLogFormat(format_str);
+
+        // Check for unknown format
+        if (bind_data->format == WorkflowLogFormat::UNKNOWN) {
+            throw BinderException("Unknown workflow format: '" + format_str + "'. Use 'auto' for auto-detection. Supported: github_actions, gitlab_ci, jenkins, docker_build.");
+        }
     } else {
         bind_data->format = WorkflowLogFormat::AUTO;
     }
@@ -128,6 +134,9 @@ unique_ptr<FunctionData> ReadDuckHuntWorkflowLogBind(ClientContext &context, Tab
         LogicalType::DOUBLE,   // execution_time
         LogicalType::VARCHAR,  // raw_output
         LogicalType::VARCHAR,  // structured_data
+        // Log line tracking
+        LogicalType::INTEGER,  // log_line_start
+        LogicalType::INTEGER,  // log_line_end
         LogicalType::VARCHAR,  // source_file
         LogicalType::VARCHAR,  // build_id
         LogicalType::VARCHAR,  // environment
@@ -136,7 +145,7 @@ unique_ptr<FunctionData> ReadDuckHuntWorkflowLogBind(ClientContext &context, Tab
         LogicalType::DOUBLE,   // similarity_score
         LogicalType::BIGINT,   // pattern_id
         LogicalType::VARCHAR,  // root_cause_category
-        
+
         // Phase 3C: Workflow-specific fields
         LogicalType::VARCHAR,  // workflow_name
         LogicalType::VARCHAR,  // job_name
@@ -159,14 +168,16 @@ unique_ptr<FunctionData> ReadDuckHuntWorkflowLogBind(ClientContext &context, Tab
     
     names = {
         "event_id", "tool_name", "event_type", "file_path", "line_number", "column_number",
-        "function_name", "status", "severity", "category", "message", "suggestion", 
+        "function_name", "status", "severity", "category", "message", "suggestion",
         "error_code", "test_name", "execution_time", "raw_output", "structured_data",
+        // Log line tracking
+        "log_line_start", "log_line_end",
         "source_file", "build_id", "environment", "file_index", "error_fingerprint",
         "similarity_score", "pattern_id", "root_cause_category",
-        
+
         "workflow_name", "job_name", "step_name", "workflow_run_id", "job_id", "step_id",
         "workflow_status", "job_status", "step_status", "started_at", "completed_at", "duration",
-        
+
         "workflow_type", "hierarchy_level", "parent_id"
     };
     
@@ -284,33 +295,36 @@ void ReadDuckHuntWorkflowLogFunction(ClientContext &context, TableFunctionInput 
         output.SetValue(14, i, Value::DOUBLE(base.execution_time));
         output.SetValue(15, i, Value(base.raw_output));
         output.SetValue(16, i, Value(base.structured_data));
-        output.SetValue(17, i, Value(base.source_file));
-        output.SetValue(18, i, Value(base.build_id));
-        output.SetValue(19, i, Value(base.environment));
-        output.SetValue(20, i, Value::BIGINT(base.file_index));
-        output.SetValue(21, i, Value(base.error_fingerprint));
-        output.SetValue(22, i, Value::DOUBLE(base.similarity_score));
-        output.SetValue(23, i, Value::BIGINT(base.pattern_id));
-        output.SetValue(24, i, Value(base.root_cause_category));
+        // Log line tracking
+        output.SetValue(17, i, base.log_line_start == -1 ? Value() : Value::INTEGER(base.log_line_start));
+        output.SetValue(18, i, base.log_line_end == -1 ? Value() : Value::INTEGER(base.log_line_end));
+        output.SetValue(19, i, Value(base.source_file));
+        output.SetValue(20, i, Value(base.build_id));
+        output.SetValue(21, i, Value(base.environment));
+        output.SetValue(22, i, Value::BIGINT(base.file_index));
+        output.SetValue(23, i, Value(base.error_fingerprint));
+        output.SetValue(24, i, Value::DOUBLE(base.similarity_score));
+        output.SetValue(25, i, Value::BIGINT(base.pattern_id));
+        output.SetValue(26, i, Value(base.root_cause_category));
 
         // Map workflow-specific fields from base_event
-        output.SetValue(25, i, Value(base.workflow_name));
-        output.SetValue(26, i, Value(base.job_name));
-        output.SetValue(27, i, Value(base.step_name));
-        output.SetValue(28, i, Value(base.workflow_run_id));
-        output.SetValue(29, i, Value(base.job_id));
-        output.SetValue(30, i, Value(base.step_id));
-        output.SetValue(31, i, Value(base.workflow_status));
-        output.SetValue(32, i, Value(base.job_status));
-        output.SetValue(33, i, Value(base.step_status));
-        output.SetValue(34, i, Value(base.started_at));
-        output.SetValue(35, i, Value(base.completed_at));
-        output.SetValue(36, i, Value::DOUBLE(base.duration));
+        output.SetValue(27, i, Value(base.workflow_name));
+        output.SetValue(28, i, Value(base.job_name));
+        output.SetValue(29, i, Value(base.step_name));
+        output.SetValue(30, i, Value(base.workflow_run_id));
+        output.SetValue(31, i, Value(base.job_id));
+        output.SetValue(32, i, Value(base.step_id));
+        output.SetValue(33, i, Value(base.workflow_status));
+        output.SetValue(34, i, Value(base.job_status));
+        output.SetValue(35, i, Value(base.step_status));
+        output.SetValue(36, i, Value(base.started_at));
+        output.SetValue(37, i, Value(base.completed_at));
+        output.SetValue(38, i, Value::DOUBLE(base.duration));
 
         // Map additional workflow fields from WorkflowEvent
-        output.SetValue(37, i, Value(event.workflow_type));
-        output.SetValue(38, i, Value::INTEGER(event.hierarchy_level));
-        output.SetValue(39, i, Value(event.parent_id));
+        output.SetValue(39, i, Value(event.workflow_type));
+        output.SetValue(40, i, Value::INTEGER(event.hierarchy_level));
+        output.SetValue(41, i, Value(event.parent_id));
     }
 
     local_state.chunk_offset += rows_to_output;

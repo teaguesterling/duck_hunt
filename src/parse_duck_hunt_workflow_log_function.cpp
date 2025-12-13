@@ -101,11 +101,17 @@ unique_ptr<FunctionData> ParseDuckHuntWorkflowLogBind(ClientContext &context, Ta
     
     std::string content = input.inputs[0].ToString();
     std::string format = "auto";
-    
+
     if (input.inputs.size() > 1) {
         format = input.inputs[1].ToString();
+
+        // Check for unknown format
+        WorkflowLogFormat fmt = StringToWorkflowLogFormatForParse(format);
+        if (fmt == WorkflowLogFormat::UNKNOWN) {
+            throw BinderException("Unknown workflow format: '" + format + "'. Use 'auto' for auto-detection. Supported: github_actions, gitlab_ci, jenkins, docker_build.");
+        }
     }
-    
+
     // Parse the workflow logs
     result->events = ParseDuckHuntWorkflowLogFromString(content, format);
     
@@ -128,6 +134,9 @@ unique_ptr<FunctionData> ParseDuckHuntWorkflowLogBind(ClientContext &context, Ta
         LogicalType::DOUBLE,   // execution_time
         LogicalType::VARCHAR,  // raw_output
         LogicalType::VARCHAR,  // structured_data
+        // Log line tracking
+        LogicalType::INTEGER,  // log_line_start
+        LogicalType::INTEGER,  // log_line_end
         LogicalType::VARCHAR,  // source_file
         LogicalType::VARCHAR,  // build_id
         LogicalType::VARCHAR,  // environment
@@ -136,7 +145,7 @@ unique_ptr<FunctionData> ParseDuckHuntWorkflowLogBind(ClientContext &context, Ta
         LogicalType::DOUBLE,   // similarity_score
         LogicalType::BIGINT,   // pattern_id
         LogicalType::VARCHAR,  // root_cause_category
-        
+
         // Workflow-specific fields
         LogicalType::VARCHAR,  // workflow_name
         LogicalType::VARCHAR,  // job_name
@@ -161,6 +170,8 @@ unique_ptr<FunctionData> ParseDuckHuntWorkflowLogBind(ClientContext &context, Ta
         "event_id", "tool_name", "event_type", "file_path", "line_number", "column_number",
         "function_name", "status", "severity", "category", "message", "suggestion",
         "error_code", "test_name", "execution_time", "raw_output", "structured_data",
+        // Log line tracking
+        "log_line_start", "log_line_end",
         "source_file", "build_id", "environment", "file_index", "error_fingerprint",
         "similarity_score", "pattern_id", "root_cause_category", "workflow_name",
         "job_name", "step_name", "workflow_run_id", "job_id", "step_id",
@@ -203,33 +214,36 @@ void ParseDuckHuntWorkflowLogFunction(ClientContext &context, TableFunctionInput
         output.SetValue(14, count, Value::DOUBLE(event.base_event.execution_time));
         output.SetValue(15, count, Value(event.base_event.raw_output));
         output.SetValue(16, count, Value(event.base_event.structured_data));
-        output.SetValue(17, count, Value(event.base_event.source_file));
-        output.SetValue(18, count, Value(event.base_event.build_id));
-        output.SetValue(19, count, Value(event.base_event.environment));
-        output.SetValue(20, count, Value::BIGINT(event.base_event.file_index));
-        output.SetValue(21, count, Value(event.base_event.error_fingerprint));
-        output.SetValue(22, count, Value::DOUBLE(event.base_event.similarity_score));
-        output.SetValue(23, count, Value::BIGINT(event.base_event.pattern_id));
-        output.SetValue(24, count, Value(event.base_event.root_cause_category));
-        
+        // Log line tracking
+        output.SetValue(17, count, event.base_event.log_line_start == -1 ? Value() : Value::INTEGER(event.base_event.log_line_start));
+        output.SetValue(18, count, event.base_event.log_line_end == -1 ? Value() : Value::INTEGER(event.base_event.log_line_end));
+        output.SetValue(19, count, Value(event.base_event.source_file));
+        output.SetValue(20, count, Value(event.base_event.build_id));
+        output.SetValue(21, count, Value(event.base_event.environment));
+        output.SetValue(22, count, Value::BIGINT(event.base_event.file_index));
+        output.SetValue(23, count, Value(event.base_event.error_fingerprint));
+        output.SetValue(24, count, Value::DOUBLE(event.base_event.similarity_score));
+        output.SetValue(25, count, Value::BIGINT(event.base_event.pattern_id));
+        output.SetValue(26, count, Value(event.base_event.root_cause_category));
+
         // Workflow-specific fields
-        output.SetValue(25, count, Value(event.base_event.workflow_name));
-        output.SetValue(26, count, Value(event.base_event.job_name));
-        output.SetValue(27, count, Value(event.base_event.step_name));
-        output.SetValue(28, count, Value(event.base_event.workflow_run_id));
-        output.SetValue(29, count, Value(event.base_event.job_id));
-        output.SetValue(30, count, Value(event.base_event.step_id));
-        output.SetValue(31, count, Value(event.base_event.workflow_status));
-        output.SetValue(32, count, Value(event.base_event.job_status));
-        output.SetValue(33, count, Value(event.base_event.step_status));
-        output.SetValue(34, count, Value(event.base_event.started_at));
-        output.SetValue(35, count, Value(event.base_event.completed_at));
-        output.SetValue(36, count, Value::DOUBLE(event.base_event.duration));
-        
+        output.SetValue(27, count, Value(event.base_event.workflow_name));
+        output.SetValue(28, count, Value(event.base_event.job_name));
+        output.SetValue(29, count, Value(event.base_event.step_name));
+        output.SetValue(30, count, Value(event.base_event.workflow_run_id));
+        output.SetValue(31, count, Value(event.base_event.job_id));
+        output.SetValue(32, count, Value(event.base_event.step_id));
+        output.SetValue(33, count, Value(event.base_event.workflow_status));
+        output.SetValue(34, count, Value(event.base_event.job_status));
+        output.SetValue(35, count, Value(event.base_event.step_status));
+        output.SetValue(36, count, Value(event.base_event.started_at));
+        output.SetValue(37, count, Value(event.base_event.completed_at));
+        output.SetValue(38, count, Value::DOUBLE(event.base_event.duration));
+
         // Additional workflow fields
-        output.SetValue(37, count, Value(event.workflow_type));
-        output.SetValue(38, count, Value::INTEGER(event.hierarchy_level));
-        output.SetValue(39, count, Value(event.parent_id));
+        output.SetValue(39, count, Value(event.workflow_type));
+        output.SetValue(40, count, Value::INTEGER(event.hierarchy_level));
+        output.SetValue(41, count, Value(event.parent_id));
         
         count++;
         gstate.position++;

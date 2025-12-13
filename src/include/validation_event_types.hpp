@@ -52,7 +52,11 @@ struct ValidationEvent {
     double execution_time;
     std::string raw_output;
     std::string structured_data;  // JSON string
-    
+
+    // Log line tracking - position within source log file
+    int32_t log_line_start;       // 1-indexed line where event starts in log file
+    int32_t log_line_end;         // 1-indexed line where event ends in log file
+
     // Phase 3A: Multi-file processing metadata
     std::string source_file;      // Which log/result file this event came from
     std::string build_id;         // Extract from file path pattern (e.g., build-123)
@@ -79,8 +83,9 @@ struct ValidationEvent {
     std::string completed_at;           // When it completed (ISO timestamp)
     double duration;                    // Duration in seconds
     
-    ValidationEvent() : event_id(0), line_number(-1), column_number(-1), 
-                       execution_time(0.0), file_index(-1), similarity_score(0.0), pattern_id(-1), duration(0.0) {}
+    ValidationEvent() : event_id(0), line_number(-1), column_number(-1),
+                       execution_time(0.0), log_line_start(-1), log_line_end(-1),
+                       file_index(-1), similarity_score(0.0), pattern_id(-1), duration(0.0) {}
 };
 
 // Helper functions for enum conversions

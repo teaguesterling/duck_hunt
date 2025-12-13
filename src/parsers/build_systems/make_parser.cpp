@@ -30,8 +30,10 @@ std::vector<ValidationEvent> MakeParser::parse(const std::string& content) const
     std::string line;
     int64_t event_id = 1;
     std::string current_function;
-    
+    int32_t current_line_num = 0;  // Track position in log file (1-indexed)
+
     while (std::getline(stream, line)) {
+        current_line_num++;  // Increment before processing (1-indexed)
         // Parse function context: "file.c: In function 'function_name':"
         std::regex function_pattern(R"(([^:]+):\s*In function\s+'([^']+)':)");
         std::smatch func_match;
@@ -57,6 +59,8 @@ std::vector<ValidationEvent> MakeParser::parse(const std::string& content) const
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "make_build";
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
             
             std::string severity = match[4].str();
             if (severity == "error") {
@@ -94,6 +98,8 @@ std::vector<ValidationEvent> MakeParser::parse(const std::string& content) const
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "make_build";
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
             
             // Extract makefile target from pattern like "[Makefile:23: build/main]"
             // Note: We extract file_path and test_name but NOT line_number for make build failures
@@ -122,6 +128,8 @@ std::vector<ValidationEvent> MakeParser::parse(const std::string& content) const
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "make_build";
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
             
             // Extract symbol name from undefined reference
             std::regex symbol_pattern(R"(undefined reference to `([^']+)')");

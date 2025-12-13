@@ -81,7 +81,7 @@ All parsers produce a standardized schema:
 | `message` | Error/warning message |
 | `error_code` | Rule ID or error code |
 
-**[See full schema (38 fields) →](docs/schema.md)**
+**[See full schema (40 fields) →](docs/schema.md)**
 
 ## Documentation
 
