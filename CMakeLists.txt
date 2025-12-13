@@ -113,6 +113,10 @@ set(EXTENSION_SOURCES
     # Format discovery function
     src/duck_hunt_formats_function.cpp
 
+    # Cross-language structured log parsers
+    src/parsers/structured_logs/jsonl_parser.cpp
+    src/parsers/structured_logs/logfmt_parser.cpp
+
     # XML-based parsers (require webbed extension)
     src/parsers/test_frameworks/junit_xml_parser.cpp
 )

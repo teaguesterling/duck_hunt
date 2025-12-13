@@ -1,0 +1,277 @@
+# name: test/sql/structured_logs.test
+# description: test JSONL and logfmt structured log parsing
+# group: [sql]
+
+require duck_hunt
+
+# =============================================================================
+# JSONL (JSON Lines) Format Tests
+# =============================================================================
+
+# Test 1: Basic JSONL parsing with level and message
+query III
+SELECT tool_name, severity, message
+FROM parse_duck_hunt_log(E'{"level":"info","message":"Server started"}\n{"level":"error","message":"Connection failed"}\n{"level":"warn","message":"High memory usage"}', 'jsonl')
+ORDER BY severity;
+----
+jsonl	error	Connection failed
+jsonl	info	Server started
+jsonl	warning	High memory usage
+
+# Test 2: JSONL with various field name conventions
+query III
+SELECT severity, message, category
+FROM parse_duck_hunt_log(E'{"lvl":"error","msg":"Failed","logger":"myapp"}\n{"severity":"warning","text":"Warning message","component":"auth"}', 'jsonl')
+ORDER BY severity;
+----
+error	Failed	myapp
+warning	Warning message	auth
+
+# Test 3: JSONL with timestamp in function_name
+query II
+SELECT message, function_name
+FROM parse_duck_hunt_log('{"level":"info","message":"Request processed","timestamp":"2025-01-15T10:30:45Z"}', 'jsonl');
+----
+Request processed	2025-01-15T10:30:45Z
+
+# Test 4: JSONL with error field promotes to error status
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log('{"level":"info","message":"Processing","error":"timeout occurred"}', 'jsonl');
+----
+error	Processing
+
+# Test 5: JSONL with file path and line number
+query III
+SELECT file_path, line_number, message
+FROM parse_duck_hunt_log('{"level":"error","message":"Syntax error","file":"app.py","line":42}', 'jsonl');
+----
+app.py	42	Syntax error
+
+# Test 6: JSONL count by severity
+query II
+SELECT severity, COUNT(*) as cnt
+FROM parse_duck_hunt_log(E'{"level":"info","message":"msg1"}\n{"level":"info","message":"msg2"}\n{"level":"error","message":"msg3"}\n{"level":"warn","message":"msg4"}', 'jsonl')
+GROUP BY severity ORDER BY severity;
+----
+error	1
+info	2
+warning	1
+
+# Test 7: JSONL stores raw output
+query I
+SELECT raw_output
+FROM parse_duck_hunt_log('{"level":"info","message":"test"}', 'jsonl');
+----
+{"level":"info","message":"test"}
+
+# =============================================================================
+# Logfmt Format Tests
+# =============================================================================
+
+# Test 8: Basic logfmt parsing
+query III
+SELECT tool_name, severity, message
+FROM parse_duck_hunt_log(E'level=info msg="Server started"\nlevel=error msg="Connection failed"\nlevel=warn msg="High memory"', 'logfmt')
+ORDER BY severity;
+----
+logfmt	error	Connection failed
+logfmt	info	Server started
+logfmt	warning	High memory
+
+# Test 9: Logfmt with various field names
+query III
+SELECT severity, message, category
+FROM parse_duck_hunt_log(E'lvl=error msg="Failed" component=auth\nseverity=warning text="Warning" service=api', 'logfmt')
+ORDER BY severity;
+----
+error	Failed	auth
+warning	Warning	api
+
+# Test 10: Logfmt with timestamp
+query II
+SELECT message, function_name
+FROM parse_duck_hunt_log('level=info msg="Request done" ts=2025-01-15T10:30:45Z', 'logfmt');
+----
+Request done	2025-01-15T10:30:45Z
+
+# Test 11: Logfmt with unquoted values
+query III
+SELECT severity, message, category
+FROM parse_duck_hunt_log('level=info msg=started service=web', 'logfmt');
+----
+info	started	web
+
+# Test 12: Logfmt with error field
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log('level=info msg="Processing" err="connection timeout"', 'logfmt');
+----
+error	Processing
+
+# Test 13: Logfmt with caller/source
+query II
+SELECT file_path, message
+FROM parse_duck_hunt_log('level=error msg="Failed" caller=main.go:42', 'logfmt');
+----
+main.go:42	Failed
+
+# Test 14: Logfmt count test
+query II
+SELECT severity, COUNT(*) as cnt
+FROM parse_duck_hunt_log(E'level=info msg=a\nlevel=info msg=b\nlevel=error msg=c', 'logfmt')
+GROUP BY severity ORDER BY severity;
+----
+error	1
+info	2
+
+# =============================================================================
+# Format Detection Tests
+# =============================================================================
+
+# Test 15: Auto-detect JSONL format
+query I
+SELECT DISTINCT tool_name
+FROM parse_duck_hunt_log(E'{"level":"info","message":"test1"}\n{"level":"error","message":"test2"}', 'auto');
+----
+jsonl
+
+# Test 16: Auto-detect logfmt format
+query I
+SELECT DISTINCT tool_name
+FROM parse_duck_hunt_log(E'level=info msg="test1" service=api\nlevel=error msg="test2" service=api', 'auto');
+----
+logfmt
+
+# =============================================================================
+# duck_hunt_formats() includes new formats
+# =============================================================================
+
+# Test 17: JSONL appears in formats list
+query II
+SELECT format, category
+FROM duck_hunt_formats()
+WHERE format = 'jsonl';
+----
+jsonl	structured_log
+
+# Test 18: Logfmt appears in formats list
+query II
+SELECT format, category
+FROM duck_hunt_formats()
+WHERE format = 'logfmt';
+----
+logfmt	structured_log
+
+# Test 19: structured_log category exists
+query I
+SELECT COUNT(*)
+FROM duck_hunt_formats()
+WHERE category = 'structured_log';
+----
+2
+
+# =============================================================================
+# Edge Cases and Aliases
+# =============================================================================
+
+# Test 20: ndjson alias works same as jsonl
+query III
+SELECT tool_name, severity, message
+FROM parse_duck_hunt_log('{"level":"info","message":"test via ndjson"}', 'ndjson');
+----
+jsonl	info	test via ndjson
+
+# Test 21: JSONL skips malformed lines gracefully
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log(E'{"level":"info","message":"valid1"}\nnot valid json\n{"level":"error","message":"valid2"}\nalso not json {\n{"level":"warn","message":"valid3"}', 'jsonl');
+----
+3
+
+# Test 22: Logfmt parses lines with key=value pairs
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log(E'level=info msg="valid1"\nlevel=error msg="valid2"\nlevel=warn msg="valid3"', 'logfmt');
+----
+3
+
+# Test 23: Empty JSONL input returns no rows
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('', 'jsonl');
+----
+0
+
+# Test 24: Empty logfmt input returns no rows
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('', 'logfmt');
+----
+0
+
+# Test 25: JSONL skips blank lines between valid lines
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log(E'{"level":"info","message":"line1"}\n\n{"level":"error","message":"line2"}', 'jsonl');
+----
+2
+
+# Test 26: Logfmt skips blank lines between valid lines
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log(E'level=info msg="line1"\n\nlevel=error msg="line2"', 'logfmt');
+----
+2
+
+# Test 27: JSONL with fatal/critical levels map to error
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log(E'{"level":"fatal","message":"fatal msg"}\n{"level":"critical","message":"critical msg"}\n{"level":"crit","message":"crit msg"}', 'jsonl')
+ORDER BY message;
+----
+error	crit msg
+error	critical msg
+error	fatal msg
+
+# Test 28: Logfmt with panic/dpanic levels (Go/zap specific)
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log(E'level=panic msg="panic msg"\nlevel=dpanic msg="dpanic msg"', 'logfmt')
+ORDER BY message;
+----
+error	dpanic msg
+error	panic msg
+
+# Test 29: JSONL debug/trace levels map to info severity
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log(E'{"level":"debug","message":"debug msg"}\n{"level":"trace","message":"trace msg"}', 'jsonl')
+ORDER BY message;
+----
+info	debug msg
+info	trace msg
+
+# Test 30: JSONL with Serilog-style fields (@t, @l, @mt)
+query III
+SELECT severity, message, function_name
+FROM parse_duck_hunt_log('{"@l":"Error","@mt":"Something failed","@t":"2025-01-15T10:30:45Z"}', 'jsonl');
+----
+error	Something failed	2025-01-15T10:30:45Z
+
+# Test 31: JSONL extracts nested service/component as category
+query II
+SELECT category, message
+FROM parse_duck_hunt_log(E'{"level":"info","message":"msg1","service":"auth-service"}\n{"level":"info","message":"msg2","component":"database"}\n{"level":"info","message":"msg3","module":"cache"}', 'jsonl')
+ORDER BY category;
+----
+auth-service	msg1
+cache	msg3
+database	msg2
+
+# Test 32: Logfmt handles empty values
+query II
+SELECT message, category
+FROM parse_duck_hunt_log('level=info msg="test" service=', 'logfmt');
+----
+test	log_entry

@@ -774,6 +774,9 @@ std::string TestResultFormatToString(TestResultFormat format) {
         case TestResultFormat::JUNIT_XML: return "junit_xml";
         case TestResultFormat::NUNIT_XML: return "nunit_xml";
         case TestResultFormat::CHECKSTYLE_XML: return "checkstyle_xml";
+        // Cross-language structured formats
+        case TestResultFormat::JSONL: return "jsonl";
+        case TestResultFormat::LOGFMT: return "logfmt";
         default: return "unknown";
     }
 }
@@ -844,6 +847,10 @@ TestResultFormat StringToTestResultFormat(const std::string& str) {
     if (str == "junit_xml") return TestResultFormat::JUNIT_XML;
     if (str == "nunit_xml") return TestResultFormat::NUNIT_XML;
     if (str == "checkstyle_xml") return TestResultFormat::CHECKSTYLE_XML;
+    // Cross-language structured formats
+    if (str == "jsonl") return TestResultFormat::JSONL;
+    if (str == "ndjson") return TestResultFormat::JSONL;  // Alias
+    if (str == "logfmt") return TestResultFormat::LOGFMT;
     if (str == "unknown") return TestResultFormat::UNKNOWN;
     return TestResultFormat::UNKNOWN;  // Unknown format string
 }

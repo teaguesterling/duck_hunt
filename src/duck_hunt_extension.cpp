@@ -43,6 +43,10 @@
 #include "parsers/infrastructure_tools/ansible_text_parser.hpp"
 #include "parsers/linting_tools/yapf_text_parser.hpp"
 
+// Cross-language structured log parsers
+#include "parsers/structured_logs/jsonl_parser.hpp"
+#include "parsers/structured_logs/logfmt_parser.hpp"
+
 // XML-based parsers (require webbed extension)
 #include "parsers/test_frameworks/junit_xml_parser.hpp"
 
@@ -88,6 +92,10 @@ static void LoadInternal(ExtensionLoader &loader) {
 	registry.registerParser(make_uniq<TerraformTextParser>());
 	registry.registerParser(make_uniq<AnsibleTextParser>());
 	registry.registerParser(make_uniq<YapfTextParser>());
+
+	// Cross-language structured log parsers
+	registry.registerParser(make_uniq<JSONLParser>());
+	registry.registerParser(make_uniq<LogfmtParser>());
 
 	// XML-based parsers (require webbed extension)
 	registry.registerParser(make_uniq<JUnitXmlParser>());

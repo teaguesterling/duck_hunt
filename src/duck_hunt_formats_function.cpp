@@ -98,6 +98,10 @@ static std::vector<FormatInfo> GetAllFormats() {
         // Debugging tools
         {"valgrind", "Valgrind output", "debugging_tool", "", false},
         {"gdb_lldb", "GDB/LLDB output", "debugging_tool", "", false},
+
+        // Cross-language structured log formats
+        {"jsonl", "JSON Lines (one JSON object per line)", "structured_log", "", false},
+        {"logfmt", "Key=value pairs (popular in Go/Heroku)", "structured_log", "", false},
     };
 }
 
