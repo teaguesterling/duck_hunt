@@ -52,7 +52,7 @@ WHERE status = 'ERROR';
 
 ## Error Analysis Fields
 
-Advanced fields for error pattern detection and root cause analysis.
+Advanced fields for error pattern detection and root cause analysis. These fields enable clustering of similar errors across large log files or multiple CI runs.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -61,15 +61,67 @@ Advanced fields for error pattern detection and root cause analysis.
 | `pattern_id` | BIGINT | Assigned error pattern group ID (-1 if unassigned) |
 | `root_cause_category` | VARCHAR | Detected root cause type |
 
+### How Error Fingerprinting Works
+
+The `error_fingerprint` is a hash of the normalized error message combined with tool and category context. Normalization removes variable content so structurally identical errors cluster together:
+
+**Normalization removes:**
+- Numbers (`line 15` → `line <N>`)
+- Quoted strings (`'myVar'` → `<STR>`)
+- File paths (`/home/user/src/main.c` → `<PATH>`)
+- Hex values (`0x7fff5fbff8c0` → `<HEX>`)
+- UUIDs (`550e8400-e29b-41d4-a716-446655440000` → `<UUID>`)
+
+**Example:** These three errors get the same fingerprint:
+```
+src/main.c:10: error: 'ptr' undeclared (first use in this function)
+src/utils.c:25: error: 'counter' undeclared (first use in this function)
+src/api.c:42: error: 'obj' undeclared (first use in this function)
+```
+
+All normalize to: `error: <STR> undeclared (first use in this function)`
+
+### Pattern Clustering
+
+Events with identical fingerprints are assigned the same `pattern_id`. This enables aggregation:
+
+```sql
+-- Find the most common error types in a build log
+SELECT
+    pattern_id,
+    COUNT(*) as occurrences,
+    ANY_VALUE(message) as example
+FROM read_duck_hunt_log('build.log', 'auto')
+WHERE status = 'ERROR'
+GROUP BY pattern_id
+ORDER BY occurrences DESC;
+```
+
+The `similarity_score` (0.0-1.0) measures how similar each message is to the first occurrence of that pattern, using Jaccard similarity on word tokens.
+
 ### Root Cause Categories
 
-- `network` - Connection failures, timeouts, DNS errors
-- `permission` - Access denied, authentication failures
-- `config` - Configuration errors, missing settings
-- `syntax` - Syntax errors, parse failures
-- `build` - Compilation errors, linking failures
-- `resource` - Out of memory, disk full, resource limits
-- `dependency` - Missing dependencies, version conflicts
+Automatic categorization based on keyword detection in error messages:
+
+| Category | Keywords | Example |
+|----------|----------|---------|
+| `network` | connection, timeout, dns, unreachable | `Connection refused` |
+| `permission` | access denied, unauthorized, forbidden | `Permission denied` |
+| `configuration` | config, not found, missing, does not exist | `File not found` |
+| `resource` | memory, disk, quota, limit, space | `Out of memory` |
+| `syntax` | syntax, parse, invalid, format | `Syntax error` |
+| `build` | compile, link, undefined reference | `Undefined symbol` |
+| `dependency` | import, module, require, package | `Module not found` |
+| `test_logic` | assert, expect, should, test failures | `Assertion failed` |
+
+**Example:**
+```sql
+-- Aggregate errors by root cause
+SELECT root_cause_category, COUNT(*) as count
+FROM read_duck_hunt_log('ci-output.log', 'auto')
+WHERE status = 'ERROR'
+GROUP BY root_cause_category;
+```
 
 ## Multi-file Metadata Fields
 

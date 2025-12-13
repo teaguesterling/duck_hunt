@@ -1,0 +1,60 @@
+gcc -Wall -Wextra -g -c src/main.c -o build/main.o
+src/main.c:15:5: error: 'ptr' undeclared (first use in this function)
+   15 |     ptr = malloc(100);
+      |     ^~~
+src/main.c:15:5: note: each undeclared identifier is reported only once for each function it appears in
+src/main.c:28:12: warning: unused variable 'temp' [-Wunused-variable]
+   28 |     int    temp = 0;
+      |            ^~~~
+src/main.c:42:8: error: 'counter' undeclared (first use in this function)
+   42 |     counter++;
+      |     ^~~~~~~
+src/main.c:55:15: warning: unused variable 'result' [-Wunused-variable]
+   55 |     double   result = 0.0;
+      |              ^~~~~~
+gcc -Wall -Wextra -g -c src/utils.c -o build/utils.o
+src/utils.c:8:9: error: 'buffer' undeclared (first use in this function)
+    8 |     buffer[0] = 'x';
+      |     ^~~~~~
+src/utils.c:8:9: note: each undeclared identifier is reported only once for each function it appears in
+src/utils.c:22:14: warning: unused variable 'index' [-Wunused-variable]
+   22 |     size_t   index = 0;
+      |              ^~~~~
+src/utils.c:35:9: error: 'data' undeclared (first use in this function)
+   35 |     data = NULL;
+      |     ^~~~
+src/utils.c:48:12: warning: unused variable 'count' [-Wunused-variable]
+   48 |     int    count = 42;
+      |            ^~~~~
+gcc -Wall -Wextra -g -c src/api.c -o build/api.o
+src/api.c:12:5: error: 'handle' undeclared (first use in this function)
+   12 |     handle = open_connection();
+      |     ^~~~~~
+src/api.c:12:5: note: each undeclared identifier is reported only once for each function it appears in
+src/api.c:25:10: warning: unused variable 'status' [-Wunused-variable]
+   25 |     int  status = 0;
+      |          ^~~~~~
+src/api.c:38:5: error: 'response' undeclared (first use in this function)
+   38 |     response = fetch_data();
+      |     ^~~~~~~~
+src/api.c:51:12: warning: unused variable 'flags' [-Wunused-variable]
+   51 |     int    flags = 0xFF;
+      |            ^~~~~
+gcc -Wall -Wextra -g -c src/parser.c -o build/parser.o
+src/parser.c:18:9: error: 'token' undeclared (first use in this function)
+   18 |     token = next_token();
+      |     ^~~~~
+src/parser.c:18:9: note: each undeclared identifier is reported only once for each function it appears in
+src/parser.c:31:14: warning: unused variable 'position' [-Wunused-variable]
+   31 |     size_t   position = 0;
+      |              ^~~~~~~~
+src/parser.c:44:9: error: 'node' undeclared (first use in this function)
+   44 |     node = create_node();
+      |     ^~~~
+src/parser.c:57:12: warning: unused variable 'depth' [-Wunused-variable]
+   57 |     int    depth = 0;
+      |            ^~~~~
+ld: error: undefined reference to 'initialize_system'
+ld: error: undefined reference to 'cleanup_resources'
+ld: error: undefined reference to 'process_request'
+make: *** [Makefile:45: build/app] Error 1

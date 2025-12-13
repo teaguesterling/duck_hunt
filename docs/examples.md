@@ -269,3 +269,70 @@ SELECT CASE
 END as gate_status
 FROM read_duck_hunt_log('build.log', 'auto');
 ```
+
+---
+
+## Error Pattern Analysis
+
+Duck Hunt automatically clusters similar errors together, making it easy to understand the types of issues in a build rather than scrolling through hundreds of individual errors.
+
+**Sample:** [`test/samples/large_build.out`](../test/samples/large_build.out) - A build log with 24 issues across 4 source files.
+
+### Cluster by Pattern
+
+**Query:**
+```sql
+SELECT
+    pattern_id,
+    COUNT(*) as occurrences,
+    root_cause_category,
+    ANY_VALUE(message) as example_message
+FROM read_duck_hunt_log('test/samples/large_build.out', 'make_error')
+GROUP BY pattern_id, root_cause_category
+ORDER BY occurrences DESC;
+```
+
+**Result:**
+| pattern_id | occurrences | root_cause_category | example_message |
+|-----------:|------------:|---------------------|-----------------|
+| 1 | 8 | build | 'ptr' undeclared (first use in this function) |
+| 3 | 8 | build | unused variable 'temp' [-Wunused-variable] |
+| 2 | 4 | build | each undeclared identifier is reported only once for each function it appears in |
+| 4 | 3 | build | undefined reference to 'initialize_system' |
+| 5 | 1 | build | make: *** [Makefile:45: build/app] Error 1 |
+
+Instead of 24 individual errors, you see 5 distinct issue types. The 8 "undeclared" errors across different files (`ptr`, `counter`, `buffer`, `data`, `handle`, `response`, `token`, `node`) all cluster together because the fingerprinting normalizes out the variable names.
+
+### Aggregate by Root Cause
+
+**Query:**
+```sql
+SELECT
+    root_cause_category,
+    COUNT(*) as total,
+    COUNT(DISTINCT pattern_id) as unique_patterns
+FROM read_duck_hunt_log('test/samples/large_build.out', 'make_error')
+GROUP BY root_cause_category;
+```
+
+**Result:**
+| root_cause_category | total | unique_patterns |
+|---------------------|------:|----------------:|
+| build | 24 | 5 |
+
+### Cross-Run Analysis
+
+Compare errors across multiple CI runs to identify recurring issues:
+
+```sql
+-- Find patterns that appear in multiple build logs
+SELECT
+    error_fingerprint,
+    COUNT(DISTINCT source_file) as runs_affected,
+    COUNT(*) as total_occurrences,
+    ANY_VALUE(message) as example
+FROM read_duck_hunt_log('logs/build-*.log', 'auto')
+GROUP BY error_fingerprint
+HAVING COUNT(DISTINCT source_file) > 1
+ORDER BY runs_affected DESC;
+```
