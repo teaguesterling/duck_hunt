@@ -13,6 +13,7 @@
 #include "include/parse_duck_hunt_workflow_log_function.hpp"
 #include "include/validation_event_types.hpp"
 #include "include/status_badge_function.hpp"
+#include "include/duck_hunt_formats_function.hpp"
 #include "core/parser_registry.hpp"
 
 // Include parser headers to force registration
@@ -108,6 +109,10 @@ static void LoadInternal(ExtensionLoader &loader) {
 	// Register scalar utility functions
 	auto status_badge_function = GetStatusBadgeFunction();
 	loader.RegisterFunction(status_badge_function);
+
+	// Register format discovery function
+	auto duck_hunt_formats_function = GetDuckHuntFormatsFunction();
+	loader.RegisterFunction(duck_hunt_formats_function);
 }
 
 void DuckHuntExtension::Load(ExtensionLoader &loader) {

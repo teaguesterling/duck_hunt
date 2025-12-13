@@ -110,6 +110,9 @@ set(EXTENSION_SOURCES
     # Scalar utility functions
     src/status_badge_function.cpp
 
+    # Format discovery function
+    src/duck_hunt_formats_function.cpp
+
     # XML-based parsers (require webbed extension)
     src/parsers/test_frameworks/junit_xml_parser.cpp
 )
