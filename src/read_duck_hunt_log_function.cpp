@@ -856,21 +856,31 @@ std::string ReadContentFromSource(ClientContext& context, const std::string& sou
     auto flags = FileFlags::FILE_FLAGS_READ;
     auto file_handle = fs.OpenFile(source, flags);
 
-    // Get file size
+    // Check if this is a pipe/stdin (file size will be 0 or unavailable)
     auto file_size = fs.GetFileSize(*file_handle);
-    if (file_size < 0) {
-        throw IOException("Could not get file size for: " + source);
-    }
-
-    // Allocate buffer and read entire file
-    std::string content;
-    content.resize(static_cast<size_t>(file_size));
 
     if (file_size > 0) {
+        // Regular file - read using known size
+        std::string content;
+        content.resize(static_cast<size_t>(file_size));
         fs.Read(*file_handle, (void*)content.data(), file_size, 0);
-    }
+        return content;
+    } else {
+        // Pipe/stdin or empty file - read in chunks until EOF
+        std::string content;
+        constexpr size_t chunk_size = 8192;
+        char buffer[chunk_size];
 
-    return content;
+        while (true) {
+            auto bytes_read = fs.Read(*file_handle, buffer, chunk_size);
+            if (bytes_read == 0) {
+                break;  // EOF
+            }
+            content.append(buffer, bytes_read);
+        }
+
+        return content;
+    }
 }
 
 bool IsValidJSON(const std::string& content) {

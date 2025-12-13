@@ -8,18 +8,7 @@ require duck_hunt
 statement ok
 SELECT 'junit_xml format string recognized';
 
-# Test 2: Without webbed extension, parsing JUnit XML should give a helpful error
-# This tests that the integration layer properly handles missing webbed extension
-statement error
-SELECT * FROM parse_duck_hunt_log('<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="MyTestSuite" tests="1">
-  <testcase name="test_example" classname="TestClass" time="0.001"/>
-</testsuite>', 'junit_xml');
-----
-webbed
-
-# Test 3: Format detection correctly identifies JUnit XML structure
-# The parser should be registered and canParse should work
+# Test 2: Format detection correctly identifies JUnit XML structure
 query I
 SELECT CASE
     WHEN 'junit_xml' IN ('junit_xml', 'nunit_xml', 'checkstyle_xml')
@@ -28,3 +17,102 @@ SELECT CASE
 END;
 ----
 XML format types registered
+
+# The following tests require the webbed extension for XML parsing
+require webbed
+
+# Test 3: Basic JUnit XML parsing - single passing test
+query IIII
+SELECT tool_name, status, test_name, message
+FROM parse_duck_hunt_log('<testsuite name="Suite"><testcase name="test1" classname="TestClass"/></testsuite>', 'junit_xml');
+----
+junit	PASS	test1	Test passed
+
+# Test 4: JUnit XML with failure
+query IIII
+SELECT tool_name, status, test_name, message
+FROM parse_duck_hunt_log('<testsuite name="Suite">
+  <testcase name="failing_test" classname="TestClass">
+    <failure message="assertion failed">Expected true but got false</failure>
+  </testcase>
+</testsuite>', 'junit_xml');
+----
+junit	FAIL	failing_test	assertion failed
+
+# Test 5: JUnit XML with error
+query IIII
+SELECT tool_name, status, test_name, category
+FROM parse_duck_hunt_log('<testsuite name="Suite">
+  <testcase name="error_test" classname="TestClass">
+    <error message="NullPointerException" type="java.lang.NullPointerException"/>
+  </testcase>
+</testsuite>', 'junit_xml');
+----
+junit	ERROR	error_test	test_error
+
+# Test 6: JUnit XML with skipped test
+query IIII
+SELECT tool_name, status, test_name, message
+FROM parse_duck_hunt_log('<testsuite name="Suite">
+  <testcase name="skipped_test" classname="TestClass">
+    <skipped message="Not implemented yet"/>
+  </testcase>
+</testsuite>', 'junit_xml');
+----
+junit	SKIP	skipped_test	Not implemented yet
+
+# Test 7: Multiple test cases in single suite
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log('<testsuite name="Suite" tests="3">
+  <testcase name="test1" classname="TestClass"/>
+  <testcase name="test2" classname="TestClass"/>
+  <testcase name="test3" classname="TestClass"/>
+</testsuite>', 'junit_xml');
+----
+3
+
+# Test 8: Function name includes suite name
+query I
+SELECT function_name FROM parse_duck_hunt_log('<testsuite name="MyTestSuite">
+  <testcase name="myTest" classname="TestClass"/>
+</testsuite>', 'junit_xml');
+----
+MyTestSuite::myTest
+
+# Test 9: Execution time is parsed
+query R
+SELECT execution_time FROM parse_duck_hunt_log('<testsuite name="Suite">
+  <testcase name="test1" classname="TestClass" time="1.234"/>
+</testsuite>', 'junit_xml');
+----
+1.234
+
+# Test 10: Classname becomes file_path
+query I
+SELECT file_path FROM parse_duck_hunt_log('<testsuite name="Suite">
+  <testcase name="test1" classname="com.example.MyTest"/>
+</testsuite>', 'junit_xml');
+----
+com.example.MyTest
+
+# Test 11: Mixed test results
+query II
+SELECT status, COUNT(*) as cnt FROM parse_duck_hunt_log('<testsuite name="Suite" tests="4">
+  <testcase name="pass1" classname="Test"/>
+  <testcase name="pass2" classname="Test"/>
+  <testcase name="fail1" classname="Test"><failure message="oops"/></testcase>
+  <testcase name="skip1" classname="Test"><skipped/></testcase>
+</testsuite>', 'junit_xml')
+GROUP BY status ORDER BY status;
+----
+FAIL	1
+PASS	2
+SKIP	1
+
+# Test 12: Auto-detection of JUnit XML format
+query I
+SELECT DISTINCT tool_name FROM parse_duck_hunt_log('<testsuite name="AutoDetect">
+  <testcase name="test1" classname="Test"/>
+</testsuite>', 'auto');
+----
+junit

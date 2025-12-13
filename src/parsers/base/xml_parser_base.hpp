@@ -41,8 +41,8 @@ public:
      */
     std::vector<ValidationEvent> parseWithContext(ClientContext &context,
                                                    const std::string& content) const override {
-        // Check if webbed is available
-        if (!WebbedIntegration::IsWebbedAvailable(context)) {
+        // Try to auto-load webbed if not already available
+        if (!WebbedIntegration::TryAutoLoadWebbed(context)) {
             throw InvalidInputException(WebbedIntegration::GetWebbedRequiredError());
         }
 

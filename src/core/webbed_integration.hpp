@@ -20,6 +20,12 @@ public:
     static bool IsWebbedAvailable(ClientContext &context);
 
     /**
+     * Try to auto-load the webbed extension if not already loaded.
+     * Returns true if webbed is available after the attempt.
+     */
+    static bool TryAutoLoadWebbed(ClientContext &context);
+
+    /**
      * Convert XML content to JSON using webbed's xml_to_json function.
      * Throws if webbed is not available.
      */

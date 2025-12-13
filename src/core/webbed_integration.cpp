@@ -6,12 +6,28 @@
 #include "duckdb/common/exception.hpp"
 #include "duckdb/main/connection.hpp"
 #include "duckdb/main/query_result.hpp"
+#include "duckdb/main/extension_helper.hpp"
 
 namespace duckdb {
 
 bool WebbedIntegration::IsWebbedAvailable(ClientContext &context) {
     auto entry = LookupFunction(context, "xml_to_json");
     return entry != nullptr;
+}
+
+bool WebbedIntegration::TryAutoLoadWebbed(ClientContext &context) {
+    // Already loaded?
+    if (IsWebbedAvailable(context)) {
+        return true;
+    }
+
+    // Try to auto-load the webbed extension
+    if (ExtensionHelper::TryAutoLoadExtension(context, "webbed")) {
+        // Verify it actually loaded by checking for the function
+        return IsWebbedAvailable(context);
+    }
+
+    return false;
 }
 
 std::string WebbedIntegration::XmlToJson(ClientContext &context, const std::string &xml_content) {
