@@ -35,17 +35,19 @@ std::vector<ValidationEvent> PylintParser::parse(const std::string& content) con
     std::istringstream stream(content);
     std::string line;
     int64_t event_id = 1;
-    
+    int32_t current_line_num = 0;
+
     // Regex patterns for Pylint output
     std::regex pylint_module_header(R"(\*+\s*Module\s+(.+))");
     std::regex pylint_message(R"(([CWERF]):\s*(\d+),\s*(\d+):\s*(.+?)\s+\(([^)]+)\))");  // C:  1, 0: message (code)
     std::regex pylint_message_simple(R"(([CWERF]):\s*(\d+),\s*(\d+):\s*(.+))");  // C:  1, 0: message
     std::regex pylint_rating(R"(Your code has been rated at ([\d\.-]+)/10)");
     std::regex pylint_statistics(R"((\d+)\s+statements\s+analysed)");
-    
+
     std::string current_module;
-    
+
     while (std::getline(stream, line)) {
+        current_line_num++;
         std::smatch match;
         
         // Check for module header
@@ -102,7 +104,9 @@ std::vector<ValidationEvent> PylintParser::parse(const std::string& content) con
             event.execution_time = 0.0;
             event.raw_output = line;
             event.structured_data = "{\"severity_char\": \"" + severity_char + "\", \"error_code\": \"" + error_code + "\"}";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Check for Pylint message without explicit error code
@@ -151,7 +155,9 @@ std::vector<ValidationEvent> PylintParser::parse(const std::string& content) con
             event.execution_time = 0.0;
             event.raw_output = line;
             event.structured_data = "{\"severity_char\": \"" + severity_char + "\"}";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Check for rating information
@@ -171,11 +177,13 @@ std::vector<ValidationEvent> PylintParser::parse(const std::string& content) con
             event.execution_time = 0.0;
             event.raw_output = line;
             event.structured_data = "{\"rating\": \"" + rating + "\"}";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
     }
-    
+
     return events;
 }
 

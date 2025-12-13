@@ -21,7 +21,8 @@ void GTestTextParser::ParseGoogleTest(const std::string& content, std::vector<du
     std::istringstream stream(content);
     std::string line;
     int64_t event_id = 1;
-    
+    int32_t current_line_num = 0;
+
     // Regex patterns for Google Test output
     std::regex test_run_start(R"(\[\s*RUN\s*\]\s*(.+))");
     std::regex test_passed(R"(\[\s*OK\s*\]\s*(.+)\s*\((\d+)\s*ms\))");
@@ -43,8 +44,9 @@ void GTestTextParser::ParseGoogleTest(const std::string& content, std::vector<du
     std::vector<std::string> failure_lines;
     
     while (std::getline(stream, line)) {
+        current_line_num++;
         std::smatch match;
-        
+
         // Check for test run start
         if (std::regex_match(line, match, test_run_start)) {
             current_test_name = match[1].str();
@@ -71,7 +73,9 @@ void GTestTextParser::ParseGoogleTest(const std::string& content, std::vector<du
             event.raw_output = line;
             event.function_name = current_test_suite;
             event.structured_data = "{}";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Check for test failed
@@ -96,7 +100,9 @@ void GTestTextParser::ParseGoogleTest(const std::string& content, std::vector<du
             event.raw_output = line;
             event.function_name = current_test_suite;
             event.structured_data = "{}";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Check for test skipped
@@ -121,7 +127,9 @@ void GTestTextParser::ParseGoogleTest(const std::string& content, std::vector<du
             event.raw_output = line;
             event.function_name = current_test_suite;
             event.structured_data = "{}";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Check for test suite start

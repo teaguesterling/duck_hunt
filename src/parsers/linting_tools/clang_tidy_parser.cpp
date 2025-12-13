@@ -75,13 +75,15 @@ std::vector<ValidationEvent> ClangTidyParser::parse(const std::string& content) 
     std::istringstream stream(content);
     std::string line;
     int64_t event_id = 1;
-    
+    int32_t current_line_num = 0;
+
     // Regex patterns for clang-tidy output
     std::regex clang_tidy_message(R"(([^:]+):(\d+):(\d+):\s*(error|warning|note):\s*(.+?)\s*\[([^\]]+)\])");
     std::regex clang_tidy_message_no_col(R"(([^:]+):(\d+):\s*(error|warning|note):\s*(.+?)\s*\[([^\]]+)\])");
     std::regex clang_tidy_summary(R"((\d+)\s+(warnings?|errors?)\s+generated)");
-    
+
     while (std::getline(stream, line)) {
+        current_line_num++;
         std::smatch match;
         
         // Check for clang-tidy message with column number
@@ -135,7 +137,9 @@ std::vector<ValidationEvent> ClangTidyParser::parse(const std::string& content) 
             event.execution_time = 0.0;
             event.raw_output = line;
             event.structured_data = "{\"rule\": \"" + rule_name + "\", \"severity\": \"" + severity + "\"}";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Check for clang-tidy message without column number
@@ -186,7 +190,9 @@ std::vector<ValidationEvent> ClangTidyParser::parse(const std::string& content) 
             event.execution_time = 0.0;
             event.raw_output = line;
             event.structured_data = "{\"rule\": \"" + rule_name + "\", \"severity\": \"" + severity + "\"}";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Check for summary
@@ -207,11 +213,13 @@ std::vector<ValidationEvent> ClangTidyParser::parse(const std::string& content) 
             event.execution_time = 0.0;
             event.raw_output = line;
             event.structured_data = "{\"count\": " + count + ", \"type\": \"" + type + "\"}";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
     }
-    
+
     return events;
 }
 

@@ -22,7 +22,8 @@ void MSBuildParser::ParseMSBuild(const std::string& content, std::vector<duckdb:
     std::istringstream iss(content);
     std::string line;
     int64_t event_id = 1;
-    
+    int32_t current_line_num = 0;
+
     // MSBuild patterns
     std::regex compile_error_pattern(R"((.+?)\((\d+),(\d+)\): error (CS\d+): (.+?) \[(.+?\.csproj)\])");
     std::regex compile_warning_pattern(R"((.+?)\((\d+),(\d+)\): warning (CS\d+|CA\d+): (.+?) \[(.+?\.csproj)\])");
@@ -39,8 +40,9 @@ void MSBuildParser::ParseMSBuild(const std::string& content, std::vector<duckdb:
     bool in_build_summary = false;
     
     while (std::getline(iss, line)) {
+        current_line_num++;
         std::smatch match;
-        
+
         // Parse C# compilation errors
         if (std::regex_search(line, match, compile_error_pattern)) {
             duckdb::ValidationEvent event;
@@ -59,7 +61,9 @@ void MSBuildParser::ParseMSBuild(const std::string& content, std::vector<duckdb:
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "msbuild";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse C# compilation warnings
@@ -123,7 +127,9 @@ void MSBuildParser::ParseMSBuild(const std::string& content, std::vector<duckdb:
             event.execution_time = static_cast<double>(duration) / 1000.0; // Convert ms to seconds
             event.raw_output = content;
             event.structured_data = "msbuild";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse xUnit test results
@@ -159,7 +165,9 @@ void MSBuildParser::ParseMSBuild(const std::string& content, std::vector<duckdb:
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "msbuild";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse build results
@@ -178,7 +186,9 @@ void MSBuildParser::ParseMSBuild(const std::string& content, std::vector<duckdb:
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "msbuild";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse project context
@@ -206,7 +216,9 @@ void MSBuildParser::ParseMSBuild(const std::string& content, std::vector<duckdb:
             event.execution_time = total_seconds;
             event.raw_output = content;
             event.structured_data = "msbuild";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse error/warning summaries

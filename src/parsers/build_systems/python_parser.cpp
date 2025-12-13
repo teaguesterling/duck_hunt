@@ -23,10 +23,12 @@ void PythonParser::ParsePythonBuild(const std::string& content, std::vector<duck
     std::istringstream stream(content);
     std::string line;
     int64_t event_id = 1;
+    int32_t current_line_num = 0;
     std::string current_test;
     std::string current_package;
-    
+
     while (std::getline(stream, line)) {
+        current_line_num++;
         // Parse pip wheel building errors
         if (line.find("ERROR: Failed building wheel for") != std::string::npos) {
             duckdb::ValidationEvent event;
@@ -49,7 +51,9 @@ void PythonParser::ParsePythonBuild(const std::string& content, std::vector<duck
             if (std::regex_search(line, package_match, package_pattern)) {
                 event.test_name = package_match[1].str();
             }
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse setuptools/distutils compilation errors (C extension errors)
@@ -76,7 +80,9 @@ void PythonParser::ParsePythonBuild(const std::string& content, std::vector<duck
                 event.column_number = c_match[3].str().empty() ? -1 : std::stoi(c_match[3].str());
                 event.message = c_match[4].str();
             }
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse Python test failures (pytest format)
@@ -104,7 +110,9 @@ void PythonParser::ParsePythonBuild(const std::string& content, std::vector<duck
                     event.file_path = event.test_name.substr(0, sep_pos);
                 }
             }
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse Python test errors
@@ -132,7 +140,9 @@ void PythonParser::ParsePythonBuild(const std::string& content, std::vector<duck
                     event.file_path = event.test_name.substr(0, sep_pos);
                 }
             }
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse assertion errors with file:line info
@@ -153,7 +163,9 @@ void PythonParser::ParsePythonBuild(const std::string& content, std::vector<duck
             if (!current_test.empty()) {
                 event.test_name = current_test;
             }
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse file:line test location info
@@ -175,7 +187,9 @@ void PythonParser::ParsePythonBuild(const std::string& content, std::vector<duck
                 event.execution_time = 0.0;
                 event.raw_output = content;
                 event.structured_data = "python_build";
-                
+                event.log_line_start = current_line_num;
+                event.log_line_end = current_line_num;
+
                 events.push_back(event);
             }
         }
@@ -201,7 +215,9 @@ void PythonParser::ParsePythonBuild(const std::string& content, std::vector<duck
             if (std::regex_search(line, cmd_match, cmd_pattern)) {
                 event.function_name = cmd_match[1].str();
             }
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse C extension warnings
@@ -228,7 +244,9 @@ void PythonParser::ParsePythonBuild(const std::string& content, std::vector<duck
                 event.column_number = c_match[3].str().empty() ? -1 : std::stoi(c_match[3].str());
                 event.message = c_match[4].str();
             }
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
     }

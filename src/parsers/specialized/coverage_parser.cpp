@@ -37,7 +37,8 @@ void CoverageParser::ParseCoverageText(const std::string& content, std::vector<d
     std::istringstream stream(content);
     std::string line;
     int64_t event_id = 1;
-    
+    int32_t current_line_num = 0;
+
     // Regex patterns for coverage.py output
     std::regex coverage_header(R"(Name\s+Stmts\s+Miss\s+Cover(?:\s+Missing)?)");
     std::regex coverage_branch_header(R"(Name\s+Stmts\s+Miss\s+Branch\s+BrPart\s+Cover(?:\s+Missing)?)");
@@ -66,8 +67,9 @@ void CoverageParser::ParseCoverageText(const std::string& content, std::vector<d
     std::smatch match;
     bool in_coverage_table = false;
     bool in_branch_table = false;
-    
+
     while (std::getline(stream, line)) {
+        current_line_num++;
         // Handle coverage table headers
         if (std::regex_search(line, match, coverage_header)) {
             in_coverage_table = true;
@@ -87,11 +89,13 @@ void CoverageParser::ParseCoverageText(const std::string& content, std::vector<d
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "coverage_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
-        
+
         // Handle branch coverage table headers
         if (std::regex_search(line, match, coverage_branch_header)) {
             in_coverage_table = true;
@@ -111,11 +115,13 @@ void CoverageParser::ParseCoverageText(const std::string& content, std::vector<d
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "coverage_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
-        
+
         // Handle separator lines
         if (std::regex_search(line, match, separator_line)) {
             continue; // Skip separator lines
@@ -160,7 +166,9 @@ void CoverageParser::ParseCoverageText(const std::string& content, std::vector<d
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "coverage_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -202,7 +210,9 @@ void CoverageParser::ParseCoverageText(const std::string& content, std::vector<d
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "coverage_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -245,7 +255,9 @@ void CoverageParser::ParseCoverageText(const std::string& content, std::vector<d
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "coverage_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -285,7 +297,9 @@ void CoverageParser::ParseCoverageText(const std::string& content, std::vector<d
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "coverage_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -306,7 +320,9 @@ void CoverageParser::ParseCoverageText(const std::string& content, std::vector<d
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "coverage_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -327,7 +343,9 @@ void CoverageParser::ParseCoverageText(const std::string& content, std::vector<d
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "coverage_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -348,7 +366,9 @@ void CoverageParser::ParseCoverageText(const std::string& content, std::vector<d
             event.execution_time = std::stod(match[1].str());
             event.raw_output = content;
             event.structured_data = "coverage_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -369,7 +389,9 @@ void CoverageParser::ParseCoverageText(const std::string& content, std::vector<d
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "coverage_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -390,7 +412,9 @@ void CoverageParser::ParseCoverageText(const std::string& content, std::vector<d
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "coverage_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -411,7 +435,9 @@ void CoverageParser::ParseCoverageText(const std::string& content, std::vector<d
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "coverage_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -431,7 +457,9 @@ void CoverageParser::ParseCoverageText(const std::string& content, std::vector<d
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "coverage_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -442,7 +470,8 @@ void CoverageParser::ParsePytestCovText(const std::string& content, std::vector<
     std::istringstream stream(content);
     std::string line;
     int64_t event_id = 1;
-    
+    int32_t current_line_num = 0;
+
     // Regex patterns for pytest-cov output
     std::regex test_session_start(R"(={3,} test session starts ={3,})");
     std::regex platform_info(R"(platform (.+) -- Python (.+), pytest-(.+), pluggy-(.+))");
@@ -469,8 +498,9 @@ void CoverageParser::ParsePytestCovText(const std::string& content, std::vector<
     bool in_coverage_section = false;
     bool in_coverage_table = false;
     bool in_branch_table = false;
-    
+
     while (std::getline(stream, line)) {
+        current_line_num++;
         // Handle test session start
         if (std::regex_search(line, match, test_session_start)) {
             duckdb::ValidationEvent event;
@@ -487,7 +517,9 @@ void CoverageParser::ParsePytestCovText(const std::string& content, std::vector<
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "pytest_cov_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -508,7 +540,9 @@ void CoverageParser::ParsePytestCovText(const std::string& content, std::vector<
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "pytest_cov_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -529,7 +563,9 @@ void CoverageParser::ParsePytestCovText(const std::string& content, std::vector<
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "pytest_cov_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -586,7 +622,9 @@ void CoverageParser::ParsePytestCovText(const std::string& content, std::vector<
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "pytest_cov_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -619,7 +657,9 @@ void CoverageParser::ParsePytestCovText(const std::string& content, std::vector<
             event.execution_time = std::stod(duration);
             event.raw_output = content;
             event.structured_data = "pytest_cov_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -642,7 +682,9 @@ void CoverageParser::ParsePytestCovText(const std::string& content, std::vector<
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "pytest_cov_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -700,7 +742,9 @@ void CoverageParser::ParsePytestCovText(const std::string& content, std::vector<
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "pytest_cov_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -740,7 +784,9 @@ void CoverageParser::ParsePytestCovText(const std::string& content, std::vector<
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "pytest_cov_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -761,7 +807,9 @@ void CoverageParser::ParsePytestCovText(const std::string& content, std::vector<
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "pytest_cov_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -781,7 +829,9 @@ void CoverageParser::ParsePytestCovText(const std::string& content, std::vector<
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "pytest_cov_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -802,7 +852,9 @@ void CoverageParser::ParsePytestCovText(const std::string& content, std::vector<
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "pytest_cov_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -822,7 +874,9 @@ void CoverageParser::ParsePytestCovText(const std::string& content, std::vector<
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "pytest_cov_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -843,7 +897,9 @@ void CoverageParser::ParsePytestCovText(const std::string& content, std::vector<
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "pytest_cov_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -863,7 +919,9 @@ void CoverageParser::ParsePytestCovText(const std::string& content, std::vector<
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "pytest_cov_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }

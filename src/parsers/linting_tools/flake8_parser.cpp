@@ -26,11 +26,13 @@ std::vector<ValidationEvent> Flake8Parser::parse(const std::string& content) con
     std::istringstream stream(content);
     std::string line;
     int64_t event_id = 1;
-    
+    int32_t current_line_num = 0;
+
     // Regex pattern for Flake8 output: file.py:line:column: error_code message
     std::regex flake8_message(R"(([^:]+):(\d+):(\d+):\s*([FEWC]\d+)\s*(.+))");
-    
+
     while (std::getline(stream, line)) {
+        current_line_num++;
         std::smatch match;
         
         if (std::regex_search(line, match, flake8_message)) {
@@ -87,7 +89,9 @@ std::vector<ValidationEvent> Flake8Parser::parse(const std::string& content) con
             event.execution_time = 0.0;
             event.raw_output = line;
             event.structured_data = "{\"error_code\": \"" + error_code + "\", \"error_type\": \"" + std::string(1, error_code.front()) + "\"}";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
     }

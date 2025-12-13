@@ -25,8 +25,10 @@ void CMakeParser::ParseCMakeBuild(const std::string& content, std::vector<duckdb
     std::istringstream stream(content);
     std::string line;
     int64_t event_id = 1;
-    
+    int32_t current_line_num = 0;
+
     while (std::getline(stream, line)) {
+        current_line_num++;
         // Parse GCC/Clang error format: file:line:column: severity: message
         std::regex cpp_error_pattern(R"(([^:]+):(\d+):(\d*):?\s*(error|warning|note):\s*(.+))");
         std::smatch match;
@@ -64,7 +66,9 @@ void CMakeParser::ParseCMakeBuild(const std::string& content, std::vector<duckdb
             
             event.raw_output = content;
             event.structured_data = "cmake_build";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse CMake configuration errors
@@ -91,7 +95,9 @@ void CMakeParser::ParseCMakeBuild(const std::string& content, std::vector<duckdb
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "cmake_build";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse CMake warnings (including "CMake Warning", "CMake Deprecation Warning", "CMake Developer Warning")
@@ -118,7 +124,9 @@ void CMakeParser::ParseCMakeBuild(const std::string& content, std::vector<duckdb
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "cmake_build";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse linker errors (both with and without /usr/bin/ld: prefix)
@@ -145,7 +153,9 @@ void CMakeParser::ParseCMakeBuild(const std::string& content, std::vector<duckdb
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "cmake_build";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse collect2 linker errors
@@ -163,7 +173,9 @@ void CMakeParser::ParseCMakeBuild(const std::string& content, std::vector<duckdb
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "cmake_build";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse gmake errors
@@ -181,7 +193,9 @@ void CMakeParser::ParseCMakeBuild(const std::string& content, std::vector<duckdb
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "cmake_build";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse CMake configuration summary errors  
@@ -199,7 +213,9 @@ void CMakeParser::ParseCMakeBuild(const std::string& content, std::vector<duckdb
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "cmake_build";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
     }

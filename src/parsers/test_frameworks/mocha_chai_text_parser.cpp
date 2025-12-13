@@ -21,7 +21,8 @@ void MochaChaiTextParser::ParseMochaChai(const std::string& content, std::vector
     std::istringstream stream(content);
     std::string line;
     int64_t event_id = 1;
-    
+    int32_t current_line_num = 0;
+
     // Regex patterns for Mocha/Chai output
     std::regex test_passed(R"(\s*✓\s*(.+)\s*\((\d+)ms\))");
     std::regex test_failed(R"(\s*✗\s*(.+))");
@@ -51,8 +52,9 @@ void MochaChaiTextParser::ParseMochaChai(const std::string& content, std::vector
     int failure_number = 0;
     
     while (std::getline(stream, line)) {
+        current_line_num++;
         std::smatch match;
-        
+
         // Check for test passed
         if (std::regex_match(line, match, test_passed)) {
             std::string test_name = match[1].str();
@@ -75,7 +77,9 @@ void MochaChaiTextParser::ParseMochaChai(const std::string& content, std::vector
             event.raw_output = line;
             event.function_name = current_context;
             event.structured_data = "{}";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             
             // Reset for next test
@@ -108,7 +112,9 @@ void MochaChaiTextParser::ParseMochaChai(const std::string& content, std::vector
             event.raw_output = line;
             event.function_name = current_context;
             event.structured_data = "{}";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Check for context start

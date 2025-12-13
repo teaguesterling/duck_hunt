@@ -23,7 +23,8 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
     std::istringstream stream(content);
     std::string line;
     int64_t event_id = 1;
-    
+    int32_t current_line_num = 0;
+
     // Regex patterns for NUnit/xUnit output
     std::regex nunit_header(R"(NUnit\s+([\d\.]+))");
     std::regex nunit_summary(R"(Test Count:\s*(\d+),\s*Passed:\s*(\d+),\s*Failed:\s*(\d+),\s*Warnings:\s*(\d+),\s*Inconclusive:\s*(\d+),\s*Skipped:\s*(\d+))");
@@ -55,8 +56,9 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
     std::vector<std::string> failure_details;
     
     while (std::getline(stream, line)) {
+        current_line_num++;
         std::smatch match;
-        
+
         // Detect NUnit vs xUnit framework
         if (std::regex_search(line, match, nunit_header)) {
             current_framework = "nunit";
@@ -71,7 +73,9 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             event.category = "nunit_xunit_text";
             event.raw_output = line;
             event.execution_time = 0;
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         else if (std::regex_search(line, match, xunit_header)) {
@@ -87,7 +91,9 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             event.category = "nunit_xunit_text";
             event.raw_output = line;
             event.execution_time = 0;
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // NUnit Test Summary
@@ -111,7 +117,9 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             event.category = "nunit_xunit_text";
             event.raw_output = line;
             event.execution_time = 0;
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // NUnit Overall Result
@@ -128,7 +136,9 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             event.category = "nunit_xunit_text";
             event.raw_output = line;
             event.execution_time = 0;
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // NUnit Duration
@@ -146,7 +156,9 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             event.tool_name = "nunit";
             event.category = "nunit_xunit_text";
             event.raw_output = line;
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // xUnit Test Suite Start
@@ -163,7 +175,9 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             event.category = "nunit_xunit_text";
             event.raw_output = line;
             event.execution_time = 0;
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // xUnit Test Suite Finish
@@ -180,7 +194,9 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             event.category = "nunit_xunit_text";
             event.raw_output = line;
             event.execution_time = 0;
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // xUnit Test Pass
@@ -198,7 +214,9 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             event.category = "nunit_xunit_text";
             event.raw_output = line;
             event.execution_time = 0;
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // xUnit Test Fail
@@ -216,7 +234,9 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             event.category = "nunit_xunit_text";
             event.raw_output = line;
             event.execution_time = 0;
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // xUnit Test Skip
@@ -234,7 +254,9 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             event.category = "nunit_xunit_text";
             event.raw_output = line;
             event.execution_time = 0;
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // xUnit Test Summary
@@ -251,7 +273,9 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             event.category = "nunit_xunit_text";
             event.raw_output = line;
             event.execution_time = 0;
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // xUnit Time Summary
@@ -269,7 +293,9 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             event.tool_name = "xunit";
             event.category = "nunit_xunit_text";
             event.raw_output = line;
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Handle file path and line number information

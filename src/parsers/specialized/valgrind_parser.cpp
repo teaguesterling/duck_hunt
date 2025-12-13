@@ -23,7 +23,8 @@ void ValgrindParser::ParseValgrind(const std::string& content, std::vector<duckd
     std::istringstream stream(content);
     std::string line;
     uint64_t event_id = 1;
-    
+    int32_t current_line_num = 0;
+
     std::string current_tool = "Valgrind";
     std::string current_pid;
     std::string current_error_type;
@@ -81,8 +82,9 @@ void ValgrindParser::ParseValgrind(const std::string& content, std::vector<duckd
     std::regex error_summary(R"(==\d+== ERROR SUMMARY: (\d+) errors from (\d+) contexts)");
     
     while (std::getline(stream, line)) {
+        current_line_num++;
         std::smatch match;
-        
+
         // Extract PID from Valgrind output
         if (std::regex_search(line, match, pid_regex)) {
             current_pid = match[1].str();
@@ -171,7 +173,9 @@ void ValgrindParser::ParseValgrind(const std::string& content, std::vector<duckd
                 event.execution_time = 0;
                 event.raw_output = content;
                 event.structured_data = "valgrind";
-                
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
                 events.push_back(event);
                 in_error_block = false;
             }
@@ -192,7 +196,9 @@ void ValgrindParser::ParseValgrind(const std::string& content, std::vector<duckd
                 event.execution_time = 0;
                 event.raw_output = content;
                 event.structured_data = "valgrind";
-                
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
                 events.push_back(event);
                 in_error_block = false;
             }

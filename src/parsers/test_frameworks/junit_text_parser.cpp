@@ -23,7 +23,8 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
     std::istringstream iss(content);
     std::string line;
     int64_t event_id = 1;
-    
+    int32_t current_line_num = 0;
+
     // JUnit text patterns for different output formats
     std::regex junit4_class_pattern(R"(Running (.+))");
     std::regex junit4_summary_pattern(R"(Tests run: (\d+), Failures: (\d+), Errors: (\d+), Skipped: (\d+), Time elapsed: ([\d.]+) sec.*?)");
@@ -57,8 +58,9 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
     bool in_stack_trace = false;
     
     while (std::getline(iss, line)) {
+        current_line_num++;
         std::smatch match;
-        
+
         // Parse JUnit 4 class execution
         if (std::regex_search(line, match, junit4_class_pattern)) {
             current_class = match[1].str();
@@ -88,7 +90,9 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
             event.execution_time = time_elapsed;
             event.raw_output = content;
             event.structured_data = "junit";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse JUnit 4 individual test results
@@ -107,7 +111,9 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
             event.execution_time = time_elapsed;
             event.raw_output = content;
             event.structured_data = "junit";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             if (result == "PASSED!") {
                 event.status = duckdb::ValidationEventStatus::PASS;
                 event.severity = "info";
@@ -133,7 +139,9 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
                 event.category = "test_skipped";
                 event.message = "Test skipped";
             }
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse JUnit 5 header
@@ -149,7 +157,9 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "junit";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse JUnit 5 class results
@@ -171,7 +181,9 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
             event.execution_time = static_cast<double>(time_ms) / 1000.0;
             event.raw_output = content;
             event.structured_data = "junit";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             if (result_symbol == "✓") {
                 event.status = duckdb::ValidationEventStatus::PASS;
                 event.severity = "info";
@@ -188,7 +200,9 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
                 event.category = "test_skipped";
                 event.message = "Test skipped";
             }
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse Maven Surefire class execution
@@ -211,7 +225,9 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
             event.execution_time = time_elapsed;
             event.raw_output = content;
             event.structured_data = "junit";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             if (result == "FAILURE!") {
                 event.status = duckdb::ValidationEventStatus::FAIL;
                 event.severity = "error";
@@ -223,7 +239,9 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
                 event.category = "test_error";
                 event.message = "Test error";
             }
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse Maven Surefire summary
@@ -248,7 +266,9 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "junit";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse Gradle test results
@@ -266,7 +286,9 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "junit";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             if (result == "PASSED") {
                 event.status = duckdb::ValidationEventStatus::PASS;
                 event.severity = "info";
@@ -283,7 +305,9 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
                 event.category = "test_skipped";
                 event.message = "Test skipped";
             }
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse Gradle test summary
@@ -307,7 +331,9 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "junit";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse TestNG test results
@@ -325,7 +351,9 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "junit";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             if (result == "PASS") {
                 event.status = duckdb::ValidationEventStatus::PASS;
                 event.severity = "info";
@@ -342,7 +370,9 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
                 event.category = "test_skipped";
                 event.message = "Test skipped";
             }
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse TestNG summary
@@ -366,7 +396,9 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "junit";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Handle exception messages in stack traces

@@ -17,21 +17,23 @@ std::vector<ValidationEvent> PytestParser::parse(const std::string& content) con
     std::istringstream stream(content);
     std::string line;
     int64_t event_id = 1;
-    
+    int32_t current_line_num = 0;
+
     while (std::getline(stream, line)) {
+        current_line_num++;
         if (line.empty()) continue;
-        
+
         // Look for pytest text output patterns: "file.py::test_name STATUS"
         if (line.find("::") != std::string::npos) {
-            parseTestLine(line, event_id, events);
+            parseTestLine(line, event_id, events, current_line_num);
         }
     }
-    
+
     return events;
 }
 
-void PytestParser::parseTestLine(const std::string& line, int64_t& event_id, 
-                                std::vector<ValidationEvent>& events) const {
+void PytestParser::parseTestLine(const std::string& line, int64_t& event_id,
+                                std::vector<ValidationEvent>& events, int32_t log_line_num) const {
     // Parse pytest test result line: "test_file.py::test_name STATUS"
     std::regex test_pattern(R"(([^:]+)::([^\s]+)\s+(PASSED|FAILED|SKIPPED|ERROR)(?:\s+\[(.+)\])?)");
     std::smatch match;
@@ -63,6 +65,8 @@ void PytestParser::parseTestLine(const std::string& line, int64_t& event_id,
         event.execution_time = 0.0;
         event.raw_output = line;
         event.structured_data = "pytest_text";
+        event.log_line_start = log_line_num;
+        event.log_line_end = log_line_num;
         
         // Additional info from match group 4 if present
         if (match[4].matched) {

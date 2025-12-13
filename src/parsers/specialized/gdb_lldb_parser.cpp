@@ -22,7 +22,8 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
     std::istringstream stream(content);
     std::string line;
     uint64_t event_id = 1;
-    
+    int32_t current_line_num = 0;
+
     // Track current context
     std::string current_debugger = "GDB";
     std::string current_program;
@@ -67,8 +68,9 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
     std::regex watchpoint_set(R"(Watchpoint (\d+): addr = (0x[0-9a-fA-F]+))");
     
     while (std::getline(stream, line)) {
+        current_line_num++;
         std::smatch match;
-        
+
         // Detect debugger type
         if (std::regex_search(line, match, gdb_header)) {
             current_debugger = "GDB";
@@ -82,6 +84,8 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
             event.message = "GDB version " + match[1].str() + " started";
             event.error_code = "DEBUGGER_START";
             event.raw_output = line;
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
             events.push_back(event);
         } else if (std::regex_search(line, match, lldb_header)) {
             current_debugger = "LLDB";
@@ -95,6 +99,8 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
             event.message = "LLDB version " + match[1].str() + " started";
             event.error_code = "DEBUGGER_START";
             event.raw_output = line;
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
             events.push_back(event);
         }
         
@@ -111,6 +117,8 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
             event.message = "Started program: " + current_program;
             event.error_code = "PROGRAM_START";
             event.raw_output = line;
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
             events.push_back(event);
         } else if (std::regex_search(line, match, target_create)) {
             current_program = match[1].str();
@@ -124,6 +132,8 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
             event.message = "Target created: " + current_program;
             event.error_code = "TARGET_CREATE";
             event.raw_output = line;
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
             events.push_back(event);
         }
         
@@ -139,6 +149,8 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
             event.message = "Signal " + match[1].str() + ": " + match[2].str();
             event.error_code = match[1].str();
             event.raw_output = line;
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
             events.push_back(event);
         } else if (std::regex_search(line, match, exc_bad_access)) {
             duckdb::ValidationEvent event;
@@ -151,6 +163,8 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
             event.message = "EXC_BAD_ACCESS at address " + match[2].str();
             event.error_code = "EXC_BAD_ACCESS";
             event.raw_output = line;
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
             events.push_back(event);
         }
         
@@ -249,6 +263,8 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
             event.message = "Breakpoint " + match[1].str() + " hit at " + match[2].str();
             event.error_code = "BREAKPOINT_HIT";
             event.raw_output = line;
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
             events.push_back(event);
         } else if (std::regex_search(line, match, lldb_breakpoint_hit)) {
             duckdb::ValidationEvent event;
@@ -261,6 +277,8 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
             event.message = "Breakpoint " + match[1].str() + "." + match[2].str() + " hit";
             event.error_code = "BREAKPOINT_HIT";
             event.raw_output = line;
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
             events.push_back(event);
         } else if (std::regex_search(line, match, breakpoint_set)) {
             duckdb::ValidationEvent event;
@@ -280,6 +298,8 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
             event.message = "Breakpoint " + match[1].str() + " set at " + match[2].str();
             event.error_code = "BREAKPOINT_SET";
             event.raw_output = line;
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
             events.push_back(event);
         }
         
@@ -295,6 +315,8 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
             event.message = "Watchpoint " + match[1].str() + " hit: " + match[2].str();
             event.error_code = "WATCHPOINT_HIT";
             event.raw_output = line;
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
             events.push_back(event);
         } else if (std::regex_search(line, match, watchpoint_set)) {
             duckdb::ValidationEvent event;
@@ -307,6 +329,8 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
             event.message = "Watchpoint " + match[1].str() + " set at address " + match[2].str();
             event.error_code = "WATCHPOINT_SET";
             event.raw_output = line;
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
             events.push_back(event);
         }
         
@@ -322,6 +346,8 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
             event.message = "Cannot access memory at address " + match[1].str();
             event.error_code = "MEMORY_ACCESS_ERROR";
             event.raw_output = line;
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
             events.push_back(event);
         }
         
@@ -337,6 +363,8 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
             event.message = "Thread #" + match[1].str() + " (TID: " + match[2].str() + ")";
             event.error_code = "THREAD_INFO";
             event.raw_output = line;
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
             events.push_back(event);
         } else if (std::regex_search(line, match, gdb_thread_info)) {
             duckdb::ValidationEvent event;
@@ -349,6 +377,8 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
             event.message = "Thread " + match[1].str() + " (LWP: " + match[3].str() + ")";
             event.error_code = "THREAD_INFO";
             event.raw_output = line;
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
             events.push_back(event);
         }
         

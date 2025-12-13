@@ -23,9 +23,11 @@ void NodeParser::ParseNodeBuild(const std::string& content, std::vector<duckdb::
     std::istringstream stream(content);
     std::string line;
     int64_t event_id = 1;
+    int32_t current_line_num = 0;
     std::string current_test_file;
-    
+
     while (std::getline(stream, line)) {
+        current_line_num++;
         // Parse npm/yarn errors
         if (line.find("npm ERR!") != std::string::npos) {
             duckdb::ValidationEvent event;
@@ -68,7 +70,9 @@ void NodeParser::ParseNodeBuild(const std::string& content, std::vector<duckdb::
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "node_build";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse Jest test failures
@@ -109,7 +113,9 @@ void NodeParser::ParseNodeBuild(const std::string& content, std::vector<duckdb::
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "node_build";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse Jest individual test failures
@@ -241,7 +247,9 @@ void NodeParser::ParseNodeBuild(const std::string& content, std::vector<duckdb::
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "node_build";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse Node.js runtime errors with line numbers
@@ -285,7 +293,9 @@ void NodeParser::ParseNodeBuild(const std::string& content, std::vector<duckdb::
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "node_build";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
     }

@@ -27,7 +27,8 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string& content) c
     std::istringstream stream(content);
     std::string line;
     int64_t event_id = 1;
-    
+    int32_t current_line_num = 0;
+
     // Regex patterns for yapf output
     std::regex diff_start_yapf(R"(--- a/(.+) \(original\))");
     std::regex diff_fixed_yapf(R"(\+\+\+ b/(.+) \(reformatted\))");
@@ -52,8 +53,9 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string& content) c
     std::string current_file;
     bool in_diff = false;
     bool in_config = false;
-    
+
     while (std::getline(stream, line)) {
+        current_line_num++;
         // Handle yapf diff sections
         if (std::regex_search(line, match, diff_start_yapf)) {
             current_file = match[1].str();
@@ -73,7 +75,9 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string& content) c
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "yapf_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -94,7 +98,9 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string& content) c
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "yapf_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -115,7 +121,9 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string& content) c
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "yapf_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -136,7 +144,9 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string& content) c
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "yapf_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -157,7 +167,9 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string& content) c
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "yapf_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -178,7 +190,9 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string& content) c
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "yapf_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -199,7 +213,9 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string& content) c
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "yapf_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -220,7 +236,9 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string& content) c
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "yapf_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -240,7 +258,9 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string& content) c
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "yapf_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -260,7 +280,9 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string& content) c
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "yapf_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -280,7 +302,9 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string& content) c
             event.execution_time = std::stod(match[1].str());
             event.raw_output = content;
             event.structured_data = "yapf_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -316,7 +340,11 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string& content) c
             event2.execution_time = 0.0;
             event2.raw_output = content;
             event2.structured_data = "yapf_text";
-            
+            event1.log_line_start = current_line_num;
+            event1.log_line_end = current_line_num;
+            event2.log_line_start = current_line_num;
+            event2.log_line_end = current_line_num;
+
             events.push_back(event1);
             events.push_back(event2);
             continue;
@@ -338,7 +366,9 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string& content) c
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "yapf_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -359,7 +389,9 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string& content) c
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "yapf_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -381,7 +413,9 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string& content) c
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "yapf_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -402,7 +436,9 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string& content) c
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "yapf_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -423,7 +459,9 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string& content) c
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "yapf_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }

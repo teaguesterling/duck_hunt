@@ -20,7 +20,8 @@ void RSpecTextParser::ParseRSpecText(const std::string& content, std::vector<duc
     std::istringstream stream(content);
     std::string line;
     int64_t event_id = 1;
-    
+    int32_t current_line_num = 0;
+
     // Regex patterns for RSpec output
     std::regex test_passed(R"(\s*✓\s*(.+))");
     std::regex test_failed(R"(\s*✗\s*(.+))");
@@ -43,8 +44,9 @@ void RSpecTextParser::ParseRSpecText(const std::string& content, std::vector<duc
     bool in_failed_examples = false;
     
     while (std::getline(stream, line)) {
+        current_line_num++;
         std::smatch match;
-        
+
         // Skip empty lines and dividers
         if (line.empty() || line.find("Failures:") != std::string::npos ||
             line.find("Failed examples:") != std::string::npos) {
@@ -71,6 +73,8 @@ void RSpecTextParser::ParseRSpecText(const std::string& content, std::vector<duc
             event.test_name = match[3].str();
             event.message = "Test failed: " + match[3].str();
             event.raw_output = line;
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
             events.push_back(event);
             continue;
         }
@@ -109,6 +113,8 @@ void RSpecTextParser::ParseRSpecText(const std::string& content, std::vector<duc
             event.test_name = match[1].str();
             event.message = "Test passed: " + match[1].str();
             event.raw_output = line;
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
             events.push_back(event);
         }
         
@@ -130,6 +136,8 @@ void RSpecTextParser::ParseRSpecText(const std::string& content, std::vector<duc
             event.test_name = match[1].str();
             event.message = "Test failed: " + match[1].str();
             event.raw_output = line;
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
             events.push_back(event);
         }
         
@@ -151,6 +159,8 @@ void RSpecTextParser::ParseRSpecText(const std::string& content, std::vector<duc
             event.test_name = match[1].str();
             event.message = "Test pending: " + match[2].str();
             event.raw_output = line;
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
             events.push_back(event);
         }
         
@@ -213,6 +223,8 @@ void RSpecTextParser::ParseRSpecText(const std::string& content, std::vector<duc
                           std::to_string(pending) + " pending";
             event.execution_time = std::stod(execution_time);
             event.raw_output = line;
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
             events.push_back(event);
         }
     }

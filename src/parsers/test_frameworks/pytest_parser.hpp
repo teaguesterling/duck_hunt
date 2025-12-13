@@ -19,8 +19,8 @@ public:
     std::string getCategory() const override { return "test_framework"; }
 
 private:
-    void parseTestLine(const std::string& line, int64_t& event_id, 
-                      std::vector<ValidationEvent>& events) const;
+    void parseTestLine(const std::string& line, int64_t& event_id,
+                      std::vector<ValidationEvent>& events, int32_t log_line_num) const;
 };
 
 } // namespace duckdb

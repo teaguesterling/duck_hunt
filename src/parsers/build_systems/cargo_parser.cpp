@@ -24,8 +24,10 @@ void CargoParser::ParseCargoBuild(const std::string& content, std::vector<duckdb
     std::istringstream stream(content);
     std::string line;
     int64_t event_id = 1;
-    
+    int32_t current_line_num = 0;
+
     while (std::getline(stream, line)) {
+        current_line_num++;
         // Parse Rust compiler errors: error[E0XXX]: message --> file:line:column
         std::regex rust_error_pattern(R"(error\[E(\d+)\]:\s*(.+))");
         std::smatch match;
@@ -36,10 +38,12 @@ void CargoParser::ParseCargoBuild(const std::string& content, std::vector<duckdb
             
             // Look ahead for the file location line
             std::string location_line;
+            int32_t start_line = current_line_num;
             if (std::getline(stream, location_line) && location_line.find("-->") != std::string::npos) {
+                current_line_num++;  // Account for the lookahead line
                 std::regex location_pattern(R"(-->\s*([^:]+):(\d+):(\d+))");
                 std::smatch loc_match;
-                
+
                 if (std::regex_search(location_line, loc_match, location_pattern)) {
                     duckdb::ValidationEvent event;
                     event.event_id = event_id++;
@@ -57,7 +61,9 @@ void CargoParser::ParseCargoBuild(const std::string& content, std::vector<duckdb
                     event.execution_time = 0.0;
                     event.raw_output = content;
                     event.structured_data = "cargo_build";
-                    
+                    event.log_line_start = start_line;
+                    event.log_line_end = current_line_num;
+
                     events.push_back(event);
                 }
             }
@@ -72,10 +78,12 @@ void CargoParser::ParseCargoBuild(const std::string& content, std::vector<duckdb
                 
                 // Look ahead for the file location line
                 std::string location_line;
+                int32_t start_line = current_line_num;
                 if (std::getline(stream, location_line) && location_line.find("-->") != std::string::npos) {
+                    current_line_num++;  // Account for the lookahead line
                     std::regex location_pattern(R"(-->\s*([^:]+):(\d+):(\d+))");
                     std::smatch loc_match;
-                    
+
                     if (std::regex_search(location_line, loc_match, location_pattern)) {
                         duckdb::ValidationEvent event;
                         event.event_id = event_id++;
@@ -92,7 +100,9 @@ void CargoParser::ParseCargoBuild(const std::string& content, std::vector<duckdb
                         event.execution_time = 0.0;
                         event.raw_output = content;
                         event.structured_data = "cargo_build";
-                        
+                        event.log_line_start = start_line;
+                        event.log_line_end = current_line_num;
+
                         events.push_back(event);
                     }
                 }
@@ -119,7 +129,9 @@ void CargoParser::ParseCargoBuild(const std::string& content, std::vector<duckdb
                 event.execution_time = 0.0;
                 event.raw_output = content;
                 event.structured_data = "cargo_build";
-                
+                event.log_line_start = current_line_num;
+                event.log_line_end = current_line_num;
+
                 events.push_back(event);
             }
         }
@@ -145,7 +157,9 @@ void CargoParser::ParseCargoBuild(const std::string& content, std::vector<duckdb
                 event.execution_time = 0.0;
                 event.raw_output = content;
                 event.structured_data = "cargo_build";
-                
+                event.log_line_start = current_line_num;
+                event.log_line_end = current_line_num;
+
                 events.push_back(event);
             }
         }
@@ -180,7 +194,9 @@ void CargoParser::ParseCargoBuild(const std::string& content, std::vector<duckdb
                 event.execution_time = 0.0;
                 event.raw_output = content;
                 event.structured_data = "cargo_build";
-                
+                event.log_line_start = current_line_num;
+                event.log_line_end = current_line_num;
+
                 events.push_back(event);
             }
         }
@@ -204,7 +220,9 @@ void CargoParser::ParseCargoBuild(const std::string& content, std::vector<duckdb
                 event.execution_time = 0.0;
                 event.raw_output = content;
                 event.structured_data = "cargo_build";
-                
+                event.log_line_start = current_line_num;
+                event.log_line_end = current_line_num;
+
                 events.push_back(event);
             }
         }
@@ -228,7 +246,9 @@ void CargoParser::ParseCargoBuild(const std::string& content, std::vector<duckdb
                 event.execution_time = 0.0;
                 event.raw_output = content;
                 event.structured_data = "cargo_build";
-                
+                event.log_line_start = current_line_num;
+                event.log_line_end = current_line_num;
+
                 events.push_back(event);
             }
         }
@@ -253,7 +273,9 @@ void CargoParser::ParseCargoBuild(const std::string& content, std::vector<duckdb
                 event.execution_time = 0.0;
                 event.raw_output = content;
                 event.structured_data = "cargo_build";
-                
+                event.log_line_start = current_line_num;
+                event.log_line_end = current_line_num;
+
                 events.push_back(event);
             }
         }

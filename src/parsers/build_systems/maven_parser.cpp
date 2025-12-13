@@ -24,7 +24,8 @@ void MavenParser::ParseMavenBuild(const std::string& content, std::vector<duckdb
     std::istringstream iss(content);
     std::string line;
     int64_t event_id = 1;
-    
+    int32_t current_line_num = 0;
+
     // Maven patterns
     std::regex compile_error_pattern(R"(\[ERROR\]\s+(.+?):(\[(\d+),(\d+)\])\s+(.+))");
     std::regex compile_warning_pattern(R"(\[WARNING\]\s+(.+?):(\[(\d+),(\d+)\])\s+(.+))");
@@ -38,8 +39,9 @@ void MavenParser::ParseMavenBuild(const std::string& content, std::vector<duckdb
     std::regex compilation_failure_pattern(R"(COMPILATION ERROR)");
     
     while (std::getline(iss, line)) {
+        current_line_num++;
         std::smatch match;
-        
+
         // Parse Java compilation errors (Maven compiler plugin format)
         if (std::regex_search(line, match, compile_error_pattern)) {
             duckdb::ValidationEvent event;
@@ -57,7 +59,9 @@ void MavenParser::ParseMavenBuild(const std::string& content, std::vector<duckdb
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "maven_build";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse Java compilation warnings
@@ -77,7 +81,9 @@ void MavenParser::ParseMavenBuild(const std::string& content, std::vector<duckdb
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "maven_build";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse JUnit test failures
@@ -97,7 +103,9 @@ void MavenParser::ParseMavenBuild(const std::string& content, std::vector<duckdb
             event.message = "Test " + failure_type;
             event.raw_output = content;
             event.structured_data = "maven_build";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse Checkstyle violations (when preceded by checkstyle plugin info)
@@ -120,7 +128,9 @@ void MavenParser::ParseMavenBuild(const std::string& content, std::vector<duckdb
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "maven_build";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse SpotBugs findings
@@ -172,7 +182,9 @@ void MavenParser::ParseMavenBuild(const std::string& content, std::vector<duckdb
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "maven_build";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse Maven dependency analysis warnings
@@ -188,7 +200,9 @@ void MavenParser::ParseMavenBuild(const std::string& content, std::vector<duckdb
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "maven_build";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse build failure summary
@@ -204,7 +218,9 @@ void MavenParser::ParseMavenBuild(const std::string& content, std::vector<duckdb
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "maven_build";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse test result summaries

@@ -25,7 +25,8 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string& content
     std::istringstream stream(content);
     std::string line;
     int64_t event_id = 1;
-    
+    int32_t current_line_num = 0;
+
     // Regex patterns for DroneCI output
     std::regex drone_step_start(R"(\[drone:exec\] .* starting build step: (.+))");
     std::regex drone_step_complete(R"(\[drone:exec\] .* completed build step: (.+) \(exit code (\d+)\))");
@@ -56,6 +57,7 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string& content
     bool in_jest_failure = false;
     
     while (std::getline(stream, line)) {
+        current_line_num++;
         // Parse DroneCI step start
         if (std::regex_search(line, match, drone_step_start)) {
             current_step = match[1].str();
@@ -74,7 +76,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string& content
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "drone_ci_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -98,7 +102,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string& content
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "drone_ci_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -119,7 +125,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string& content
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "drone_ci_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -142,7 +150,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string& content
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "drone_ci_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -165,7 +175,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string& content
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "drone_ci_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -187,7 +199,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string& content
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "drone_ci_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -211,7 +225,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string& content
             event.execution_time = install_time;
             event.raw_output = content;
             event.structured_data = "drone_ci_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -233,7 +249,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string& content
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "drone_ci_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -257,7 +275,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string& content
             event.execution_time = test_time;
             event.raw_output = content;
             event.structured_data = "drone_ci_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -305,7 +325,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string& content
             event.execution_time = test_time_ms / 1000.0;
             event.raw_output = content;
             event.structured_data = "drone_ci_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -329,7 +351,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string& content
             event.execution_time = test_time;
             event.raw_output = content;
             event.structured_data = "drone_ci_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -355,7 +379,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string& content
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "drone_ci_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -380,7 +406,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string& content
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "drone_ci_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -402,7 +430,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string& content
             event.execution_time = total_time;
             event.raw_output = content;
             event.structured_data = "drone_ci_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -425,7 +455,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string& content
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "drone_ci_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -447,7 +479,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string& content
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "drone_ci_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -475,7 +509,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string& content
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "drone_ci_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -498,7 +534,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string& content
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "drone_ci_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -522,7 +560,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string& content
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "drone_ci_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -544,7 +584,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string& content
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "drone_ci_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -566,7 +608,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string& content
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "drone_ci_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -589,7 +633,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string& content
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "drone_ci_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }

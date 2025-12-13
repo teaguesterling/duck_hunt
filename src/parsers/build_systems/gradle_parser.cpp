@@ -23,7 +23,8 @@ void GradleParser::ParseGradleBuild(const std::string& content, std::vector<duck
     std::istringstream iss(content);
     std::string line;
     int64_t event_id = 1;
-    
+    int32_t current_line_num = 0;
+
     // Gradle patterns
     std::regex task_pattern(R"(> Task :([^\s]+)\s+(FAILED|UP-TO-DATE|SKIPPED))");
     std::regex compile_error_pattern(R"((.+?):(\d+): error: (.+))");
@@ -40,8 +41,9 @@ void GradleParser::ParseGradleBuild(const std::string& content, std::vector<duck
     bool in_error_block = false;
     
     while (std::getline(iss, line)) {
+        current_line_num++;
         std::smatch match;
-        
+
         // Parse task execution results
         if (std::regex_search(line, match, task_pattern)) {
             std::string task_name = match[1].str();
@@ -61,8 +63,10 @@ void GradleParser::ParseGradleBuild(const std::string& content, std::vector<duck
                 event.execution_time = 0.0;
                 event.raw_output = content;
                 event.structured_data = "gradle_build";
-                
-                events.push_back(event);
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
+            events.push_back(event);
             }
         }
         // Parse Java compilation errors
@@ -82,7 +86,9 @@ void GradleParser::ParseGradleBuild(const std::string& content, std::vector<duck
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "gradle_build";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse test results
@@ -118,7 +124,9 @@ void GradleParser::ParseGradleBuild(const std::string& content, std::vector<duck
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "gradle_build";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse test summaries
@@ -140,7 +148,9 @@ void GradleParser::ParseGradleBuild(const std::string& content, std::vector<duck
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "gradle_build";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse Checkstyle violations (Gradle format)
@@ -161,7 +171,9 @@ void GradleParser::ParseGradleBuild(const std::string& content, std::vector<duck
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "gradle_build";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse SpotBugs findings (Gradle format)
@@ -251,7 +263,9 @@ void GradleParser::ParseGradleBuild(const std::string& content, std::vector<duck
             event.execution_time = static_cast<double>(duration);
             event.raw_output = content;
             event.structured_data = "gradle_build";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Parse execution failure messages
@@ -268,7 +282,9 @@ void GradleParser::ParseGradleBuild(const std::string& content, std::vector<duck
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "gradle_build";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Track error block context

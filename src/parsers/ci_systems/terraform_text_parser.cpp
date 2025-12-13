@@ -28,8 +28,9 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string& conte
     std::istringstream stream(content);
     std::string line;
     int64_t event_id = 1;
+    int32_t current_line_num = 0;
     std::smatch match;
-    
+
     // Terraform regex patterns
     std::regex terraform_version(R"(Terraform v(\d+\.\d+\.\d+))");
     std::regex provider_info(R"(\+ provider registry\.terraform\.io/hashicorp/(\w+) v([\d\.]+))");
@@ -50,6 +51,7 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string& conte
     std::regex version_warning(R"(Your version of Terraform is out of date!)");
     
     while (std::getline(stream, line)) {
+        current_line_num++;
         // Parse Terraform version
         if (std::regex_search(line, match, terraform_version)) {
             ValidationEvent event;
@@ -66,7 +68,9 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string& conte
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "terraform_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -87,7 +91,9 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string& conte
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "terraform_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -108,7 +114,9 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string& conte
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "terraform_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -129,7 +137,9 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string& conte
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "terraform_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -150,7 +160,9 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string& conte
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "terraform_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -177,7 +189,9 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string& conte
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "terraform_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -198,7 +212,9 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string& conte
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "terraform_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -223,7 +239,9 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string& conte
             event.execution_time = duration;
             event.raw_output = content;
             event.structured_data = "terraform_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -247,7 +265,9 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string& conte
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "terraform_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -272,7 +292,9 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string& conte
             event.execution_time = duration;
             event.raw_output = content;
             event.structured_data = "terraform_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -296,7 +318,9 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string& conte
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "terraform_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -320,7 +344,9 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string& conte
             event.execution_time = duration;
             event.raw_output = content;
             event.structured_data = "terraform_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -346,7 +372,9 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string& conte
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "terraform_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -367,7 +395,9 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string& conte
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "terraform_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -388,7 +418,9 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string& conte
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "terraform_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -409,7 +441,9 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string& conte
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "terraform_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }
@@ -430,7 +464,9 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string& conte
             event.execution_time = 0.0;
             event.raw_output = content;
             event.structured_data = "terraform_text";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
             continue;
         }

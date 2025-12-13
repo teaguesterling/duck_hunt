@@ -30,17 +30,19 @@ std::vector<ValidationEvent> BlackParser::parse(const std::string& content) cons
     std::istringstream stream(content);
     std::string line;
     int64_t event_id = 1;
-    
+    int32_t current_line_num = 0;
+
     // Regex patterns for Black output
     std::regex would_reformat(R"(would reformat (.+))");
     std::regex reformat_summary(R"((\d+) files? would be reformatted, (\d+) files? would be left unchanged)");
     std::regex all_done_summary(R"(All done! ✨ 🍰 ✨)");
     std::regex diff_header(R"(--- (.+)\s+\(original\))");
-    
+
     bool in_diff_mode = false;
     std::string current_file;
-    
+
     while (std::getline(stream, line)) {
+        current_line_num++;
         std::smatch match;
         
         // Check for "would reformat" messages
@@ -61,7 +63,9 @@ std::vector<ValidationEvent> BlackParser::parse(const std::string& content) cons
             event.execution_time = 0.0;
             event.raw_output = line;
             event.structured_data = "{\"action\": \"would_reformat\"}";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Check for reformat summary
@@ -82,7 +86,9 @@ std::vector<ValidationEvent> BlackParser::parse(const std::string& content) cons
             event.execution_time = 0.0;
             event.raw_output = line;
             event.structured_data = "{\"reformat_count\": " + reformat_count + ", \"unchanged_count\": " + unchanged_count + "}";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Check for "All done!" success message
@@ -100,7 +106,9 @@ std::vector<ValidationEvent> BlackParser::parse(const std::string& content) cons
             event.execution_time = 0.0;
             event.raw_output = line;
             event.structured_data = "{\"action\": \"success\"}";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Check for diff header (unified diff mode)
@@ -122,7 +130,9 @@ std::vector<ValidationEvent> BlackParser::parse(const std::string& content) cons
             event.execution_time = 0.0;
             event.raw_output = line;
             event.structured_data = "{\"action\": \"diff_start\", \"file\": \"" + current_file + "\"}";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         // Handle diff content (lines starting with + or -)
@@ -149,7 +159,9 @@ std::vector<ValidationEvent> BlackParser::parse(const std::string& content) cons
                 event.execution_time = 0.0;
                 event.raw_output = line;
                 event.structured_data = "{\"action\": \"diff_line\", \"type\": \"" + std::string(1, line.front()) + "\"}";
-                
+                event.log_line_start = current_line_num;
+                event.log_line_end = current_line_num;
+
                 events.push_back(event);
             }
         }

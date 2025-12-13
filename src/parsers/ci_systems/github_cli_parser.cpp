@@ -77,16 +77,19 @@ std::vector<ValidationEvent> GitHubCliParser::parseRunsList(const std::string& c
     std::istringstream stream(content);
     std::string line;
     int64_t event_id = 1;
-    
+    int32_t current_line_num = 0;
+
     // Skip header line
     if (std::getline(stream, line) && line.find("STATUS") != std::string::npos) {
+        current_line_num++;
         // This is the header, continue to data lines
     }
-    
+
     // Parse run entries: [✓X] status conclusion workflow branch time
     std::regex run_pattern(R"(([✓X])\s+(\w+)\s+(\w+)\s+(.+?)\s+(\w+)\s+(\d+[mhd]|[a-zA-Z]+\s+\d+))");
-    
+
     while (std::getline(stream, line)) {
+        current_line_num++;
         std::smatch match;
         if (std::regex_search(line, match, run_pattern)) {
             ValidationEvent event;
@@ -123,9 +126,11 @@ std::vector<ValidationEvent> GitHubCliParser::parseRunsList(const std::string& c
             event.column_number = -1;
             event.execution_time = 0.0;
             event.raw_output = line;
-            event.structured_data = "{\"status\": \"" + status + "\", \"conclusion\": \"" + conclusion + 
+            event.structured_data = "{\"status\": \"" + status + "\", \"conclusion\": \"" + conclusion +
                                    "\", \"branch\": \"" + branch + "\", \"time\": \"" + time + "\"}";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
     }
@@ -138,10 +143,12 @@ std::vector<ValidationEvent> GitHubCliParser::parseRunView(const std::string& co
     std::istringstream stream(content);
     std::string line;
     int64_t event_id = 1;
+    int32_t current_line_num = 0;
     std::string run_id, run_status, run_conclusion;
-    
+
     // Parse run metadata first
     while (std::getline(stream, line)) {
+        current_line_num++;
         if (line.find("Run #") != std::string::npos || line.find("Run ID:") != std::string::npos) {
             std::regex run_id_pattern(R"(Run #?(\d+)|Run ID:\s*(\d+))");
             std::smatch match;
@@ -201,11 +208,13 @@ std::vector<ValidationEvent> GitHubCliParser::parseRunView(const std::string& co
             event.execution_time = 0.0;
             event.raw_output = line;
             event.structured_data = "{\"run_id\": \"" + run_id + "\", \"job_status\": \"" + job_status + "\"}";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
     }
-    
+
     return events;
 }
 
@@ -214,8 +223,9 @@ std::vector<ValidationEvent> GitHubCliParser::parseWorkflowLog(const std::string
     std::istringstream stream(content);
     std::string line;
     int64_t event_id = 1;
+    int32_t current_line_num = 0;
     std::string current_step;
-    
+
     // Parse GitHub Actions workflow log format
     std::regex timestamp_pattern(R"((\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z)\s*(.+))");
     std::regex error_pattern(R"(::error::(.+))");
@@ -224,8 +234,9 @@ std::vector<ValidationEvent> GitHubCliParser::parseWorkflowLog(const std::string
     std::regex group_pattern(R"(##\[group\](.+))");
     std::regex endgroup_pattern(R"(##\[endgroup\])");
     std::regex step_pattern(R"(Run (.+)|Setup (.+))");
-    
+
     while (std::getline(stream, line)) {
+        current_line_num++;
         std::smatch match;
         
         // Parse group markers (step names)
@@ -262,10 +273,12 @@ std::vector<ValidationEvent> GitHubCliParser::parseWorkflowLog(const std::string
             event.execution_time = 0.0;
             event.raw_output = line;
             event.structured_data = "{\"step\": \"" + current_step + "\", \"type\": \"error\"}";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
-        
+
         // Parse warning messages  
         else if (std::regex_search(line, match, warning_pattern)) {
             ValidationEvent event;
@@ -282,10 +295,12 @@ std::vector<ValidationEvent> GitHubCliParser::parseWorkflowLog(const std::string
             event.execution_time = 0.0;
             event.raw_output = line;
             event.structured_data = "{\"step\": \"" + current_step + "\", \"type\": \"warning\"}";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
-        
+
         // Parse notice messages
         else if (std::regex_search(line, match, notice_pattern)) {
             ValidationEvent event;
@@ -302,11 +317,13 @@ std::vector<ValidationEvent> GitHubCliParser::parseWorkflowLog(const std::string
             event.execution_time = 0.0;
             event.raw_output = line;
             event.structured_data = "{\"step\": \"" + current_step + "\", \"type\": \"notice\"}";
-            
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
     }
-    
+
     return events;
 }
 

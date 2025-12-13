@@ -30,9 +30,11 @@ std::vector<WorkflowEvent> GitHubActionsParser::parseWorkflowLog(const std::stri
         std::istringstream iss(content);
         std::string line;
         int event_id = 1;
+        int32_t current_line_num = 0;
         std::string current_step_name = "unknown";
-        
+
         while (std::getline(iss, line)) {
+            current_line_num++;
             if (line.empty()) continue;
             
             WorkflowEvent event;
@@ -100,7 +102,9 @@ std::vector<WorkflowEvent> GitHubActionsParser::parseWorkflowLog(const std::stri
                 event.hierarchy_level = 3; // Line level within step
             }
             event.parent_id = "job_1";
-            
+            event.base_event.log_line_start = current_line_num;
+            event.base_event.log_line_end = current_line_num;
+
             events.push_back(event);
         }
         
