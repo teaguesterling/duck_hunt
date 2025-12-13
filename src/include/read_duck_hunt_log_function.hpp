@@ -68,7 +68,11 @@ enum class TestResultFormat : uint8_t {
     ANSIBLE_TEXT = 57,
     GITHUB_CLI = 58,
     CLANG_TIDY_TEXT = 59,
-    REGEXP = 60  // Dynamic regexp pattern
+    REGEXP = 60,  // Dynamic regexp pattern
+    // XML-based formats (require webbed extension)
+    JUNIT_XML = 61,
+    NUNIT_XML = 62,
+    CHECKSTYLE_XML = 63
 };
 
 // Bind data for read_duck_hunt_log table function

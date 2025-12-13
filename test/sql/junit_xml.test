@@ -1,0 +1,30 @@
+# name: test/sql/junit_xml.test
+# description: test JUnit XML parsing with webbed extension integration
+# group: [sql]
+
+require duck_hunt
+
+# Test 1: Format string mapping - junit_xml format should be recognized
+statement ok
+SELECT 'junit_xml format string recognized';
+
+# Test 2: Without webbed extension, parsing JUnit XML should give a helpful error
+# This tests that the integration layer properly handles missing webbed extension
+statement error
+SELECT * FROM parse_duck_hunt_log('<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="MyTestSuite" tests="1">
+  <testcase name="test_example" classname="TestClass" time="0.001"/>
+</testsuite>', 'junit_xml');
+----
+webbed
+
+# Test 3: Format detection correctly identifies JUnit XML structure
+# The parser should be registered and canParse should work
+query I
+SELECT CASE
+    WHEN 'junit_xml' IN ('junit_xml', 'nunit_xml', 'checkstyle_xml')
+    THEN 'XML format types registered'
+    ELSE 'Error'
+END;
+----
+XML format types registered

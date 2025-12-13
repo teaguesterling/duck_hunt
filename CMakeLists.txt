@@ -17,7 +17,8 @@ set(EXTENSION_SOURCES
     # Core modular architecture
     src/core/parser_registry.cpp
     src/core/format_detector.cpp
-    
+    src/core/webbed_integration.cpp
+
     # Parser implementations
     src/parsers/test_frameworks/pytest_parser.cpp
     src/parsers/test_frameworks/pytest_json_parser.cpp
@@ -108,6 +109,9 @@ set(EXTENSION_SOURCES
 
     # Scalar utility functions
     src/status_badge_function.cpp
+
+    # XML-based parsers (require webbed extension)
+    src/parsers/test_frameworks/junit_xml_parser.cpp
 )
 
 build_static_extension(${TARGET_NAME} ${EXTENSION_SOURCES})

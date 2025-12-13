@@ -42,6 +42,9 @@
 #include "parsers/infrastructure_tools/ansible_text_parser.hpp"
 #include "parsers/linting_tools/yapf_text_parser.hpp"
 
+// XML-based parsers (require webbed extension)
+#include "parsers/test_frameworks/junit_xml_parser.hpp"
+
 // Phase 3: Workflow Engine parsers  
 #include "parsers/workflow_engines/github_actions_parser.hpp"
 #include "parsers/workflow_engines/gitlab_ci_parser.hpp"
@@ -84,7 +87,10 @@ static void LoadInternal(ExtensionLoader &loader) {
 	registry.registerParser(make_uniq<TerraformTextParser>());
 	registry.registerParser(make_uniq<AnsibleTextParser>());
 	registry.registerParser(make_uniq<YapfTextParser>());
-	
+
+	// XML-based parsers (require webbed extension)
+	registry.registerParser(make_uniq<JUnitXmlParser>());
+
 	// Register table functions for test result parsing
 	auto read_duck_hunt_log_function = GetReadDuckHuntLogFunction();
 	loader.RegisterFunction(read_duck_hunt_log_function);

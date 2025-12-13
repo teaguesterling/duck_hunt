@@ -16,6 +16,8 @@
 #include "parsers/build_systems/python_parser.hpp"
 #include "parsers/build_systems/cargo_parser.hpp"
 #include "parsers/build_systems/cmake_parser.hpp"
+#include "parsers/test_frameworks/junit_xml_parser.hpp"
+#include "core/webbed_integration.hpp"
 #include "duckdb/function/table_function.hpp"
 #include "duckdb/parser/parsed_data/create_table_function_info.hpp"
 #include "duckdb/common/file_system.hpp"
@@ -768,6 +770,10 @@ std::string TestResultFormatToString(TestResultFormat format) {
         case TestResultFormat::TERRAFORM_TEXT: return "terraform_text";
         case TestResultFormat::ANSIBLE_TEXT: return "ansible_text";
         case TestResultFormat::REGEXP: return "regexp";
+        // XML-based formats (require webbed extension)
+        case TestResultFormat::JUNIT_XML: return "junit_xml";
+        case TestResultFormat::NUNIT_XML: return "nunit_xml";
+        case TestResultFormat::CHECKSTYLE_XML: return "checkstyle_xml";
         default: return "unknown";
     }
 }
@@ -834,6 +840,10 @@ TestResultFormat StringToTestResultFormat(const std::string& str) {
     if (str == "drone_ci_text") return TestResultFormat::DRONE_CI_TEXT;
     if (str == "terraform_text") return TestResultFormat::TERRAFORM_TEXT;
     if (str == "ansible_text") return TestResultFormat::ANSIBLE_TEXT;
+    // XML-based formats (require webbed extension)
+    if (str == "junit_xml") return TestResultFormat::JUNIT_XML;
+    if (str == "nunit_xml") return TestResultFormat::NUNIT_XML;
+    if (str == "checkstyle_xml") return TestResultFormat::CHECKSTYLE_XML;
     if (str == "unknown") return TestResultFormat::UNKNOWN;
     return TestResultFormat::UNKNOWN;  // Unknown format string
 }
@@ -1357,6 +1367,31 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &co
             case TestResultFormat::REGEXP:
                 // Dynamic regexp parser - uses user-provided pattern
                 ParseWithRegexp(content, bind_data.regexp_pattern, global_state->events);
+                break;
+            // XML-based formats (require webbed extension for XML->JSON conversion)
+            case TestResultFormat::JUNIT_XML:
+            case TestResultFormat::NUNIT_XML:
+            case TestResultFormat::CHECKSTYLE_XML:
+                {
+                    auto& registry = ParserRegistry::getInstance();
+                    auto parser = registry.getParser(format);
+                    if (parser) {
+                        // XML parsers require context for webbed integration
+                        if (parser->requiresContext()) {
+                            auto events = parser->parseWithContext(context, content);
+                            global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                        } else {
+                            auto events = parser->parse(content);
+                            global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                        }
+                    } else {
+                        throw InvalidInputException(
+                            "XML format '%s' parser not found. Ensure the webbed extension is installed:\n"
+                            "  INSTALL webbed FROM community;\n"
+                            "  LOAD webbed;",
+                            TestResultFormatToString(format));
+                    }
+                }
                 break;
             default:
                 // Try the modular parser registry for new parsers
@@ -2849,6 +2884,31 @@ unique_ptr<GlobalTableFunctionState> ParseDuckHuntLogInitGlobal(ClientContext &c
             // Dynamic regexp parser - uses user-provided pattern
             ParseWithRegexp(content, bind_data.regexp_pattern, global_state->events);
             break;
+        // XML-based formats (require webbed extension for XML->JSON conversion)
+        case TestResultFormat::JUNIT_XML:
+        case TestResultFormat::NUNIT_XML:
+        case TestResultFormat::CHECKSTYLE_XML:
+            {
+                auto& registry = ParserRegistry::getInstance();
+                auto parser = registry.getParser(format);
+                if (parser) {
+                    // XML parsers require context for webbed integration
+                    if (parser->requiresContext()) {
+                        auto events = parser->parseWithContext(context, content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    } else {
+                        auto events = parser->parse(content);
+                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+                    }
+                } else {
+                    throw InvalidInputException(
+                        "XML format '%s' parser not found. Ensure the webbed extension is installed:\n"
+                        "  INSTALL webbed FROM community;\n"
+                        "  LOAD webbed;",
+                        TestResultFormatToString(format));
+                }
+            }
+            break;
         default:
             // Try the modular parser registry for new parsers
             {
@@ -2864,7 +2924,7 @@ unique_ptr<GlobalTableFunctionState> ParseDuckHuntLogInitGlobal(ClientContext &c
 
     // Phase 3B: Process error patterns for intelligent categorization
     ProcessErrorPatterns(global_state->events);
-    
+
     return std::move(global_state);
 }
 
@@ -4433,7 +4493,20 @@ void ProcessMultipleFiles(ClientContext& context, const std::vector<std::string>
                     // REGEXP format requires pattern, which isn't available in multi-file processing
                     // Skip this file - users should use single-file mode for regexp parsing
                     continue;
-                // Add other formats as needed...
+                // XML-based formats (require webbed extension for XML->JSON conversion)
+                case TestResultFormat::JUNIT_XML:
+                case TestResultFormat::NUNIT_XML:
+                case TestResultFormat::CHECKSTYLE_XML:
+                    {
+                        auto& registry = ParserRegistry::getInstance();
+                        auto parser = registry.getParser(detected_format);
+                        if (parser && parser->requiresContext()) {
+                            file_events = parser->parseWithContext(context, content);
+                        } else if (parser) {
+                            file_events = parser->parse(content);
+                        }
+                    }
+                    break;
                 default:
                     // Try the modular parser registry for new parsers
                     {
