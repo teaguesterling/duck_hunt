@@ -7,18 +7,26 @@ require duck_hunt
 # Test 1: Invalid format for read_duck_hunt_log should throw error
 statement error
 SELECT * FROM read_duck_hunt_log('test/samples/pytest.json', 'invalid_format');
+----
+Unknown format
 
 # Test 2: Invalid format for parse_duck_hunt_log should throw error
 statement error
 SELECT * FROM parse_duck_hunt_log('some content', 'bogus_format');
+----
+Unknown format
 
 # Test 3: Invalid format for read_duck_hunt_workflow_log should throw error
 statement error
 SELECT * FROM read_duck_hunt_workflow_log('test/samples/github_actions.log', 'not_a_real_format');
+----
+Unknown workflow format
 
 # Test 4: Invalid format for parse_duck_hunt_workflow_log should throw error
 statement error
 SELECT * FROM parse_duck_hunt_workflow_log('some content', 'fake_workflow_format');
+----
+Unknown workflow format
 
 # Test 5: Valid formats should still work (auto)
 statement ok

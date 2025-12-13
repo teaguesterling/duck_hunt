@@ -129,11 +129,11 @@ SELECT COUNT(*) FROM parse_duck_hunt_log('invalid json content}', 'auto');
 ----
 0
 
-# Test 9: Edge cases - unknown format
-query I
+# Test 9: Edge cases - unknown format should throw error
+statement error
 SELECT COUNT(*) FROM parse_duck_hunt_log('random text content', 'unknown');
 ----
-0
+Unknown format
 
 # Test 10: Field validation tests
 query IIIIII
