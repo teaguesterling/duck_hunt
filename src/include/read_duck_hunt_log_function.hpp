@@ -75,7 +75,11 @@ enum class TestResultFormat : uint8_t {
     CHECKSTYLE_XML = 63,
     // Cross-language structured formats
     JSONL = 64,
-    LOGFMT = 65
+    LOGFMT = 65,
+    // Web access and system logs
+    SYSLOG = 66,
+    APACHE_ACCESS = 67,
+    NGINX_ACCESS = 68
 };
 
 // Bind data for read_duck_hunt_log table function

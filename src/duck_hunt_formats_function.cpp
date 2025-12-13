@@ -102,6 +102,11 @@ static std::vector<FormatInfo> GetAllFormats() {
         // Cross-language structured log formats
         {"jsonl", "JSON Lines (one JSON object per line)", "structured_log", "", false},
         {"logfmt", "Key=value pairs (popular in Go/Heroku)", "structured_log", "", false},
+
+        // Web access and system log formats
+        {"syslog", "BSD/RFC5424 syslog format", "system_log", "", false},
+        {"apache_access", "Apache HTTP Server access logs", "web_access", "", false},
+        {"nginx_access", "NGINX access logs", "web_access", "", false},
     };
 }
 

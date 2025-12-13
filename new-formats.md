@@ -679,3 +679,37 @@ These formats are specific to popular log aggregation and analysis platforms.
 4. `log4j_text`, `java_stacktrace` - Java ecosystem
 5. `zap_json`, `logrus_json` - Go ecosystem
 6. Platform-specific formats (Ruby, R, .NET)
+
+---
+
+## Schema Review Notes
+
+### Incomplete/Odd Field Mappings (TODO)
+
+The current ValidationEvent schema was designed for test results and lint output. As we add web access logs, system logs, and cloud provider logs, some field mappings are awkward:
+
+**Phase 3C Workflow Fields Not Exposed:**
+- `started_at`, `completed_at` - exist in ValidationEvent but not in table function output schema
+- `workflow_name`, `job_name`, `step_name` - workflow hierarchy fields not exposed
+- These would be useful for timestamps in access/system logs
+
+**Current Workarounds:**
+| Log Field | Using Column | Should Be |
+|-----------|--------------|-----------|
+| Timestamp (access logs) | `function_name` | `started_at` or new `timestamp` |
+| IP address | `structured_data` JSON | Could be dedicated column |
+| HTTP status code | `error_code` | Reasonable fit |
+| Response bytes | `structured_data` JSON | Could be dedicated column |
+| Hostname (syslog) | `structured_data` JSON | Could be dedicated column |
+| PID (syslog) | `structured_data` JSON | Reasonable |
+
+**Proposed Schema Additions (after cloud formats implemented):**
+- `started_at` (VARCHAR) - Event timestamp in ISO format
+- `ip_address` (VARCHAR) - Source IP for access/security logs
+- `hostname` (VARCHAR) - Source hostname for system logs
+- `http_status` (INTEGER) - HTTP status code for access logs
+- `response_bytes` (BIGINT) - Response size for access logs
+- `principal` (VARCHAR) - User/service identity for cloud audit logs
+- `cloud_region` (VARCHAR) - AWS/GCP/Azure region
+
+**Action:** Review schema after implementing CloudTrail, GCP, and Azure log formats to determine which columns are truly needed across multiple format types.

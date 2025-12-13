@@ -47,6 +47,11 @@
 #include "parsers/structured_logs/jsonl_parser.hpp"
 #include "parsers/structured_logs/logfmt_parser.hpp"
 
+// Web access and system log parsers
+#include "parsers/web_access/syslog_parser.hpp"
+#include "parsers/web_access/apache_access_parser.hpp"
+#include "parsers/web_access/nginx_access_parser.hpp"
+
 // XML-based parsers (require webbed extension)
 #include "parsers/test_frameworks/junit_xml_parser.hpp"
 
@@ -96,6 +101,11 @@ static void LoadInternal(ExtensionLoader &loader) {
 	// Cross-language structured log parsers
 	registry.registerParser(make_uniq<JSONLParser>());
 	registry.registerParser(make_uniq<LogfmtParser>());
+
+	// Web access and system log parsers
+	registry.registerParser(make_uniq<SyslogParser>());
+	registry.registerParser(make_uniq<ApacheAccessParser>());
+	registry.registerParser(make_uniq<NginxAccessParser>());
 
 	// XML-based parsers (require webbed extension)
 	registry.registerParser(make_uniq<JUnitXmlParser>());

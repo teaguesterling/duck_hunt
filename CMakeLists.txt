@@ -117,6 +117,11 @@ set(EXTENSION_SOURCES
     src/parsers/structured_logs/jsonl_parser.cpp
     src/parsers/structured_logs/logfmt_parser.cpp
 
+    # Web access and system log parsers
+    src/parsers/web_access/syslog_parser.cpp
+    src/parsers/web_access/apache_access_parser.cpp
+    src/parsers/web_access/nginx_access_parser.cpp
+
     # XML-based parsers (require webbed extension)
     src/parsers/test_frameworks/junit_xml_parser.cpp
 )

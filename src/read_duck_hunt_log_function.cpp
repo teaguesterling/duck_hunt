@@ -777,6 +777,10 @@ std::string TestResultFormatToString(TestResultFormat format) {
         // Cross-language structured formats
         case TestResultFormat::JSONL: return "jsonl";
         case TestResultFormat::LOGFMT: return "logfmt";
+        // Web access and system logs
+        case TestResultFormat::SYSLOG: return "syslog";
+        case TestResultFormat::APACHE_ACCESS: return "apache_access";
+        case TestResultFormat::NGINX_ACCESS: return "nginx_access";
         default: return "unknown";
     }
 }
@@ -851,6 +855,10 @@ TestResultFormat StringToTestResultFormat(const std::string& str) {
     if (str == "jsonl") return TestResultFormat::JSONL;
     if (str == "ndjson") return TestResultFormat::JSONL;  // Alias
     if (str == "logfmt") return TestResultFormat::LOGFMT;
+    // Web access and system logs
+    if (str == "syslog") return TestResultFormat::SYSLOG;
+    if (str == "apache_access") return TestResultFormat::APACHE_ACCESS;
+    if (str == "nginx_access") return TestResultFormat::NGINX_ACCESS;
     if (str == "unknown") return TestResultFormat::UNKNOWN;
     return TestResultFormat::UNKNOWN;  // Unknown format string
 }
