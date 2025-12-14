@@ -10,17 +10,17 @@ require duck_hunt
 
 # Test 1: Basic CloudTrail event parsing - semantic mappings
 query IIII
-SELECT tool_name, category, message, file_path LIKE '%arn:aws:%'
+SELECT tool_name, category, message, principal LIKE '%arn:aws:%'
 FROM parse_duck_hunt_log('{"eventTime":"2025-01-15T10:30:45Z","eventName":"CreateUser","eventSource":"iam.amazonaws.com","awsRegion":"us-east-1","sourceIPAddress":"192.168.1.100","userIdentity":{"type":"IAMUser","userName":"admin","arn":"arn:aws:iam::123456789012:user/admin","accountId":"123456789012"}}', 'aws_cloudtrail');
 ----
 aws_cloudtrail	iam.amazonaws.com	CreateUser	true
 
-# Test 2: CloudTrail extracts timestamp to function_name
-query I
-SELECT function_name
+# Test 2: CloudTrail extracts timestamp to started_at, eventName to function_name
+query II
+SELECT started_at, function_name
 FROM parse_duck_hunt_log('{"eventTime":"2025-01-15T10:30:45Z","eventName":"DescribeInstances","eventSource":"ec2.amazonaws.com","awsRegion":"us-west-2"}', 'aws_cloudtrail');
 ----
-2025-01-15T10:30:45Z
+2025-01-15T10:30:45Z	DescribeInstances
 
 # Test 3: CloudTrail with error code maps to error severity
 query II
@@ -50,12 +50,12 @@ FROM parse_duck_hunt_log('{"eventTime":"2025-01-15T10:30:45Z","eventName":"Creat
 ----
 true
 
-# Test 7: CloudTrail structured_data contains source IP
-query I
-SELECT structured_data LIKE '%"source_ip":"10.0.0.1"%'
+# Test 7: CloudTrail origin contains source IP
+query II
+SELECT origin, structured_data LIKE '%"source_ip":"10.0.0.1"%'
 FROM parse_duck_hunt_log('{"eventTime":"2025-01-15T10:30:45Z","eventName":"CreateUser","eventSource":"iam.amazonaws.com","awsRegion":"us-east-1","sourceIPAddress":"10.0.0.1"}', 'aws_cloudtrail');
 ----
-true
+10.0.0.1	true
 
 # Test 8: CloudTrail structured_data contains account ID
 query I
@@ -89,9 +89,9 @@ FROM parse_duck_hunt_log('{"logName":"projects/myproject/logs/cloudaudit","times
 ----
 gcp_cloud_logging	gce_instance	info
 
-# Test 12: GCP log extracts timestamp
+# Test 12: GCP log extracts timestamp to started_at
 query I
-SELECT function_name
+SELECT started_at
 FROM parse_duck_hunt_log('{"logName":"projects/myproject/logs/cloudaudit","timestamp":"2025-01-15T10:30:45Z","severity":"INFO"}', 'gcp_cloud_logging');
 ----
 2025-01-15T10:30:45Z
@@ -117,12 +117,12 @@ FROM parse_duck_hunt_log('{"logName":"projects/myproject/logs/cloudaudit","times
 ----
 error
 
-# Test 16: GCP protoPayload method name as message
-query I
-SELECT message
+# Test 16: GCP protoPayload method name as message and function_name
+query II
+SELECT message, function_name
 FROM parse_duck_hunt_log('{"logName":"projects/myproject/logs/cloudaudit","timestamp":"2025-01-15T10:30:45Z","severity":"INFO","protoPayload":{"methodName":"google.compute.instances.start"}}', 'gcp_cloud_logging');
 ----
-google.compute.instances.start
+google.compute.instances.start	google.compute.instances.start
 
 # Test 17: GCP textPayload as message
 query I
@@ -163,12 +163,12 @@ FROM parse_duck_hunt_log('{"time":"2025-01-15T10:30:45Z","operationName":"Micros
 ----
 azure_activity	Administrative	Microsoft.Compute/virtualMachines/start/action
 
-# Test 22: Azure log extracts timestamp
-query I
-SELECT function_name
+# Test 22: Azure log extracts timestamp to started_at, operationName to function_name
+query II
+SELECT started_at, function_name
 FROM parse_duck_hunt_log('{"time":"2025-01-15T10:30:45Z","operationName":"Microsoft.Storage/storageAccounts/write","status":"Succeeded"}', 'azure_activity');
 ----
-2025-01-15T10:30:45Z
+2025-01-15T10:30:45Z	Microsoft.Storage/storageAccounts/write
 
 # Test 23: Azure log with Failed status maps to error
 query II
@@ -198,12 +198,12 @@ FROM parse_duck_hunt_log('{"time":"2025-01-15T10:30:45Z","operationName":"Micros
 ----
 warning
 
-# Test 27: Azure log caller as file_path
-query I
-SELECT file_path
-FROM parse_duck_hunt_log('{"time":"2025-01-15T10:30:45Z","operationName":"Microsoft.Compute/virtualMachines/start/action","caller":"admin@company.com"}', 'azure_activity');
+# Test 27: Azure log caller as principal, callerIp as origin
+query II
+SELECT principal, origin
+FROM parse_duck_hunt_log('{"time":"2025-01-15T10:30:45Z","operationName":"Microsoft.Compute/virtualMachines/start/action","caller":"admin@company.com","callerIpAddress":"10.0.0.50"}', 'azure_activity');
 ----
-admin@company.com
+admin@company.com	10.0.0.50
 
 # Test 28: Azure structured_data contains resource_id
 query I

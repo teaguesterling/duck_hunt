@@ -117,12 +117,14 @@ static bool ParseCloudTrailRecord(const std::string& record, ValidationEvent& ev
     event.line_number = -1;
     event.column_number = -1;
 
-    // Field mappings
-    event.function_name = event_time;              // Timestamp
+    // Field mappings - using new Phase 4 columns
+    event.started_at = event_time;                 // Timestamp (proper column)
+    event.function_name = event_name;              // API method name (e.g., CreateUser, DescribeInstances)
     event.category = event_source;                 // AWS service (e.g., ec2.amazonaws.com)
-    event.message = event_name;                    // The action (e.g., CreateUser, DescribeInstances)
+    event.message = event_name;                    // The action for display
     event.error_code = error_code;                 // AWS error code if present
-    event.file_path = user_arn;                    // User ARN as "path" to identity
+    event.principal = user_arn;                    // User/service identity (ARN)
+    event.origin = source_ip;                      // Network origin (caller IP)
 
     // Severity based on event type and error presence
     bool has_error = !error_code.empty();

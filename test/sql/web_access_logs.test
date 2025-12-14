@@ -15,12 +15,12 @@ FROM parse_duck_hunt_log('Dec 12 10:15:42 localhost sshd[1234]: Accepted passwor
 ----
 syslog	sshd	Accepted password for user from 10.0.0.1 port 22
 
-# Test 2: BSD syslog extracts timestamp and category
-query II
-SELECT function_name, category
+# Test 2: BSD syslog extracts timestamp to started_at and hostname to origin
+query III
+SELECT started_at, category, origin
 FROM parse_duck_hunt_log('Jan  5 08:30:00 webserver nginx[5678]: Starting nginx', 'syslog');
 ----
-Jan 5 08:30:00	nginx
+Jan 5 08:30:00	nginx	webserver
 
 # Test 3: BSD syslog hostname in structured_data (check JSON contains hostname)
 query I
@@ -77,12 +77,12 @@ FROM parse_duck_hunt_log('127.0.0.1 - - [12/Dec/2025:10:15:42 +0000] "GET /index
 ----
 apache_access	/index.html	GET	200
 
-# Test 10: Apache log extracts timestamp to function_name
-query I
-SELECT function_name
+# Test 10: Apache log extracts timestamp to started_at, client IP to origin
+query II
+SELECT started_at, origin
 FROM parse_duck_hunt_log('192.168.1.1 - - [15/Jan/2025:08:30:00 +0100] "POST /api/login HTTP/2.0" 200 512 "-" "curl/7.68.0"', 'apache_access');
 ----
-15/Jan/2025:08:30:00 +0100
+15/Jan/2025:08:30:00 +0100	192.168.1.1
 
 # Test 11: Apache log with 4xx status maps to warning
 query II

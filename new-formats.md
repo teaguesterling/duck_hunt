@@ -684,59 +684,84 @@ These formats are specific to popular log aggregation and analysis platforms.
 
 ## Schema Review Notes
 
-### Incomplete/Odd Field Mappings (TODO)
+### Phase 4 Schema Additions (IMPLEMENTED)
 
-The current ValidationEvent schema was designed for test results and lint output. As we add web access logs, system logs, and cloud provider logs, some field mappings are awkward:
+We added three new columns to support log formats beyond test results:
 
-**Phase 3C Workflow Fields Not Exposed:**
-- `started_at`, `completed_at` - exist in ValidationEvent but not in table function output schema
-- `workflow_name`, `job_name`, `step_name` - workflow hierarchy fields not exposed
-- These would be useful for timestamps in access/system logs
+| Column | Type | Description |
+|--------|------|-------------|
+| `started_at` | VARCHAR | Event timestamp in original format |
+| `principal` | VARCHAR | User/service identity (ARN, email, service account, authenticated user) |
+| `origin` | VARCHAR | Network/system origin (IP address, hostname, runner name) |
 
-**Current Workarounds (Web Access & System Logs):**
-| Log Field | Using Column | Should Be | Severity |
-|-----------|--------------|-----------|----------|
-| Timestamp | `function_name` | `started_at` or new `timestamp` | High - confusing semantics |
-| IP address | `structured_data` JSON | Dedicated column | Medium |
-| HTTP status code | `error_code` | Reasonable fit | OK |
-| Response bytes | `structured_data` JSON | Could be dedicated column | Low |
-| Hostname (syslog) | `structured_data` JSON | Could be dedicated column | Low |
-| PID (syslog) | `structured_data` JSON | Reasonable | OK |
+These columns were chosen for semantic flexibility across format categories:
+- **`origin`** was chosen over `ip_address` or `source` to handle both IP addresses and hostnames without implying a specific data type, and to avoid confusion with "source code"
+- **`principal`** captures the "who" (identity/actor) across different authentication models
+- **`started_at`** exposes timestamps without confusing the `function_name` column
 
-**Current Workarounds (Cloud Audit Logs - CloudTrail, GCP, Azure):**
-| Log Field | Using Column | Should Be | Severity |
-|-----------|--------------|-----------|----------|
-| Timestamp | `function_name` | `started_at` or new `timestamp` | High |
-| Principal/Identity (ARN, email) | `file_path` | New `principal` column | **High - very awkward** |
-| Source IP | `structured_data` JSON | Dedicated column | Medium |
-| Cloud Region | `structured_data` JSON | Dedicated column | Medium |
-| Account/Project/Subscription ID | `structured_data` JSON | Could be dedicated | Low |
+### Current Field Mappings by Format Category
 
-**Analysis After Implementing Cloud Formats:**
+#### Cloud Audit Logs (AWS CloudTrail, GCP Cloud Logging, Azure Activity)
 
-The `file_path` column being used for principal identity (AWS ARN, GCP email, Azure caller) is the most problematic mapping:
-- `file_path` semantically means "location of code/file" in the original schema
-- Using it for "who performed this action" creates confusing queries
-- Example: `WHERE file_path LIKE '%admin%'` - is this a file path or a user?
+| Log Field | Column | Notes |
+|-----------|--------|-------|
+| Event timestamp | `started_at` | ✓ Proper semantic fit |
+| API/Operation name | `function_name` | ✓ eventName, methodName, operationName |
+| Service/Category | `category` | ✓ Service source (ec2.amazonaws.com, etc.) |
+| Event description | `message` | ✓ Same as function_name for display |
+| Error code | `error_code` | ✓ AWS error codes, status values |
+| User identity | `principal` | ✓ ARN, email, service principal |
+| Source IP | `origin` | ✓ Caller IP address |
+| Region, Account ID | `structured_data` | JSON for cloud-specific metadata |
 
-The `function_name` column for timestamps is also awkward but less severe since the column name is already somewhat generic.
+#### Web Access Logs (Apache, NGINX)
 
-**Proposed Schema Additions (Priority Order):**
-1. `principal` (VARCHAR) - User/service identity (ARN, email, service account) - **HIGH priority**
-2. `timestamp` or expose `started_at` (VARCHAR) - Event timestamp in ISO format - **HIGH priority**
-3. `ip_address` (VARCHAR) - Source IP for access/security logs - Medium priority
-4. `cloud_region` (VARCHAR) - AWS/GCP/Azure region - Medium priority
-5. `hostname` (VARCHAR) - Source hostname for system logs - Low priority
+| Log Field | Column | Notes |
+|-----------|--------|-------|
+| Request timestamp | `started_at` | ✓ Proper semantic fit |
+| Request path | `file_path` | ✓ The "file" being accessed |
+| HTTP method | `category` | ✓ GET, POST, etc. as category |
+| Status code | `error_code` | ✓ HTTP status (200, 404, 500) |
+| Summary | `message` | ✓ "GET /path" for display |
+| Client IP | `origin` | ✓ Request source |
+| Request time (nginx) | `execution_time` | ✓ Request duration if available |
+| Protocol, referrer, UA | `structured_data` | JSON for HTTP metadata |
 
-**Columns with Good Semantic Fit:**
-- `category` - Works well for service name, HTTP method, process name
-- `message` - Works well for event/operation name, log message
-- `error_code` - Works well for HTTP status, error codes
-- `severity` - Works well across all formats
-- `structured_data` - Good catch-all for format-specific fields
+#### System Logs (Syslog - BSD and RFC 5424)
 
-**Action Items:**
-1. Expose `started_at` in table function schema (it already exists in ValidationEvent)
-2. Add `principal` column for identity across cloud/access logs
-3. Consider `ip_address` if we add more security-focused formats
-4. Review after implementing application logging formats (Python, Node.js, Java)
+| Log Field | Column | Notes |
+|-----------|--------|-------|
+| Log timestamp | `started_at` | ✓ Proper semantic fit |
+| Process/Service | `category` | ✓ sshd, nginx, kernel |
+| Log message | `message` | ✓ The log content |
+| Hostname | `origin` | ✓ System that generated the log |
+| Severity | `severity` | ✓ Mapped from RFC 5424 priority |
+| PID, facility | `structured_data` | JSON for syslog metadata |
+
+#### Build/Test/Lint Formats
+
+For development-focused formats, `origin` and `principal` are typically empty since those concepts don't naturally apply. They could potentially be used for:
+- `origin`: Build host, CI runner name, or build step name
+- `principal`: Less applicable, but could be commit author
+
+These mappings would need further discussion before implementation.
+
+### Columns with Good Semantic Fit Across All Formats
+
+| Column | Works Well For |
+|--------|----------------|
+| `category` | Service name, HTTP method, process name, linter name |
+| `message` | Human-readable summary, log message, error description |
+| `error_code` | HTTP status, AWS error codes, exit codes |
+| `severity` | error/warning/info across all formats |
+| `structured_data` | Format-specific metadata as JSON |
+| `raw_output` | Original log line for reference |
+
+### Phase 3C Workflow Fields (Not Exposed)
+
+The following fields exist in `ValidationEvent` but are not currently exposed in the table function schema:
+- `workflow_name`, `job_name`, `step_name` - CI workflow hierarchy
+- `workflow_run_id`, `job_id` - CI workflow identifiers
+- `completed_at` - End timestamp (start is now `started_at`)
+
+These remain internal for now but could be exposed if needed for CI log analysis.

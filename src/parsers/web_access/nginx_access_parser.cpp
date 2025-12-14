@@ -56,12 +56,14 @@ static bool ParseNginxAccessLine(const std::string& line, ValidationEvent& event
     std::string referrer = (match[8].matched && match[8].str() != "-") ? match[8].str() : "";
     std::string user_agent = match[9].matched ? match[9].str() : "";
 
-    // Field mappings (using available schema columns)
+    // Field mappings - using new Phase 4 columns
+    event.started_at = timestamp;              // Timestamp (proper column)
     event.file_path = path;                    // Request path = "file" being accessed
     event.category = method;                   // HTTP method as category
     event.error_code = status_str;             // Status code as error_code
-    event.function_name = timestamp;           // Timestamp (using function_name since started_at not exposed)
     event.message = method + " " + path;       // Human-readable summary
+    event.origin = ip_address;                 // Client IP address
+    // principal: authenticated user not captured in basic regex (usually "-")
 
     // Status code determines severity
     int status_code = 0;

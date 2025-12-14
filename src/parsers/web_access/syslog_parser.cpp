@@ -60,16 +60,17 @@ static bool ParseBSDSyslog(const std::string& line, ValidationEvent& event, int6
     std::string pid = (match[6].matched && !match[6].str().empty()) ? match[6].str() : "";
     std::string msg = match[7].str();
 
-    // Field mappings (using available schema columns)
-    event.function_name = timestamp;           // Timestamp (using function_name since started_at not exposed)
+    // Field mappings - using new Phase 4 columns
+    event.started_at = timestamp;              // Timestamp (proper column)
     event.category = process;                  // Process/service name
     event.message = msg;                       // The log message
+    event.origin = hostname;                   // Originating hostname
 
     // Default severity for BSD (no priority field)
     event.severity = "info";
     event.status = ValidationEventStatus::INFO;
 
-    // Build structured_data JSON
+    // Build structured_data JSON (keep hostname for backward compatibility)
     std::string json = "{";
     json += "\"hostname\":\"" + hostname + "\"";
     if (!pid.empty()) {
@@ -124,12 +125,13 @@ static bool ParseRFC5424Syslog(const std::string& line, ValidationEvent& event, 
     event.severity = MapSyslogSeverity(severity_code);
     event.status = MapSeverityToStatus(event.severity);
 
-    // Field mappings (using available schema columns)
-    event.function_name = timestamp;           // Timestamp (using function_name since started_at not exposed)
+    // Field mappings - using new Phase 4 columns
+    event.started_at = timestamp;              // Timestamp (proper column)
     event.category = app_name;                 // Application name
     event.message = msg;                       // The log message
+    event.origin = hostname;                   // Originating hostname
 
-    // Build structured_data JSON
+    // Build structured_data JSON (keep hostname for backward compatibility)
     std::string json = "{";
     json += "\"hostname\":\"" + hostname + "\"";
     json += ",\"facility\":" + std::to_string(facility_code);
@@ -173,11 +175,12 @@ static bool ParseSimpleSyslog(const std::string& line, ValidationEvent& event, i
     event.line_number = -1;
     event.column_number = -1;
 
-    event.function_name = match[1].str();      // Timestamp (using function_name since started_at not exposed)
+    event.started_at = match[1].str();         // Timestamp (proper column)
     event.message = match[2].str();
     event.category = "syslog";
     event.severity = "info";
     event.status = ValidationEventStatus::INFO;
+    // origin: not available in simple format
 
     event.raw_output = line;
     return true;

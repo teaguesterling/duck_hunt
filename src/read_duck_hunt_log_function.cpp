@@ -978,7 +978,11 @@ unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFuncti
         LogicalType::VARCHAR,  // error_fingerprint
         LogicalType::DOUBLE,   // similarity_score
         LogicalType::BIGINT,   // pattern_id
-        LogicalType::VARCHAR   // root_cause_category
+        LogicalType::VARCHAR,  // root_cause_category
+        // Phase 4: Log format fields (access logs, cloud audit logs)
+        LogicalType::VARCHAR,  // started_at (event timestamp)
+        LogicalType::VARCHAR,  // principal (user/service identity)
+        LogicalType::VARCHAR   // origin (network/system origin)
     };
 
     names = {
@@ -991,7 +995,9 @@ unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFuncti
         // Phase 3A: Multi-file processing metadata
         "source_file", "build_id", "environment", "file_index",
         // Phase 3B: Error pattern analysis
-        "error_fingerprint", "similarity_score", "pattern_id", "root_cause_category"
+        "error_fingerprint", "similarity_score", "pattern_id", "root_cause_category",
+        // Phase 4: Log format fields
+        "started_at", "principal", "origin"
     };
     
     return std::move(bind_data);
@@ -1523,6 +1529,10 @@ void PopulateDataChunkFromEvents(DataChunk &output, const std::vector<Validation
         output.SetValue(col++, i, event.similarity_score == 0.0 ? Value() : Value::DOUBLE(event.similarity_score));
         output.SetValue(col++, i, event.pattern_id == -1 ? Value() : Value::BIGINT(event.pattern_id));
         output.SetValue(col++, i, event.root_cause_category.empty() ? Value() : Value(event.root_cause_category));
+        // Phase 4: Log format fields
+        output.SetValue(col++, i, event.started_at.empty() ? Value() : Value(event.started_at));
+        output.SetValue(col++, i, event.principal.empty() ? Value() : Value(event.principal));
+        output.SetValue(col++, i, event.origin.empty() ? Value() : Value(event.origin));
     }
 }
 
@@ -2516,7 +2526,11 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
         LogicalType::VARCHAR,  // error_fingerprint
         LogicalType::DOUBLE,   // similarity_score
         LogicalType::BIGINT,   // pattern_id
-        LogicalType::VARCHAR   // root_cause_category
+        LogicalType::VARCHAR,  // root_cause_category
+        // Phase 4: Log format fields (access logs, cloud audit logs)
+        LogicalType::VARCHAR,  // started_at (event timestamp)
+        LogicalType::VARCHAR,  // principal (user/service identity)
+        LogicalType::VARCHAR   // origin (network/system origin)
     };
 
     names = {
@@ -2529,7 +2543,9 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
         // Phase 3A: Multi-file processing metadata
         "source_file", "build_id", "environment", "file_index",
         // Phase 3B: Error pattern analysis
-        "error_fingerprint", "similarity_score", "pattern_id", "root_cause_category"
+        "error_fingerprint", "similarity_score", "pattern_id", "root_cause_category",
+        // Phase 4: Log format fields
+        "started_at", "principal", "origin"
     };
     
     return std::move(bind_data);

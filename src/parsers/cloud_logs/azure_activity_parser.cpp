@@ -117,8 +117,9 @@ static bool ParseAzureActivityEntry(const std::string& record, ValidationEvent& 
     event.line_number = -1;
     event.column_number = -1;
 
-    // Field mappings
-    event.function_name = timestamp;               // Timestamp
+    // Field mappings - using new Phase 4 columns
+    event.started_at = timestamp;                  // Timestamp (proper column)
+    event.function_name = operation_name;          // Operation/method name
 
     // Category: Azure category or resource provider
     if (!category.empty()) {
@@ -132,12 +133,11 @@ static bool ParseAzureActivityEntry(const std::string& record, ValidationEvent& 
     // Message: operation name
     event.message = operation_name;
 
-    // File path: caller (identity) or resource ID
-    if (!caller.empty()) {
-        event.file_path = caller;
-    } else {
-        event.file_path = resource_id;
-    }
+    // principal: caller identity (email or service principal)
+    event.principal = caller;
+
+    // origin: caller IP address
+    event.origin = caller_ip;
 
     // Error code from status or result type
     if (!status.empty()) {

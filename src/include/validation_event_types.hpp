@@ -69,6 +69,10 @@ struct ValidationEvent {
     int64_t pattern_id;                // Assigned error pattern group ID (-1 if unassigned)
     std::string root_cause_category;   // Detected root cause type (network, permission, config, etc.)
     
+    // Phase 4: Log format fields (access logs, cloud audit logs)
+    std::string principal;              // User/service identity (ARN, email, service account, authenticated user)
+    std::string origin;                 // Network/system origin (IP address, hostname, runner name)
+
     // Phase 3C: Workflow hierarchy metadata for CI/CD log parsing
     std::string workflow_name;          // Name of the workflow/pipeline (e.g., "build", "deploy")
     std::string job_name;               // Name of the current job/stage (e.g., "test", "lint", "build")

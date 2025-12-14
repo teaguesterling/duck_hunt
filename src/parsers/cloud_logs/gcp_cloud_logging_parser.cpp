@@ -106,8 +106,11 @@ static bool ParseGCPLogEntry(const std::string& record, ValidationEvent& event, 
     event.line_number = -1;
     event.column_number = -1;
 
-    // Field mappings
-    event.function_name = timestamp;               // Timestamp
+    // Field mappings - using new Phase 4 columns
+    event.started_at = timestamp;                  // Timestamp (proper column)
+
+    // function_name: method name for audit logs
+    event.function_name = method_name;
 
     // Category: service name or resource type
     if (!service_name.empty()) {
@@ -127,12 +130,12 @@ static bool ParseGCPLogEntry(const std::string& record, ValidationEvent& event, 
         event.message = log_name;
     }
 
-    // File path: principal email (identity) or log name
-    if (!principal_email.empty()) {
-        event.file_path = principal_email;
-    } else {
-        event.file_path = log_name;
-    }
+    // principal: user/service identity
+    event.principal = principal_email;
+
+    // origin: GCP logs don't typically include caller IP in basic format
+    // Could be extracted from requestMetadata.callerIp in protoPayload if needed
+    // For now, leave empty
 
     // Error code from status
     event.error_code = status_code;
