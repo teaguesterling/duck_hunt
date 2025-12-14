@@ -774,6 +774,17 @@ std::string TestResultFormatToString(TestResultFormat format) {
         case TestResultFormat::JUNIT_XML: return "junit_xml";
         case TestResultFormat::NUNIT_XML: return "nunit_xml";
         case TestResultFormat::CHECKSTYLE_XML: return "checkstyle_xml";
+        // Cross-language structured formats
+        case TestResultFormat::JSONL: return "jsonl";
+        case TestResultFormat::LOGFMT: return "logfmt";
+        // Web access and system logs
+        case TestResultFormat::SYSLOG: return "syslog";
+        case TestResultFormat::APACHE_ACCESS: return "apache_access";
+        case TestResultFormat::NGINX_ACCESS: return "nginx_access";
+        // Cloud provider logs
+        case TestResultFormat::AWS_CLOUDTRAIL: return "aws_cloudtrail";
+        case TestResultFormat::GCP_CLOUD_LOGGING: return "gcp_cloud_logging";
+        case TestResultFormat::AZURE_ACTIVITY: return "azure_activity";
         default: return "unknown";
     }
 }
@@ -844,6 +855,21 @@ TestResultFormat StringToTestResultFormat(const std::string& str) {
     if (str == "junit_xml") return TestResultFormat::JUNIT_XML;
     if (str == "nunit_xml") return TestResultFormat::NUNIT_XML;
     if (str == "checkstyle_xml") return TestResultFormat::CHECKSTYLE_XML;
+    // Cross-language structured formats
+    if (str == "jsonl") return TestResultFormat::JSONL;
+    if (str == "ndjson") return TestResultFormat::JSONL;  // Alias
+    if (str == "logfmt") return TestResultFormat::LOGFMT;
+    // Web access and system logs
+    if (str == "syslog") return TestResultFormat::SYSLOG;
+    if (str == "apache_access") return TestResultFormat::APACHE_ACCESS;
+    if (str == "nginx_access") return TestResultFormat::NGINX_ACCESS;
+    // Cloud provider logs
+    if (str == "aws_cloudtrail") return TestResultFormat::AWS_CLOUDTRAIL;
+    if (str == "cloudtrail") return TestResultFormat::AWS_CLOUDTRAIL;  // Alias
+    if (str == "gcp_cloud_logging") return TestResultFormat::GCP_CLOUD_LOGGING;
+    if (str == "gcp_logging") return TestResultFormat::GCP_CLOUD_LOGGING;  // Alias
+    if (str == "azure_activity") return TestResultFormat::AZURE_ACTIVITY;
+    if (str == "azure_activity_log") return TestResultFormat::AZURE_ACTIVITY;  // Alias
     if (str == "unknown") return TestResultFormat::UNKNOWN;
     return TestResultFormat::UNKNOWN;  // Unknown format string
 }
@@ -952,7 +978,11 @@ unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFuncti
         LogicalType::VARCHAR,  // error_fingerprint
         LogicalType::DOUBLE,   // similarity_score
         LogicalType::BIGINT,   // pattern_id
-        LogicalType::VARCHAR   // root_cause_category
+        LogicalType::VARCHAR,  // root_cause_category
+        // Phase 4: Log format fields (access logs, cloud audit logs)
+        LogicalType::VARCHAR,  // started_at (event timestamp)
+        LogicalType::VARCHAR,  // principal (user/service identity)
+        LogicalType::VARCHAR   // origin (network/system origin)
     };
 
     names = {
@@ -965,7 +995,9 @@ unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFuncti
         // Phase 3A: Multi-file processing metadata
         "source_file", "build_id", "environment", "file_index",
         // Phase 3B: Error pattern analysis
-        "error_fingerprint", "similarity_score", "pattern_id", "root_cause_category"
+        "error_fingerprint", "similarity_score", "pattern_id", "root_cause_category",
+        // Phase 4: Log format fields
+        "started_at", "principal", "origin"
     };
     
     return std::move(bind_data);
@@ -1497,6 +1529,10 @@ void PopulateDataChunkFromEvents(DataChunk &output, const std::vector<Validation
         output.SetValue(col++, i, event.similarity_score == 0.0 ? Value() : Value::DOUBLE(event.similarity_score));
         output.SetValue(col++, i, event.pattern_id == -1 ? Value() : Value::BIGINT(event.pattern_id));
         output.SetValue(col++, i, event.root_cause_category.empty() ? Value() : Value(event.root_cause_category));
+        // Phase 4: Log format fields
+        output.SetValue(col++, i, event.started_at.empty() ? Value() : Value(event.started_at));
+        output.SetValue(col++, i, event.principal.empty() ? Value() : Value(event.principal));
+        output.SetValue(col++, i, event.origin.empty() ? Value() : Value(event.origin));
     }
 }
 
@@ -2490,7 +2526,11 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
         LogicalType::VARCHAR,  // error_fingerprint
         LogicalType::DOUBLE,   // similarity_score
         LogicalType::BIGINT,   // pattern_id
-        LogicalType::VARCHAR   // root_cause_category
+        LogicalType::VARCHAR,  // root_cause_category
+        // Phase 4: Log format fields (access logs, cloud audit logs)
+        LogicalType::VARCHAR,  // started_at (event timestamp)
+        LogicalType::VARCHAR,  // principal (user/service identity)
+        LogicalType::VARCHAR   // origin (network/system origin)
     };
 
     names = {
@@ -2503,7 +2543,9 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
         // Phase 3A: Multi-file processing metadata
         "source_file", "build_id", "environment", "file_index",
         // Phase 3B: Error pattern analysis
-        "error_fingerprint", "similarity_score", "pattern_id", "root_cause_category"
+        "error_fingerprint", "similarity_score", "pattern_id", "root_cause_category",
+        // Phase 4: Log format fields
+        "started_at", "principal", "origin"
     };
     
     return std::move(bind_data);

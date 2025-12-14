@@ -43,6 +43,20 @@
 #include "parsers/infrastructure_tools/ansible_text_parser.hpp"
 #include "parsers/linting_tools/yapf_text_parser.hpp"
 
+// Cross-language structured log parsers
+#include "parsers/structured_logs/jsonl_parser.hpp"
+#include "parsers/structured_logs/logfmt_parser.hpp"
+
+// Web access and system log parsers
+#include "parsers/web_access/syslog_parser.hpp"
+#include "parsers/web_access/apache_access_parser.hpp"
+#include "parsers/web_access/nginx_access_parser.hpp"
+
+// Cloud provider log parsers
+#include "parsers/cloud_logs/aws_cloudtrail_parser.hpp"
+#include "parsers/cloud_logs/gcp_cloud_logging_parser.hpp"
+#include "parsers/cloud_logs/azure_activity_parser.hpp"
+
 // XML-based parsers (require webbed extension)
 #include "parsers/test_frameworks/junit_xml_parser.hpp"
 
@@ -88,6 +102,20 @@ static void LoadInternal(ExtensionLoader &loader) {
 	registry.registerParser(make_uniq<TerraformTextParser>());
 	registry.registerParser(make_uniq<AnsibleTextParser>());
 	registry.registerParser(make_uniq<YapfTextParser>());
+
+	// Cross-language structured log parsers
+	registry.registerParser(make_uniq<JSONLParser>());
+	registry.registerParser(make_uniq<LogfmtParser>());
+
+	// Web access and system log parsers
+	registry.registerParser(make_uniq<SyslogParser>());
+	registry.registerParser(make_uniq<ApacheAccessParser>());
+	registry.registerParser(make_uniq<NginxAccessParser>());
+
+	// Cloud provider log parsers
+	registry.registerParser(make_uniq<AWSCloudTrailParser>());
+	registry.registerParser(make_uniq<GCPCloudLoggingParser>());
+	registry.registerParser(make_uniq<AzureActivityParser>());
 
 	// XML-based parsers (require webbed extension)
 	registry.registerParser(make_uniq<JUnitXmlParser>());

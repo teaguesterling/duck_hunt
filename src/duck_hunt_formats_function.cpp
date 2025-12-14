@@ -98,6 +98,20 @@ static std::vector<FormatInfo> GetAllFormats() {
         // Debugging tools
         {"valgrind", "Valgrind output", "debugging_tool", "", false},
         {"gdb_lldb", "GDB/LLDB output", "debugging_tool", "", false},
+
+        // Cross-language structured log formats
+        {"jsonl", "JSON Lines (one JSON object per line)", "structured_log", "", false},
+        {"logfmt", "Key=value pairs (popular in Go/Heroku)", "structured_log", "", false},
+
+        // Web access and system log formats
+        {"syslog", "BSD/RFC5424 syslog format", "system_log", "", false},
+        {"apache_access", "Apache HTTP Server access logs", "web_access", "", false},
+        {"nginx_access", "NGINX access logs", "web_access", "", false},
+
+        // Cloud provider log formats
+        {"aws_cloudtrail", "AWS CloudTrail audit logs", "cloud_audit", "", false},
+        {"gcp_cloud_logging", "GCP Cloud Logging entries", "cloud_audit", "", false},
+        {"azure_activity", "Azure Activity Log entries", "cloud_audit", "", false},
     };
 }
 

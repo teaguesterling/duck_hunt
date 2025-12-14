@@ -679,3 +679,89 @@ These formats are specific to popular log aggregation and analysis platforms.
 4. `log4j_text`, `java_stacktrace` - Java ecosystem
 5. `zap_json`, `logrus_json` - Go ecosystem
 6. Platform-specific formats (Ruby, R, .NET)
+
+---
+
+## Schema Review Notes
+
+### Phase 4 Schema Additions (IMPLEMENTED)
+
+We added three new columns to support log formats beyond test results:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `started_at` | VARCHAR | Event timestamp in original format |
+| `principal` | VARCHAR | User/service identity (ARN, email, service account, authenticated user) |
+| `origin` | VARCHAR | Network/system origin (IP address, hostname, runner name) |
+
+These columns were chosen for semantic flexibility across format categories:
+- **`origin`** was chosen over `ip_address` or `source` to handle both IP addresses and hostnames without implying a specific data type, and to avoid confusion with "source code"
+- **`principal`** captures the "who" (identity/actor) across different authentication models
+- **`started_at`** exposes timestamps without confusing the `function_name` column
+
+### Current Field Mappings by Format Category
+
+#### Cloud Audit Logs (AWS CloudTrail, GCP Cloud Logging, Azure Activity)
+
+| Log Field | Column | Notes |
+|-----------|--------|-------|
+| Event timestamp | `started_at` | ✓ Proper semantic fit |
+| API/Operation name | `function_name` | ✓ eventName, methodName, operationName |
+| Service/Category | `category` | ✓ Service source (ec2.amazonaws.com, etc.) |
+| Event description | `message` | ✓ Same as function_name for display |
+| Error code | `error_code` | ✓ AWS error codes, status values |
+| User identity | `principal` | ✓ ARN, email, service principal |
+| Source IP | `origin` | ✓ Caller IP address |
+| Region, Account ID | `structured_data` | JSON for cloud-specific metadata |
+
+#### Web Access Logs (Apache, NGINX)
+
+| Log Field | Column | Notes |
+|-----------|--------|-------|
+| Request timestamp | `started_at` | ✓ Proper semantic fit |
+| Request path | `file_path` | ✓ The "file" being accessed |
+| HTTP method | `category` | ✓ GET, POST, etc. as category |
+| Status code | `error_code` | ✓ HTTP status (200, 404, 500) |
+| Summary | `message` | ✓ "GET /path" for display |
+| Client IP | `origin` | ✓ Request source |
+| Request time (nginx) | `execution_time` | ✓ Request duration if available |
+| Protocol, referrer, UA | `structured_data` | JSON for HTTP metadata |
+
+#### System Logs (Syslog - BSD and RFC 5424)
+
+| Log Field | Column | Notes |
+|-----------|--------|-------|
+| Log timestamp | `started_at` | ✓ Proper semantic fit |
+| Process/Service | `category` | ✓ sshd, nginx, kernel |
+| Log message | `message` | ✓ The log content |
+| Hostname | `origin` | ✓ System that generated the log |
+| Severity | `severity` | ✓ Mapped from RFC 5424 priority |
+| PID, facility | `structured_data` | JSON for syslog metadata |
+
+#### Build/Test/Lint Formats
+
+For development-focused formats, `origin` and `principal` are typically empty since those concepts don't naturally apply. They could potentially be used for:
+- `origin`: Build host, CI runner name, or build step name
+- `principal`: Less applicable, but could be commit author
+
+These mappings would need further discussion before implementation.
+
+### Columns with Good Semantic Fit Across All Formats
+
+| Column | Works Well For |
+|--------|----------------|
+| `category` | Service name, HTTP method, process name, linter name |
+| `message` | Human-readable summary, log message, error description |
+| `error_code` | HTTP status, AWS error codes, exit codes |
+| `severity` | error/warning/info across all formats |
+| `structured_data` | Format-specific metadata as JSON |
+| `raw_output` | Original log line for reference |
+
+### Phase 3C Workflow Fields (Not Exposed)
+
+The following fields exist in `ValidationEvent` but are not currently exposed in the table function schema:
+- `workflow_name`, `job_name`, `step_name` - CI workflow hierarchy
+- `workflow_run_id`, `job_id` - CI workflow identifiers
+- `completed_at` - End timestamp (start is now `started_at`)
+
+These remain internal for now but could be exposed if needed for CI log analysis.

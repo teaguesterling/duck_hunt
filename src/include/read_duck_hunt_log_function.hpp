@@ -72,7 +72,18 @@ enum class TestResultFormat : uint8_t {
     // XML-based formats (require webbed extension)
     JUNIT_XML = 61,
     NUNIT_XML = 62,
-    CHECKSTYLE_XML = 63
+    CHECKSTYLE_XML = 63,
+    // Cross-language structured formats
+    JSONL = 64,
+    LOGFMT = 65,
+    // Web access and system logs
+    SYSLOG = 66,
+    APACHE_ACCESS = 67,
+    NGINX_ACCESS = 68,
+    // Cloud provider logs
+    AWS_CLOUDTRAIL = 69,
+    GCP_CLOUD_LOGGING = 70,
+    AZURE_ACTIVITY = 71
 };
 
 // Bind data for read_duck_hunt_log table function

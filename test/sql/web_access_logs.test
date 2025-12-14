@@ -1,0 +1,246 @@
+# name: test/sql/web_access_logs.test
+# description: test syslog, apache_access, and nginx_access log parsing
+# group: [sql]
+
+require duck_hunt
+
+# =============================================================================
+# Syslog Format Tests (BSD and RFC 5424)
+# =============================================================================
+
+# Test 1: Basic BSD syslog parsing
+query III
+SELECT tool_name, category, message
+FROM parse_duck_hunt_log('Dec 12 10:15:42 localhost sshd[1234]: Accepted password for user from 10.0.0.1 port 22', 'syslog');
+----
+syslog	sshd	Accepted password for user from 10.0.0.1 port 22
+
+# Test 2: BSD syslog extracts timestamp to started_at and hostname to origin
+query III
+SELECT started_at, category, origin
+FROM parse_duck_hunt_log('Jan  5 08:30:00 webserver nginx[5678]: Starting nginx', 'syslog');
+----
+Jan 5 08:30:00	nginx	webserver
+
+# Test 3: BSD syslog hostname in structured_data (check JSON contains hostname)
+query I
+SELECT structured_data LIKE '%"hostname":"myserver"%'
+FROM parse_duck_hunt_log('Dec 12 10:15:42 myserver sshd[1234]: Test message', 'syslog');
+----
+true
+
+# Test 4: BSD syslog PID in structured_data (check JSON contains pid)
+query I
+SELECT structured_data LIKE '%"pid":1234%'
+FROM parse_duck_hunt_log('Dec 12 10:15:42 localhost sshd[1234]: Test message', 'syslog');
+----
+true
+
+# Test 5: Multiple BSD syslog lines
+query II
+SELECT category, COUNT(*) as cnt
+FROM parse_duck_hunt_log(E'Dec 12 10:15:42 localhost sshd[1234]: Login attempt\nDec 12 10:15:43 localhost sshd[1234]: Login success\nDec 12 10:15:44 localhost kernel: Network ready', 'syslog')
+GROUP BY category ORDER BY category;
+----
+kernel	1
+sshd	2
+
+# Test 6: RFC 5424 syslog extracts fields
+query III
+SELECT severity, category, message
+FROM parse_duck_hunt_log('<165>1 2025-01-15T10:30:45Z myhost myapp 1234 - - Application started', 'syslog');
+----
+info	myapp	Application started
+
+# Test 7: RFC 5424 with error severity (priority indicating error)
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log('<11>1 2025-01-15T10:30:45Z myhost myapp 1234 - - Critical error occurred', 'syslog');
+----
+error	Critical error occurred
+
+# Test 8: Syslog stores raw output
+query I
+SELECT raw_output
+FROM parse_duck_hunt_log('Dec 12 10:15:42 localhost test[1]: Test message', 'syslog');
+----
+Dec 12 10:15:42 localhost test[1]: Test message
+
+# =============================================================================
+# Apache Access Log Format Tests
+# =============================================================================
+
+# Test 9: Basic Apache combined log format - semantic mappings
+query IIII
+SELECT tool_name, file_path, category, error_code
+FROM parse_duck_hunt_log('127.0.0.1 - - [12/Dec/2025:10:15:42 +0000] "GET /index.html HTTP/1.1" 200 1024 "-" "Mozilla/5.0"', 'apache_access');
+----
+apache_access	/index.html	GET	200
+
+# Test 10: Apache log extracts timestamp to started_at, client IP to origin
+query II
+SELECT started_at, origin
+FROM parse_duck_hunt_log('192.168.1.1 - - [15/Jan/2025:08:30:00 +0100] "POST /api/login HTTP/2.0" 200 512 "-" "curl/7.68.0"', 'apache_access');
+----
+15/Jan/2025:08:30:00 +0100	192.168.1.1
+
+# Test 11: Apache log with 4xx status maps to warning
+query II
+SELECT severity, file_path
+FROM parse_duck_hunt_log('10.0.0.1 - - [12/Dec/2025:10:15:42 +0000] "GET /notfound HTTP/1.1" 404 0 "-" "Mozilla/5.0"', 'apache_access');
+----
+warning	/notfound
+
+# Test 12: Apache log with 5xx status maps to error
+query II
+SELECT severity, file_path
+FROM parse_duck_hunt_log('10.0.0.1 - - [12/Dec/2025:10:15:42 +0000] "GET /error HTTP/1.1" 500 0 "-" "Mozilla/5.0"', 'apache_access');
+----
+error	/error
+
+# Test 13: Apache log with 2xx status maps to info
+query II
+SELECT severity, file_path
+FROM parse_duck_hunt_log('10.0.0.1 - - [12/Dec/2025:10:15:42 +0000] "GET /success HTTP/1.1" 200 1024 "-" "Mozilla/5.0"', 'apache_access');
+----
+info	/success
+
+# Test 14: Multiple Apache log entries count by HTTP method
+query II
+SELECT category, COUNT(*) as cnt
+FROM parse_duck_hunt_log(E'127.0.0.1 - - [12/Dec/2025:10:15:42 +0000] "GET /page1 HTTP/1.1" 200 100 "-" "UA"\n127.0.0.1 - - [12/Dec/2025:10:15:43 +0000] "POST /api HTTP/1.1" 201 50 "-" "UA"\n127.0.0.1 - - [12/Dec/2025:10:15:44 +0000] "GET /page2 HTTP/1.1" 200 200 "-" "UA"', 'apache_access')
+GROUP BY category ORDER BY category;
+----
+GET	2
+POST	1
+
+# Test 15: Apache log message is method + path
+query I
+SELECT message
+FROM parse_duck_hunt_log('127.0.0.1 - - [12/Dec/2025:10:15:42 +0000] "GET /large HTTP/1.1" 200 98765 "-" "Mozilla/5.0"', 'apache_access');
+----
+GET /large
+
+# Test 16: Apache log IP and response_bytes in structured_data
+query II
+SELECT structured_data LIKE '%"ip_address":"127.0.0.1"%', structured_data LIKE '%"response_bytes":1024%'
+FROM parse_duck_hunt_log('127.0.0.1 - - [12/Dec/2025:10:15:42 +0000] "GET / HTTP/1.1" 200 1024 "-" "CustomBot/1.0"', 'apache_access');
+----
+true	true
+
+# =============================================================================
+# NGINX Access Log Format Tests
+# =============================================================================
+
+# Test 17: Basic NGINX log format - semantic mappings
+query IIII
+SELECT tool_name, file_path, category, error_code
+FROM parse_duck_hunt_log('192.168.1.10 - - [12/Dec/2025:12:34:56 +0000] "POST /api/v1/login HTTP/2.0" 401 512 "-" "curl/7.68.0"', 'nginx_access');
+----
+nginx_access	/api/v1/login	POST	401
+
+# Test 18: NGINX log with 401 status maps to warning
+query II
+SELECT severity, file_path
+FROM parse_duck_hunt_log('10.0.0.1 - - [12/Dec/2025:10:15:42 +0000] "GET /protected HTTP/1.1" 401 0 "-" "Mozilla/5.0"', 'nginx_access');
+----
+warning	/protected
+
+# Test 19: NGINX log with 503 status maps to error
+query II
+SELECT severity, file_path
+FROM parse_duck_hunt_log('10.0.0.1 - - [12/Dec/2025:10:15:42 +0000] "GET /api HTTP/1.1" 503 0 "-" "Mozilla/5.0"', 'nginx_access');
+----
+error	/api
+
+# Test 20: Multiple NGINX log entries
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log(E'192.168.1.1 - - [12/Dec/2025:10:00:00 +0000] "GET /a HTTP/1.1" 200 100 "-" "UA"\n192.168.1.2 - - [12/Dec/2025:10:00:01 +0000] "GET /b HTTP/1.1" 200 200 "-" "UA"\n192.168.1.3 - - [12/Dec/2025:10:00:02 +0000] "GET /c HTTP/1.1" 200 300 "-" "UA"', 'nginx_access');
+----
+3
+
+# Test 21: NGINX log stores raw output
+query I
+SELECT raw_output
+FROM parse_duck_hunt_log('192.168.1.10 - - [12/Dec/2025:12:34:56 +0000] "GET /test HTTP/1.1" 200 100 "-" "Mozilla/5.0"', 'nginx_access');
+----
+192.168.1.10 - - [12/Dec/2025:12:34:56 +0000] "GET /test HTTP/1.1" 200 100 "-" "Mozilla/5.0"
+
+# =============================================================================
+# duck_hunt_formats() includes new formats
+# =============================================================================
+
+# Test 22: syslog appears in formats list
+query II
+SELECT format, category
+FROM duck_hunt_formats()
+WHERE format = 'syslog';
+----
+syslog	system_log
+
+# Test 23: apache_access appears in formats list
+query II
+SELECT format, category
+FROM duck_hunt_formats()
+WHERE format = 'apache_access';
+----
+apache_access	web_access
+
+# Test 24: nginx_access appears in formats list
+query II
+SELECT format, category
+FROM duck_hunt_formats()
+WHERE format = 'nginx_access';
+----
+nginx_access	web_access
+
+# Test 25: web_access and system_log categories exist
+query II
+SELECT category, COUNT(*) as cnt
+FROM duck_hunt_formats()
+WHERE category IN ('web_access', 'system_log')
+GROUP BY category ORDER BY category;
+----
+system_log	1
+web_access	2
+
+# =============================================================================
+# Edge Cases
+# =============================================================================
+
+# Test 26: Empty input returns no rows for syslog
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('', 'syslog');
+----
+0
+
+# Test 27: Empty input returns no rows for apache_access
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('', 'apache_access');
+----
+0
+
+# Test 28: Empty input returns no rows for nginx_access
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('', 'nginx_access');
+----
+0
+
+# Test 29: Syslog skips blank lines
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log(E'Dec 12 10:15:42 localhost test[1]: line1\n\nDec 12 10:15:43 localhost test[1]: line2', 'syslog');
+----
+2
+
+# Test 30: Access log structured_data contains user_agent
+query I
+SELECT structured_data LIKE '%"user_agent":"Mozilla/5.0"%'
+FROM parse_duck_hunt_log('127.0.0.1 - - [12/Dec/2025:10:15:42 +0000] "GET /page HTTP/1.1" 200 100 "https://example.com/source" "Mozilla/5.0"', 'apache_access');
+----
+true
+

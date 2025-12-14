@@ -113,6 +113,20 @@ set(EXTENSION_SOURCES
     # Format discovery function
     src/duck_hunt_formats_function.cpp
 
+    # Cross-language structured log parsers
+    src/parsers/structured_logs/jsonl_parser.cpp
+    src/parsers/structured_logs/logfmt_parser.cpp
+
+    # Web access and system log parsers
+    src/parsers/web_access/syslog_parser.cpp
+    src/parsers/web_access/apache_access_parser.cpp
+    src/parsers/web_access/nginx_access_parser.cpp
+
+    # Cloud provider log parsers
+    src/parsers/cloud_logs/aws_cloudtrail_parser.cpp
+    src/parsers/cloud_logs/gcp_cloud_logging_parser.cpp
+    src/parsers/cloud_logs/azure_activity_parser.cpp
+
     # XML-based parsers (require webbed extension)
     src/parsers/test_frameworks/junit_xml_parser.cpp
 )
