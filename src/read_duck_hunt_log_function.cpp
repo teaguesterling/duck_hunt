@@ -785,6 +785,10 @@ std::string TestResultFormatToString(TestResultFormat format) {
         case TestResultFormat::AWS_CLOUDTRAIL: return "aws_cloudtrail";
         case TestResultFormat::GCP_CLOUD_LOGGING: return "gcp_cloud_logging";
         case TestResultFormat::AZURE_ACTIVITY: return "azure_activity";
+        // Application logging formats
+        case TestResultFormat::PYTHON_LOGGING: return "python_logging";
+        case TestResultFormat::LOG4J: return "log4j";
+        case TestResultFormat::LOGRUS: return "logrus";
         default: return "unknown";
     }
 }
@@ -870,6 +874,14 @@ TestResultFormat StringToTestResultFormat(const std::string& str) {
     if (str == "gcp_logging") return TestResultFormat::GCP_CLOUD_LOGGING;  // Alias
     if (str == "azure_activity") return TestResultFormat::AZURE_ACTIVITY;
     if (str == "azure_activity_log") return TestResultFormat::AZURE_ACTIVITY;  // Alias
+    // Application logging formats
+    if (str == "python_logging") return TestResultFormat::PYTHON_LOGGING;
+    if (str == "python_log") return TestResultFormat::PYTHON_LOGGING;  // Alias
+    if (str == "log4j") return TestResultFormat::LOG4J;
+    if (str == "log4j_text") return TestResultFormat::LOG4J;  // Alias
+    if (str == "logback") return TestResultFormat::LOG4J;  // Alias (same format)
+    if (str == "logrus") return TestResultFormat::LOGRUS;
+    if (str == "logrus_text") return TestResultFormat::LOGRUS;  // Alias
     if (str == "unknown") return TestResultFormat::UNKNOWN;
     return TestResultFormat::UNKNOWN;  // Unknown format string
 }

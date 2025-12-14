@@ -112,6 +112,11 @@ static std::vector<FormatInfo> GetAllFormats() {
         {"aws_cloudtrail", "AWS CloudTrail audit logs", "cloud_audit", "", false},
         {"gcp_cloud_logging", "GCP Cloud Logging entries", "cloud_audit", "", false},
         {"azure_activity", "Azure Activity Log entries", "cloud_audit", "", false},
+
+        // Application logging formats
+        {"python_logging", "Python stdlib logging format", "app_logging", "", false},
+        {"log4j", "Java Log4j/Logback text format", "app_logging", "", false},
+        {"logrus", "Go Logrus text/key=value format", "app_logging", "", false},
     };
 }
 

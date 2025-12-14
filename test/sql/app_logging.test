@@ -1,0 +1,286 @@
+# name: test/sql/app_logging.test
+# description: test Python logging, Log4j, and Logrus parsers
+# group: [sql]
+
+require duck_hunt
+
+# =============================================================================
+# Python Logging Tests
+# =============================================================================
+
+# Test 1: Basic Python logging format
+query III
+SELECT tool_name, category, severity
+FROM parse_duck_hunt_log('2025-01-15 10:30:45,123 - myapp.module - INFO - User login successful', 'python_logging');
+----
+python_logging	myapp.module	info
+
+# Test 2: Python logging with ERROR level
+query III
+SELECT severity, category, message
+FROM parse_duck_hunt_log('2025-01-15 10:30:46,456 - myapp.database - ERROR - Connection failed', 'python_logging');
+----
+error	myapp.database	Connection failed
+
+# Test 3: Python logging with WARNING level
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log('2025-01-15 10:30:47,789 - myapp.cache - WARNING - Cache miss', 'python_logging');
+----
+warning	Cache miss
+
+# Test 4: Python logging extracts timestamp to started_at
+query I
+SELECT started_at
+FROM parse_duck_hunt_log('2025-01-15 10:30:45,123 - myapp - INFO - Test message', 'python_logging');
+----
+2025-01-15 10:30:45,123
+
+# Test 5: Simple Python logging format (LEVEL:logger:message)
+query III
+SELECT severity, category, message
+FROM parse_duck_hunt_log('ERROR:myapp:Something went wrong', 'python_logging');
+----
+error	myapp	Something went wrong
+
+# Test 6: Multiple Python log entries
+query II
+SELECT severity, COUNT(*) as cnt
+FROM parse_duck_hunt_log(E'2025-01-15 10:30:45,123 - app - INFO - Line 1\n2025-01-15 10:30:46,456 - app - ERROR - Line 2\n2025-01-15 10:30:47,789 - app - INFO - Line 3', 'python_logging')
+GROUP BY severity ORDER BY severity;
+----
+error	1
+info	2
+
+# Test 7: Python logging structured_data contains logger
+query I
+SELECT structured_data LIKE '%"logger":"myapp.module"%'
+FROM parse_duck_hunt_log('2025-01-15 10:30:45,123 - myapp.module - INFO - Test', 'python_logging');
+----
+true
+
+# =============================================================================
+# Log4j Tests
+# =============================================================================
+
+# Test 8: Basic Log4j format with thread
+query IIII
+SELECT tool_name, category, severity, message
+FROM parse_duck_hunt_log('2025-01-15 10:30:45,123 INFO  [main] com.example.App - Application started', 'log4j');
+----
+log4j	com.example.App	info	Application started
+
+# Test 9: Log4j ERROR level
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log('2025-01-15 10:30:46,456 ERROR [http-thread-1] com.example.Service - Database connection failed', 'log4j');
+----
+error	Database connection failed
+
+# Test 10: Log4j WARN level
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log('2025-01-15 10:30:47,789 WARN  [worker-5] com.example.Cache - Cache full', 'log4j');
+----
+warning	Cache full
+
+# Test 11: Log4j extracts timestamp to started_at
+query I
+SELECT started_at
+FROM parse_duck_hunt_log('2025-01-15 10:30:45,123 INFO  [main] com.example.App - Test', 'log4j');
+----
+2025-01-15 10:30:45,123
+
+# Test 12: Log4j structured_data contains thread
+query I
+SELECT structured_data LIKE '%"thread":"main"%'
+FROM parse_duck_hunt_log('2025-01-15 10:30:45,123 INFO  [main] com.example.App - Test', 'log4j');
+----
+true
+
+# Test 13: Log4j structured_data contains logger
+query I
+SELECT structured_data LIKE '%"logger":"com.example.App"%'
+FROM parse_duck_hunt_log('2025-01-15 10:30:45,123 INFO  [main] com.example.App - Test', 'log4j');
+----
+true
+
+# Test 14: Multiple Log4j entries by severity
+query II
+SELECT severity, COUNT(*) as cnt
+FROM parse_duck_hunt_log(E'2025-01-15 10:30:45,123 INFO  [main] com.App - Info 1\n2025-01-15 10:30:46,456 ERROR [main] com.App - Error 1\n2025-01-15 10:30:47,789 INFO  [main] com.App - Info 2', 'log4j')
+GROUP BY severity ORDER BY severity;
+----
+error	1
+info	2
+
+# Test 15: Log4j FATAL level maps to error
+query I
+SELECT severity
+FROM parse_duck_hunt_log('2025-01-15 10:30:45,123 FATAL [main] com.example.App - Fatal error', 'log4j');
+----
+error
+
+# =============================================================================
+# Logrus Tests
+# =============================================================================
+
+# Test 16: Basic Logrus key=value format
+query III
+SELECT tool_name, severity, message
+FROM parse_duck_hunt_log('time="2025-01-15T10:30:45Z" level=info msg="server started" port=8080', 'logrus');
+----
+logrus	info	server started
+
+# Test 17: Logrus error level
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log('time="2025-01-15T10:30:46Z" level=error msg="connection failed" error="timeout"', 'logrus');
+----
+error	connection failed
+
+# Test 18: Logrus warning level
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log('time="2025-01-15T10:30:47Z" level=warning msg="high memory usage"', 'logrus');
+----
+warning	high memory usage
+
+# Test 19: Logrus extracts timestamp to started_at
+query I
+SELECT started_at
+FROM parse_duck_hunt_log('time="2025-01-15T10:30:45Z" level=info msg="test"', 'logrus');
+----
+2025-01-15T10:30:45Z
+
+# Test 20: Logrus console format
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log('INFO[0000] Starting server                            port=8080', 'logrus');
+----
+info	Starting server
+
+# Test 21: Logrus structured_data contains all fields
+query I
+SELECT structured_data LIKE '%"port":"8080"%'
+FROM parse_duck_hunt_log('time="2025-01-15T10:30:45Z" level=info msg="started" port=8080', 'logrus');
+----
+true
+
+# Test 22: Multiple Logrus entries
+query II
+SELECT severity, COUNT(*) as cnt
+FROM parse_duck_hunt_log(E'time="2025-01-15T10:30:45Z" level=info msg="line 1"\ntime="2025-01-15T10:30:46Z" level=error msg="line 2"\ntime="2025-01-15T10:30:47Z" level=info msg="line 3"', 'logrus')
+GROUP BY severity ORDER BY severity;
+----
+error	1
+info	2
+
+# Test 23: Logrus fatal level maps to error
+query I
+SELECT severity
+FROM parse_duck_hunt_log('time="2025-01-15T10:30:45Z" level=fatal msg="crash"', 'logrus');
+----
+error
+
+# Test 24: Logrus panic level maps to error
+query I
+SELECT severity
+FROM parse_duck_hunt_log('time="2025-01-15T10:30:45Z" level=panic msg="panic"', 'logrus');
+----
+error
+
+# =============================================================================
+# duck_hunt_formats() includes app_logging formats
+# =============================================================================
+
+# Test 25: python_logging appears in formats list
+query II
+SELECT format, category
+FROM duck_hunt_formats()
+WHERE format = 'python_logging';
+----
+python_logging	app_logging
+
+# Test 26: log4j appears in formats list
+query II
+SELECT format, category
+FROM duck_hunt_formats()
+WHERE format = 'log4j';
+----
+log4j	app_logging
+
+# Test 27: logrus appears in formats list
+query II
+SELECT format, category
+FROM duck_hunt_formats()
+WHERE format = 'logrus';
+----
+logrus	app_logging
+
+# Test 28: app_logging category has 3 formats
+query II
+SELECT category, COUNT(*) as cnt
+FROM duck_hunt_formats()
+WHERE category = 'app_logging'
+GROUP BY category;
+----
+app_logging	3
+
+# =============================================================================
+# Format Aliases
+# =============================================================================
+
+# Test 29: python_log alias works
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('2025-01-15 10:30:45,123 - app - INFO - Test', 'python_log');
+----
+1
+
+# Test 30: log4j_text alias works
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('2025-01-15 10:30:45,123 INFO  [main] com.App - Test', 'log4j_text');
+----
+1
+
+# Test 31: logback alias works
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('2025-01-15 10:30:45,123 INFO  [main] com.App - Test', 'logback');
+----
+1
+
+# Test 32: logrus_text alias works
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('time="2025-01-15T10:30:45Z" level=info msg="test"', 'logrus_text');
+----
+1
+
+# =============================================================================
+# Edge Cases
+# =============================================================================
+
+# Test 33: Empty input returns no rows for python_logging
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('', 'python_logging');
+----
+0
+
+# Test 34: Empty input returns no rows for log4j
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('', 'log4j');
+----
+0
+
+# Test 35: Empty input returns no rows for logrus
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('', 'logrus');
+----
+0
+

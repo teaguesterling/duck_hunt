@@ -127,6 +127,11 @@ set(EXTENSION_SOURCES
     src/parsers/cloud_logs/gcp_cloud_logging_parser.cpp
     src/parsers/cloud_logs/azure_activity_parser.cpp
 
+    # Application logging parsers
+    src/parsers/app_logging/python_logging_parser.cpp
+    src/parsers/app_logging/log4j_parser.cpp
+    src/parsers/app_logging/logrus_parser.cpp
+
     # XML-based parsers (require webbed extension)
     src/parsers/test_frameworks/junit_xml_parser.cpp
 )

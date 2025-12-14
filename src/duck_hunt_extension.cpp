@@ -57,6 +57,11 @@
 #include "parsers/cloud_logs/gcp_cloud_logging_parser.hpp"
 #include "parsers/cloud_logs/azure_activity_parser.hpp"
 
+// Application logging parsers
+#include "parsers/app_logging/python_logging_parser.hpp"
+#include "parsers/app_logging/log4j_parser.hpp"
+#include "parsers/app_logging/logrus_parser.hpp"
+
 // XML-based parsers (require webbed extension)
 #include "parsers/test_frameworks/junit_xml_parser.hpp"
 
@@ -116,6 +121,11 @@ static void LoadInternal(ExtensionLoader &loader) {
 	registry.registerParser(make_uniq<AWSCloudTrailParser>());
 	registry.registerParser(make_uniq<GCPCloudLoggingParser>());
 	registry.registerParser(make_uniq<AzureActivityParser>());
+
+	// Application logging parsers
+	registry.registerParser(make_uniq<PythonLoggingParser>());
+	registry.registerParser(make_uniq<Log4jParser>());
+	registry.registerParser(make_uniq<LogrusParser>());
 
 	// XML-based parsers (require webbed extension)
 	registry.registerParser(make_uniq<JUnitXmlParser>());

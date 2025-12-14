@@ -83,7 +83,11 @@ enum class TestResultFormat : uint8_t {
     // Cloud provider logs
     AWS_CLOUDTRAIL = 69,
     GCP_CLOUD_LOGGING = 70,
-    AZURE_ACTIVITY = 71
+    AZURE_ACTIVITY = 71,
+    // Application logging formats
+    PYTHON_LOGGING = 72,
+    LOG4J = 73,
+    LOGRUS = 74
 };
 
 // Bind data for read_duck_hunt_log table function
