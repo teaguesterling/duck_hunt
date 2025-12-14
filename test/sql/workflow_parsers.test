@@ -66,14 +66,14 @@ SELECT DISTINCT workflow_type, tool_name FROM read_duck_hunt_workflow_log('test/
 ----
 github_actions	github_actions
 
-# Test step names are extracted
+# Test unit names are extracted (Schema V2: step_name -> unit)
 query I
-SELECT COUNT(DISTINCT step_name) FROM read_duck_hunt_workflow_log('test/sample_github_actions.log', 'github_actions') WHERE step_name IS NOT NULL AND step_name != '';
+SELECT COUNT(DISTINCT unit) FROM read_duck_hunt_workflow_log('test/sample_github_actions.log', 'github_actions') WHERE unit IS NOT NULL AND unit != '';
 ----
 4
 
-# Test job names are extracted
+# Test group names are extracted (Schema V2: job_name -> group)
 query I
-SELECT COUNT(DISTINCT job_name) FROM read_duck_hunt_workflow_log('test/sample_jenkins.log', 'jenkins') WHERE job_name IS NOT NULL AND job_name != '';
+SELECT COUNT(DISTINCT "group") FROM read_duck_hunt_workflow_log('test/sample_jenkins.log', 'jenkins') WHERE "group" IS NOT NULL AND "group" != '';
 ----
 1

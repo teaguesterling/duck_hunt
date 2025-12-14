@@ -61,7 +61,7 @@ SELECT status_badge(
 | `mypy_text` | MyPy | [sample](test/samples/mypy.txt) |
 | `make_error` | GNU Make | [sample](test/samples/make.out) |
 | `gotest_json` | Go test | [sample](test/samples/gotest.json) |
-| `github_actions_text` | GitHub Actions | [sample](test/samples/github_actions.log) |
+| `github_actions` | GitHub Actions | [sample](test/samples/github_actions.log) |
 | `valgrind` | Valgrind | Memory analysis |
 | `generic_lint` | Generic | `file:line:col: severity: message` |
 
@@ -69,7 +69,7 @@ SELECT status_badge(
 
 ## Output Schema
 
-All parsers produce a standardized schema:
+All parsers produce a standardized 39-field schema:
 
 | Field | Description |
 |-------|-------------|
@@ -79,14 +79,18 @@ All parsers produce a standardized schema:
 | `file_path` | Source file path |
 | `line_number` | Line number |
 | `message` | Error/warning message |
-| `error_code` | Rule ID or error code |
+| `scope` | Hierarchy level 1 (workflow, cluster, suite) |
+| `group` | Hierarchy level 2 (job, namespace, class) |
+| `unit` | Hierarchy level 3 (step, pod, method) |
+| `fingerprint` | Error pattern signature for clustering |
 
-**[See full schema (40 fields) →](docs/schema.md)**
+**[See full schema →](docs/schema.md)** | **[Field mappings by domain →](docs/field_mappings.md)**
 
 ## Documentation
 
 - **[Format Reference](docs/formats.md)** - All 60+ supported formats with examples
 - **[Schema Reference](docs/schema.md)** - Complete field documentation
+- **[Field Mappings](docs/field_mappings.md)** - How fields map to each domain
 - **[Usage Examples](docs/examples.md)** - Detailed examples for common scenarios
 
 ## Installation

@@ -33,11 +33,11 @@ public:
     virtual std::string getName() const = 0;
 
 protected:
-    // Helper to create base ValidationEvent with workflow metadata
-    ValidationEvent createBaseEvent(const std::string& raw_line, 
-                                   const std::string& workflow_name,
-                                   const std::string& job_name = "",
-                                   const std::string& step_name = "") const;
+    // Helper to create base ValidationEvent with hierarchical context
+    ValidationEvent createBaseEvent(const std::string& raw_line,
+                                   const std::string& scope_name,
+                                   const std::string& group_name = "",
+                                   const std::string& unit_name = "") const;
     
     // Helper to extract timestamp from common formats
     std::string extractTimestamp(const std::string& line) const;

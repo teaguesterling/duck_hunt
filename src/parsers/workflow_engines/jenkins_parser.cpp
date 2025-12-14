@@ -280,27 +280,24 @@ std::vector<WorkflowEvent> JenkinsParser::convertToEvents(const std::vector<Jenk
                 
                 // Create base validation event
                 ValidationEvent base_event = createBaseEvent(output_line, workflow_name, build.build_name, step.step_name);
-                
+
                 // Set the base_event
                 event.base_event = base_event;
-                
-                // Override specific fields in base_event
+
+                // Override specific fields in base_event (Schema V2)
                 event.base_event.status = ValidationEventStatus::INFO;
                 event.base_event.severity = determineSeverity(step.status, output_line);
-                event.base_event.workflow_name = workflow_name;
-                event.base_event.job_name = build.build_name;
-                event.base_event.step_name = step.step_name;
-                event.base_event.workflow_run_id = build.build_id;
-                event.base_event.job_id = build.build_id;
-                event.base_event.step_id = step.step_id;
-                event.base_event.workflow_status = "running";
-                event.base_event.job_status = build.status;
-                event.base_event.step_status = step.status;
+                event.base_event.scope = workflow_name;
+                event.base_event.group = build.build_name;
+                event.base_event.unit = step.step_name;
+                event.base_event.scope_id = build.build_id;
+                event.base_event.group_id = build.build_id;
+                event.base_event.unit_id = step.step_id;
+                event.base_event.scope_status = "running";
+                event.base_event.group_status = build.status;
+                event.base_event.unit_status = step.status;
                 event.base_event.started_at = step.started_at;
-                event.base_event.completed_at = step.completed_at;
-                event.base_event.duration = 0.0; // Calculate if timestamps available
-                event.base_event.build_id = build.build_id;
-                event.base_event.environment = build.workspace;
+                event.base_event.origin = build.workspace;
                 event.workflow_type = "jenkins";
                 event.hierarchy_level = 3; // Step level
                 event.parent_id = build.build_id;

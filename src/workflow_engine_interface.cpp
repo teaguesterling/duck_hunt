@@ -10,11 +10,11 @@ namespace duckdb {
 // WorkflowEngineParser implementation
 
 ValidationEvent WorkflowEngineParser::createBaseEvent(const std::string& raw_line,
-                                                     const std::string& workflow_name,
-                                                     const std::string& job_name,
-                                                     const std::string& step_name) const {
+                                                     const std::string& scope_name,
+                                                     const std::string& group_name,
+                                                     const std::string& unit_name) const {
     ValidationEvent event;
-    
+
     // Set basic fields
     event.tool_name = WorkflowLogFormatToString(getFormat());
     event.event_type = ValidationEventType::SUMMARY;  // Use SUMMARY type for workflow events
@@ -23,15 +23,15 @@ ValidationEvent WorkflowEngineParser::createBaseEvent(const std::string& raw_lin
     event.status = ValidationEventStatus::INFO;
     event.severity = "info";
     event.category = "workflow";
-    
-    // Set workflow hierarchy metadata
-    event.workflow_name = workflow_name;
-    event.job_name = job_name;
-    event.step_name = step_name;
-    
+
+    // Set hierarchical context (Schema V2)
+    event.scope = scope_name;
+    event.group = group_name;
+    event.unit = unit_name;
+
     // Extract timestamp if available
     event.started_at = extractTimestamp(raw_line);
-    
+
     return event;
 }
 

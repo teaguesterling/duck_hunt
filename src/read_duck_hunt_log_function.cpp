@@ -211,23 +211,22 @@ std::string DetectRootCauseCategory(const ValidationEvent& event) {
     return "unknown";
 }
 
-// Process events to generate Phase 3B error pattern metadata
+// Process events to generate error pattern metadata
 void ProcessErrorPatterns(std::vector<ValidationEvent>& events) {
-    // Step 1: Generate fingerprints and root cause categories for each event
+    // Step 1: Generate fingerprints for each event
     for (auto& event : events) {
-        event.error_fingerprint = GenerateErrorFingerprint(event);
-        event.root_cause_category = DetectRootCauseCategory(event);
+        event.fingerprint = GenerateErrorFingerprint(event);
     }
-    
+
     // Step 2: Assign pattern IDs based on fingerprint clustering
     std::map<std::string, int64_t> fingerprint_to_pattern_id;
     int64_t next_pattern_id = 1;
-    
+
     for (auto& event : events) {
-        if (fingerprint_to_pattern_id.find(event.error_fingerprint) == fingerprint_to_pattern_id.end()) {
-            fingerprint_to_pattern_id[event.error_fingerprint] = next_pattern_id++;
+        if (fingerprint_to_pattern_id.find(event.fingerprint) == fingerprint_to_pattern_id.end()) {
+            fingerprint_to_pattern_id[event.fingerprint] = next_pattern_id++;
         }
-        event.pattern_id = fingerprint_to_pattern_id[event.error_fingerprint];
+        event.pattern_id = fingerprint_to_pattern_id[event.fingerprint];
     }
     
     // Step 3: Calculate similarity scores within pattern groups
@@ -1015,57 +1014,86 @@ unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFuncti
         bind_data->format = TestResultFormat::AUTO;
     }
 
-    // Define return schema
+    // Define return schema (Schema V2)
     return_types = {
+        // Core identification
         LogicalType::BIGINT,   // event_id
         LogicalType::VARCHAR,  // tool_name
         LogicalType::VARCHAR,  // event_type
+        // Code location
         LogicalType::VARCHAR,  // file_path
         LogicalType::INTEGER,  // line_number
         LogicalType::INTEGER,  // column_number
         LogicalType::VARCHAR,  // function_name
+        // Classification
         LogicalType::VARCHAR,  // status
         LogicalType::VARCHAR,  // severity
         LogicalType::VARCHAR,  // category
+        LogicalType::VARCHAR,  // error_code
+        // Content
         LogicalType::VARCHAR,  // message
         LogicalType::VARCHAR,  // suggestion
-        LogicalType::VARCHAR,  // error_code
-        LogicalType::VARCHAR,  // test_name
-        LogicalType::DOUBLE,   // execution_time
         LogicalType::VARCHAR,  // raw_output
         LogicalType::VARCHAR,  // structured_data
-        // Log line tracking
+        // Log tracking
         LogicalType::INTEGER,  // log_line_start
         LogicalType::INTEGER,  // log_line_end
-        // Phase 3A: Multi-file processing metadata
-        LogicalType::VARCHAR,  // source_file
-        LogicalType::VARCHAR,  // build_id
-        LogicalType::VARCHAR,  // environment
-        LogicalType::BIGINT,   // file_index
-        // Phase 3B: Error pattern analysis
-        LogicalType::VARCHAR,  // error_fingerprint
+        // Test-specific
+        LogicalType::VARCHAR,  // test_name
+        LogicalType::DOUBLE,   // execution_time
+        // Identity & Network
+        LogicalType::VARCHAR,  // principal
+        LogicalType::VARCHAR,  // origin
+        LogicalType::VARCHAR,  // target
+        LogicalType::VARCHAR,  // actor_type
+        // Temporal
+        LogicalType::VARCHAR,  // started_at
+        // Correlation
+        LogicalType::VARCHAR,  // external_id
+        // Hierarchical context
+        LogicalType::VARCHAR,  // scope
+        LogicalType::VARCHAR,  // scope_id
+        LogicalType::VARCHAR,  // scope_status
+        LogicalType::VARCHAR,  // group
+        LogicalType::VARCHAR,  // group_id
+        LogicalType::VARCHAR,  // group_status
+        LogicalType::VARCHAR,  // unit
+        LogicalType::VARCHAR,  // unit_id
+        LogicalType::VARCHAR,  // unit_status
+        LogicalType::VARCHAR,  // subunit
+        LogicalType::VARCHAR,  // subunit_id
+        // Pattern analysis
+        LogicalType::VARCHAR,  // fingerprint
         LogicalType::DOUBLE,   // similarity_score
-        LogicalType::BIGINT,   // pattern_id
-        LogicalType::VARCHAR,  // root_cause_category
-        // Phase 4: Log format fields (access logs, cloud audit logs)
-        LogicalType::VARCHAR,  // started_at (event timestamp)
-        LogicalType::VARCHAR,  // principal (user/service identity)
-        LogicalType::VARCHAR   // origin (network/system origin)
+        LogicalType::BIGINT    // pattern_id
     };
 
     names = {
-        "event_id", "tool_name", "event_type", "file_path", "line_number",
-        "column_number", "function_name", "status", "severity", "category",
-        "message", "suggestion", "error_code", "test_name", "execution_time",
-        "raw_output", "structured_data",
-        // Log line tracking
+        // Core identification
+        "event_id", "tool_name", "event_type",
+        // Code location
+        "file_path", "line_number", "column_number", "function_name",
+        // Classification
+        "status", "severity", "category", "error_code",
+        // Content
+        "message", "suggestion", "raw_output", "structured_data",
+        // Log tracking
         "log_line_start", "log_line_end",
-        // Phase 3A: Multi-file processing metadata
-        "source_file", "build_id", "environment", "file_index",
-        // Phase 3B: Error pattern analysis
-        "error_fingerprint", "similarity_score", "pattern_id", "root_cause_category",
-        // Phase 4: Log format fields
-        "started_at", "principal", "origin"
+        // Test-specific
+        "test_name", "execution_time",
+        // Identity & Network
+        "principal", "origin", "target", "actor_type",
+        // Temporal
+        "started_at",
+        // Correlation
+        "external_id",
+        // Hierarchical context
+        "scope", "scope_id", "scope_status",
+        "group", "group_id", "group_status",
+        "unit", "unit_id", "unit_status",
+        "subunit", "subunit_id",
+        // Pattern analysis
+        "fingerprint", "similarity_score", "pattern_id"
     };
     
     return std::move(bind_data);
@@ -1516,17 +1544,6 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &co
                 break;
         }
 
-        // For single files, populate basic metadata
-        if (!global_state->events.empty()) {
-            for (auto& event : global_state->events) {
-                if (event.source_file.empty()) {
-                    event.source_file = bind_data.source;
-                    event.build_id = ExtractBuildIdFromPath(bind_data.source);
-                    event.environment = ExtractEnvironmentFromPath(bind_data.source);
-                    event.file_index = 0;
-                }
-            }
-        }
     }
     
     // Phase 3B: Process error patterns for intelligent categorization
@@ -1567,40 +1584,56 @@ void PopulateDataChunkFromEvents(DataChunk &output, const std::vector<Validation
         const auto &event = events[start_offset + i];
         idx_t col = 0;
         
+        // Core identification
         output.SetValue(col++, i, Value::BIGINT(event.event_id));
         output.SetValue(col++, i, Value(event.tool_name));
         output.SetValue(col++, i, Value(ValidationEventTypeToString(event.event_type)));
+        // Code location
         output.SetValue(col++, i, Value(event.file_path));
         output.SetValue(col++, i, event.line_number == -1 ? Value() : Value::INTEGER(event.line_number));
         output.SetValue(col++, i, event.column_number == -1 ? Value() : Value::INTEGER(event.column_number));
         output.SetValue(col++, i, Value(event.function_name));
+        // Classification
         output.SetValue(col++, i, Value(ValidationEventStatusToString(event.status)));
         output.SetValue(col++, i, Value(event.severity));
         output.SetValue(col++, i, Value(event.category));
+        output.SetValue(col++, i, Value(event.error_code));
+        // Content
         output.SetValue(col++, i, Value(event.message));
         output.SetValue(col++, i, Value(event.suggestion));
-        output.SetValue(col++, i, Value(event.error_code));
-        output.SetValue(col++, i, Value(event.test_name));
-        output.SetValue(col++, i, Value::DOUBLE(event.execution_time));
         output.SetValue(col++, i, Value(event.raw_output));
         output.SetValue(col++, i, Value(event.structured_data));
-        // Log line tracking
+        // Log tracking
         output.SetValue(col++, i, event.log_line_start == -1 ? Value() : Value::INTEGER(event.log_line_start));
         output.SetValue(col++, i, event.log_line_end == -1 ? Value() : Value::INTEGER(event.log_line_end));
-        // Phase 3A: Multi-file processing metadata
-        output.SetValue(col++, i, Value(event.source_file));
-        output.SetValue(col++, i, event.build_id.empty() ? Value() : Value(event.build_id));
-        output.SetValue(col++, i, event.environment.empty() ? Value() : Value(event.environment));
-        output.SetValue(col++, i, event.file_index == -1 ? Value() : Value::BIGINT(event.file_index));
-        // Phase 3B: Error pattern analysis
-        output.SetValue(col++, i, event.error_fingerprint.empty() ? Value() : Value(event.error_fingerprint));
-        output.SetValue(col++, i, event.similarity_score == 0.0 ? Value() : Value::DOUBLE(event.similarity_score));
-        output.SetValue(col++, i, event.pattern_id == -1 ? Value() : Value::BIGINT(event.pattern_id));
-        output.SetValue(col++, i, event.root_cause_category.empty() ? Value() : Value(event.root_cause_category));
-        // Phase 4: Log format fields
-        output.SetValue(col++, i, event.started_at.empty() ? Value() : Value(event.started_at));
+        // Test-specific
+        output.SetValue(col++, i, Value(event.test_name));
+        output.SetValue(col++, i, Value::DOUBLE(event.execution_time));
+        // Identity & Network
         output.SetValue(col++, i, event.principal.empty() ? Value() : Value(event.principal));
         output.SetValue(col++, i, event.origin.empty() ? Value() : Value(event.origin));
+        output.SetValue(col++, i, event.target.empty() ? Value() : Value(event.target));
+        output.SetValue(col++, i, event.actor_type.empty() ? Value() : Value(event.actor_type));
+        // Temporal
+        output.SetValue(col++, i, event.started_at.empty() ? Value() : Value(event.started_at));
+        // Correlation
+        output.SetValue(col++, i, event.external_id.empty() ? Value() : Value(event.external_id));
+        // Hierarchical context
+        output.SetValue(col++, i, event.scope.empty() ? Value() : Value(event.scope));
+        output.SetValue(col++, i, event.scope_id.empty() ? Value() : Value(event.scope_id));
+        output.SetValue(col++, i, event.scope_status.empty() ? Value() : Value(event.scope_status));
+        output.SetValue(col++, i, event.group.empty() ? Value() : Value(event.group));
+        output.SetValue(col++, i, event.group_id.empty() ? Value() : Value(event.group_id));
+        output.SetValue(col++, i, event.group_status.empty() ? Value() : Value(event.group_status));
+        output.SetValue(col++, i, event.unit.empty() ? Value() : Value(event.unit));
+        output.SetValue(col++, i, event.unit_id.empty() ? Value() : Value(event.unit_id));
+        output.SetValue(col++, i, event.unit_status.empty() ? Value() : Value(event.unit_status));
+        output.SetValue(col++, i, event.subunit.empty() ? Value() : Value(event.subunit));
+        output.SetValue(col++, i, event.subunit_id.empty() ? Value() : Value(event.subunit_id));
+        // Pattern analysis
+        output.SetValue(col++, i, event.fingerprint.empty() ? Value() : Value(event.fingerprint));
+        output.SetValue(col++, i, event.similarity_score == 0.0 ? Value() : Value::DOUBLE(event.similarity_score));
+        output.SetValue(col++, i, event.pattern_id == -1 ? Value() : Value::BIGINT(event.pattern_id));
     }
 }
 
@@ -2563,57 +2596,86 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
         bind_data->format = TestResultFormat::AUTO;
     }
 
-    // Define return schema (same as read_duck_hunt_log)
+    // Define return schema (Schema V2 - same as read_duck_hunt_log)
     return_types = {
+        // Core identification
         LogicalType::BIGINT,   // event_id
         LogicalType::VARCHAR,  // tool_name
         LogicalType::VARCHAR,  // event_type
+        // Code location
         LogicalType::VARCHAR,  // file_path
         LogicalType::INTEGER,  // line_number
         LogicalType::INTEGER,  // column_number
         LogicalType::VARCHAR,  // function_name
+        // Classification
         LogicalType::VARCHAR,  // status
         LogicalType::VARCHAR,  // severity
         LogicalType::VARCHAR,  // category
+        LogicalType::VARCHAR,  // error_code
+        // Content
         LogicalType::VARCHAR,  // message
         LogicalType::VARCHAR,  // suggestion
-        LogicalType::VARCHAR,  // error_code
-        LogicalType::VARCHAR,  // test_name
-        LogicalType::DOUBLE,   // execution_time
         LogicalType::VARCHAR,  // raw_output
         LogicalType::VARCHAR,  // structured_data
-        // Log line tracking
+        // Log tracking
         LogicalType::INTEGER,  // log_line_start
         LogicalType::INTEGER,  // log_line_end
-        // Phase 3A: Multi-file processing metadata
-        LogicalType::VARCHAR,  // source_file
-        LogicalType::VARCHAR,  // build_id
-        LogicalType::VARCHAR,  // environment
-        LogicalType::BIGINT,   // file_index
-        // Phase 3B: Error pattern analysis
-        LogicalType::VARCHAR,  // error_fingerprint
+        // Test-specific
+        LogicalType::VARCHAR,  // test_name
+        LogicalType::DOUBLE,   // execution_time
+        // Identity & Network
+        LogicalType::VARCHAR,  // principal
+        LogicalType::VARCHAR,  // origin
+        LogicalType::VARCHAR,  // target
+        LogicalType::VARCHAR,  // actor_type
+        // Temporal
+        LogicalType::VARCHAR,  // started_at
+        // Correlation
+        LogicalType::VARCHAR,  // external_id
+        // Hierarchical context
+        LogicalType::VARCHAR,  // scope
+        LogicalType::VARCHAR,  // scope_id
+        LogicalType::VARCHAR,  // scope_status
+        LogicalType::VARCHAR,  // group
+        LogicalType::VARCHAR,  // group_id
+        LogicalType::VARCHAR,  // group_status
+        LogicalType::VARCHAR,  // unit
+        LogicalType::VARCHAR,  // unit_id
+        LogicalType::VARCHAR,  // unit_status
+        LogicalType::VARCHAR,  // subunit
+        LogicalType::VARCHAR,  // subunit_id
+        // Pattern analysis
+        LogicalType::VARCHAR,  // fingerprint
         LogicalType::DOUBLE,   // similarity_score
-        LogicalType::BIGINT,   // pattern_id
-        LogicalType::VARCHAR,  // root_cause_category
-        // Phase 4: Log format fields (access logs, cloud audit logs)
-        LogicalType::VARCHAR,  // started_at (event timestamp)
-        LogicalType::VARCHAR,  // principal (user/service identity)
-        LogicalType::VARCHAR   // origin (network/system origin)
+        LogicalType::BIGINT    // pattern_id
     };
 
     names = {
-        "event_id", "tool_name", "event_type", "file_path", "line_number",
-        "column_number", "function_name", "status", "severity", "category",
-        "message", "suggestion", "error_code", "test_name", "execution_time",
-        "raw_output", "structured_data",
-        // Log line tracking
+        // Core identification
+        "event_id", "tool_name", "event_type",
+        // Code location
+        "file_path", "line_number", "column_number", "function_name",
+        // Classification
+        "status", "severity", "category", "error_code",
+        // Content
+        "message", "suggestion", "raw_output", "structured_data",
+        // Log tracking
         "log_line_start", "log_line_end",
-        // Phase 3A: Multi-file processing metadata
-        "source_file", "build_id", "environment", "file_index",
-        // Phase 3B: Error pattern analysis
-        "error_fingerprint", "similarity_score", "pattern_id", "root_cause_category",
-        // Phase 4: Log format fields
-        "started_at", "principal", "origin"
+        // Test-specific
+        "test_name", "execution_time",
+        // Identity & Network
+        "principal", "origin", "target", "actor_type",
+        // Temporal
+        "started_at",
+        // Correlation
+        "external_id",
+        // Hierarchical context
+        "scope", "scope_id", "scope_status",
+        "group", "group_id", "group_status",
+        "unit", "unit_id", "unit_status",
+        "subunit", "subunit_id",
+        // Pattern analysis
+        "fingerprint", "similarity_score", "pattern_id"
     };
     
     return std::move(bind_data);
@@ -4640,14 +4702,6 @@ void ProcessMultipleFiles(ClientContext& context, const std::vector<std::string>
                         }
                     }
                     break;
-            }
-            
-            // Enrich events with multi-file metadata
-            for (auto& event : file_events) {
-                event.source_file = file_path;
-                event.build_id = ExtractBuildIdFromPath(file_path);
-                event.environment = ExtractEnvironmentFromPath(file_path);
-                event.file_index = static_cast<int64_t>(file_idx);
             }
             
             // Add events to main collection

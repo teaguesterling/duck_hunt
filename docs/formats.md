@@ -213,10 +213,12 @@ GitHub Actions workflow log output.
 
 **Query:**
 ```sql
-SELECT step_name, message, step_status
+SELECT unit as step, message, unit_status
 FROM read_duck_hunt_workflow_log('test/samples/github_actions.log', 'github_actions')
-WHERE step_status = 'failure';
+WHERE unit_status = 'failure';
 ```
+
+See [Field Mappings](field_mappings.md#cicd-workflows) for complete CI/CD field documentation.
 
 ---
 

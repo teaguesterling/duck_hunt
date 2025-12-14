@@ -256,25 +256,23 @@ std::vector<WorkflowEvent> GitLabCIParser::convertToEvents(const std::vector<Git
                 
                 // Create base validation event
                 ValidationEvent base_event = createBaseEvent(output_line, workflow_name, job.job_name, stage.stage_name);
-                
+
                 // Set the base_event
                 event.base_event = base_event;
-                
-                // Override specific fields in base_event
+
+                // Override specific fields in base_event (Schema V2)
                 event.base_event.status = ValidationEventStatus::INFO;
                 event.base_event.severity = determineSeverity(stage.status, output_line);
-                event.base_event.workflow_name = workflow_name;
-                event.base_event.job_name = job.job_name;
-                event.base_event.step_name = stage.stage_name;
-                event.base_event.workflow_run_id = pipeline_id;
-                event.base_event.job_id = job.job_id;
-                event.base_event.step_id = stage.stage_id;
-                event.base_event.workflow_status = "running";
-                event.base_event.job_status = job.status;
-                event.base_event.step_status = stage.status;
+                event.base_event.scope = workflow_name;
+                event.base_event.group = job.job_name;
+                event.base_event.unit = stage.stage_name;
+                event.base_event.scope_id = pipeline_id;
+                event.base_event.group_id = job.job_id;
+                event.base_event.unit_id = stage.stage_id;
+                event.base_event.scope_status = "running";
+                event.base_event.group_status = job.status;
+                event.base_event.unit_status = stage.status;
                 event.base_event.started_at = stage.started_at;
-                event.base_event.completed_at = stage.completed_at;
-                event.base_event.duration = 0.0; // Calculate if timestamps available
                 event.workflow_type = "gitlab_ci";
                 event.hierarchy_level = 3; // Stage level (equivalent to step)
                 event.parent_id = job.job_id;

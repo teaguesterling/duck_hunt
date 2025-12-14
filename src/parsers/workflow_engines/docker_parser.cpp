@@ -331,27 +331,23 @@ std::vector<WorkflowEvent> DockerParser::convertToEvents(const std::vector<Docke
                     // Set the base_event
                     event.base_event = base_event;
                     
-                    // Override specific fields in base_event
+                    // Override specific fields in base_event (Schema V2)
                     event.base_event.status = ValidationEventStatus::INFO;
                     event.base_event.severity = determineSeverity(layer.status, output_line);
                     event.base_event.file_path = build.dockerfile_path;
                     event.base_event.function_name = layer.command;
                     event.base_event.category = "docker_build";
-                    event.base_event.source_file = build.dockerfile_path;
-                    event.base_event.build_id = build.build_id;
-                    event.base_event.environment = stage.base_image;
-                    event.base_event.workflow_name = "Docker Build";
-                    event.base_event.job_name = stage.stage_name;
-                    event.base_event.step_name = layer.command;
-                    event.base_event.workflow_run_id = build.build_id;
-                    event.base_event.job_id = stage.stage_id;
-                    event.base_event.step_id = layer.layer_id;
-                    event.base_event.workflow_status = "running";
-                    event.base_event.job_status = stage.status;
-                    event.base_event.step_status = layer.status;
+                    event.base_event.scope = "Docker Build";
+                    event.base_event.group = stage.stage_name;
+                    event.base_event.unit = layer.command;
+                    event.base_event.scope_id = build.build_id;
+                    event.base_event.group_id = stage.stage_id;
+                    event.base_event.unit_id = layer.layer_id;
+                    event.base_event.scope_status = "running";
+                    event.base_event.group_status = stage.status;
+                    event.base_event.unit_status = layer.status;
                     event.base_event.started_at = layer.started_at;
-                    event.base_event.completed_at = layer.completed_at;
-                    event.base_event.duration = 0.0; // Calculate if timestamps available
+                    event.base_event.origin = stage.base_image;
                     event.workflow_type = "docker_build";
                     event.hierarchy_level = 3; // Layer level (equivalent to step)
                     event.parent_id = stage.stage_id;

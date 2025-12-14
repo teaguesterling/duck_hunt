@@ -363,26 +363,24 @@ std::vector<WorkflowEvent> GitHubActionsParser::convertToEvents(const std::vecto
                 
                 // Create base validation event
                 ValidationEvent base_event = createBaseEvent(output_line, workflow_name, job.job_name, step.step_name);
-                
+
                 // Set the base_event
                 event.base_event = base_event;
-                
-                // Override specific fields in base_event
+
+                // Override specific fields in base_event (Schema V2)
                 event.base_event.status = ValidationEventStatus::INFO;
                 event.base_event.severity = determineSeverity(step.status, output_line);
-                event.base_event.workflow_name = workflow_name;
-                event.base_event.job_name = job.job_name;
-                event.base_event.step_name = step.step_name;
-                event.base_event.workflow_run_id = run_id;
-                event.base_event.job_id = job.job_id;
-                event.base_event.step_id = step.step_id;
-                event.base_event.workflow_status = "running";
-                event.base_event.job_status = job.status;
-                event.base_event.step_status = step.status;
+                event.base_event.scope = workflow_name;
+                event.base_event.group = job.job_name;
+                event.base_event.unit = step.step_name;
+                event.base_event.scope_id = run_id;
+                event.base_event.group_id = job.job_id;
+                event.base_event.unit_id = step.step_id;
+                event.base_event.scope_status = "running";
+                event.base_event.group_status = job.status;
+                event.base_event.unit_status = step.status;
                 event.base_event.started_at = step.started_at;
-                event.base_event.completed_at = step.completed_at;
-                event.base_event.duration = 0.0; // Calculate if timestamps available
-                
+
                 // Set workflow-specific fields
                 event.workflow_type = "github_actions";
                 event.hierarchy_level = 3; // Step level

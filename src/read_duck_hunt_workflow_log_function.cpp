@@ -115,69 +115,91 @@ unique_ptr<FunctionData> ReadDuckHuntWorkflowLogBind(ClientContext &context, Tab
         bind_data->format = WorkflowLogFormat::AUTO;
     }
     
-    // Define return schema - includes all ValidationEvent fields plus workflow-specific ones
+    // Define return schema (Schema V2) - includes all ValidationEvent fields plus workflow-specific ones
     return_types = {
+        // Core identification
         LogicalType::BIGINT,   // event_id
         LogicalType::VARCHAR,  // tool_name
         LogicalType::VARCHAR,  // event_type
+        // Code location
         LogicalType::VARCHAR,  // file_path
         LogicalType::INTEGER,  // line_number
         LogicalType::INTEGER,  // column_number
         LogicalType::VARCHAR,  // function_name
+        // Classification
         LogicalType::VARCHAR,  // status
         LogicalType::VARCHAR,  // severity
         LogicalType::VARCHAR,  // category
+        LogicalType::VARCHAR,  // error_code
+        // Content
         LogicalType::VARCHAR,  // message
         LogicalType::VARCHAR,  // suggestion
-        LogicalType::VARCHAR,  // error_code
-        LogicalType::VARCHAR,  // test_name
-        LogicalType::DOUBLE,   // execution_time
         LogicalType::VARCHAR,  // raw_output
         LogicalType::VARCHAR,  // structured_data
-        // Log line tracking
+        // Log tracking
         LogicalType::INTEGER,  // log_line_start
         LogicalType::INTEGER,  // log_line_end
-        LogicalType::VARCHAR,  // source_file
-        LogicalType::VARCHAR,  // build_id
-        LogicalType::VARCHAR,  // environment
-        LogicalType::BIGINT,   // file_index
-        LogicalType::VARCHAR,  // error_fingerprint
+        // Test-specific
+        LogicalType::VARCHAR,  // test_name
+        LogicalType::DOUBLE,   // execution_time
+        // Identity & Network
+        LogicalType::VARCHAR,  // principal
+        LogicalType::VARCHAR,  // origin
+        LogicalType::VARCHAR,  // target
+        LogicalType::VARCHAR,  // actor_type
+        // Temporal
+        LogicalType::VARCHAR,  // started_at
+        // Correlation
+        LogicalType::VARCHAR,  // external_id
+        // Hierarchical context
+        LogicalType::VARCHAR,  // scope
+        LogicalType::VARCHAR,  // scope_id
+        LogicalType::VARCHAR,  // scope_status
+        LogicalType::VARCHAR,  // group
+        LogicalType::VARCHAR,  // group_id
+        LogicalType::VARCHAR,  // group_status
+        LogicalType::VARCHAR,  // unit
+        LogicalType::VARCHAR,  // unit_id
+        LogicalType::VARCHAR,  // unit_status
+        LogicalType::VARCHAR,  // subunit
+        LogicalType::VARCHAR,  // subunit_id
+        // Pattern analysis
+        LogicalType::VARCHAR,  // fingerprint
         LogicalType::DOUBLE,   // similarity_score
         LogicalType::BIGINT,   // pattern_id
-        LogicalType::VARCHAR,  // root_cause_category
-
-        // Phase 3C: Workflow-specific fields
-        LogicalType::VARCHAR,  // workflow_name
-        LogicalType::VARCHAR,  // job_name
-        LogicalType::VARCHAR,  // step_name
-        LogicalType::VARCHAR,  // workflow_run_id
-        LogicalType::VARCHAR,  // job_id
-        LogicalType::VARCHAR,  // step_id
-        LogicalType::VARCHAR,  // workflow_status
-        LogicalType::VARCHAR,  // job_status
-        LogicalType::VARCHAR,  // step_status
-        LogicalType::VARCHAR,  // started_at
-        LogicalType::VARCHAR,  // completed_at
-        LogicalType::DOUBLE,   // duration
-        
-        // Additional workflow-specific fields
+        // Workflow-specific fields
         LogicalType::VARCHAR,  // workflow_type
         LogicalType::INTEGER,  // hierarchy_level
         LogicalType::VARCHAR,  // parent_id
     };
-    
+
     names = {
-        "event_id", "tool_name", "event_type", "file_path", "line_number", "column_number",
-        "function_name", "status", "severity", "category", "message", "suggestion",
-        "error_code", "test_name", "execution_time", "raw_output", "structured_data",
-        // Log line tracking
+        // Core identification
+        "event_id", "tool_name", "event_type",
+        // Code location
+        "file_path", "line_number", "column_number", "function_name",
+        // Classification
+        "status", "severity", "category", "error_code",
+        // Content
+        "message", "suggestion", "raw_output", "structured_data",
+        // Log tracking
         "log_line_start", "log_line_end",
-        "source_file", "build_id", "environment", "file_index", "error_fingerprint",
-        "similarity_score", "pattern_id", "root_cause_category",
-
-        "workflow_name", "job_name", "step_name", "workflow_run_id", "job_id", "step_id",
-        "workflow_status", "job_status", "step_status", "started_at", "completed_at", "duration",
-
+        // Test-specific
+        "test_name", "execution_time",
+        // Identity & Network
+        "principal", "origin", "target", "actor_type",
+        // Temporal
+        "started_at",
+        // Correlation
+        "external_id",
+        // Hierarchical context
+        "scope", "scope_id", "scope_status",
+        "group", "group_id", "group_status",
+        "unit", "unit_id", "unit_status",
+        "subunit", "subunit_id",
+        // Pattern analysis
+        "fingerprint", "similarity_score", "pattern_id",
+        // Workflow-specific
         "workflow_type", "hierarchy_level", "parent_id"
     };
     
@@ -277,49 +299,56 @@ void ReadDuckHuntWorkflowLogFunction(ClientContext &context, TableFunctionInput 
         const WorkflowEvent& event = global_state.events[current_row + i];
         const ValidationEvent& base = event.base_event;
 
-        // Map all ValidationEvent fields from base_event
+        // Core identification
         output.SetValue(0, i, Value::BIGINT(base.event_id));
         output.SetValue(1, i, Value(base.tool_name));
         output.SetValue(2, i, Value(ValidationEventTypeToString(base.event_type)));
+        // Code location
         output.SetValue(3, i, Value(base.file_path));
         output.SetValue(4, i, base.line_number == -1 ? Value() : Value::INTEGER(base.line_number));
         output.SetValue(5, i, base.column_number == -1 ? Value() : Value::INTEGER(base.column_number));
         output.SetValue(6, i, Value(base.function_name));
+        // Classification
         output.SetValue(7, i, Value(ValidationEventStatusToString(base.status)));
         output.SetValue(8, i, Value(base.severity));
         output.SetValue(9, i, Value(base.category));
-        output.SetValue(10, i, Value(base.message));
-        output.SetValue(11, i, Value(base.suggestion));
-        output.SetValue(12, i, Value(base.error_code));
-        output.SetValue(13, i, Value(base.test_name));
-        output.SetValue(14, i, Value::DOUBLE(base.execution_time));
-        output.SetValue(15, i, Value(base.raw_output));
-        output.SetValue(16, i, Value(base.structured_data));
-        // Log line tracking
-        output.SetValue(17, i, base.log_line_start == -1 ? Value() : Value::INTEGER(base.log_line_start));
-        output.SetValue(18, i, base.log_line_end == -1 ? Value() : Value::INTEGER(base.log_line_end));
-        output.SetValue(19, i, Value(base.source_file));
-        output.SetValue(20, i, Value(base.build_id));
-        output.SetValue(21, i, Value(base.environment));
-        output.SetValue(22, i, Value::BIGINT(base.file_index));
-        output.SetValue(23, i, Value(base.error_fingerprint));
-        output.SetValue(24, i, Value::DOUBLE(base.similarity_score));
-        output.SetValue(25, i, Value::BIGINT(base.pattern_id));
-        output.SetValue(26, i, Value(base.root_cause_category));
-
-        // Map workflow-specific fields from base_event
-        output.SetValue(27, i, Value(base.workflow_name));
-        output.SetValue(28, i, Value(base.job_name));
-        output.SetValue(29, i, Value(base.step_name));
-        output.SetValue(30, i, Value(base.workflow_run_id));
-        output.SetValue(31, i, Value(base.job_id));
-        output.SetValue(32, i, Value(base.step_id));
-        output.SetValue(33, i, Value(base.workflow_status));
-        output.SetValue(34, i, Value(base.job_status));
-        output.SetValue(35, i, Value(base.step_status));
-        output.SetValue(36, i, Value(base.started_at));
-        output.SetValue(37, i, Value(base.completed_at));
-        output.SetValue(38, i, Value::DOUBLE(base.duration));
+        output.SetValue(10, i, Value(base.error_code));
+        // Content
+        output.SetValue(11, i, Value(base.message));
+        output.SetValue(12, i, Value(base.suggestion));
+        output.SetValue(13, i, Value(base.raw_output));
+        output.SetValue(14, i, Value(base.structured_data));
+        // Log tracking
+        output.SetValue(15, i, base.log_line_start == -1 ? Value() : Value::INTEGER(base.log_line_start));
+        output.SetValue(16, i, base.log_line_end == -1 ? Value() : Value::INTEGER(base.log_line_end));
+        // Test-specific
+        output.SetValue(17, i, Value(base.test_name));
+        output.SetValue(18, i, Value::DOUBLE(base.execution_time));
+        // Identity & Network
+        output.SetValue(19, i, base.principal.empty() ? Value() : Value(base.principal));
+        output.SetValue(20, i, base.origin.empty() ? Value() : Value(base.origin));
+        output.SetValue(21, i, base.target.empty() ? Value() : Value(base.target));
+        output.SetValue(22, i, base.actor_type.empty() ? Value() : Value(base.actor_type));
+        // Temporal
+        output.SetValue(23, i, base.started_at.empty() ? Value() : Value(base.started_at));
+        // Correlation
+        output.SetValue(24, i, base.external_id.empty() ? Value() : Value(base.external_id));
+        // Hierarchical context
+        output.SetValue(25, i, base.scope.empty() ? Value() : Value(base.scope));
+        output.SetValue(26, i, base.scope_id.empty() ? Value() : Value(base.scope_id));
+        output.SetValue(27, i, base.scope_status.empty() ? Value() : Value(base.scope_status));
+        output.SetValue(28, i, base.group.empty() ? Value() : Value(base.group));
+        output.SetValue(29, i, base.group_id.empty() ? Value() : Value(base.group_id));
+        output.SetValue(30, i, base.group_status.empty() ? Value() : Value(base.group_status));
+        output.SetValue(31, i, base.unit.empty() ? Value() : Value(base.unit));
+        output.SetValue(32, i, base.unit_id.empty() ? Value() : Value(base.unit_id));
+        output.SetValue(33, i, base.unit_status.empty() ? Value() : Value(base.unit_status));
+        output.SetValue(34, i, base.subunit.empty() ? Value() : Value(base.subunit));
+        output.SetValue(35, i, base.subunit_id.empty() ? Value() : Value(base.subunit_id));
+        // Pattern analysis
+        output.SetValue(36, i, base.fingerprint.empty() ? Value() : Value(base.fingerprint));
+        output.SetValue(37, i, base.similarity_score == 0.0 ? Value() : Value::DOUBLE(base.similarity_score));
+        output.SetValue(38, i, base.pattern_id == -1 ? Value() : Value::BIGINT(base.pattern_id));
 
         // Map additional workflow fields from WorkflowEvent
         output.SetValue(39, i, Value(event.workflow_type));
