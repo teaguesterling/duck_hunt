@@ -757,6 +757,126 @@ These mappings would need further discussion before implementation.
 | `structured_data` | Format-specific metadata as JSON |
 | `raw_output` | Original log line for reference |
 
+### Infrastructure Log Formats (IMPLEMENTED)
+
+#### Firewall Logs (iptables, pf, cisco_asa)
+
+| Log Field | Column | Notes |
+|-----------|--------|-------|
+| Timestamp | `started_at` | Syslog timestamp |
+| Source IP | `origin` | ✓ Network origin of traffic |
+| Destination IP | `structured_data` | Only in JSON, no dedicated column |
+| Action (block/allow) | `message` | Summary like "block: src -> dst (TCP)" |
+| Hostname/Interface | `category` | Varies: hostname (iptables), interface (pf) |
+| Severity level (ASA) | `error_code` | ASA message codes like "ASA-6-302013" |
+| All fields | `structured_data` | Full JSON with src, dst, proto, ports, etc. |
+
+**Awkwardness**: Destination IP has no dedicated column. For queries filtering by destination, must use `structured_data::json->>'dst'`.
+
+#### VPC Flow Logs (AWS/GCP/Azure)
+
+| Log Field | Column | Notes |
+|-----------|--------|-------|
+| Start timestamp | `started_at` | Converted from Unix epoch |
+| Source IP | `origin` | ✓ Source address |
+| Destination IP | `structured_data` | Only in JSON |
+| Account ID | `principal` | ⚠️ AWS account, not exactly a "user identity" |
+| Interface ID | `category` | ENI identifier |
+| Action | `message` | "ACCEPT: src -> dst (TCP)" |
+| Packets/bytes | `structured_data` | Traffic volume metrics |
+
+**Awkwardness**: `principal` holds account_id which is an AWS account identifier, not a user/service identity. True principal would require CloudTrail correlation.
+
+#### Kubernetes Logs (klog, kubectl)
+
+| Log Field | Column | Notes |
+|-----------|--------|-------|
+| Timestamp | `started_at` | ✓ Log timestamp |
+| Source file | `file_path` | ✓ Go source file (klog format) |
+| Line number | `line_number` | ✓ Source line (klog format) |
+| Log level | `severity` | Mapped from I/W/E/D prefixes |
+| Context | `category` | File (klog), stream (kubectl), object (events) |
+| Message | `message` | ✓ Log message content |
+
+**Note**: Kubernetes logs come in multiple sub-formats (klog, kubectl logs, events). The parser handles all three but field availability varies.
+
+#### Windows Event Logs
+
+| Log Field | Column | Notes |
+|-----------|--------|-------|
+| Date | `started_at` | ✓ Event timestamp |
+| User | `principal` | ✓ DOMAIN\username format |
+| Event ID | `error_code` | ✓ Windows Event ID (4624, 4625, etc.) |
+| Log Name/Source | `category` | Combined as "LogName/Source" |
+| Level | `severity` | Mapped from Information/Warning/Error |
+| Description | `message` | ✓ Event description text |
+| All fields | `structured_data` | JSON with keywords, computer, etc. |
+
+**Note**: Parser handles Windows Event Viewer text export format. XML format would require additional parsing.
+
+#### Auditd / SSH Auth Logs
+
+| Log Field | Column | Notes |
+|-----------|--------|-------|
+| Timestamp | `started_at` | ✓ Converted from audit epoch or syslog |
+| Source IP | `origin` | ✓ SSH: client IP address |
+| User | `principal` | SSH: username, Auditd: uid/auid info |
+| Audit type | `category` | SYSCALL, USER_AUTH, sshd, etc. |
+| Executable | `file_path` | ✓ Auditd: exe path |
+| Event type | `error_code` | Audit type (also in category) |
+| All fields | `structured_data` | Full audit key=value pairs as JSON |
+
+**Note**: Auditd parser also handles SSH auth log format since they often appear together in security analysis.
+
+#### S3 Access Logs
+
+| Log Field | Column | Notes |
+|-----------|--------|-------|
+| Timestamp | `started_at` | ✓ Request timestamp |
+| Remote IP | `origin` | ✓ Client IP address |
+| Requester | `principal` | ✓ ARN or "-" for anonymous |
+| Bucket | `category` | ✓ S3 bucket name |
+| HTTP status | `error_code` | ✓ S3 error code (NoSuchKey, etc.) |
+| Operation | `message` | "REST.GET.OBJECT key -> 200" |
+| All fields | `structured_data` | request_id, bytes_sent, etc. |
+
+### Schema Observations and Potential Improvements
+
+#### What Works Well
+
+1. **`origin`** - Consistently holds source IP/hostname across all infrastructure formats
+2. **`started_at`** - Proper timestamp field now used by all log formats
+3. **`structured_data`** - Essential escape hatch for format-specific fields
+4. **`severity`** - Universal error/warning/info mapping works across all formats
+5. **`error_code`** - Flexible enough for HTTP status, Event IDs, AWS errors, etc.
+
+#### Current Limitations
+
+1. **No destination IP column** - For network logs (firewall, VPC flow), destination IP must be extracted from `structured_data`. Consider adding `destination` column in future.
+
+2. **`category` is overloaded** - Used for:
+   - Service name (cloud audit)
+   - HTTP method (web access)
+   - Process name (syslog)
+   - Interface (firewall)
+   - Bucket name (S3)
+
+   Works but semantically imprecise. Could consider `context` as a rename.
+
+3. **`principal` semantic stretch** - For VPC Flow, holds AWS account_id which is technically correct but not a user identity. For auditd, holds uid strings like "auid=1000 uid=0" rather than a clean username.
+
+4. **No protocol/port columns** - Network analysis often filters by protocol (TCP/UDP) or port. Currently requires JSON extraction.
+
+5. **`function_name` unused** - Originally for test framework function names, now rarely populated for log formats. Could be repurposed or deprecated.
+
+#### Future Considerations
+
+For a v2 schema revision, consider:
+- Dedicated network columns: `src_ip`, `dst_ip`, `src_port`, `dst_port`, `protocol`
+- Rename `category` to `context` for clarity
+- Add `actor` as alternative to `principal` for clearer semantics
+- Consider whether `function_name` should be repurposed or removed
+
 ### Phase 3C Workflow Fields (Not Exposed)
 
 The following fields exist in `ValidationEvent` but are not currently exposed in the table function schema:
