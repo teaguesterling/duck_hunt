@@ -117,6 +117,16 @@ static std::vector<FormatInfo> GetAllFormats() {
         {"python_logging", "Python stdlib logging format", "app_logging", "", false},
         {"log4j", "Java Log4j/Logback text format", "app_logging", "", false},
         {"logrus", "Go Logrus text/key=value format", "app_logging", "", false},
+
+        // Infrastructure log formats
+        {"iptables", "Linux iptables/netfilter firewall logs", "infrastructure", "", false},
+        {"pf", "BSD Packet Filter (pf) firewall logs", "infrastructure", "", false},
+        {"cisco_asa", "Cisco ASA firewall syslog", "infrastructure", "", false},
+        {"vpc_flow", "AWS/GCP/Azure VPC Flow Logs", "infrastructure", "", false},
+        {"kubernetes", "Kubernetes/kubectl logs", "infrastructure", "", false},
+        {"windows_event", "Windows Event Log export format", "infrastructure", "", false},
+        {"auditd", "Linux auditd/SSH auth logs", "infrastructure", "", false},
+        {"s3_access", "AWS S3 access logs", "infrastructure", "", false},
     };
 }
 

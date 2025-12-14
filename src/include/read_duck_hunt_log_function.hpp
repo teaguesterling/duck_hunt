@@ -87,7 +87,16 @@ enum class TestResultFormat : uint8_t {
     // Application logging formats
     PYTHON_LOGGING = 72,
     LOG4J = 73,
-    LOGRUS = 74
+    LOGRUS = 74,
+    // Infrastructure formats
+    IPTABLES = 75,
+    PF_FIREWALL = 76,
+    CISCO_ASA = 77,
+    VPC_FLOW = 78,
+    KUBERNETES = 79,
+    WINDOWS_EVENT = 80,
+    AUDITD = 81,
+    S3_ACCESS = 82
 };
 
 // Bind data for read_duck_hunt_log table function

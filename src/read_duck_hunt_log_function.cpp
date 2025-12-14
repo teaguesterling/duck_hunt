@@ -789,6 +789,15 @@ std::string TestResultFormatToString(TestResultFormat format) {
         case TestResultFormat::PYTHON_LOGGING: return "python_logging";
         case TestResultFormat::LOG4J: return "log4j";
         case TestResultFormat::LOGRUS: return "logrus";
+        // Infrastructure formats
+        case TestResultFormat::IPTABLES: return "iptables";
+        case TestResultFormat::PF_FIREWALL: return "pf";
+        case TestResultFormat::CISCO_ASA: return "cisco_asa";
+        case TestResultFormat::VPC_FLOW: return "vpc_flow";
+        case TestResultFormat::KUBERNETES: return "kubernetes";
+        case TestResultFormat::WINDOWS_EVENT: return "windows_event";
+        case TestResultFormat::AUDITD: return "auditd";
+        case TestResultFormat::S3_ACCESS: return "s3_access";
         default: return "unknown";
     }
 }
@@ -882,6 +891,29 @@ TestResultFormat StringToTestResultFormat(const std::string& str) {
     if (str == "logback") return TestResultFormat::LOG4J;  // Alias (same format)
     if (str == "logrus") return TestResultFormat::LOGRUS;
     if (str == "logrus_text") return TestResultFormat::LOGRUS;  // Alias
+    // Infrastructure formats
+    if (str == "iptables") return TestResultFormat::IPTABLES;
+    if (str == "netfilter") return TestResultFormat::IPTABLES;  // Alias
+    if (str == "ufw") return TestResultFormat::IPTABLES;  // Alias (UFW uses iptables format)
+    if (str == "pf") return TestResultFormat::PF_FIREWALL;
+    if (str == "pf_firewall") return TestResultFormat::PF_FIREWALL;  // Alias
+    if (str == "openbsd_pf") return TestResultFormat::PF_FIREWALL;  // Alias
+    if (str == "cisco_asa") return TestResultFormat::CISCO_ASA;
+    if (str == "asa") return TestResultFormat::CISCO_ASA;  // Alias
+    if (str == "vpc_flow") return TestResultFormat::VPC_FLOW;
+    if (str == "vpc_flow_logs") return TestResultFormat::VPC_FLOW;  // Alias
+    if (str == "aws_vpc_flow") return TestResultFormat::VPC_FLOW;  // Alias
+    if (str == "kubernetes") return TestResultFormat::KUBERNETES;
+    if (str == "k8s") return TestResultFormat::KUBERNETES;  // Alias
+    if (str == "kube") return TestResultFormat::KUBERNETES;  // Alias
+    if (str == "windows_event") return TestResultFormat::WINDOWS_EVENT;
+    if (str == "windows_event_log") return TestResultFormat::WINDOWS_EVENT;  // Alias
+    if (str == "eventlog") return TestResultFormat::WINDOWS_EVENT;  // Alias
+    if (str == "auditd") return TestResultFormat::AUDITD;
+    if (str == "audit") return TestResultFormat::AUDITD;  // Alias
+    if (str == "ssh_auth") return TestResultFormat::AUDITD;  // Alias (parsed by auditd parser)
+    if (str == "s3_access") return TestResultFormat::S3_ACCESS;
+    if (str == "s3_access_log") return TestResultFormat::S3_ACCESS;  // Alias
     if (str == "unknown") return TestResultFormat::UNKNOWN;
     return TestResultFormat::UNKNOWN;  // Unknown format string
 }

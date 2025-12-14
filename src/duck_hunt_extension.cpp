@@ -62,6 +62,16 @@
 #include "parsers/app_logging/log4j_parser.hpp"
 #include "parsers/app_logging/logrus_parser.hpp"
 
+// Infrastructure log parsers
+#include "parsers/infrastructure/iptables_parser.hpp"
+#include "parsers/infrastructure/pf_parser.hpp"
+#include "parsers/infrastructure/cisco_asa_parser.hpp"
+#include "parsers/infrastructure/vpc_flow_parser.hpp"
+#include "parsers/infrastructure/kubernetes_parser.hpp"
+#include "parsers/infrastructure/windows_event_parser.hpp"
+#include "parsers/infrastructure/auditd_parser.hpp"
+#include "parsers/infrastructure/s3_access_parser.hpp"
+
 // XML-based parsers (require webbed extension)
 #include "parsers/test_frameworks/junit_xml_parser.hpp"
 
@@ -126,6 +136,16 @@ static void LoadInternal(ExtensionLoader &loader) {
 	registry.registerParser(make_uniq<PythonLoggingParser>());
 	registry.registerParser(make_uniq<Log4jParser>());
 	registry.registerParser(make_uniq<LogrusParser>());
+
+	// Infrastructure log parsers
+	registry.registerParser(make_uniq<IptablesParser>());
+	registry.registerParser(make_uniq<PfParser>());
+	registry.registerParser(make_uniq<CiscoAsaParser>());
+	registry.registerParser(make_uniq<VpcFlowParser>());
+	registry.registerParser(make_uniq<KubernetesParser>());
+	registry.registerParser(make_uniq<WindowsEventParser>());
+	registry.registerParser(make_uniq<AuditdParser>());
+	registry.registerParser(make_uniq<S3AccessParser>());
 
 	// XML-based parsers (require webbed extension)
 	registry.registerParser(make_uniq<JUnitXmlParser>());

@@ -1,0 +1,625 @@
+# name: test/sql/infrastructure.test
+# description: Test infrastructure log parsers (iptables, pf, cisco_asa, vpc_flow, kubernetes, windows_event, auditd, s3_access)
+# group: [duck_hunt]
+
+require duck_hunt
+
+# =============================================================================
+# IPTABLES PARSER TESTS
+# =============================================================================
+
+# Test 1: Basic iptables log parsing
+query IIII
+SELECT event_id, tool_name, severity, status
+FROM parse_duck_hunt_log('
+Jan 15 10:30:45 myhost kernel: [12345.678901] IN=eth0 OUT= MAC=aa:bb:cc:dd:ee:ff:11:22:33:44:55:66:08:00 SRC=192.168.1.100 DST=10.0.0.1 LEN=60 TOS=0x00 PREC=0x00 TTL=64 ID=12345 DF PROTO=TCP SPT=54321 DPT=22 WINDOW=65535 RES=0x00 SYN URGP=0
+', 'iptables')
+ORDER BY event_id;
+----
+1	iptables	info	INFO
+
+# Test 2: UFW BLOCK action detection
+query III
+SELECT event_id, severity, status
+FROM parse_duck_hunt_log('
+Jan 15 10:30:45 myhost kernel: [UFW BLOCK] IN=eth0 OUT= MAC=aa:bb:cc:dd:ee:ff SRC=192.168.1.100 DST=10.0.0.1 PROTO=TCP SPT=54321 DPT=22
+', 'iptables')
+ORDER BY event_id;
+----
+1	warning	WARNING
+
+# Test 3: Iptables origin extraction (source IP)
+query II
+SELECT event_id, origin
+FROM parse_duck_hunt_log('
+Jan 15 10:30:45 myhost kernel: [12345.678901] IN=eth0 OUT= SRC=192.168.1.100 DST=10.0.0.1 PROTO=TCP SPT=54321 DPT=22
+', 'iptables')
+ORDER BY event_id;
+----
+1	192.168.1.100
+
+# Test 4: Iptables timestamp extraction
+query II
+SELECT event_id, started_at
+FROM parse_duck_hunt_log('
+Jan 15 10:30:45 myhost kernel: [12345.678901] IN=eth0 OUT= SRC=192.168.1.100 DST=10.0.0.1 PROTO=TCP
+', 'iptables')
+ORDER BY event_id;
+----
+1	Jan 15 10:30:45
+
+# Test 5: Iptables format alias - netfilter
+query II
+SELECT event_id, tool_name
+FROM parse_duck_hunt_log('
+Jan 15 10:30:45 myhost kernel: [12345.678901] IN=eth0 OUT= SRC=192.168.1.100 DST=10.0.0.1 PROTO=TCP
+', 'netfilter')
+ORDER BY event_id;
+----
+1	iptables
+
+# Test 6: Iptables format alias - ufw
+query II
+SELECT event_id, tool_name
+FROM parse_duck_hunt_log('
+Jan 15 10:30:45 myhost kernel: [UFW ALLOW] IN=eth0 OUT= SRC=192.168.1.100 DST=10.0.0.1 PROTO=TCP
+', 'ufw')
+ORDER BY event_id;
+----
+1	iptables
+
+# =============================================================================
+# PF (PACKET FILTER) PARSER TESTS
+# =============================================================================
+
+# Test 7: Basic pf log parsing
+query IIII
+SELECT event_id, tool_name, severity, status
+FROM parse_duck_hunt_log('
+Jan 15 10:30:45.123456 rule 42/0(match): pass in on em0: 192.168.1.100.54321 > 10.0.0.1.22: S
+', 'pf')
+ORDER BY event_id;
+----
+1	pf	info	INFO
+
+# Test 8: PF block action
+query III
+SELECT event_id, severity, status
+FROM parse_duck_hunt_log('
+Jan 15 10:30:45.123456 rule 42/0(match): block in on em0: 192.168.1.100.54321 > 10.0.0.1.22: S
+', 'pf')
+ORDER BY event_id;
+----
+1	warning	WARNING
+
+# Test 9: PF origin extraction
+query II
+SELECT event_id, origin
+FROM parse_duck_hunt_log('
+Jan 15 10:30:45.123456 rule 42/0(match): pass in on em0: 192.168.1.100.54321 > 10.0.0.1.22: S
+', 'pf')
+ORDER BY event_id;
+----
+1	192.168.1.100
+
+# Test 10: PF format alias - pf_firewall
+query II
+SELECT event_id, tool_name
+FROM parse_duck_hunt_log('
+Jan 15 10:30:45.123456 rule 42/0(match): pass in on em0: 192.168.1.100.54321 > 10.0.0.1.22: S
+', 'pf_firewall')
+ORDER BY event_id;
+----
+1	pf
+
+# =============================================================================
+# CISCO ASA PARSER TESTS
+# =============================================================================
+
+# Test 11: Basic Cisco ASA log parsing
+query IIII
+SELECT event_id, tool_name, severity, status
+FROM parse_duck_hunt_log('
+Jan 15 2025 10:30:45 firewall : %ASA-6-302013: Built inbound TCP connection 12345 for outside:192.168.1.100/54321 to inside:10.0.0.1/22
+', 'cisco_asa')
+ORDER BY event_id;
+----
+1	cisco_asa	info	INFO
+
+# Test 12: Cisco ASA error level
+query III
+SELECT event_id, severity, status
+FROM parse_duck_hunt_log('
+Jan 15 2025 10:30:45 firewall : %ASA-3-106014: Deny inbound icmp src outside:192.168.1.100 dst inside:10.0.0.1
+', 'cisco_asa')
+ORDER BY event_id;
+----
+1	error	ERROR
+
+# Test 13: Cisco ASA warning level
+query III
+SELECT event_id, severity, status
+FROM parse_duck_hunt_log('
+Jan 15 2025 10:30:45 firewall : %ASA-4-106023: Deny tcp src outside:192.168.1.100/54321 dst inside:10.0.0.1/22
+', 'cisco_asa')
+ORDER BY event_id;
+----
+1	warning	WARNING
+
+# Test 14: Cisco ASA error code extraction
+query II
+SELECT event_id, error_code
+FROM parse_duck_hunt_log('
+Jan 15 2025 10:30:45 firewall : %ASA-6-302013: Built inbound TCP connection
+', 'cisco_asa')
+ORDER BY event_id;
+----
+1	ASA-6-302013
+
+# Test 15: Cisco ASA format alias - asa
+query II
+SELECT event_id, tool_name
+FROM parse_duck_hunt_log('
+Jan 15 2025 10:30:45 firewall : %ASA-6-302013: Built inbound TCP connection
+', 'asa')
+ORDER BY event_id;
+----
+1	cisco_asa
+
+# =============================================================================
+# VPC FLOW LOGS PARSER TESTS
+# =============================================================================
+
+# Test 16: Basic VPC Flow log parsing
+query IIII
+SELECT event_id, tool_name, severity, status
+FROM parse_duck_hunt_log('
+2 123456789012 eni-abc123 10.0.0.1 192.168.1.100 22 54321 6 10 5000 1609459200 1609459260 ACCEPT OK
+', 'vpc_flow')
+ORDER BY event_id;
+----
+1	vpc_flow	info	INFO
+
+# Test 17: VPC Flow REJECT action
+query III
+SELECT event_id, severity, status
+FROM parse_duck_hunt_log('
+2 123456789012 eni-abc123 10.0.0.1 192.168.1.100 22 54321 6 10 5000 1609459200 1609459260 REJECT OK
+', 'vpc_flow')
+ORDER BY event_id;
+----
+1	warning	WARNING
+
+# Test 18: VPC Flow origin extraction (source IP)
+query II
+SELECT event_id, origin
+FROM parse_duck_hunt_log('
+2 123456789012 eni-abc123 10.0.0.1 192.168.1.100 22 54321 6 10 5000 1609459200 1609459260 ACCEPT OK
+', 'vpc_flow')
+ORDER BY event_id;
+----
+1	10.0.0.1
+
+# Test 19: VPC Flow principal extraction (account ID)
+query II
+SELECT event_id, principal
+FROM parse_duck_hunt_log('
+2 123456789012 eni-abc123 10.0.0.1 192.168.1.100 22 54321 6 10 5000 1609459200 1609459260 ACCEPT OK
+', 'vpc_flow')
+ORDER BY event_id;
+----
+1	123456789012
+
+# Test 20: VPC Flow with header line (should skip header)
+query I
+SELECT count(*)
+FROM parse_duck_hunt_log('
+version account-id interface-id srcaddr dstaddr srcport dstport protocol packets bytes start end action log-status
+2 123456789012 eni-abc123 10.0.0.1 192.168.1.100 22 54321 6 10 5000 1609459200 1609459260 ACCEPT OK
+', 'vpc_flow');
+----
+1
+
+# Test 21: VPC Flow format alias - aws_vpc_flow
+query II
+SELECT event_id, tool_name
+FROM parse_duck_hunt_log('
+2 123456789012 eni-abc123 10.0.0.1 192.168.1.100 22 54321 6 10 5000 1609459200 1609459260 ACCEPT OK
+', 'aws_vpc_flow')
+ORDER BY event_id;
+----
+1	vpc_flow
+
+# =============================================================================
+# KUBERNETES PARSER TESTS
+# =============================================================================
+
+# Test 22: Basic klog format parsing
+query IIII
+SELECT event_id, tool_name, severity, status
+FROM parse_duck_hunt_log('
+I0115 10:30:45.123456    1234 controller.go:123] Server started successfully
+', 'kubernetes')
+ORDER BY event_id;
+----
+1	kubernetes	info	INFO
+
+# Test 23: Klog error level
+query III
+SELECT event_id, severity, status
+FROM parse_duck_hunt_log('
+E0115 10:30:45.123456    1234 controller.go:123] Failed to connect to database
+', 'kubernetes')
+ORDER BY event_id;
+----
+1	error	ERROR
+
+# Test 24: Klog warning level
+query III
+SELECT event_id, severity, status
+FROM parse_duck_hunt_log('
+W0115 10:30:45.123456    1234 controller.go:123] Connection pool running low
+', 'kubernetes')
+ORDER BY event_id;
+----
+1	warning	WARNING
+
+# Test 25: Klog file/line extraction
+query III
+SELECT event_id, file_path, line_number
+FROM parse_duck_hunt_log('
+I0115 10:30:45.123456    1234 controller.go:456] Message
+', 'kubernetes')
+ORDER BY event_id;
+----
+1	controller.go	456
+
+# Test 26: kubectl logs format
+query IIII
+SELECT event_id, tool_name, severity, status
+FROM parse_duck_hunt_log('
+2025-01-15T10:30:45.123456789Z stdout F Application started
+', 'kubernetes')
+ORDER BY event_id;
+----
+1	kubernetes	info	INFO
+
+# Test 27: kubectl logs stderr (warning)
+query III
+SELECT event_id, severity, status
+FROM parse_duck_hunt_log('
+2025-01-15T10:30:45.123456789Z stderr F Error occurred
+', 'kubernetes')
+ORDER BY event_id;
+----
+1	warning	WARNING
+
+# Test 28: Kubernetes format alias - k8s
+query II
+SELECT event_id, tool_name
+FROM parse_duck_hunt_log('
+I0115 10:30:45.123456    1234 controller.go:123] Message
+', 'k8s')
+ORDER BY event_id;
+----
+1	kubernetes
+
+# =============================================================================
+# WINDOWS EVENT LOG PARSER TESTS
+# =============================================================================
+
+# Test 29: Basic Windows Event log parsing
+query IIII
+SELECT event_id, tool_name, severity, status
+FROM parse_duck_hunt_log('
+Log Name:      Security
+Source:        Microsoft-Windows-Security-Auditing
+Date:          1/15/2025 10:30:45 AM
+Event ID:      4624
+Task Category: Logon
+Level:         Information
+Keywords:      Audit Success
+User:          DOMAIN\username
+Computer:      HOSTNAME
+Description:
+An account was successfully logged on.
+', 'windows_event')
+ORDER BY event_id;
+----
+1	windows_event	info	INFO
+
+# Test 30: Windows Event error level
+query III
+SELECT event_id, severity, status
+FROM parse_duck_hunt_log('
+Log Name:      System
+Source:        Service Control Manager
+Date:          1/15/2025 10:30:45 AM
+Event ID:      7034
+Task Category: None
+Level:         Error
+Keywords:      Classic
+User:          N/A
+Computer:      HOSTNAME
+Description:
+The service terminated unexpectedly.
+', 'windows_event')
+ORDER BY event_id;
+----
+1	error	ERROR
+
+# Test 31: Windows Event principal extraction
+query II
+SELECT event_id, principal
+FROM parse_duck_hunt_log('
+Log Name:      Security
+Source:        Microsoft-Windows-Security-Auditing
+Date:          1/15/2025 10:30:45 AM
+Event ID:      4624
+Level:         Information
+User:          DOMAIN\username
+Computer:      HOSTNAME
+Description:
+Logon successful.
+', 'windows_event')
+ORDER BY event_id;
+----
+1	DOMAIN\username
+
+# Test 32: Windows Event error_code extraction
+query II
+SELECT event_id, error_code
+FROM parse_duck_hunt_log('
+Log Name:      Security
+Source:        Microsoft-Windows-Security-Auditing
+Date:          1/15/2025 10:30:45 AM
+Event ID:      4625
+Level:         Information
+User:          N/A
+Computer:      HOSTNAME
+Description:
+An account failed to log on.
+', 'windows_event')
+ORDER BY event_id;
+----
+1	4625
+
+# Test 33: Windows Event format alias - eventlog
+query II
+SELECT event_id, tool_name
+FROM parse_duck_hunt_log('
+Log Name:      Security
+Source:        Test
+Date:          1/15/2025 10:30:45 AM
+Event ID:      1234
+Level:         Information
+User:          Test
+Computer:      Test
+Description:
+Test event.
+', 'eventlog')
+ORDER BY event_id;
+----
+1	windows_event
+
+# =============================================================================
+# AUDITD PARSER TESTS
+# =============================================================================
+
+# Test 34: Basic auditd log parsing
+query IIII
+SELECT event_id, tool_name, severity, status
+FROM parse_duck_hunt_log('
+type=SYSCALL msg=audit(1610721045.123:456): arch=c000003e syscall=59 success=yes exit=0 a0=7f a1=7f a2=7f a3=0 items=2 ppid=1234 pid=5678 auid=1000 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=pts0 ses=1 comm="sudo" exe="/usr/bin/sudo" key="privileged"
+', 'auditd')
+ORDER BY event_id;
+----
+1	auditd	info	INFO
+
+# Test 35: Auditd failure (success=no)
+query III
+SELECT event_id, severity, status
+FROM parse_duck_hunt_log('
+type=SYSCALL msg=audit(1610721045.123:456): arch=c000003e syscall=59 success=no exit=-13 comm="cat" exe="/bin/cat" key="access"
+', 'auditd')
+ORDER BY event_id;
+----
+1	warning	WARNING
+
+# Test 36: Auditd category extraction (type)
+query II
+SELECT event_id, category
+FROM parse_duck_hunt_log('
+type=USER_AUTH msg=audit(1610721045.123:456): pid=1234 uid=0 auid=1000 ses=1 msg=''op=PAM:authentication acct="root" exe="/usr/bin/sudo" hostname=? addr=? terminal=/dev/pts/0 res=success''
+', 'auditd')
+ORDER BY event_id;
+----
+1	USER_AUTH
+
+# Test 37: SSH auth log parsing (handled by auditd parser)
+query IIII
+SELECT event_id, tool_name, severity, status
+FROM parse_duck_hunt_log('
+Jan 15 10:30:45 myhost sshd[1234]: Accepted publickey for user from 192.168.1.100 port 54321 ssh2: RSA SHA256:abc123
+', 'auditd')
+ORDER BY event_id;
+----
+1	auditd	info	INFO
+
+# Test 38: SSH auth failed login
+query III
+SELECT event_id, severity, status
+FROM parse_duck_hunt_log('
+Jan 15 10:30:45 myhost sshd[1234]: Failed password for invalid user admin from 192.168.1.100 port 54321 ssh2
+', 'auditd')
+ORDER BY event_id;
+----
+1	warning	WARNING
+
+# Test 39: SSH auth origin extraction
+query II
+SELECT event_id, origin
+FROM parse_duck_hunt_log('
+Jan 15 10:30:45 myhost sshd[1234]: Accepted publickey for testuser from 10.20.30.40 port 54321 ssh2
+', 'auditd')
+ORDER BY event_id;
+----
+1	10.20.30.40
+
+# Test 40: SSH auth principal extraction
+query II
+SELECT event_id, principal
+FROM parse_duck_hunt_log('
+Jan 15 10:30:45 myhost sshd[1234]: Accepted publickey for johndoe from 192.168.1.100 port 54321 ssh2
+', 'auditd')
+ORDER BY event_id;
+----
+1	johndoe
+
+# Test 41: Auditd format alias - ssh_auth
+query II
+SELECT event_id, tool_name
+FROM parse_duck_hunt_log('
+Jan 15 10:30:45 myhost sshd[1234]: Accepted publickey for user from 192.168.1.100 port 54321 ssh2
+', 'ssh_auth')
+ORDER BY event_id;
+----
+1	auditd
+
+# =============================================================================
+# S3 ACCESS LOG PARSER TESTS
+# =============================================================================
+
+# Test 42: Basic S3 access log parsing
+query IIII
+SELECT event_id, tool_name, severity, status
+FROM parse_duck_hunt_log('
+79a59df900b949e55d96a1e698fbacedfd6e09d98eacf8f8d5218e7cd47ef2be mybucket [15/Jan/2025:10:30:45 +0000] 192.168.1.100 arn:aws:iam::123456789012:user/testuser ABCDEF123456 REST.GET.OBJECT mykey.txt "GET /mybucket/mykey.txt HTTP/1.1" 200 - 12345 12345 50 49 "-" "aws-cli/2.0.0" - abc123= SigV4 ECDHE-RSA-AES128-SHA AuthHeader mybucket.s3.amazonaws.com TLSv1.2
+', 's3_access')
+ORDER BY event_id;
+----
+1	s3_access	info	INFO
+
+# Test 43: S3 access log 404 error
+query III
+SELECT event_id, severity, status
+FROM parse_duck_hunt_log('
+79a59df900b949e55d96a1e698fbacedfd6e09d98eacf8f8d5218e7cd47ef2be mybucket [15/Jan/2025:10:30:45 +0000] 192.168.1.100 arn:aws:iam::123456789012:user/testuser ABCDEF123456 REST.GET.OBJECT missing.txt "GET /mybucket/missing.txt HTTP/1.1" 404 NoSuchKey 0 0 10 9 "-" "aws-cli/2.0.0" - abc123= SigV4 ECDHE-RSA-AES128-SHA AuthHeader mybucket.s3.amazonaws.com TLSv1.2
+', 's3_access')
+ORDER BY event_id;
+----
+1	warning	WARNING
+
+# Test 44: S3 access log 500 error
+query III
+SELECT event_id, severity, status
+FROM parse_duck_hunt_log('
+79a59df900b949e55d96a1e698fbacedfd6e09d98eacf8f8d5218e7cd47ef2be mybucket [15/Jan/2025:10:30:45 +0000] 192.168.1.100 arn:aws:iam::123456789012:user/testuser ABCDEF123456 REST.PUT.OBJECT mykey.txt "PUT /mybucket/mykey.txt HTTP/1.1" 500 InternalError 0 0 10 9 "-" "aws-cli/2.0.0" - abc123= SigV4 ECDHE-RSA-AES128-SHA AuthHeader mybucket.s3.amazonaws.com TLSv1.2
+', 's3_access')
+ORDER BY event_id;
+----
+1	error	ERROR
+
+# Test 45: S3 access log origin extraction
+query II
+SELECT event_id, origin
+FROM parse_duck_hunt_log('
+79a59df900b949e55d96a1e698fbacedfd6e09d98eacf8f8d5218e7cd47ef2be mybucket [15/Jan/2025:10:30:45 +0000] 10.20.30.40 arn:aws:iam::123456789012:user/testuser ABCDEF123456 REST.GET.OBJECT mykey.txt "GET /mybucket/mykey.txt HTTP/1.1" 200 - 12345 12345 50 49 "-" "aws-cli/2.0.0"
+', 's3_access')
+ORDER BY event_id;
+----
+1	10.20.30.40
+
+# Test 46: S3 access log principal extraction
+query II
+SELECT event_id, principal
+FROM parse_duck_hunt_log('
+79a59df900b949e55d96a1e698fbacedfd6e09d98eacf8f8d5218e7cd47ef2be mybucket [15/Jan/2025:10:30:45 +0000] 192.168.1.100 arn:aws:iam::123456789012:user/myuser ABCDEF123456 REST.GET.OBJECT mykey.txt "GET /mybucket/mykey.txt HTTP/1.1" 200 - 12345 12345 50 49 "-" "aws-cli/2.0.0"
+', 's3_access')
+ORDER BY event_id;
+----
+1	arn:aws:iam::123456789012:user/myuser
+
+# Test 47: S3 access log category extraction (bucket)
+query II
+SELECT event_id, category
+FROM parse_duck_hunt_log('
+79a59df900b949e55d96a1e698fbacedfd6e09d98eacf8f8d5218e7cd47ef2be my-test-bucket [15/Jan/2025:10:30:45 +0000] 192.168.1.100 arn:aws:iam::123456789012:user/testuser ABCDEF123456 REST.GET.OBJECT mykey.txt "GET /my-test-bucket/mykey.txt HTTP/1.1" 200 - 12345 12345 50 49 "-" "aws-cli/2.0.0"
+', 's3_access')
+ORDER BY event_id;
+----
+1	my-test-bucket
+
+# Test 48: S3 access log timestamp extraction
+query II
+SELECT event_id, started_at
+FROM parse_duck_hunt_log('
+79a59df900b949e55d96a1e698fbacedfd6e09d98eacf8f8d5218e7cd47ef2be mybucket [15/Jan/2025:10:30:45 +0000] 192.168.1.100 - ABCDEF123456 REST.GET.OBJECT mykey.txt "GET /mybucket/mykey.txt HTTP/1.1" 200 - 12345 12345 50 49 "-" "aws-cli/2.0.0"
+', 's3_access')
+ORDER BY event_id;
+----
+1	15/Jan/2025:10:30:45 +0000
+
+# Test 49: S3 access log format alias - s3_access_log
+query II
+SELECT event_id, tool_name
+FROM parse_duck_hunt_log('
+79a59df900b949e55d96a1e698fbacedfd6e09d98eacf8f8d5218e7cd47ef2be mybucket [15/Jan/2025:10:30:45 +0000] 192.168.1.100 - ABCDEF123456 REST.GET.OBJECT mykey.txt "GET /mybucket/mykey.txt HTTP/1.1" 200 - 12345 12345 50 49 "-" "aws-cli/2.0.0"
+', 's3_access_log')
+ORDER BY event_id;
+----
+1	s3_access
+
+# =============================================================================
+# FORMAT DISCOVERY TESTS
+# =============================================================================
+
+# Test 50: Infrastructure formats appear in duck_hunt_formats
+query II
+SELECT format, category FROM duck_hunt_formats() WHERE category = 'infrastructure' ORDER BY format;
+----
+auditd	infrastructure
+cisco_asa	infrastructure
+iptables	infrastructure
+kubernetes	infrastructure
+pf	infrastructure
+s3_access	infrastructure
+vpc_flow	infrastructure
+windows_event	infrastructure
+
+# =============================================================================
+# MULTIPLE EVENTS TESTS
+# =============================================================================
+
+# Test 51: Multiple iptables events
+query I
+SELECT count(*)
+FROM parse_duck_hunt_log('
+Jan 15 10:30:45 myhost kernel: [12345.678901] IN=eth0 OUT= SRC=192.168.1.100 DST=10.0.0.1 PROTO=TCP SPT=54321 DPT=22
+Jan 15 10:30:46 myhost kernel: [12346.678901] IN=eth0 OUT= SRC=192.168.1.101 DST=10.0.0.1 PROTO=TCP SPT=54322 DPT=443
+Jan 15 10:30:47 myhost kernel: [12347.678901] IN=eth0 OUT= SRC=192.168.1.102 DST=10.0.0.1 PROTO=UDP SPT=54323 DPT=53
+', 'iptables');
+----
+3
+
+# Test 52: Multiple VPC Flow events
+query I
+SELECT count(*)
+FROM parse_duck_hunt_log('
+2 123456789012 eni-abc123 10.0.0.1 192.168.1.100 22 54321 6 10 5000 1609459200 1609459260 ACCEPT OK
+2 123456789012 eni-abc123 10.0.0.2 192.168.1.101 443 54322 6 20 10000 1609459260 1609459320 ACCEPT OK
+2 123456789012 eni-abc123 10.0.0.3 192.168.1.102 80 54323 6 5 2500 1609459320 1609459380 REJECT OK
+', 'vpc_flow');
+----
+3
+
+# Test 53: Multiple Kubernetes events
+query I
+SELECT count(*)
+FROM parse_duck_hunt_log('
+I0115 10:30:45.123456    1234 controller.go:100] Server started
+W0115 10:30:46.123456    1234 controller.go:200] Connection slow
+E0115 10:30:47.123456    1234 controller.go:300] Database error
+', 'kubernetes');
+----
+3

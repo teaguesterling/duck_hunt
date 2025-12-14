@@ -132,6 +132,16 @@ set(EXTENSION_SOURCES
     src/parsers/app_logging/log4j_parser.cpp
     src/parsers/app_logging/logrus_parser.cpp
 
+    # Infrastructure log parsers
+    src/parsers/infrastructure/iptables_parser.cpp
+    src/parsers/infrastructure/pf_parser.cpp
+    src/parsers/infrastructure/cisco_asa_parser.cpp
+    src/parsers/infrastructure/vpc_flow_parser.cpp
+    src/parsers/infrastructure/kubernetes_parser.cpp
+    src/parsers/infrastructure/windows_event_parser.cpp
+    src/parsers/infrastructure/auditd_parser.cpp
+    src/parsers/infrastructure/s3_access_parser.cpp
+
     # XML-based parsers (require webbed extension)
     src/parsers/test_frameworks/junit_xml_parser.cpp
 )
