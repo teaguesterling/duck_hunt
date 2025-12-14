@@ -122,6 +122,11 @@ set(EXTENSION_SOURCES
     src/parsers/web_access/apache_access_parser.cpp
     src/parsers/web_access/nginx_access_parser.cpp
 
+    # Cloud provider log parsers
+    src/parsers/cloud_logs/aws_cloudtrail_parser.cpp
+    src/parsers/cloud_logs/gcp_cloud_logging_parser.cpp
+    src/parsers/cloud_logs/azure_activity_parser.cpp
+
     # XML-based parsers (require webbed extension)
     src/parsers/test_frameworks/junit_xml_parser.cpp
 )

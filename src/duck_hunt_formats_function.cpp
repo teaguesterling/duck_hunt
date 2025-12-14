@@ -107,6 +107,11 @@ static std::vector<FormatInfo> GetAllFormats() {
         {"syslog", "BSD/RFC5424 syslog format", "system_log", "", false},
         {"apache_access", "Apache HTTP Server access logs", "web_access", "", false},
         {"nginx_access", "NGINX access logs", "web_access", "", false},
+
+        // Cloud provider log formats
+        {"aws_cloudtrail", "AWS CloudTrail audit logs", "cloud_audit", "", false},
+        {"gcp_cloud_logging", "GCP Cloud Logging entries", "cloud_audit", "", false},
+        {"azure_activity", "Azure Activity Log entries", "cloud_audit", "", false},
     };
 }
 

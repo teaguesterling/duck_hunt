@@ -1,0 +1,311 @@
+# name: test/sql/cloud_logs.test
+# description: test AWS CloudTrail, GCP Cloud Logging, and Azure Activity log parsing
+# group: [sql]
+
+require duck_hunt
+
+# =============================================================================
+# AWS CloudTrail Tests
+# =============================================================================
+
+# Test 1: Basic CloudTrail event parsing - semantic mappings
+query IIII
+SELECT tool_name, category, message, file_path LIKE '%arn:aws:%'
+FROM parse_duck_hunt_log('{"eventTime":"2025-01-15T10:30:45Z","eventName":"CreateUser","eventSource":"iam.amazonaws.com","awsRegion":"us-east-1","sourceIPAddress":"192.168.1.100","userIdentity":{"type":"IAMUser","userName":"admin","arn":"arn:aws:iam::123456789012:user/admin","accountId":"123456789012"}}', 'aws_cloudtrail');
+----
+aws_cloudtrail	iam.amazonaws.com	CreateUser	true
+
+# Test 2: CloudTrail extracts timestamp to function_name
+query I
+SELECT function_name
+FROM parse_duck_hunt_log('{"eventTime":"2025-01-15T10:30:45Z","eventName":"DescribeInstances","eventSource":"ec2.amazonaws.com","awsRegion":"us-west-2"}', 'aws_cloudtrail');
+----
+2025-01-15T10:30:45Z
+
+# Test 3: CloudTrail with error code maps to error severity
+query II
+SELECT severity, error_code
+FROM parse_duck_hunt_log('{"eventTime":"2025-01-15T10:30:45Z","eventName":"CreateUser","eventSource":"iam.amazonaws.com","awsRegion":"us-east-1","errorCode":"AccessDenied","errorMessage":"User not authorized"}', 'aws_cloudtrail');
+----
+error	AccessDenied
+
+# Test 4: CloudTrail modification event maps to warning
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log('{"eventTime":"2025-01-15T10:30:45Z","eventName":"DeleteBucket","eventSource":"s3.amazonaws.com","awsRegion":"us-east-1"}', 'aws_cloudtrail');
+----
+warning	DeleteBucket
+
+# Test 5: CloudTrail read-only event maps to info
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log('{"eventTime":"2025-01-15T10:30:45Z","eventName":"DescribeInstances","eventSource":"ec2.amazonaws.com","awsRegion":"us-east-1"}', 'aws_cloudtrail');
+----
+info	DescribeInstances
+
+# Test 6: CloudTrail structured_data contains AWS region
+query I
+SELECT structured_data LIKE '%"aws_region":"us-east-1"%'
+FROM parse_duck_hunt_log('{"eventTime":"2025-01-15T10:30:45Z","eventName":"CreateUser","eventSource":"iam.amazonaws.com","awsRegion":"us-east-1"}', 'aws_cloudtrail');
+----
+true
+
+# Test 7: CloudTrail structured_data contains source IP
+query I
+SELECT structured_data LIKE '%"source_ip":"10.0.0.1"%'
+FROM parse_duck_hunt_log('{"eventTime":"2025-01-15T10:30:45Z","eventName":"CreateUser","eventSource":"iam.amazonaws.com","awsRegion":"us-east-1","sourceIPAddress":"10.0.0.1"}', 'aws_cloudtrail');
+----
+true
+
+# Test 8: CloudTrail structured_data contains account ID
+query I
+SELECT structured_data LIKE '%"account_id":"123456789012"%'
+FROM parse_duck_hunt_log('{"eventTime":"2025-01-15T10:30:45Z","eventName":"CreateUser","eventSource":"iam.amazonaws.com","awsRegion":"us-east-1","userIdentity":{"accountId":"123456789012"}}', 'aws_cloudtrail');
+----
+true
+
+# Test 9: CloudTrail Records array format
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('{"Records":[{"eventTime":"2025-01-15T10:30:45Z","eventName":"CreateUser","eventSource":"iam.amazonaws.com","awsRegion":"us-east-1"},{"eventTime":"2025-01-15T10:30:46Z","eventName":"DeleteUser","eventSource":"iam.amazonaws.com","awsRegion":"us-east-1"}]}', 'aws_cloudtrail');
+----
+2
+
+# Test 10: CloudTrail stores raw output
+query I
+SELECT LENGTH(raw_output) > 50
+FROM parse_duck_hunt_log('{"eventTime":"2025-01-15T10:30:45Z","eventName":"CreateUser","eventSource":"iam.amazonaws.com","awsRegion":"us-east-1"}', 'aws_cloudtrail');
+----
+true
+
+# =============================================================================
+# GCP Cloud Logging Tests
+# =============================================================================
+
+# Test 11: Basic GCP log entry parsing
+query III
+SELECT tool_name, category, severity
+FROM parse_duck_hunt_log('{"logName":"projects/myproject/logs/cloudaudit","timestamp":"2025-01-15T10:30:45Z","severity":"INFO","resource":{"type":"gce_instance"}}', 'gcp_cloud_logging');
+----
+gcp_cloud_logging	gce_instance	info
+
+# Test 12: GCP log extracts timestamp
+query I
+SELECT function_name
+FROM parse_duck_hunt_log('{"logName":"projects/myproject/logs/cloudaudit","timestamp":"2025-01-15T10:30:45Z","severity":"INFO"}', 'gcp_cloud_logging');
+----
+2025-01-15T10:30:45Z
+
+# Test 13: GCP log with ERROR severity
+query I
+SELECT severity
+FROM parse_duck_hunt_log('{"logName":"projects/myproject/logs/cloudaudit","timestamp":"2025-01-15T10:30:45Z","severity":"ERROR"}', 'gcp_cloud_logging');
+----
+error
+
+# Test 14: GCP log with WARNING severity
+query I
+SELECT severity
+FROM parse_duck_hunt_log('{"logName":"projects/myproject/logs/cloudaudit","timestamp":"2025-01-15T10:30:45Z","severity":"WARNING"}', 'gcp_cloud_logging');
+----
+warning
+
+# Test 15: GCP log with CRITICAL severity maps to error
+query I
+SELECT severity
+FROM parse_duck_hunt_log('{"logName":"projects/myproject/logs/cloudaudit","timestamp":"2025-01-15T10:30:45Z","severity":"CRITICAL"}', 'gcp_cloud_logging');
+----
+error
+
+# Test 16: GCP protoPayload method name as message
+query I
+SELECT message
+FROM parse_duck_hunt_log('{"logName":"projects/myproject/logs/cloudaudit","timestamp":"2025-01-15T10:30:45Z","severity":"INFO","protoPayload":{"methodName":"google.compute.instances.start"}}', 'gcp_cloud_logging');
+----
+google.compute.instances.start
+
+# Test 17: GCP textPayload as message
+query I
+SELECT message
+FROM parse_duck_hunt_log('{"logName":"projects/myproject/logs/syslog","timestamp":"2025-01-15T10:30:45Z","severity":"INFO","textPayload":"Application started successfully"}', 'gcp_cloud_logging');
+----
+Application started successfully
+
+# Test 18: GCP structured_data contains log_name
+query I
+SELECT structured_data LIKE '%"log_name":"projects/myproject/logs/cloudaudit"%'
+FROM parse_duck_hunt_log('{"logName":"projects/myproject/logs/cloudaudit","timestamp":"2025-01-15T10:30:45Z","severity":"INFO"}', 'gcp_cloud_logging');
+----
+true
+
+# Test 19: GCP structured_data contains resource_type
+query I
+SELECT structured_data LIKE '%"resource_type":"gce_instance"%'
+FROM parse_duck_hunt_log('{"logName":"projects/myproject/logs/cloudaudit","timestamp":"2025-01-15T10:30:45Z","severity":"INFO","resource":{"type":"gce_instance"}}', 'gcp_cloud_logging');
+----
+true
+
+# Test 20: GCP entries array format
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('{"entries":[{"logName":"projects/myproject/logs/log1","timestamp":"2025-01-15T10:30:45Z","severity":"INFO"},{"logName":"projects/myproject/logs/log2","timestamp":"2025-01-15T10:30:46Z","severity":"ERROR"}]}', 'gcp_cloud_logging');
+----
+2
+
+# =============================================================================
+# Azure Activity Log Tests
+# =============================================================================
+
+# Test 21: Basic Azure Activity Log parsing
+query III
+SELECT tool_name, category, message
+FROM parse_duck_hunt_log('{"time":"2025-01-15T10:30:45Z","operationName":"Microsoft.Compute/virtualMachines/start/action","status":"Succeeded","caller":"user@example.com","category":"Administrative"}', 'azure_activity');
+----
+azure_activity	Administrative	Microsoft.Compute/virtualMachines/start/action
+
+# Test 22: Azure log extracts timestamp
+query I
+SELECT function_name
+FROM parse_duck_hunt_log('{"time":"2025-01-15T10:30:45Z","operationName":"Microsoft.Storage/storageAccounts/write","status":"Succeeded"}', 'azure_activity');
+----
+2025-01-15T10:30:45Z
+
+# Test 23: Azure log with Failed status maps to error
+query II
+SELECT severity, error_code
+FROM parse_duck_hunt_log('{"time":"2025-01-15T10:30:45Z","operationName":"Microsoft.Compute/virtualMachines/start/action","status":"Failed","caller":"user@example.com"}', 'azure_activity');
+----
+error	Failed
+
+# Test 24: Azure log with Succeeded status maps to info
+query I
+SELECT severity
+FROM parse_duck_hunt_log('{"time":"2025-01-15T10:30:45Z","operationName":"Microsoft.Compute/virtualMachines/start/action","status":"Succeeded"}', 'azure_activity');
+----
+info
+
+# Test 25: Azure log with Error level maps to error
+query I
+SELECT severity
+FROM parse_duck_hunt_log('{"time":"2025-01-15T10:30:45Z","operationName":"Microsoft.Compute/virtualMachines/start/action","level":"Error","status":"Succeeded"}', 'azure_activity');
+----
+error
+
+# Test 26: Azure log with Warning level
+query I
+SELECT severity
+FROM parse_duck_hunt_log('{"time":"2025-01-15T10:30:45Z","operationName":"Microsoft.Compute/virtualMachines/start/action","level":"Warning","status":"Succeeded"}', 'azure_activity');
+----
+warning
+
+# Test 27: Azure log caller as file_path
+query I
+SELECT file_path
+FROM parse_duck_hunt_log('{"time":"2025-01-15T10:30:45Z","operationName":"Microsoft.Compute/virtualMachines/start/action","caller":"admin@company.com"}', 'azure_activity');
+----
+admin@company.com
+
+# Test 28: Azure structured_data contains resource_id
+query I
+SELECT structured_data LIKE '%"resource_id":"/subscriptions/sub123/resourceGroups/rg1"%'
+FROM parse_duck_hunt_log('{"time":"2025-01-15T10:30:45Z","operationName":"Microsoft.Compute/virtualMachines/start/action","resourceId":"/subscriptions/sub123/resourceGroups/rg1"}', 'azure_activity');
+----
+true
+
+# Test 29: Azure structured_data contains subscription_id
+query I
+SELECT structured_data LIKE '%"subscription_id":"sub-123-456"%'
+FROM parse_duck_hunt_log('{"time":"2025-01-15T10:30:45Z","operationName":"Microsoft.Compute/virtualMachines/start/action","subscriptionId":"sub-123-456"}', 'azure_activity');
+----
+true
+
+# Test 30: Azure records array format
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('{"records":[{"time":"2025-01-15T10:30:45Z","operationName":"op1","resourceId":"/sub/rg"},{"time":"2025-01-15T10:30:46Z","operationName":"op2","resourceId":"/sub/rg"}]}', 'azure_activity');
+----
+2
+
+# =============================================================================
+# duck_hunt_formats() includes cloud formats
+# =============================================================================
+
+# Test 31: aws_cloudtrail appears in formats list
+query II
+SELECT format, category
+FROM duck_hunt_formats()
+WHERE format = 'aws_cloudtrail';
+----
+aws_cloudtrail	cloud_audit
+
+# Test 32: gcp_cloud_logging appears in formats list
+query II
+SELECT format, category
+FROM duck_hunt_formats()
+WHERE format = 'gcp_cloud_logging';
+----
+gcp_cloud_logging	cloud_audit
+
+# Test 33: azure_activity appears in formats list
+query II
+SELECT format, category
+FROM duck_hunt_formats()
+WHERE format = 'azure_activity';
+----
+azure_activity	cloud_audit
+
+# Test 34: cloud_audit category has 3 formats
+query II
+SELECT category, COUNT(*) as cnt
+FROM duck_hunt_formats()
+WHERE category = 'cloud_audit'
+GROUP BY category;
+----
+cloud_audit	3
+
+# =============================================================================
+# Edge Cases
+# =============================================================================
+
+# Test 35: Empty input returns no rows for CloudTrail
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('', 'aws_cloudtrail');
+----
+0
+
+# Test 36: Empty input returns no rows for GCP
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('', 'gcp_cloud_logging');
+----
+0
+
+# Test 37: Empty input returns no rows for Azure
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('', 'azure_activity');
+----
+0
+
+# Test 38: CloudTrail alias works
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('{"eventTime":"2025-01-15T10:30:45Z","eventName":"CreateUser","eventSource":"iam.amazonaws.com","awsRegion":"us-east-1"}', 'cloudtrail');
+----
+1
+
+# Test 39: GCP alias works
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('{"logName":"projects/myproject/logs/cloudaudit","timestamp":"2025-01-15T10:30:45Z","severity":"INFO"}', 'gcp_logging');
+----
+1
+
+# Test 40: Azure alias works
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('{"time":"2025-01-15T10:30:45Z","operationName":"Microsoft.Compute/virtualMachines/start/action","resourceId":"/sub/rg"}', 'azure_activity_log');
+----
+1
+

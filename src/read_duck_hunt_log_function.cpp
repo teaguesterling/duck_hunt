@@ -781,6 +781,10 @@ std::string TestResultFormatToString(TestResultFormat format) {
         case TestResultFormat::SYSLOG: return "syslog";
         case TestResultFormat::APACHE_ACCESS: return "apache_access";
         case TestResultFormat::NGINX_ACCESS: return "nginx_access";
+        // Cloud provider logs
+        case TestResultFormat::AWS_CLOUDTRAIL: return "aws_cloudtrail";
+        case TestResultFormat::GCP_CLOUD_LOGGING: return "gcp_cloud_logging";
+        case TestResultFormat::AZURE_ACTIVITY: return "azure_activity";
         default: return "unknown";
     }
 }
@@ -859,6 +863,13 @@ TestResultFormat StringToTestResultFormat(const std::string& str) {
     if (str == "syslog") return TestResultFormat::SYSLOG;
     if (str == "apache_access") return TestResultFormat::APACHE_ACCESS;
     if (str == "nginx_access") return TestResultFormat::NGINX_ACCESS;
+    // Cloud provider logs
+    if (str == "aws_cloudtrail") return TestResultFormat::AWS_CLOUDTRAIL;
+    if (str == "cloudtrail") return TestResultFormat::AWS_CLOUDTRAIL;  // Alias
+    if (str == "gcp_cloud_logging") return TestResultFormat::GCP_CLOUD_LOGGING;
+    if (str == "gcp_logging") return TestResultFormat::GCP_CLOUD_LOGGING;  // Alias
+    if (str == "azure_activity") return TestResultFormat::AZURE_ACTIVITY;
+    if (str == "azure_activity_log") return TestResultFormat::AZURE_ACTIVITY;  // Alias
     if (str == "unknown") return TestResultFormat::UNKNOWN;
     return TestResultFormat::UNKNOWN;  // Unknown format string
 }
