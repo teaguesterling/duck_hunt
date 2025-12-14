@@ -15,6 +15,10 @@
 #include "spotbugs_json_parser.hpp"
 #include "ktlint_json_parser.hpp"
 #include "kubescore_json_parser.hpp"
+#include "hadolint_json_parser.hpp"
+#include "lintr_json_parser.hpp"
+#include "sqlfluff_json_parser.hpp"
+#include "tflint_json_parser.hpp"
 
 namespace duckdb {
 namespace log_parsers {
@@ -425,6 +429,110 @@ private:
 };
 
 /**
+ * Hadolint JSON parser wrapper.
+ */
+class HadolintJSONParserImpl : public BaseParser {
+public:
+    HadolintJSONParserImpl()
+        : BaseParser("hadolint_json",
+                     "Hadolint JSON Parser",
+                     ParserCategory::LINTING,
+                     "Dockerfile Hadolint linter JSON output",
+                     ParserPriority::VERY_HIGH) {
+        addAlias("hadolint");
+    }
+
+    bool canParse(const std::string& content) const override {
+        return parser_.canParse(content);
+    }
+
+    std::vector<ValidationEvent> parse(const std::string& content) const override {
+        return parser_.parse(content);
+    }
+
+private:
+    HadolintJSONParser parser_;
+};
+
+/**
+ * Lintr JSON parser wrapper.
+ */
+class LintrJSONParserImpl : public BaseParser {
+public:
+    LintrJSONParserImpl()
+        : BaseParser("lintr_json",
+                     "Lintr JSON Parser",
+                     ParserCategory::LINTING,
+                     "R lintr linter JSON output",
+                     ParserPriority::VERY_HIGH) {
+        addAlias("lintr");
+    }
+
+    bool canParse(const std::string& content) const override {
+        return parser_.canParse(content);
+    }
+
+    std::vector<ValidationEvent> parse(const std::string& content) const override {
+        return parser_.parse(content);
+    }
+
+private:
+    LintrJSONParser parser_;
+};
+
+/**
+ * SQLFluff JSON parser wrapper.
+ */
+class SqlfluffJSONParserImpl : public BaseParser {
+public:
+    SqlfluffJSONParserImpl()
+        : BaseParser("sqlfluff_json",
+                     "SQLFluff JSON Parser",
+                     ParserCategory::LINTING,
+                     "SQL SQLFluff linter JSON output",
+                     ParserPriority::VERY_HIGH) {
+        addAlias("sqlfluff");
+    }
+
+    bool canParse(const std::string& content) const override {
+        return parser_.canParse(content);
+    }
+
+    std::vector<ValidationEvent> parse(const std::string& content) const override {
+        return parser_.parse(content);
+    }
+
+private:
+    SqlfluffJSONParser parser_;
+};
+
+/**
+ * TFLint JSON parser wrapper.
+ */
+class TflintJSONParserImpl : public BaseParser {
+public:
+    TflintJSONParserImpl()
+        : BaseParser("tflint_json",
+                     "TFLint JSON Parser",
+                     ParserCategory::INFRASTRUCTURE,
+                     "Terraform TFLint linter JSON output",
+                     ParserPriority::VERY_HIGH) {
+        addAlias("tflint");
+    }
+
+    bool canParse(const std::string& content) const override {
+        return parser_.canParse(content);
+    }
+
+    std::vector<ValidationEvent> parse(const std::string& content) const override {
+        return parser_.parse(content);
+    }
+
+private:
+    TflintJSONParser parser_;
+};
+
+/**
  * Register all tool output parsers with the registry.
  */
 DECLARE_PARSER_CATEGORY(ToolOutputs);
@@ -445,6 +553,10 @@ void RegisterToolOutputsParsers(ParserRegistry& registry) {
     registry.registerParser(make_uniq<SpotBugsJSONParserImpl>());
     registry.registerParser(make_uniq<KtlintJSONParserImpl>());
     registry.registerParser(make_uniq<KubeScoreJSONParserImpl>());
+    registry.registerParser(make_uniq<HadolintJSONParserImpl>());
+    registry.registerParser(make_uniq<LintrJSONParserImpl>());
+    registry.registerParser(make_uniq<SqlfluffJSONParserImpl>());
+    registry.registerParser(make_uniq<TflintJSONParserImpl>());
 }
 
 // Auto-register this category

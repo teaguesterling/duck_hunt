@@ -67,7 +67,13 @@ set(EXTENSION_SOURCES
     src/parsers/tool_outputs/spotbugs_json_parser.cpp
     src/parsers/tool_outputs/ktlint_json_parser.cpp
     src/parsers/tool_outputs/kubescore_json_parser.cpp
-    
+
+    # Extracted inline JSON parsers
+    src/parsers/tool_outputs/hadolint_json_parser.cpp
+    src/parsers/tool_outputs/lintr_json_parser.cpp
+    src/parsers/tool_outputs/sqlfluff_json_parser.cpp
+    src/parsers/tool_outputs/tflint_json_parser.cpp
+
     # Phase 6: Text Parser Extraction - Batch 1
     src/parsers/test_frameworks/junit_text_parser.cpp
     
@@ -105,7 +111,11 @@ set(EXTENSION_SOURCES
     # Phase 8: Build System Parser Extraction - Batch 3
     src/parsers/build_systems/cargo_parser.cpp
     src/parsers/build_systems/cmake_parser.cpp
-    
+
+    # Extracted inline text parsers
+    src/parsers/build_systems/bazel_parser.cpp
+    src/parsers/linting_tools/autopep8_text_parser.cpp
+
     # New parsers - CI Systems and improved linting tools
     src/parsers/ci_systems/github_cli_parser.cpp
     src/parsers/ci_systems/drone_ci_text_parser.cpp

@@ -6,6 +6,7 @@
 #include "black_parser.hpp"
 #include "yapf_text_parser.hpp"
 #include "clang_tidy_parser.hpp"
+#include "autopep8_text_parser.hpp"
 
 namespace duckdb {
 namespace log_parsers {
@@ -169,6 +170,32 @@ private:
 };
 
 /**
+ * Autopep8 text parser wrapper.
+ */
+class Autopep8ParserImpl : public BaseParser {
+public:
+    Autopep8ParserImpl()
+        : BaseParser("autopep8_text",
+                     "Autopep8 Parser",
+                     ParserCategory::LINTING,
+                     "Python autopep8 formatter output",
+                     ParserPriority::HIGH) {
+        addAlias("autopep8");
+    }
+
+    bool canParse(const std::string& content) const override {
+        return parser_.canParse(content);
+    }
+
+    std::vector<ValidationEvent> parse(const std::string& content) const override {
+        return parser_.parse(content);
+    }
+
+private:
+    Autopep8TextParser parser_;
+};
+
+/**
  * Register all linting tool parsers with the registry.
  */
 DECLARE_PARSER_CATEGORY(LintingTools);
@@ -180,6 +207,7 @@ void RegisterLintingToolsParsers(ParserRegistry& registry) {
     registry.registerParser(make_uniq<BlackParserImpl>());
     registry.registerParser(make_uniq<YapfParserImpl>());
     registry.registerParser(make_uniq<ClangTidyParserImpl>());
+    registry.registerParser(make_uniq<Autopep8ParserImpl>());
 }
 
 // Auto-register this category

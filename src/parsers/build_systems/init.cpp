@@ -8,6 +8,7 @@
 #include "cargo_parser.hpp"
 #include "node_parser.hpp"
 #include "python_parser.hpp"
+#include "bazel_parser.hpp"
 
 namespace duckdb {
 namespace log_parsers {
@@ -223,6 +224,32 @@ public:
 };
 
 /**
+ * Bazel build parser wrapper.
+ */
+class BazelParserImpl : public BaseParser {
+public:
+    BazelParserImpl()
+        : BaseParser("bazel_build",
+                     "Bazel Parser",
+                     ParserCategory::BUILD_SYSTEM,
+                     "Bazel build and test output",
+                     ParserPriority::HIGH) {
+        addAlias("bazel");
+    }
+
+    bool canParse(const std::string& content) const override {
+        return parser_.canParse(content);
+    }
+
+    std::vector<ValidationEvent> parse(const std::string& content) const override {
+        return parser_.parse(content);
+    }
+
+private:
+    BazelParser parser_;
+};
+
+/**
  * Register all build system parsers with the registry.
  */
 DECLARE_PARSER_CATEGORY(BuildSystems);
@@ -236,6 +263,7 @@ void RegisterBuildSystemsParsers(ParserRegistry& registry) {
     registry.registerParser(make_uniq<CargoParserImpl>());
     registry.registerParser(make_uniq<NodeParserImpl>());
     registry.registerParser(make_uniq<PythonBuildParserImpl>());
+    registry.registerParser(make_uniq<BazelParserImpl>());
 }
 
 // Auto-register this category
