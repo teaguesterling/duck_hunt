@@ -26,6 +26,13 @@ set(EXTENSION_SOURCES
     src/parsers/build_systems/init.cpp
     src/parsers/linting_tools/init.cpp
     src/parsers/tool_outputs/init.cpp
+    src/parsers/ci_systems/init.cpp
+    src/parsers/structured_logs/init.cpp
+    src/parsers/web_access/init.cpp
+    src/parsers/cloud_logs/init.cpp
+    src/parsers/app_logging/init.cpp
+    src/parsers/infrastructure/init.cpp
+    src/parsers/infrastructure_tools/init.cpp
 
     # Parser implementations
     src/parsers/test_frameworks/pytest_parser.cpp
