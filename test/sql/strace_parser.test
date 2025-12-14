@@ -1,0 +1,83 @@
+# name: test/sql/strace_parser.test
+# description: Test strace log parsing functionality
+# group: [strace]
+
+require duck_hunt
+
+# Test basic strace parsing - simple output
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('test/sample_strace.log', 'strace');
+----
+29
+
+# Test strace format detection in formats list
+query I
+SELECT COUNT(*) FROM duck_hunt_formats() WHERE format = 'strace';
+----
+1
+
+# Test syscall categories are detected
+query I
+SELECT COUNT(DISTINCT category) FROM read_duck_hunt_log('test/sample_strace.log', 'strace') WHERE category != 'syscall';
+----
+4
+
+# Test file syscalls are categorized correctly
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('test/sample_strace.log', 'strace') WHERE category = 'file';
+----
+16
+
+# Test memory syscalls are categorized correctly
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('test/sample_strace.log', 'strace') WHERE category = 'memory';
+----
+10
+
+# Test process syscalls are categorized correctly
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('test/sample_strace.log', 'strace') WHERE category = 'process';
+----
+2
+
+# Test exit status parsing
+query II
+SELECT status, message FROM read_duck_hunt_log('test/sample_strace.log', 'strace') WHERE function_name = 'exit' LIMIT 1;
+----
+PASS	Process exited with code 0
+
+# Test complex strace output with multiple processes
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('test/sample_strace_complex.log', 'strace');
+----
+13
+
+# Test multi-process scope_id extraction
+query I
+SELECT COUNT(DISTINCT scope_id) FROM read_duck_hunt_log('test/sample_strace_complex.log', 'strace') WHERE scope_id IS NOT NULL AND scope_id != '';
+----
+2
+
+# Test network syscall detection
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('test/sample_strace_complex.log', 'strace') WHERE category = 'network';
+----
+2
+
+# Test timestamp extraction
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('test/sample_strace_complex.log', 'strace') WHERE started_at IS NOT NULL AND started_at != '';
+----
+12
+
+# Test parse_duck_hunt_log function with strace format
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log('openat(AT_FDCWD, "/tmp/test", O_RDONLY) = 3', 'strace');
+----
+1
+
+# Test tool_name is set correctly
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('test/sample_strace.log', 'strace') WHERE tool_name = 'strace';
+----
+29

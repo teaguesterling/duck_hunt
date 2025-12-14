@@ -8,6 +8,7 @@
 #include "parsers/test_frameworks/nunit_xunit_text_parser.hpp"
 #include "parsers/specialized/valgrind_parser.hpp"
 #include "parsers/specialized/gdb_lldb_parser.hpp"
+#include "parsers/specialized/strace_parser.hpp"
 #include "parsers/specialized/coverage_parser.hpp"
 #include "parsers/build_systems/maven_parser.hpp"
 #include "parsers/build_systems/gradle_parser.hpp"
@@ -796,6 +797,8 @@ std::string TestResultFormatToString(TestResultFormat format) {
         case TestResultFormat::NLOG: return "nlog";
         case TestResultFormat::RUBY_LOGGER: return "ruby_logger";
         case TestResultFormat::RAILS_LOG: return "rails_log";
+        // System tracing formats
+        case TestResultFormat::STRACE: return "strace";
         // Infrastructure formats
         case TestResultFormat::IPTABLES: return "iptables";
         case TestResultFormat::PF_FIREWALL: return "pf";
@@ -914,6 +917,8 @@ TestResultFormat StringToTestResultFormat(const std::string& str) {
     if (str == "ruby_log") return TestResultFormat::RUBY_LOGGER;  // Alias
     if (str == "rails_log") return TestResultFormat::RAILS_LOG;
     if (str == "rails") return TestResultFormat::RAILS_LOG;  // Alias
+    // System tracing formats
+    if (str == "strace") return TestResultFormat::STRACE;
     // Infrastructure formats
     if (str == "iptables") return TestResultFormat::IPTABLES;
     if (str == "netfilter") return TestResultFormat::IPTABLES;  // Alias
@@ -1393,6 +1398,9 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &co
                 break;
             case TestResultFormat::GDB_LLDB:
                 duck_hunt::GdbLldbParser::ParseGdbLldb(content, global_state->events);
+                break;
+            case TestResultFormat::STRACE:
+                duck_hunt::StraceParser::ParseStrace(content, global_state->events);
                 break;
             case TestResultFormat::RSPEC_TEXT:
                 duck_hunt::RSpecTextParser::ParseRSpecText(content, global_state->events);
@@ -2953,6 +2961,9 @@ unique_ptr<GlobalTableFunctionState> ParseDuckHuntLogInitGlobal(ClientContext &c
             break;
         case TestResultFormat::GDB_LLDB:
             duck_hunt::GdbLldbParser::ParseGdbLldb(content, global_state->events);
+            break;
+        case TestResultFormat::STRACE:
+            duck_hunt::StraceParser::ParseStrace(content, global_state->events);
             break;
         case TestResultFormat::RSPEC_TEXT:
             duck_hunt::RSpecTextParser::ParseRSpecText(content, global_state->events);

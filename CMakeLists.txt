@@ -74,6 +74,9 @@ set(EXTENSION_SOURCES
     
     # Phase 7: Specialized Parser Extraction - Batch 3
     src/parsers/specialized/coverage_parser.cpp
+
+    # System tracing parsers
+    src/parsers/specialized/strace_parser.cpp
     
     # Phase 8: Build System Parser Extraction - Batch 1
     src/parsers/build_systems/maven_parser.cpp
