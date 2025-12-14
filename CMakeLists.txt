@@ -22,6 +22,10 @@ set(EXTENSION_SOURCES
 
     # New parser category registrations
     src/parsers/debugging/init.cpp
+    src/parsers/test_frameworks/init.cpp
+    src/parsers/build_systems/init.cpp
+    src/parsers/linting_tools/init.cpp
+    src/parsers/tool_outputs/init.cpp
 
     # Parser implementations
     src/parsers/test_frameworks/pytest_parser.cpp
