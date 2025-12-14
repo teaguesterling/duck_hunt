@@ -693,23 +693,50 @@ The current ValidationEvent schema was designed for test results and lint output
 - `workflow_name`, `job_name`, `step_name` - workflow hierarchy fields not exposed
 - These would be useful for timestamps in access/system logs
 
-**Current Workarounds:**
-| Log Field | Using Column | Should Be |
-|-----------|--------------|-----------|
-| Timestamp (access logs) | `function_name` | `started_at` or new `timestamp` |
-| IP address | `structured_data` JSON | Could be dedicated column |
-| HTTP status code | `error_code` | Reasonable fit |
-| Response bytes | `structured_data` JSON | Could be dedicated column |
-| Hostname (syslog) | `structured_data` JSON | Could be dedicated column |
-| PID (syslog) | `structured_data` JSON | Reasonable |
+**Current Workarounds (Web Access & System Logs):**
+| Log Field | Using Column | Should Be | Severity |
+|-----------|--------------|-----------|----------|
+| Timestamp | `function_name` | `started_at` or new `timestamp` | High - confusing semantics |
+| IP address | `structured_data` JSON | Dedicated column | Medium |
+| HTTP status code | `error_code` | Reasonable fit | OK |
+| Response bytes | `structured_data` JSON | Could be dedicated column | Low |
+| Hostname (syslog) | `structured_data` JSON | Could be dedicated column | Low |
+| PID (syslog) | `structured_data` JSON | Reasonable | OK |
 
-**Proposed Schema Additions (after cloud formats implemented):**
-- `started_at` (VARCHAR) - Event timestamp in ISO format
-- `ip_address` (VARCHAR) - Source IP for access/security logs
-- `hostname` (VARCHAR) - Source hostname for system logs
-- `http_status` (INTEGER) - HTTP status code for access logs
-- `response_bytes` (BIGINT) - Response size for access logs
-- `principal` (VARCHAR) - User/service identity for cloud audit logs
-- `cloud_region` (VARCHAR) - AWS/GCP/Azure region
+**Current Workarounds (Cloud Audit Logs - CloudTrail, GCP, Azure):**
+| Log Field | Using Column | Should Be | Severity |
+|-----------|--------------|-----------|----------|
+| Timestamp | `function_name` | `started_at` or new `timestamp` | High |
+| Principal/Identity (ARN, email) | `file_path` | New `principal` column | **High - very awkward** |
+| Source IP | `structured_data` JSON | Dedicated column | Medium |
+| Cloud Region | `structured_data` JSON | Dedicated column | Medium |
+| Account/Project/Subscription ID | `structured_data` JSON | Could be dedicated | Low |
 
-**Action:** Review schema after implementing CloudTrail, GCP, and Azure log formats to determine which columns are truly needed across multiple format types.
+**Analysis After Implementing Cloud Formats:**
+
+The `file_path` column being used for principal identity (AWS ARN, GCP email, Azure caller) is the most problematic mapping:
+- `file_path` semantically means "location of code/file" in the original schema
+- Using it for "who performed this action" creates confusing queries
+- Example: `WHERE file_path LIKE '%admin%'` - is this a file path or a user?
+
+The `function_name` column for timestamps is also awkward but less severe since the column name is already somewhat generic.
+
+**Proposed Schema Additions (Priority Order):**
+1. `principal` (VARCHAR) - User/service identity (ARN, email, service account) - **HIGH priority**
+2. `timestamp` or expose `started_at` (VARCHAR) - Event timestamp in ISO format - **HIGH priority**
+3. `ip_address` (VARCHAR) - Source IP for access/security logs - Medium priority
+4. `cloud_region` (VARCHAR) - AWS/GCP/Azure region - Medium priority
+5. `hostname` (VARCHAR) - Source hostname for system logs - Low priority
+
+**Columns with Good Semantic Fit:**
+- `category` - Works well for service name, HTTP method, process name
+- `message` - Works well for event/operation name, log message
+- `error_code` - Works well for HTTP status, error codes
+- `severity` - Works well across all formats
+- `structured_data` - Good catch-all for format-specific fields
+
+**Action Items:**
+1. Expose `started_at` in table function schema (it already exists in ValidationEvent)
+2. Add `principal` column for identity across cloud/access logs
+3. Consider `ip_address` if we add more security-focused formats
+4. Review after implementing application logging formats (Python, Node.js, Java)
