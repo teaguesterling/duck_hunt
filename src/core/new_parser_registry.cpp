@@ -21,8 +21,8 @@ void RegisterParserCategory(const std::string& category_name, CategoryRegistrati
 void InitializeAllParsers() {
     std::call_once(g_init_flag, []() {
         auto& registry = ParserRegistry::getInstance();
-        for (const auto& [name, fn] : GetCategoryRegistry()) {
-            fn(registry);
+        for (const auto& entry : GetCategoryRegistry()) {
+            entry.second(registry);  // entry.first is name, entry.second is fn
         }
         g_initialized = true;
     });

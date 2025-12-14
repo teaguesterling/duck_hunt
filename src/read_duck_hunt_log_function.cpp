@@ -1,6 +1,7 @@
 #include "include/read_duck_hunt_log_function.hpp"
 #include "include/validation_event_types.hpp"
 #include "core/parser_registry.hpp"
+#include "core/new_parser_registry.hpp"  // New modular parser registry
 #include "parsers/test_frameworks/junit_text_parser.hpp"
 #include "parsers/test_frameworks/rspec_text_parser.hpp"
 #include "parsers/test_frameworks/mocha_chai_text_parser.hpp"
@@ -946,6 +947,54 @@ TestResultFormat StringToTestResultFormat(const std::string& str) {
     return TestResultFormat::UNKNOWN;  // Unknown format string
 }
 
+/**
+ * Try to parse content using the new modular parser registry.
+ * Returns true if a parser was found and content was parsed.
+ * Returns false if no parser found (caller should fall back to legacy switch).
+ *
+ * This dispatch function allows gradual migration: as parsers are added to
+ * log_parsers::ParserRegistry, they will be used automatically without
+ * needing to update the legacy switch statement.
+ */
+bool TryNewParserRegistry(ClientContext& context,
+                          TestResultFormat format,
+                          const std::string& content,
+                          std::vector<ValidationEvent>& events) {
+    // Get the format name string
+    std::string format_name = TestResultFormatToString(format);
+    if (format_name == "unknown" || format_name == "auto") {
+        return false;  // Let legacy code handle these
+    }
+
+    // Check new parser registry
+    auto& registry = log_parsers::ParserRegistry::getInstance();
+    auto* parser = registry.getParser(format_name);
+
+    if (!parser) {
+        return false;  // No parser in new registry, use legacy
+    }
+
+    // Parser found - use it
+    if (parser->requiresContext()) {
+        auto parsed_events = parser->parseWithContext(context, content);
+        events.insert(events.end(), parsed_events.begin(), parsed_events.end());
+    } else {
+        auto parsed_events = parser->parse(content);
+        events.insert(events.end(), parsed_events.begin(), parsed_events.end());
+    }
+
+    return true;  // Successfully parsed
+}
+
+/**
+ * Try to auto-detect content format using the new modular parser registry.
+ * Returns the parser if found, nullptr otherwise.
+ */
+log_parsers::IParser* TryAutoDetectNewRegistry(const std::string& content) {
+    auto& registry = log_parsers::ParserRegistry::getInstance();
+    return registry.findParser(content);
+}
+
 std::string ReadContentFromSource(ClientContext& context, const std::string& source) {
     // Use DuckDB's FileSystem to properly handle file paths including UNITTEST_ROOT_DIRECTORY
     auto &fs = FileSystem::GetFileSystem(context);
@@ -1138,8 +1187,13 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &co
         if (format == TestResultFormat::AUTO) {
             format = DetectTestResultFormat(content);
         }
-        
-        // Parse content based on detected format
+
+        // Try new modular parser registry first
+        // This allows gradual migration - new parsers are picked up automatically
+        if (TryNewParserRegistry(context, format, content, global_state->events)) {
+            // Successfully parsed by new registry - skip legacy switch
+        } else {
+        // Parse content based on detected format (legacy fallback)
         switch (format) {
             case TestResultFormat::PYTEST_JSON:
                 {
@@ -1551,9 +1605,10 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &co
                 }
                 break;
         }
+        } // end else (legacy fallback)
 
     }
-    
+
     // Phase 3B: Process error patterns for intelligent categorization
     ProcessErrorPatterns(global_state->events);
     
@@ -2701,7 +2756,11 @@ unique_ptr<GlobalTableFunctionState> ParseDuckHuntLogInitGlobal(ClientContext &c
     if (format == TestResultFormat::AUTO) {
         format = DetectTestResultFormat(content);
     }
-    
+
+    // Try new modular parser registry first
+    if (TryNewParserRegistry(context, format, content, global_state->events)) {
+        // Successfully parsed by new registry - skip legacy switch
+    } else {
     // Parse content based on detected format (same logic as read_duck_hunt_log)
     switch (format) {
         case TestResultFormat::PYTEST_JSON:
@@ -3114,6 +3173,7 @@ unique_ptr<GlobalTableFunctionState> ParseDuckHuntLogInitGlobal(ClientContext &c
             }
             break;
     }
+    } // end else (legacy fallback)
 
     // Phase 3B: Process error patterns for intelligent categorization
     ProcessErrorPatterns(global_state->events);
