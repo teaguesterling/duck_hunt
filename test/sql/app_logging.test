@@ -218,14 +218,14 @@ WHERE format = 'logrus';
 ----
 logrus	app_logging
 
-# Test 28: app_logging category has 3 formats
+# Test 28: app_logging category has 10 formats (3 original + 7 new)
 query II
 SELECT category, COUNT(*) as cnt
 FROM duck_hunt_formats()
 WHERE category = 'app_logging'
 GROUP BY category;
 ----
-app_logging	3
+app_logging	10
 
 # =============================================================================
 # Format Aliases

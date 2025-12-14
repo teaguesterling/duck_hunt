@@ -1,0 +1,544 @@
+# name: test/sql/app_logging_2.test
+# description: test Winston, Pino, Bunyan, Serilog, NLog, Ruby Logger, and Rails Log parsers
+# group: [sql]
+
+require duck_hunt
+
+# =============================================================================
+# Winston Tests (Node.js)
+# =============================================================================
+
+# Test 1: Basic Winston JSON format
+query III
+SELECT tool_name, severity, message
+FROM parse_duck_hunt_log('{"level":"info","message":"Server started","timestamp":"2025-01-15T10:30:45.123Z"}', 'winston');
+----
+winston	info	Server started
+
+# Test 2: Winston JSON with error level
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log('{"level":"error","message":"Connection failed","timestamp":"2025-01-15T10:30:46.456Z"}', 'winston');
+----
+error	Connection failed
+
+# Test 3: Winston JSON with warn level
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log('{"level":"warn","message":"High memory usage","timestamp":"2025-01-15T10:30:47.789Z"}', 'winston');
+----
+warning	High memory usage
+
+# Test 4: Winston extracts timestamp
+query I
+SELECT started_at
+FROM parse_duck_hunt_log('{"level":"info","message":"Test","timestamp":"2025-01-15T10:30:45.123Z"}', 'winston');
+----
+2025-01-15T10:30:45.123Z
+
+# Test 5: Winston text format ([service] level: message)
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log('2025-01-15T10:30:45.123Z [api] info: Server started', 'winston');
+----
+info	Server started
+
+# Test 6: Winston text error level
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log('2025-01-15T10:30:46.456Z [api] error: Connection failed', 'winston');
+----
+error	Connection failed
+
+# Test 7: Multiple Winston JSON entries
+query II
+SELECT severity, COUNT(*) as cnt
+FROM parse_duck_hunt_log(E'{"level":"info","message":"Line 1","timestamp":"2025-01-15T10:30:45.123Z"}\n{"level":"error","message":"Line 2","timestamp":"2025-01-15T10:30:46.456Z"}\n{"level":"info","message":"Line 3","timestamp":"2025-01-15T10:30:47.789Z"}', 'winston')
+GROUP BY severity ORDER BY severity;
+----
+error	1
+info	2
+
+# =============================================================================
+# Pino Tests (Node.js)
+# =============================================================================
+
+# Test 8: Basic Pino JSON format
+query III
+SELECT tool_name, severity, message
+FROM parse_duck_hunt_log('{"level":30,"time":1705313445123,"msg":"Server started"}', 'pino');
+----
+pino	info	Server started
+
+# Test 9: Pino with error level (50)
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log('{"level":50,"time":1705313446456,"msg":"Connection failed"}', 'pino');
+----
+error	Connection failed
+
+# Test 10: Pino with warn level (40)
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log('{"level":40,"time":1705313447789,"msg":"High memory usage"}', 'pino');
+----
+warning	High memory usage
+
+# Test 11: Pino extracts hostname to origin
+query I
+SELECT origin
+FROM parse_duck_hunt_log('{"level":30,"time":1705313445123,"msg":"Test","hostname":"server1"}', 'pino');
+----
+server1
+
+# Test 12: Pino extracts name to category
+query I
+SELECT category
+FROM parse_duck_hunt_log('{"level":30,"time":1705313445123,"msg":"Test","name":"myapp"}', 'pino');
+----
+myapp
+
+# Test 13: Multiple Pino entries
+query II
+SELECT severity, COUNT(*) as cnt
+FROM parse_duck_hunt_log(E'{"level":30,"time":1705313445123,"msg":"Line 1"}\n{"level":50,"time":1705313446456,"msg":"Line 2"}\n{"level":30,"time":1705313447789,"msg":"Line 3"}', 'pino')
+GROUP BY severity ORDER BY severity;
+----
+error	1
+info	2
+
+# =============================================================================
+# Bunyan Tests (Node.js)
+# =============================================================================
+
+# Test 14: Basic Bunyan JSON format (has "v" field)
+query III
+SELECT tool_name, severity, message
+FROM parse_duck_hunt_log('{"name":"myapp","hostname":"server1","pid":1234,"level":30,"msg":"listening","time":"2025-01-15T10:30:45.123Z","v":0}', 'bunyan');
+----
+bunyan	info	listening
+
+# Test 15: Bunyan with error level (50)
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log('{"name":"myapp","hostname":"server1","pid":1234,"level":50,"msg":"Connection failed","time":"2025-01-15T10:30:46.456Z","v":0}', 'bunyan');
+----
+error	Connection failed
+
+# Test 16: Bunyan extracts hostname to origin
+query I
+SELECT origin
+FROM parse_duck_hunt_log('{"name":"myapp","hostname":"server1","pid":1234,"level":30,"msg":"Test","time":"2025-01-15T10:30:45.123Z","v":0}', 'bunyan');
+----
+server1
+
+# Test 17: Bunyan extracts name to category
+query I
+SELECT category
+FROM parse_duck_hunt_log('{"name":"myapp","hostname":"server1","pid":1234,"level":30,"msg":"Test","time":"2025-01-15T10:30:45.123Z","v":0}', 'bunyan');
+----
+myapp
+
+# Test 18: Bunyan extracts timestamp
+query I
+SELECT started_at
+FROM parse_duck_hunt_log('{"name":"myapp","hostname":"server1","pid":1234,"level":30,"msg":"Test","time":"2025-01-15T10:30:45.123Z","v":0}', 'bunyan');
+----
+2025-01-15T10:30:45.123Z
+
+# =============================================================================
+# Serilog Tests (.NET)
+# =============================================================================
+
+# Test 19: Serilog Compact JSON format
+query III
+SELECT tool_name, severity, message
+FROM parse_duck_hunt_log('{"@t":"2025-01-15T10:30:45.123Z","@mt":"User {UserId} logged in","UserId":123,"@l":"Information"}', 'serilog');
+----
+serilog	info	User {UserId} logged in
+
+# Test 20: Serilog JSON with Error level
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log('{"@t":"2025-01-15T10:30:46.456Z","@mt":"Connection failed","@l":"Error"}', 'serilog');
+----
+error	Connection failed
+
+# Test 21: Serilog JSON with Warning level
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log('{"@t":"2025-01-15T10:30:47.789Z","@mt":"High memory","@l":"Warning"}', 'serilog');
+----
+warning	High memory
+
+# Test 22: Serilog text format (short)
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log('[10:30:45 INF] User logged in', 'serilog');
+----
+info	User logged in
+
+# Test 23: Serilog text format (full timestamp)
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log('[2025-01-15 10:30:45.123 +00:00] [INF] User logged in', 'serilog');
+----
+info	User logged in
+
+# Test 24: Serilog text with ERR level
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log('[10:30:45 ERR] Connection failed', 'serilog');
+----
+error	Connection failed
+
+# Test 25: Serilog text with WRN level
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log('[10:30:45 WRN] High memory usage', 'serilog');
+----
+warning	High memory usage
+
+# =============================================================================
+# NLog Tests (.NET)
+# =============================================================================
+
+# Test 26: Basic NLog text format (pipe-delimited)
+query III
+SELECT tool_name, severity, message
+FROM parse_duck_hunt_log('2025-01-15 10:30:45.1234|INFO|MyApp.Program|Application started', 'nlog');
+----
+nlog	info	Application started
+
+# Test 27: NLog with ERROR level
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log('2025-01-15 10:30:46.5678|ERROR|MyApp.Service|Connection failed', 'nlog');
+----
+error	Connection failed
+
+# Test 28: NLog with WARN level
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log('2025-01-15 10:30:47.9012|WARN|MyApp.Cache|Cache miss', 'nlog');
+----
+warning	Cache miss
+
+# Test 29: NLog extracts timestamp
+query I
+SELECT started_at
+FROM parse_duck_hunt_log('2025-01-15 10:30:45.1234|INFO|MyApp.Program|Test', 'nlog');
+----
+2025-01-15 10:30:45.1234
+
+# Test 30: NLog extracts logger to category
+query I
+SELECT category
+FROM parse_duck_hunt_log('2025-01-15 10:30:45.1234|INFO|MyApp.Program|Test', 'nlog');
+----
+MyApp.Program
+
+# Test 31: NLog with exception (5th field)
+query I
+SELECT error_code
+FROM parse_duck_hunt_log('2025-01-15 10:30:45.1234|ERROR|MyApp.Program|Failed|System.TimeoutException', 'nlog');
+----
+System.TimeoutException
+
+# Test 32: Multiple NLog entries
+query II
+SELECT severity, COUNT(*) as cnt
+FROM parse_duck_hunt_log(E'2025-01-15 10:30:45.1234|INFO|App|Line 1\n2025-01-15 10:30:46.5678|ERROR|App|Line 2\n2025-01-15 10:30:47.9012|INFO|App|Line 3', 'nlog')
+GROUP BY severity ORDER BY severity;
+----
+error	1
+info	2
+
+# =============================================================================
+# Ruby Logger Tests
+# =============================================================================
+
+# Test 33: Basic Ruby Logger format
+query III
+SELECT tool_name, severity, message
+FROM parse_duck_hunt_log('I, [2025-01-15T10:30:45.123456 #1234]  INFO -- myapp: User logged in', 'ruby_logger');
+----
+ruby_logger	info	User logged in
+
+# Test 34: Ruby Logger ERROR level
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log('E, [2025-01-15T10:30:46.456789 #1234] ERROR -- myapp: Connection failed', 'ruby_logger');
+----
+error	Connection failed
+
+# Test 35: Ruby Logger WARN level
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log('W, [2025-01-15T10:30:47.789012 #1234]  WARN -- myapp: High memory', 'ruby_logger');
+----
+warning	High memory
+
+# Test 36: Ruby Logger FATAL level maps to error
+query I
+SELECT severity
+FROM parse_duck_hunt_log('F, [2025-01-15T10:30:45.123456 #1234] FATAL -- myapp: Fatal error', 'ruby_logger');
+----
+error
+
+# Test 37: Ruby Logger extracts timestamp
+query I
+SELECT started_at
+FROM parse_duck_hunt_log('I, [2025-01-15T10:30:45.123456 #1234]  INFO -- myapp: Test', 'ruby_logger');
+----
+2025-01-15T10:30:45.123456
+
+# Test 38: Ruby Logger extracts progname to category
+query I
+SELECT category
+FROM parse_duck_hunt_log('I, [2025-01-15T10:30:45.123456 #1234]  INFO -- myapp: Test', 'ruby_logger');
+----
+myapp
+
+# =============================================================================
+# Rails Log Tests
+# =============================================================================
+
+# Test 39: Rails request completed (200 OK)
+query III
+SELECT tool_name, severity, message
+FROM parse_duck_hunt_log(E'Started GET \"/users\" for 127.0.0.1 at 2025-01-15 10:30:45 +0000\nProcessing by UsersController#index as HTML\nCompleted 200 OK in 45ms (Views: 30.2ms | ActiveRecord: 12.1ms)', 'rails_log');
+----
+rails_log	info	GET /users -> 200 (45ms)
+
+# Test 40: Rails request with 500 error
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log(E'Started POST \"/api/data\" for 127.0.0.1 at 2025-01-15 10:30:46 +0000\nProcessing by ApiController#create as JSON\nCompleted 500 Internal Server Error in 123ms', 'rails_log');
+----
+error	POST /api/data -> 500 (123ms)
+
+# Test 41: Rails request with 404
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log(E'Started GET \"/missing\" for 127.0.0.1 at 2025-01-15 10:30:47 +0000\nProcessing by PagesController#show as HTML\nCompleted 404 Not Found in 5ms', 'rails_log');
+----
+warning	GET /missing -> 404 (5ms)
+
+# Test 42: Rails extracts controller#action to category
+query I
+SELECT category
+FROM parse_duck_hunt_log(E'Started GET \"/users\" for 127.0.0.1 at 2025-01-15 10:30:45 +0000\nProcessing by UsersController#index as HTML\nCompleted 200 OK in 45ms', 'rails_log');
+----
+UsersController#index
+
+# Test 43: Rails extracts path to file_path
+query I
+SELECT file_path
+FROM parse_duck_hunt_log(E'Started GET \"/users\" for 127.0.0.1 at 2025-01-15 10:30:45 +0000\nProcessing by UsersController#index as HTML\nCompleted 200 OK in 45ms', 'rails_log');
+----
+/users
+
+# Test 44: Rails extracts IP to origin
+query I
+SELECT origin
+FROM parse_duck_hunt_log(E'Started GET \"/users\" for 127.0.0.1 at 2025-01-15 10:30:45 +0000\nProcessing by UsersController#index as HTML\nCompleted 200 OK in 45ms', 'rails_log');
+----
+127.0.0.1
+
+# Test 45: Rails extracts execution_time
+query I
+SELECT execution_time
+FROM parse_duck_hunt_log(E'Started GET \"/users\" for 127.0.0.1 at 2025-01-15 10:30:45 +0000\nProcessing by UsersController#index as HTML\nCompleted 200 OK in 45ms', 'rails_log');
+----
+45.0
+
+# Test 46: Rails status code in error_code
+query I
+SELECT error_code
+FROM parse_duck_hunt_log(E'Started GET \"/users\" for 127.0.0.1 at 2025-01-15 10:30:45 +0000\nCompleted 200 OK in 45ms', 'rails_log');
+----
+200
+
+# =============================================================================
+# duck_hunt_formats() includes new app_logging formats
+# =============================================================================
+
+# Test 47: winston appears in formats list
+query II
+SELECT format, category
+FROM duck_hunt_formats()
+WHERE format = 'winston';
+----
+winston	app_logging
+
+# Test 48: pino appears in formats list
+query II
+SELECT format, category
+FROM duck_hunt_formats()
+WHERE format = 'pino';
+----
+pino	app_logging
+
+# Test 49: bunyan appears in formats list
+query II
+SELECT format, category
+FROM duck_hunt_formats()
+WHERE format = 'bunyan';
+----
+bunyan	app_logging
+
+# Test 50: serilog appears in formats list
+query II
+SELECT format, category
+FROM duck_hunt_formats()
+WHERE format = 'serilog';
+----
+serilog	app_logging
+
+# Test 51: nlog appears in formats list
+query II
+SELECT format, category
+FROM duck_hunt_formats()
+WHERE format = 'nlog';
+----
+nlog	app_logging
+
+# Test 52: ruby_logger appears in formats list
+query II
+SELECT format, category
+FROM duck_hunt_formats()
+WHERE format = 'ruby_logger';
+----
+ruby_logger	app_logging
+
+# Test 53: rails_log appears in formats list
+query II
+SELECT format, category
+FROM duck_hunt_formats()
+WHERE format = 'rails_log';
+----
+rails_log	app_logging
+
+# Test 54: app_logging category now has 10 formats (3 original + 7 new)
+query II
+SELECT category, COUNT(*) as cnt
+FROM duck_hunt_formats()
+WHERE category = 'app_logging'
+GROUP BY category;
+----
+app_logging	10
+
+# =============================================================================
+# Format Aliases
+# =============================================================================
+
+# Test 55: winston_json alias works
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('{"level":"info","message":"Test","timestamp":"2025-01-15T10:30:45.123Z"}', 'winston_json');
+----
+1
+
+# Test 56: pino_json alias works
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('{"level":30,"time":1705313445123,"msg":"Test"}', 'pino_json');
+----
+1
+
+# Test 57: bunyan_json alias works
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('{"name":"app","level":30,"msg":"Test","time":"2025-01-15T10:30:45.123Z","v":0}', 'bunyan_json');
+----
+1
+
+# Test 58: serilog_json alias works
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('{"@t":"2025-01-15T10:30:45.123Z","@mt":"Test"}', 'serilog_json');
+----
+1
+
+# Test 59: serilog_text alias works
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('[10:30:45 INF] Test message', 'serilog_text');
+----
+1
+
+# Test 60: nlog_text alias works
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('2025-01-15 10:30:45.1234|INFO|App|Test', 'nlog_text');
+----
+1
+
+# Test 61: ruby_log alias works
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('I, [2025-01-15T10:30:45.123456 #1234]  INFO -- app: Test', 'ruby_log');
+----
+1
+
+# Test 62: rails alias works
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log(E'Started GET \"/test\" for 127.0.0.1 at 2025-01-15 10:30:45 +0000\nCompleted 200 OK in 5ms', 'rails');
+----
+1
+
+# =============================================================================
+# Edge Cases
+# =============================================================================
+
+# Test 63: Empty input returns no rows for winston
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('', 'winston');
+----
+0
+
+# Test 64: Empty input returns no rows for pino
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('', 'pino');
+----
+0
+
+# Test 65: Empty input returns no rows for bunyan
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('', 'bunyan');
+----
+0
+
+# Test 66: Empty input returns no rows for serilog
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('', 'serilog');
+----
+0
+
+# Test 67: Empty input returns no rows for nlog
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('', 'nlog');
+----
+0
+
+# Test 68: Empty input returns no rows for ruby_logger
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('', 'ruby_logger');
+----
+0
+
+# Test 69: Empty input returns no rows for rails_log
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('', 'rails_log');
+----
+0
+

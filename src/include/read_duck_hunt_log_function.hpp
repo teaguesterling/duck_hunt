@@ -96,7 +96,15 @@ enum class TestResultFormat : uint8_t {
     KUBERNETES = 79,
     WINDOWS_EVENT = 80,
     AUDITD = 81,
-    S3_ACCESS = 82
+    S3_ACCESS = 82,
+    // Additional application logging formats
+    WINSTON = 83,
+    PINO = 84,
+    BUNYAN = 85,
+    SERILOG = 86,
+    NLOG = 87,
+    RUBY_LOGGER = 88,
+    RAILS_LOG = 89
 };
 
 // Bind data for read_duck_hunt_log table function

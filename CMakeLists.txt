@@ -132,6 +132,15 @@ set(EXTENSION_SOURCES
     src/parsers/app_logging/log4j_parser.cpp
     src/parsers/app_logging/logrus_parser.cpp
 
+    # Application logging parsers - Phase 2 (Node.js, .NET, Ruby)
+    src/parsers/app_logging/winston_parser.cpp
+    src/parsers/app_logging/pino_parser.cpp
+    src/parsers/app_logging/bunyan_parser.cpp
+    src/parsers/app_logging/serilog_parser.cpp
+    src/parsers/app_logging/nlog_parser.cpp
+    src/parsers/app_logging/ruby_logger_parser.cpp
+    src/parsers/app_logging/rails_log_parser.cpp
+
     # Infrastructure log parsers
     src/parsers/infrastructure/iptables_parser.cpp
     src/parsers/infrastructure/pf_parser.cpp

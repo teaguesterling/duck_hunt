@@ -62,6 +62,15 @@
 #include "parsers/app_logging/log4j_parser.hpp"
 #include "parsers/app_logging/logrus_parser.hpp"
 
+// Application logging parsers - Phase 2 (Node.js, .NET, Ruby)
+#include "parsers/app_logging/winston_parser.hpp"
+#include "parsers/app_logging/pino_parser.hpp"
+#include "parsers/app_logging/bunyan_parser.hpp"
+#include "parsers/app_logging/serilog_parser.hpp"
+#include "parsers/app_logging/nlog_parser.hpp"
+#include "parsers/app_logging/ruby_logger_parser.hpp"
+#include "parsers/app_logging/rails_log_parser.hpp"
+
 // Infrastructure log parsers
 #include "parsers/infrastructure/iptables_parser.hpp"
 #include "parsers/infrastructure/pf_parser.hpp"
@@ -136,6 +145,15 @@ static void LoadInternal(ExtensionLoader &loader) {
 	registry.registerParser(make_uniq<PythonLoggingParser>());
 	registry.registerParser(make_uniq<Log4jParser>());
 	registry.registerParser(make_uniq<LogrusParser>());
+
+	// Application logging parsers - Phase 2 (Node.js, .NET, Ruby)
+	registry.registerParser(make_uniq<WinstonParser>());
+	registry.registerParser(make_uniq<PinoParser>());
+	registry.registerParser(make_uniq<BunyanParser>());
+	registry.registerParser(make_uniq<SerilogParser>());
+	registry.registerParser(make_uniq<NLogParser>());
+	registry.registerParser(make_uniq<RubyLoggerParser>());
+	registry.registerParser(make_uniq<RailsLogParser>());
 
 	// Infrastructure log parsers
 	registry.registerParser(make_uniq<IptablesParser>());

@@ -789,6 +789,14 @@ std::string TestResultFormatToString(TestResultFormat format) {
         case TestResultFormat::PYTHON_LOGGING: return "python_logging";
         case TestResultFormat::LOG4J: return "log4j";
         case TestResultFormat::LOGRUS: return "logrus";
+        // Application logging formats - Phase 2 (Node.js, .NET, Ruby)
+        case TestResultFormat::WINSTON: return "winston";
+        case TestResultFormat::PINO: return "pino";
+        case TestResultFormat::BUNYAN: return "bunyan";
+        case TestResultFormat::SERILOG: return "serilog";
+        case TestResultFormat::NLOG: return "nlog";
+        case TestResultFormat::RUBY_LOGGER: return "ruby_logger";
+        case TestResultFormat::RAILS_LOG: return "rails_log";
         // Infrastructure formats
         case TestResultFormat::IPTABLES: return "iptables";
         case TestResultFormat::PF_FIREWALL: return "pf";
@@ -891,6 +899,22 @@ TestResultFormat StringToTestResultFormat(const std::string& str) {
     if (str == "logback") return TestResultFormat::LOG4J;  // Alias (same format)
     if (str == "logrus") return TestResultFormat::LOGRUS;
     if (str == "logrus_text") return TestResultFormat::LOGRUS;  // Alias
+    // Application logging formats - Phase 2 (Node.js, .NET, Ruby)
+    if (str == "winston") return TestResultFormat::WINSTON;
+    if (str == "winston_json") return TestResultFormat::WINSTON;  // Alias
+    if (str == "pino") return TestResultFormat::PINO;
+    if (str == "pino_json") return TestResultFormat::PINO;  // Alias
+    if (str == "bunyan") return TestResultFormat::BUNYAN;
+    if (str == "bunyan_json") return TestResultFormat::BUNYAN;  // Alias
+    if (str == "serilog") return TestResultFormat::SERILOG;
+    if (str == "serilog_json") return TestResultFormat::SERILOG;  // Alias
+    if (str == "serilog_text") return TestResultFormat::SERILOG;  // Alias
+    if (str == "nlog") return TestResultFormat::NLOG;
+    if (str == "nlog_text") return TestResultFormat::NLOG;  // Alias
+    if (str == "ruby_logger") return TestResultFormat::RUBY_LOGGER;
+    if (str == "ruby_log") return TestResultFormat::RUBY_LOGGER;  // Alias
+    if (str == "rails_log") return TestResultFormat::RAILS_LOG;
+    if (str == "rails") return TestResultFormat::RAILS_LOG;  // Alias
     // Infrastructure formats
     if (str == "iptables") return TestResultFormat::IPTABLES;
     if (str == "netfilter") return TestResultFormat::IPTABLES;  // Alias

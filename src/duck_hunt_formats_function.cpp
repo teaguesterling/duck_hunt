@@ -118,6 +118,15 @@ static std::vector<FormatInfo> GetAllFormats() {
         {"log4j", "Java Log4j/Logback text format", "app_logging", "", false},
         {"logrus", "Go Logrus text/key=value format", "app_logging", "", false},
 
+        // Application logging formats - Phase 2 (Node.js, .NET, Ruby)
+        {"winston", "Node.js Winston logger (JSON + text)", "app_logging", "", false},
+        {"pino", "Node.js Pino logger JSON format", "app_logging", "", false},
+        {"bunyan", "Node.js Bunyan logger JSON format", "app_logging", "", false},
+        {"serilog", ".NET Serilog (JSON + text)", "app_logging", "", false},
+        {"nlog", ".NET NLog text format", "app_logging", "", false},
+        {"ruby_logger", "Ruby stdlib Logger format", "app_logging", "", false},
+        {"rails_log", "Ruby on Rails request logs", "app_logging", "", false},
+
         // Infrastructure log formats
         {"iptables", "Linux iptables/netfilter firewall logs", "infrastructure", "", false},
         {"pf", "BSD Packet Filter (pf) firewall logs", "infrastructure", "", false},
