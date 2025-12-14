@@ -16,8 +16,12 @@ set(EXTENSION_SOURCES
     
     # Core modular architecture
     src/core/parser_registry.cpp
+    src/core/new_parser_registry.cpp
     src/core/format_detector.cpp
     src/core/webbed_integration.cpp
+
+    # New parser category registrations
+    src/parsers/debugging/init.cpp
 
     # Parser implementations
     src/parsers/test_frameworks/pytest_parser.cpp

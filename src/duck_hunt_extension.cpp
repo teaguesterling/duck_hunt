@@ -15,6 +15,7 @@
 #include "include/status_badge_function.hpp"
 #include "include/duck_hunt_formats_function.hpp"
 #include "core/parser_registry.hpp"
+#include "core/new_parser_registry.hpp"  // New modular parser registry
 
 // Include parser headers to force registration
 #include "parsers/tool_outputs/eslint_json_parser.hpp"
@@ -98,8 +99,12 @@ namespace duckdb {
 static void LoadInternal(ExtensionLoader &loader) {
 	// DEBUG: Test if LoadInternal is being called
 	// throw InternalException("DEBUG: LoadInternal was called");
-	
-	// Initialize parser registry with key parsers
+
+	// Initialize new modular parser registry (category-based auto-registration)
+	log_parsers::InitializeAllParsers();
+
+	// Initialize old parser registry with key parsers
+	// TODO: Migrate these to category-based registration and remove
 	auto& registry = ParserRegistry::getInstance();
 	registry.registerParser(make_uniq<ESLintJSONParser>());
 	registry.registerParser(make_uniq<GoTestJSONParser>());
