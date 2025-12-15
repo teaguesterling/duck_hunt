@@ -1,5 +1,5 @@
 #include "aws_cloudtrail_parser.hpp"
-#include "../../core/parser_registry.hpp"
+#include "core/legacy_parser_registry.hpp"
 #include "duckdb/common/string_util.hpp"
 #include <sstream>
 #include <regex>

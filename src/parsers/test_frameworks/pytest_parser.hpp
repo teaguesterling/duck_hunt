@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../base/parser_interface.hpp"
+#include "parsers/base/parser_interface.hpp"
 
 namespace duckdb {
 

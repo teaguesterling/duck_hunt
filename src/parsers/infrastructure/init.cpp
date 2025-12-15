@@ -1,5 +1,5 @@
-#include "../../core/new_parser_registry.hpp"
-#include "../base/base_parser.hpp"
+#include "core/parser_registry.hpp"
+#include "parsers/base/base_parser.hpp"
 #include "iptables_parser.hpp"
 #include "pf_parser.hpp"
 #include "cisco_asa_parser.hpp"

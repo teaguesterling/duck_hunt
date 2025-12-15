@@ -14,8 +14,8 @@
 #include "include/validation_event_types.hpp"
 #include "include/status_badge_function.hpp"
 #include "include/duck_hunt_formats_function.hpp"
-#include "core/parser_registry.hpp"
-#include "core/new_parser_registry.hpp"  // New modular parser registry
+#include "core/legacy_parser_registry.hpp"
+#include "core/parser_registry.hpp"  // Modular parser registry
 
 // Include parser headers to force registration
 #include "parsers/tool_outputs/eslint_json_parser.hpp"

@@ -1,9 +1,9 @@
-#include "../../core/new_parser_registry.hpp"
-#include "../base/base_parser.hpp"
-#include "../specialized/strace_parser.hpp"
-#include "../specialized/valgrind_parser.hpp"
-#include "../specialized/gdb_lldb_parser.hpp"
-#include "../specialized/coverage_parser.hpp"
+#include "core/parser_registry.hpp"
+#include "parsers/base/base_parser.hpp"
+#include "parsers/specialized/strace_parser.hpp"
+#include "parsers/specialized/valgrind_parser.hpp"
+#include "parsers/specialized/gdb_lldb_parser.hpp"
+#include "parsers/specialized/coverage_parser.hpp"
 
 namespace duckdb {
 namespace log_parsers {

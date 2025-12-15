@@ -1,5 +1,5 @@
-#include "../../core/new_parser_registry.hpp"
-#include "../base/base_parser.hpp"
+#include "core/parser_registry.hpp"
+#include "parsers/base/base_parser.hpp"
 #include "eslint_json_parser.hpp"
 #include "gotest_json_parser.hpp"
 #include "rubocop_json_parser.hpp"
@@ -19,6 +19,7 @@
 #include "lintr_json_parser.hpp"
 #include "sqlfluff_json_parser.hpp"
 #include "tflint_json_parser.hpp"
+#include "generic_lint_parser.hpp"
 
 namespace duckdb {
 namespace log_parsers {
@@ -533,6 +534,35 @@ private:
 };
 
 /**
+ * Generic Lint parser wrapper.
+ * Handles generic lint format: file:line:column: level: message
+ */
+class GenericLintParserImpl : public BaseParser {
+public:
+    GenericLintParserImpl()
+        : BaseParser("generic_lint",
+                     "Generic Lint Parser",
+                     ParserCategory::LINTING,
+                     "Generic lint format (file:line:col: level: message)",
+                     ParserPriority::LOW) {
+        addAlias("lint");
+    }
+
+    bool canParse(const std::string& content) const override {
+        return parser_.CanParse(content);
+    }
+
+    std::vector<ValidationEvent> parse(const std::string& content) const override {
+        std::vector<ValidationEvent> events;
+        parser_.Parse(content, events);
+        return events;
+    }
+
+private:
+    duck_hunt::GenericLintParser parser_;
+};
+
+/**
  * Register all tool output parsers with the registry.
  */
 DECLARE_PARSER_CATEGORY(ToolOutputs);
@@ -557,6 +587,7 @@ void RegisterToolOutputsParsers(ParserRegistry& registry) {
     registry.registerParser(make_uniq<LintrJSONParserImpl>());
     registry.registerParser(make_uniq<SqlfluffJSONParserImpl>());
     registry.registerParser(make_uniq<TflintJSONParserImpl>());
+    registry.registerParser(make_uniq<GenericLintParserImpl>());
 }
 
 // Auto-register this category

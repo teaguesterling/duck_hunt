@@ -1,5 +1,5 @@
-#include "../../core/new_parser_registry.hpp"
-#include "../base/base_parser.hpp"
+#include "core/parser_registry.hpp"
+#include "parsers/base/base_parser.hpp"
 #include "aws_cloudtrail_parser.hpp"
 #include "gcp_cloud_logging_parser.hpp"
 #include "azure_activity_parser.hpp"

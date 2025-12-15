@@ -4,93 +4,163 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <functional>
 #include "duckdb/common/unique_ptr.hpp"
-#include "../include/validation_event_types.hpp"
-#include "../include/read_duck_hunt_log_function.hpp"
-#include "../parsers/base/parser_interface.hpp"
+#include "duckdb/main/client_context.hpp"
+#include "include/validation_event_types.hpp"
 
 namespace duckdb {
 
+// Nested namespace for new parser system during migration.
+// Once migration is complete, these will move to duckdb namespace
+// and replace the old IParser/ParserRegistry.
+namespace log_parsers {
+
 /**
- * Central registry for all test result parsers.
- * Manages parser lifecycle and provides efficient format detection.
+ * Parser interface - string-based format names, no enum dependency.
+ * All parsers should implement this interface.
+ */
+class IParser {
+public:
+    virtual ~IParser() = default;
+
+    // Core parsing
+    virtual bool canParse(const std::string& content) const = 0;
+    virtual std::vector<ValidationEvent> parse(const std::string& content) const = 0;
+
+    // Context-aware parsing (for XML parsers needing webbed, etc.)
+    virtual std::vector<ValidationEvent> parseWithContext(ClientContext& context,
+                                                          const std::string& content) const {
+        return parse(content);
+    }
+    virtual bool requiresContext() const { return false; }
+
+    // Metadata - all string-based
+    virtual std::string getFormatName() const = 0;  // e.g., "pylint_text", "strace"
+    virtual std::string getName() const = 0;         // Human-readable: "Pylint Parser"
+    virtual std::string getCategory() const = 0;     // e.g., "linting_tool", "debugging_tool"
+    virtual std::string getDescription() const = 0;  // e.g., "Pylint Python code quality output"
+    virtual int getPriority() const = 0;             // Higher = checked first in auto-detect
+
+    // Optional: aliases for format name (e.g., "pylint" -> "pylint_text")
+    virtual std::vector<std::string> getAliases() const { return {}; }
+
+    // Optional: required extensions (e.g., "webbed" for XML parsers)
+    virtual std::string getRequiredExtension() const { return ""; }
+};
+
+using ParserPtr = unique_ptr<IParser>;
+
+/**
+ * Parser metadata for the formats table function.
+ */
+struct ParserInfo {
+    std::string format_name;
+    std::string description;
+    std::string category;
+    std::string required_extension;
+    int priority;
+};
+
+/**
+ * Central parser registry - string-based lookup, category organization.
+ * Manages parser lifecycle and provides format detection.
  */
 class ParserRegistry {
 public:
     /**
-     * Register a new parser with the registry.
-     * Parsers are automatically sorted by priority.
+     * Register a parser. The format name and aliases become lookup keys.
      */
     void registerParser(ParserPtr parser);
-    
+
     /**
-     * Find the best parser for the given content.
-     * Returns nullptr if no parser can handle the content.
+     * Find parser by format name (or alias).
+     */
+    IParser* getParser(const std::string& format_name) const;
+
+    /**
+     * Auto-detect: find the best parser for content.
      */
     IParser* findParser(const std::string& content) const;
-    
+
     /**
-     * Get parser for a specific format (if registered).
-     */
-    IParser* getParser(TestResultFormat format) const;
-    
-    /**
-     * Get all registered parsers (sorted by priority).
-     */
-    const std::vector<IParser*>& getAllParsers() const;
-    
-    /**
-     * Get parsers by category.
+     * Get all parsers in a category (sorted by priority).
      */
     std::vector<IParser*> getParsersByCategory(const std::string& category) const;
-    
+
     /**
-     * Get registry statistics.
+     * Get all registered format names (for formats table function).
      */
-    struct Stats {
-        size_t total_parsers = 0;
-        size_t categories = 0;
-        std::unordered_map<std::string, size_t> parsers_by_category;
-    };
-    Stats getStats() const;
-    
+    std::vector<ParserInfo> getAllFormats() const;
+
     /**
-     * Clear all registered parsers (mainly for testing).
+     * Get all unique categories.
      */
-    void clear();
-    
+    std::vector<std::string> getCategories() const;
+
+    /**
+     * Check if a format is registered.
+     */
+    bool hasFormat(const std::string& format_name) const;
+
     /**
      * Get singleton instance.
      */
     static ParserRegistry& getInstance();
-    
+
+    /**
+     * Clear registry (for testing).
+     */
+    void clear();
+
 private:
-    std::vector<ParserPtr> parsers_;
-    mutable std::vector<IParser*> sorted_parsers_;  // Cached sorted view
-    std::unordered_map<TestResultFormat, IParser*> format_map_;
-    mutable bool needs_resort_ = false;
-    
-    void ensureSorted() const;
     ParserRegistry() = default;
+
+    std::vector<ParserPtr> parsers_;
+    std::unordered_map<std::string, IParser*> format_map_;  // format_name -> parser
+    mutable std::vector<IParser*> sorted_parsers_;
+    mutable bool needs_resort_ = false;
+
+    void ensureSorted() const;
 };
 
 /**
- * Helper class for automatic parser registration.
- * Use REGISTER_PARSER macro for convenience.
+ * Category registration helper.
+ * Each parser category (debugging, linting, etc.) provides a registration function.
  */
-template<typename ParserType>
-class ParserRegistrar {
-public:
-    ParserRegistrar() {
-        ParserRegistry::getInstance().registerParser(make_uniq<ParserType>());
-    }
-};
+using CategoryRegistrationFn = std::function<void(ParserRegistry&)>;
 
 /**
- * Macro to automatically register a parser class.
- * Place in parser .cpp files to auto-register on startup.
+ * Register a category's parsers.
+ * Call this during extension initialization for each category.
  */
-#define REGISTER_PARSER(ParserClass) \
-    static ParserRegistrar<ParserClass> g_##ParserClass##_registrar
+void RegisterParserCategory(const std::string& category_name, CategoryRegistrationFn register_fn);
 
+/**
+ * Initialize all registered categories.
+ * Called once during extension load.
+ */
+void InitializeAllParsers();
+
+// Convenience macros for parser registration
+
+/**
+ * Declare a parser registration function for a category.
+ * Use in header: DECLARE_PARSER_CATEGORY(Debugging);
+ */
+#define DECLARE_PARSER_CATEGORY(category) \
+    void Register##category##Parsers(log_parsers::ParserRegistry& registry)
+
+/**
+ * Register a category during static initialization.
+ * Use in .cpp: REGISTER_PARSER_CATEGORY(Debugging);
+ */
+#define REGISTER_PARSER_CATEGORY(category) \
+    static struct category##_category_registrar { \
+        category##_category_registrar() { \
+            log_parsers::RegisterParserCategory(#category, Register##category##Parsers); \
+        } \
+    } g_##category##_registrar
+
+} // namespace log_parsers
 } // namespace duckdb

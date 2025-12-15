@@ -1,6 +1,6 @@
 #include "pytest_json_parser.hpp"
-#include "../../core/parser_registry.hpp"
-#include "../../include/validation_event_types.hpp"
+#include "core/legacy_parser_registry.hpp"
+#include "include/validation_event_types.hpp"
 
 namespace duckdb {
 

@@ -1,5 +1,5 @@
-#include "../../core/new_parser_registry.hpp"
-#include "../base/base_parser.hpp"
+#include "core/parser_registry.hpp"
+#include "parsers/base/base_parser.hpp"
 #include "drone_ci_text_parser.hpp"
 #include "terraform_text_parser.hpp"
 #include "github_cli_parser.hpp"

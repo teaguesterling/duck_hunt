@@ -1,5 +1,5 @@
-#include "../../core/new_parser_registry.hpp"
-#include "../base/base_parser.hpp"
+#include "core/parser_registry.hpp"
+#include "parsers/base/base_parser.hpp"
 #include "syslog_parser.hpp"
 #include "apache_access_parser.hpp"
 #include "nginx_access_parser.hpp"

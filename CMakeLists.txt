@@ -7,7 +7,7 @@ set(EXTENSION_NAME ${TARGET_NAME}_extension)
 set(LOADABLE_EXTENSION_NAME ${TARGET_NAME}_loadable_extension)
 
 project(${TARGET_NAME})
-include_directories(src/include)
+include_directories(src/include src)
 
 set(EXTENSION_SOURCES 
     src/duck_hunt_extension.cpp
@@ -15,8 +15,8 @@ set(EXTENSION_SOURCES
     src/read_duck_hunt_log_function.cpp
     
     # Core modular architecture
+    src/core/legacy_parser_registry.cpp
     src/core/parser_registry.cpp
-    src/core/new_parser_registry.cpp
     src/core/format_detector.cpp
     src/core/webbed_integration.cpp
 
@@ -86,7 +86,13 @@ set(EXTENSION_SOURCES
     # Phase 6: Text Parser Extraction - Batch 4
     src/parsers/test_frameworks/gtest_text_parser.cpp
     src/parsers/test_frameworks/nunit_xunit_text_parser.cpp
-    
+
+    # Phase 8: Additional parser extractions
+    src/parsers/test_frameworks/duckdb_test_parser.cpp
+    src/parsers/test_frameworks/pytest_cov_text_parser.cpp
+    src/parsers/tool_outputs/generic_lint_parser.cpp
+    src/parsers/tool_outputs/regexp_parser.cpp
+
     # Phase 7: Specialized Parser Extraction - Batch 1
     src/parsers/specialized/valgrind_parser.cpp
     

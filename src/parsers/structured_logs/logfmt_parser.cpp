@@ -1,5 +1,5 @@
 #include "logfmt_parser.hpp"
-#include "../../core/parser_registry.hpp"
+#include "core/legacy_parser_registry.hpp"
 #include "duckdb/common/string_util.hpp"
 #include <sstream>
 #include <unordered_map>

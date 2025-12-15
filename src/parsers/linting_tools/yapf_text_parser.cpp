@@ -1,5 +1,5 @@
 #include "yapf_text_parser.hpp"
-#include "../../core/parser_registry.hpp"
+#include "core/legacy_parser_registry.hpp"
 #include <regex>
 #include <sstream>
 

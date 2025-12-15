@@ -1,5 +1,5 @@
 #include "github_cli_parser.hpp"
-#include "../../core/parser_registry.hpp"
+#include "core/legacy_parser_registry.hpp"
 #include <sstream>
 #include <regex>
 

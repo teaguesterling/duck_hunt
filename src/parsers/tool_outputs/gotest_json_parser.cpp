@@ -1,5 +1,5 @@
 #include "gotest_json_parser.hpp"
-#include "../../core/parser_registry.hpp"
+#include "core/legacy_parser_registry.hpp"
 #include <sstream>
 
 namespace duckdb {

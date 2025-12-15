@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../core/new_parser_registry.hpp"
+#include "core/parser_registry.hpp"
 #include <string>
 #include <vector>
 

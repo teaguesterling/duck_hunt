@@ -1,6 +1,6 @@
 #include "format_detector.hpp"
-#include "parser_registry.hpp"
-#include "../parsers/base/parser_interface.hpp"
+#include "legacy_parser_registry.hpp"
+#include "parsers/base/parser_interface.hpp"
 
 namespace duckdb {
 

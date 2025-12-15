@@ -1,5 +1,5 @@
-#include "../../core/new_parser_registry.hpp"
-#include "../base/base_parser.hpp"
+#include "core/parser_registry.hpp"
+#include "parsers/base/base_parser.hpp"
 #include "junit_text_parser.hpp"
 #include "gtest_text_parser.hpp"
 #include "rspec_text_parser.hpp"
@@ -8,6 +8,8 @@
 #include "pytest_parser.hpp"
 #include "pytest_json_parser.hpp"
 #include "junit_xml_parser.hpp"
+#include "duckdb_test_parser.hpp"
+#include "pytest_cov_text_parser.hpp"
 
 namespace duckdb {
 namespace log_parsers {
@@ -224,6 +226,63 @@ public:
 };
 
 /**
+ * DuckDB test output parser wrapper.
+ * Handles DuckDB's unittest output format.
+ */
+class DuckDBTestParserImpl : public BaseParser {
+public:
+    DuckDBTestParserImpl()
+        : BaseParser("duckdb_test",
+                     "DuckDB Test Parser",
+                     ParserCategory::TEST_FRAMEWORK,
+                     "DuckDB unittest output format",
+                     ParserPriority::HIGH) {}
+
+    bool canParse(const std::string& content) const override {
+        return parser_.CanParse(content);
+    }
+
+    std::vector<ValidationEvent> parse(const std::string& content) const override {
+        std::vector<ValidationEvent> events;
+        parser_.Parse(content, events);
+        return events;
+    }
+
+private:
+    duck_hunt::DuckDBTestParser parser_;
+};
+
+/**
+ * Pytest coverage text parser wrapper.
+ * Handles pytest-cov output with coverage information.
+ */
+class PytestCovTextParserImpl : public BaseParser {
+public:
+    PytestCovTextParserImpl()
+        : BaseParser("pytest_cov_text",
+                     "Pytest Coverage Parser",
+                     ParserCategory::TEST_FRAMEWORK,
+                     "Python pytest-cov text output with coverage",
+                     ParserPriority::HIGH) {
+        addAlias("pytest_cov");
+        addAlias("pytest-cov");
+    }
+
+    bool canParse(const std::string& content) const override {
+        return parser_.CanParse(content);
+    }
+
+    std::vector<ValidationEvent> parse(const std::string& content) const override {
+        std::vector<ValidationEvent> events;
+        parser_.Parse(content, events);
+        return events;
+    }
+
+private:
+    duck_hunt::PytestCovTextParser parser_;
+};
+
+/**
  * Register all test framework parsers with the registry.
  */
 DECLARE_PARSER_CATEGORY(TestFrameworks);
@@ -237,6 +296,8 @@ void RegisterTestFrameworksParsers(ParserRegistry& registry) {
     registry.registerParser(make_uniq<PytestTextParserImpl>());
     registry.registerParser(make_uniq<PytestJSONParserImpl>());
     registry.registerParser(make_uniq<JUnitXmlParserImpl>());
+    registry.registerParser(make_uniq<DuckDBTestParserImpl>());
+    registry.registerParser(make_uniq<PytestCovTextParserImpl>());
 }
 
 // Auto-register this category

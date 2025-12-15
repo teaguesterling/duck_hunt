@@ -1,8 +1,8 @@
 #pragma once
 
-#include "../include/validation_event_types.hpp"
-#include "../core/parser_registry.hpp"
-#include "../core/format_detector.hpp"
+#include "include/validation_event_types.hpp"
+#include "core/parser_registry.hpp"
+#include "core/format_detector.hpp"
 
 namespace duckdb {
 

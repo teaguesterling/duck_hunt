@@ -1,0 +1,16 @@
+commands:
+  build:
+    cmd: make -j 4
+    description: 'Build release'
+    timeout: 300
+    format: auto
+  test:
+    cmd: make test
+    description: 'Run unit tests'
+    timeout: 300
+    format: auto
+  build-debug:
+    cmd: make debug -j 4
+    description: 'Build debug version'
+    timeout: 300
+    format: auto
