@@ -5,7 +5,22 @@
 namespace duckdb {
 namespace log_parsers {
 
-// Category registration storage
+// Forward declarations of all category registration functions
+// These are defined in each category's init.cpp
+void RegisterToolOutputsParsers(ParserRegistry& registry);
+void RegisterTestFrameworksParsers(ParserRegistry& registry);
+void RegisterBuildSystemsParsers(ParserRegistry& registry);
+void RegisterLintingToolsParsers(ParserRegistry& registry);
+void RegisterDebuggingParsers(ParserRegistry& registry);
+void RegisterCISystemsParsers(ParserRegistry& registry);
+void RegisterStructuredLogsParsers(ParserRegistry& registry);
+void RegisterWebAccessParsers(ParserRegistry& registry);
+void RegisterCloudLogsParsers(ParserRegistry& registry);
+void RegisterAppLoggingParsers(ParserRegistry& registry);
+void RegisterInfrastructureParsers(ParserRegistry& registry);
+void RegisterInfrastructureToolsParsers(ParserRegistry& registry);
+
+// Category registration storage (kept for backwards compatibility)
 static std::vector<std::pair<std::string, CategoryRegistrationFn>>& GetCategoryRegistry() {
     static std::vector<std::pair<std::string, CategoryRegistrationFn>> registry;
     return registry;
@@ -21,9 +36,21 @@ void RegisterParserCategory(const std::string& category_name, CategoryRegistrati
 void InitializeAllParsers() {
     std::call_once(g_init_flag, []() {
         auto& registry = ParserRegistry::getInstance();
-        for (const auto& entry : GetCategoryRegistry()) {
-            entry.second(registry);  // entry.first is name, entry.second is fn
-        }
+
+        // Explicitly call all registration functions to avoid static initialization issues
+        RegisterToolOutputsParsers(registry);
+        RegisterTestFrameworksParsers(registry);
+        RegisterBuildSystemsParsers(registry);
+        RegisterLintingToolsParsers(registry);
+        RegisterDebuggingParsers(registry);
+        RegisterCISystemsParsers(registry);
+        RegisterStructuredLogsParsers(registry);
+        RegisterWebAccessParsers(registry);
+        RegisterCloudLogsParsers(registry);
+        RegisterAppLoggingParsers(registry);
+        RegisterInfrastructureParsers(registry);
+        RegisterInfrastructureToolsParsers(registry);
+
         g_initialized = true;
     });
 }
