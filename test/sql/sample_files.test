@@ -128,3 +128,14 @@ ORDER BY log_line_start;
 5	5
 6	6
 17	17
+
+# Test 13: Regression test for catastrophic regex backtracking (issue: paths with many colons)
+# This file contains spack build output with very long paths containing many colons.
+# Previously, parsers with regex patterns like [^:]+ would cause catastrophic backtracking
+# leading to stack overflow/segfault when processing such files with auto-detection.
+# The test verifies that auto-detection completes without crashing.
+query I
+SELECT COUNT(*) >= 0 as completed
+FROM read_duck_hunt_log('test/samples/spack_build.out', 'auto');
+----
+true

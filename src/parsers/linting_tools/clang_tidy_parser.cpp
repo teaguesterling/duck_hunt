@@ -39,18 +39,28 @@ bool ClangTidyParser::isValidClangTidyOutput(const std::string& content) const {
     // Check for clang-tidy specific output patterns
     // clang-tidy often includes column numbers (file:line:column:)
     // and has different message patterns than mypy
-    std::regex clang_tidy_pattern(R"([^:]+:\d+:\d+:\s*(error|warning|note):\s*[^\[]*\[[^\]]+\])");
-    if (std::regex_search(content, clang_tidy_pattern)) {
-        // Additional validation: check if it looks like clang-tidy vs mypy
-        // clang-tidy messages often contain C++ specific terms
-        std::vector<std::string> cpp_terms = {
-            "function", "variable", "parameter", "struct", "class", 
-            "namespace", "const", "static", "inline", "template", "typename"
-        };
-        
-        for (const auto& term : cpp_terms) {
-            if (content.find(term) != std::string::npos) {
-                return true;
+    // Guard: only run expensive regex if we have error/warning/note patterns
+    if (content.find(": error:") != std::string::npos ||
+        content.find(": warning:") != std::string::npos ||
+        content.find(": note:") != std::string::npos) {
+        // Process line-by-line to avoid catastrophic backtracking on large files
+        std::regex clang_tidy_pattern(R"([^:]+:\d+:\d+:\s*(error|warning|note):\s*[^\[]*\[[^\]]+\])");
+        std::istringstream stream(content);
+        std::string line;
+        while (std::getline(stream, line)) {
+            if (std::regex_search(line, clang_tidy_pattern)) {
+                // Additional validation: check if it looks like clang-tidy vs mypy
+                // clang-tidy messages often contain C++ specific terms
+                std::vector<std::string> cpp_terms = {
+                    "function", "variable", "parameter", "struct", "class",
+                    "namespace", "const", "static", "inline", "template", "typename"
+                };
+
+                for (const auto& term : cpp_terms) {
+                    if (content.find(term) != std::string::npos) {
+                        return true;
+                    }
+                }
             }
         }
     }
