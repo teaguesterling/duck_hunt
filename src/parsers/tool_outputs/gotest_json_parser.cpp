@@ -1,5 +1,4 @@
 #include "gotest_json_parser.hpp"
-#include "core/legacy_parser_registry.hpp"
 #include <sstream>
 
 namespace duckdb {
@@ -139,7 +138,5 @@ std::vector<ValidationEvent> GoTestJSONParser::parse(const std::string& content)
     return events;
 }
 
-// Auto-register this parser
-REGISTER_PARSER(GoTestJSONParser);
 
 } // namespace duckdb

@@ -1,5 +1,4 @@
 #include "flake8_parser.hpp"
-#include "core/legacy_parser_registry.hpp"
 #include <sstream>
 
 namespace duckdb {
@@ -98,8 +97,5 @@ std::vector<ValidationEvent> Flake8Parser::parse(const std::string& content) con
     
     return events;
 }
-
-// Auto-register this parser
-REGISTER_PARSER(Flake8Parser);
 
 } // namespace duckdb

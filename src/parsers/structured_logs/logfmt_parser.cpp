@@ -1,5 +1,4 @@
 #include "logfmt_parser.hpp"
-#include "core/legacy_parser_registry.hpp"
 #include "duckdb/common/string_util.hpp"
 #include <sstream>
 #include <unordered_map>
@@ -227,6 +226,5 @@ std::vector<ValidationEvent> LogfmtParser::parse(const std::string& content) con
     return events;
 }
 
-REGISTER_PARSER(LogfmtParser);
 
 } // namespace duckdb

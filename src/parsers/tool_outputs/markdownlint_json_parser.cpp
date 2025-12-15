@@ -1,5 +1,4 @@
 #include "markdownlint_json_parser.hpp"
-#include "core/legacy_parser_registry.hpp"
 #include "yyjson.hpp"
 
 namespace duckdb {
@@ -141,7 +140,5 @@ std::vector<ValidationEvent> MarkdownlintJSONParser::parse(const std::string& co
     return events;
 }
 
-// Auto-register this parser
-REGISTER_PARSER(MarkdownlintJSONParser);
 
 } // namespace duckdb

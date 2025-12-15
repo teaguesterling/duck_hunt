@@ -1,5 +1,4 @@
 #include "mypy_parser.hpp"
-#include "core/legacy_parser_registry.hpp"
 #include <sstream>
 
 namespace duckdb {
@@ -234,8 +233,5 @@ std::vector<ValidationEvent> MypyParser::parse(const std::string& content) const
 
     return events;
 }
-
-// Auto-register this parser
-REGISTER_PARSER(MypyParser);
 
 } // namespace duckdb

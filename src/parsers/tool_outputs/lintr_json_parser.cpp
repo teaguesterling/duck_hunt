@@ -1,5 +1,4 @@
 #include "lintr_json_parser.hpp"
-#include "core/legacy_parser_registry.hpp"
 
 namespace duckdb {
 
@@ -151,7 +150,5 @@ std::vector<ValidationEvent> LintrJSONParser::parse(const std::string& content) 
     return events;
 }
 
-// Auto-register this parser
-REGISTER_PARSER(LintrJSONParser);
 
 } // namespace duckdb

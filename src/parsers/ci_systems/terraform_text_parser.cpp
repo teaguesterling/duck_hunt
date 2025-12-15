@@ -1,5 +1,4 @@
 #include "terraform_text_parser.hpp"
-#include "core/legacy_parser_registry.hpp"
 #include "duckdb/common/exception.hpp"
 #include <sstream>
 #include <regex>
@@ -475,7 +474,5 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string& conte
     return events;
 }
 
-// Auto-register this parser
-REGISTER_PARSER(TerraformTextParser);
 
 } // namespace duckdb

@@ -1,5 +1,4 @@
 #include "bazel_parser.hpp"
-#include "core/legacy_parser_registry.hpp"
 #include <sstream>
 
 namespace duckdb {
@@ -412,7 +411,5 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string& content) cons
     return events;
 }
 
-// Auto-register this parser
-REGISTER_PARSER(BazelParser);
 
 } // namespace duckdb

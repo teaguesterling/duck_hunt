@@ -1,5 +1,4 @@
 #include "eslint_json_parser.hpp"
-#include "core/legacy_parser_registry.hpp"
 
 namespace duckdb {
 
@@ -161,7 +160,5 @@ std::vector<ValidationEvent> ESLintJSONParser::parse(const std::string& content)
     return events;
 }
 
-// Auto-register this parser
-REGISTER_PARSER(ESLintJSONParser);
 
 } // namespace duckdb

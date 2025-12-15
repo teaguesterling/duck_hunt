@@ -1,5 +1,4 @@
 #include "phpstan_json_parser.hpp"
-#include "core/legacy_parser_registry.hpp"
 #include "yyjson.hpp"
 
 namespace duckdb {
@@ -146,7 +145,5 @@ std::vector<ValidationEvent> PHPStanJSONParser::parse(const std::string& content
     return events;
 }
 
-// Auto-register this parser
-REGISTER_PARSER(PHPStanJSONParser);
 
 } // namespace duckdb

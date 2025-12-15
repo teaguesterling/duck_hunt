@@ -1,5 +1,4 @@
 #include "autopep8_text_parser.hpp"
-#include "core/legacy_parser_registry.hpp"
 #include <sstream>
 
 namespace duckdb {
@@ -392,8 +391,5 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string& conten
 
     return events;
 }
-
-// Auto-register this parser
-REGISTER_PARSER(Autopep8TextParser);
 
 } // namespace duckdb

@@ -1,5 +1,4 @@
 #include "nginx_access_parser.hpp"
-#include "core/legacy_parser_registry.hpp"
 #include "duckdb/common/string_util.hpp"
 #include <sstream>
 #include <regex>
@@ -176,6 +175,5 @@ std::vector<ValidationEvent> NginxAccessParser::parse(const std::string& content
     return events;
 }
 
-REGISTER_PARSER(NginxAccessParser);
 
 } // namespace duckdb

@@ -1,5 +1,4 @@
 #include "bandit_json_parser.hpp"
-#include "core/legacy_parser_registry.hpp"
 #include "yyjson.hpp"
 
 namespace duckdb {
@@ -171,7 +170,5 @@ std::vector<ValidationEvent> BanditJSONParser::parse(const std::string& content)
     return events;
 }
 
-// Auto-register this parser
-REGISTER_PARSER(BanditJSONParser);
 
 } // namespace duckdb

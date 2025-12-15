@@ -1,5 +1,4 @@
 #include "tflint_json_parser.hpp"
-#include "core/legacy_parser_registry.hpp"
 
 namespace duckdb {
 
@@ -176,7 +175,5 @@ std::vector<ValidationEvent> TflintJSONParser::parse(const std::string& content)
     return events;
 }
 
-// Auto-register this parser
-REGISTER_PARSER(TflintJSONParser);
 
 } // namespace duckdb

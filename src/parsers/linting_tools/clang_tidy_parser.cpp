@@ -1,5 +1,4 @@
 #include "clang_tidy_parser.hpp"
-#include "core/legacy_parser_registry.hpp"
 #include <sstream>
 #include <regex>
 
@@ -232,8 +231,5 @@ std::vector<ValidationEvent> ClangTidyParser::parse(const std::string& content) 
 
     return events;
 }
-
-// Auto-register this parser
-REGISTER_PARSER(ClangTidyParser);
 
 } // namespace duckdb

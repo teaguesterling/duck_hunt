@@ -1,5 +1,4 @@
 #include "sqlfluff_json_parser.hpp"
-#include "core/legacy_parser_registry.hpp"
 
 namespace duckdb {
 
@@ -151,7 +150,5 @@ std::vector<ValidationEvent> SqlfluffJSONParser::parse(const std::string& conten
     return events;
 }
 
-// Auto-register this parser
-REGISTER_PARSER(SqlfluffJSONParser);
 
 } // namespace duckdb

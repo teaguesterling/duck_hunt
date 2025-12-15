@@ -1,5 +1,4 @@
 #include "pylint_parser.hpp"
-#include "core/legacy_parser_registry.hpp"
 #include <sstream>
 
 namespace duckdb {
@@ -186,8 +185,5 @@ std::vector<ValidationEvent> PylintParser::parse(const std::string& content) con
 
     return events;
 }
-
-// Auto-register this parser
-REGISTER_PARSER(PylintParser);
 
 } // namespace duckdb

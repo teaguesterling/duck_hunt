@@ -1,5 +1,4 @@
 #include "apache_access_parser.hpp"
-#include "core/legacy_parser_registry.hpp"
 #include "duckdb/common/string_util.hpp"
 #include <sstream>
 #include <regex>
@@ -168,6 +167,5 @@ std::vector<ValidationEvent> ApacheAccessParser::parse(const std::string& conten
     return events;
 }
 
-REGISTER_PARSER(ApacheAccessParser);
 
 } // namespace duckdb

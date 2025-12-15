@@ -1,5 +1,4 @@
 #include "pytest_parser.hpp"
-#include "core/legacy_parser_registry.hpp"
 #include <sstream>
 
 namespace duckdb {
@@ -129,7 +128,5 @@ void PytestParser::parseTestLine(const std::string& line, int64_t& event_id,
     events.push_back(event);
 }
 
-// Auto-register this parser
-REGISTER_PARSER(PytestParser);
 
 } // namespace duckdb
