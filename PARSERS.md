@@ -23,7 +23,7 @@ This document lists all available log parsers in the Duck Hunt extension.
 
 | Parser | Format Name | Sample File | Tests |
 |--------|-------------|-------------|-------|
-| mypy | `mypy` | test/samples/mypy.txt | Yes |
+| mypy | `mypy_text` | test/samples/mypy.txt | Yes |
 | flake8 | `flake8` | - | Inline |
 | pylint | `pylint` | - | Inline |
 | black | `black` | - | Inline |

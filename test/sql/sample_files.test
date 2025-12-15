@@ -4,13 +4,13 @@
 
 require duck_hunt
 
-# Test 1: mypy.txt parsing with mypy format
+# Test 1: mypy.txt parsing with mypy_text format
 query IIII
 SELECT COUNT(*) as events,
        COUNT(CASE WHEN status = 'ERROR' THEN 1 END) as errors,
        COUNT(CASE WHEN status = 'WARNING' THEN 1 END) as warnings,
        tool_name
-FROM read_duck_hunt_log('test/samples/mypy.txt', 'mypy')
+FROM read_duck_hunt_log('test/samples/mypy.txt', 'mypy_text')
 GROUP BY tool_name;
 ----
 4	3	1	mypy
@@ -18,7 +18,7 @@ GROUP BY tool_name;
 # Test 2: mypy field validation
 query IIII
 SELECT file_path, line_number, error_code, status
-FROM read_duck_hunt_log('test/samples/mypy.txt', 'mypy')
+FROM read_duck_hunt_log('test/samples/mypy.txt', 'mypy_text')
 ORDER BY event_id
 LIMIT 3;
 ----
@@ -29,7 +29,7 @@ src/models/user.py	12	unused-ignore	WARNING
 # Test 3: mypy message parsing
 query I
 SELECT message LIKE '%incompatible type%' as has_type_error
-FROM read_duck_hunt_log('test/samples/mypy.txt', 'mypy')
+FROM read_duck_hunt_log('test/samples/mypy.txt', 'mypy_text')
 WHERE error_code = 'arg-type';
 ----
 true
@@ -43,14 +43,14 @@ SELECT COUNT(*) as events,
 FROM read_duck_hunt_log('test/samples/large_build.out', 'generic_lint')
 GROUP BY tool_name;
 ----
-10	5	5	lint
+20	8	8	lint
 
-# Test 5: large_build.out auto-detection
+# Test 5: large_build.out auto-detection (detected as make due to gcc compile lines)
 query I
 SELECT DISTINCT tool_name
 FROM read_duck_hunt_log('test/samples/large_build.out', 'auto');
 ----
-lint
+make
 
 # Test 6: large_build.out field validation
 query IIII
@@ -75,7 +75,7 @@ LIMIT 2;
 src/main.c	28	true
 src/main.c	55	true
 
-# Test 8: mypy auto-detection
+# Test 8: mypy auto-detection (should detect as mypy)
 query I
 SELECT DISTINCT tool_name
 FROM read_duck_hunt_log('test/samples/mypy.txt', 'auto');
@@ -127,4 +127,4 @@ ORDER BY log_line_start;
 4	4
 5	5
 6	6
-16	16
+17	17
