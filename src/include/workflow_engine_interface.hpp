@@ -20,8 +20,8 @@ public:
     // Check if this parser can handle the given content
     virtual bool canParse(const std::string& content) const = 0;
     
-    // Get the workflow format this parser handles
-    virtual WorkflowLogFormat getFormat() const = 0;
+    // Get the workflow format name this parser handles
+    virtual std::string getFormatName() const = 0;
     
     // Parse workflow logs into events with hierarchical structure
     virtual std::vector<WorkflowEvent> parseWorkflowLog(const std::string& content) const = 0;
@@ -57,8 +57,8 @@ public:
     // Find appropriate parser for content
     const WorkflowEngineParser* findParser(const std::string& content) const;
     
-    // Get parser by format
-    const WorkflowEngineParser* getParser(WorkflowLogFormat format) const;
+    // Get parser by format name
+    const WorkflowEngineParser* getParser(const std::string& format_name) const;
     
     // Get all registered parsers (sorted by priority)
     const std::vector<std::unique_ptr<WorkflowEngineParser>>& getParsers() const;

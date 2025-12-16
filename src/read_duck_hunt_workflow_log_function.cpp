@@ -16,7 +16,6 @@
 #include "duckdb/parser/parsed_data/create_table_function_info.hpp"
 #include <regex>
 #include <sstream>
-#include <iostream>
 #include <fstream>
 
 namespace duckdb {
@@ -98,10 +97,7 @@ unique_ptr<FunctionData> ReadDuckHuntWorkflowLogBind(ClientContext &context, Tab
         throw BinderException("read_duck_hunt_workflow_log requires at least one parameter (source)");
     }
     bind_data->source = input.inputs[0].ToString();
-    
-    // DEBUG: Force an exception to see if bind is being called
-    // throw BinderException("DEBUG: Bind function was called with source: " + bind_data->source);
-    
+
     // Get format parameter (optional, defaults to auto)
     if (input.inputs.size() > 1) {
         std::string format_str = input.inputs[1].ToString();
@@ -218,20 +214,16 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntWorkflowLogInitGlobal(ClientCon
     try {
         // Check if file exists first (this triggers proper path resolution in test framework)
         bool file_exists = fs.FileExists(bind_data.source);
-        // std::cerr << "DEBUG: FileExists('" << bind_data.source << "') = " << (file_exists ? "true" : "false") << std::endl;
 
         if (file_exists) {
             // Read file using DuckDB's FileSystem (respects UNITTEST_ROOT_DIRECTORY)
             content = ReadContentFromSource(context, bind_data.source);
-            // std::cerr << "DEBUG: Read " << content.length() << " bytes from file" << std::endl;
         } else {
             // If file doesn't exist, treat source as direct content
-            // std::cerr << "DEBUG: File not found, treating as direct content" << std::endl;
             content = bind_data.source;
         }
     } catch (const IOException& e) {
         // If file reading fails, treat source as direct content
-        // std::cerr << "DEBUG: IOException: " << e.what() << std::endl;
         content = bind_data.source;
     }
 
@@ -257,7 +249,7 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntWorkflowLogInitGlobal(ClientCon
     if (format == WorkflowLogFormat::AUTO) {
         parser_ptr = registry.findParser(content);
     } else {
-        parser_ptr = registry.getParser(format);
+        parser_ptr = registry.getParser(WorkflowLogFormatToString(format));
     }
 
     if (parser_ptr) {

@@ -2,8 +2,8 @@
 #include "parsers/base/base_parser.hpp"
 #include "ansible_text_parser.hpp"
 
+
 namespace duckdb {
-namespace log_parsers {
 
 /**
  * Ansible parser wrapper.
@@ -43,5 +43,5 @@ void RegisterInfrastructureToolsParsers(ParserRegistry& registry) {
 // Auto-register this category
 REGISTER_PARSER_CATEGORY(InfrastructureTools);
 
-} // namespace log_parsers
+
 } // namespace duckdb

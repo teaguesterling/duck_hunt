@@ -5,8 +5,8 @@
 #include "parsers/specialized/gdb_lldb_parser.hpp"
 #include "parsers/specialized/coverage_parser.hpp"
 
+
 namespace duckdb {
-namespace log_parsers {
 
 /**
  * Strace parser - wraps existing static parser in new interface.
@@ -160,5 +160,5 @@ void RegisterDebuggingParsers(ParserRegistry& registry) {
 // Auto-register this category
 REGISTER_PARSER_CATEGORY(Debugging);
 
-} // namespace log_parsers
+
 } // namespace duckdb

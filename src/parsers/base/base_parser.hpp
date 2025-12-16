@@ -5,7 +5,6 @@
 #include <vector>
 
 namespace duckdb {
-namespace log_parsers {
 
 /**
  * Base class for parsers that provides common functionality.
@@ -75,33 +74,9 @@ private:
     std::string required_extension_;
 };
 
-/**
- * Priority constants for consistent ordering.
- * Higher priority parsers are tried first during auto-detection.
- */
-namespace ParserPriority {
-    constexpr int VERY_HIGH = 100;  // Very specific formats (e.g., JSON with unique keys)
-    constexpr int HIGH = 80;        // Specific formats with clear markers
-    constexpr int MEDIUM = 50;      // Default priority
-    constexpr int LOW = 30;         // Generic formats that match many inputs
-    constexpr int VERY_LOW = 10;    // Catch-all parsers
+// Backward compatibility: alias in log_parsers namespace
+namespace log_parsers {
+    using BaseParser = duckdb::BaseParser;
 }
 
-/**
- * Category constants for consistency.
- */
-namespace ParserCategory {
-    constexpr const char* DEBUGGING = "debugging_tool";
-    constexpr const char* TEST_FRAMEWORK = "test_framework";
-    constexpr const char* BUILD_SYSTEM = "build_system";
-    constexpr const char* LINTING = "linting_tool";
-    constexpr const char* CI_SYSTEM = "ci_system";
-    constexpr const char* APP_LOGGING = "app_logging";
-    constexpr const char* INFRASTRUCTURE = "infrastructure";
-    constexpr const char* WEB_ACCESS = "web_access";
-    constexpr const char* CLOUD_AUDIT = "cloud_audit";
-    constexpr const char* STRUCTURED_LOG = "structured_log";
-}
-
-} // namespace log_parsers
 } // namespace duckdb

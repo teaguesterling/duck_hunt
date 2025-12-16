@@ -7,48 +7,11 @@
 #include <functional>
 #include "duckdb/common/unique_ptr.hpp"
 #include "duckdb/main/client_context.hpp"
-#include "include/validation_event_types.hpp"
+#include "parsers/base/parser_interface.hpp"
 
 namespace duckdb {
 
-// Nested namespace for new parser system during migration.
-// Once migration is complete, these will move to duckdb namespace
-// and replace the old IParser/ParserRegistry.
-namespace log_parsers {
-
-/**
- * Parser interface - string-based format names, no enum dependency.
- * All parsers should implement this interface.
- */
-class IParser {
-public:
-    virtual ~IParser() = default;
-
-    // Core parsing
-    virtual bool canParse(const std::string& content) const = 0;
-    virtual std::vector<ValidationEvent> parse(const std::string& content) const = 0;
-
-    // Context-aware parsing (for XML parsers needing webbed, etc.)
-    virtual std::vector<ValidationEvent> parseWithContext(ClientContext& context,
-                                                          const std::string& content) const {
-        return parse(content);
-    }
-    virtual bool requiresContext() const { return false; }
-
-    // Metadata - all string-based
-    virtual std::string getFormatName() const = 0;  // e.g., "pylint_text", "strace"
-    virtual std::string getName() const = 0;         // Human-readable: "Pylint Parser"
-    virtual std::string getCategory() const = 0;     // e.g., "linting_tool", "debugging_tool"
-    virtual std::string getDescription() const = 0;  // e.g., "Pylint Python code quality output"
-    virtual int getPriority() const = 0;             // Higher = checked first in auto-detect
-
-    // Optional: aliases for format name (e.g., "pylint" -> "pylint_text")
-    virtual std::vector<std::string> getAliases() const { return {}; }
-
-    // Optional: required extensions (e.g., "webbed" for XML parsers)
-    virtual std::string getRequiredExtension() const { return ""; }
-};
-
+// Re-export ParserPtr for compatibility
 using ParserPtr = unique_ptr<IParser>;
 
 /**
@@ -149,7 +112,7 @@ void InitializeAllParsers();
  * Use in header: DECLARE_PARSER_CATEGORY(Debugging);
  */
 #define DECLARE_PARSER_CATEGORY(category) \
-    void Register##category##Parsers(log_parsers::ParserRegistry& registry)
+    void Register##category##Parsers(duckdb::ParserRegistry& registry)
 
 /**
  * Register a category during static initialization.
@@ -158,9 +121,23 @@ void InitializeAllParsers();
 #define REGISTER_PARSER_CATEGORY(category) \
     static struct category##_category_registrar { \
         category##_category_registrar() { \
-            log_parsers::RegisterParserCategory(#category, Register##category##Parsers); \
+            duckdb::RegisterParserCategory(#category, Register##category##Parsers); \
         } \
     } g_##category##_registrar
 
-} // namespace log_parsers
+// Backward compatibility alias
+namespace log_parsers {
+    using IParser = duckdb::IParser;
+    using ParserPtr = duckdb::ParserPtr;
+    using ParserRegistry = duckdb::ParserRegistry;
+    using ParserInfo = duckdb::ParserInfo;
+    using CategoryRegistrationFn = duckdb::CategoryRegistrationFn;
+    inline void RegisterParserCategory(const std::string& name, CategoryRegistrationFn fn) {
+        duckdb::RegisterParserCategory(name, fn);
+    }
+    inline void InitializeAllParsers() {
+        duckdb::InitializeAllParsers();
+    }
+}
+
 } // namespace duckdb

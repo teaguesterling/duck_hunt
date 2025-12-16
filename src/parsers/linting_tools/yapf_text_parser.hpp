@@ -9,7 +9,7 @@ class YapfTextParser : public IParser {
 public:
     bool canParse(const std::string& content) const override;
     std::vector<ValidationEvent> parse(const std::string& content) const override;
-    TestResultFormat getFormat() const override { return TestResultFormat::YAPF_TEXT; }
+    std::string getFormatName() const override { return "yapf_text"; }
     std::string getName() const override { return "yapf"; }
     int getPriority() const override { return 95; }
     std::string getCategory() const override { return "linting_tools"; }

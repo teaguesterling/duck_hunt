@@ -8,7 +8,7 @@ class SerilogParser : public IParser {
 public:
     bool canParse(const std::string& content) const override;
     std::vector<ValidationEvent> parse(const std::string& content) const override;
-    TestResultFormat getFormat() const override { return TestResultFormat::SERILOG; }
+    std::string getFormatName() const override { return "serilog"; }
     std::string getName() const override { return "serilog"; }
     int getPriority() const override { return 50; }
     std::string getCategory() const override { return "app_logging"; }

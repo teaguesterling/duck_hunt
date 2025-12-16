@@ -4,8 +4,8 @@
 #include "gcp_cloud_logging_parser.hpp"
 #include "azure_activity_parser.hpp"
 
+
 namespace duckdb {
-namespace log_parsers {
 
 /**
  * AWS CloudTrail parser wrapper.
@@ -100,5 +100,5 @@ void RegisterCloudLogsParsers(ParserRegistry& registry) {
 // Auto-register this category
 REGISTER_PARSER_CATEGORY(CloudLogs);
 
-} // namespace log_parsers
+
 } // namespace duckdb

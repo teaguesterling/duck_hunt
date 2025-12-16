@@ -16,7 +16,7 @@ ValidationEvent WorkflowEngineParser::createBaseEvent(const std::string& raw_lin
     ValidationEvent event;
 
     // Set basic fields
-    event.tool_name = WorkflowLogFormatToString(getFormat());
+    event.tool_name = getFormatName();
     event.event_type = ValidationEventType::SUMMARY;  // Use SUMMARY type for workflow events
     event.raw_output = raw_line;
     event.message = raw_line;
@@ -104,13 +104,13 @@ const WorkflowEngineParser* WorkflowEngineRegistry::findParser(const std::string
     return nullptr;
 }
 
-const WorkflowEngineParser* WorkflowEngineRegistry::getParser(WorkflowLogFormat format) const {
+const WorkflowEngineParser* WorkflowEngineRegistry::getParser(const std::string& format_name) const {
     for (const auto& parser : parsers_) {
-        if (parser->getFormat() == format) {
+        if (parser->getFormatName() == format_name) {
             return parser.get();
         }
     }
-    
+
     return nullptr;
 }
 

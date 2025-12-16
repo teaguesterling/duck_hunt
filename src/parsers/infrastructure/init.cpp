@@ -9,8 +9,8 @@
 #include "auditd_parser.hpp"
 #include "s3_access_parser.hpp"
 
+
 namespace duckdb {
-namespace log_parsers {
 
 /**
  * Iptables parser wrapper.
@@ -238,5 +238,5 @@ void RegisterInfrastructureParsers(ParserRegistry& registry) {
 // Auto-register this category
 REGISTER_PARSER_CATEGORY(Infrastructure);
 
-} // namespace log_parsers
+
 } // namespace duckdb

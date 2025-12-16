@@ -14,7 +14,7 @@ public:
 
     std::string getName() const override { return "GitHub CLI Parser"; }
     std::string getCategory() const override { return "CI/CD Systems"; }
-    TestResultFormat getFormat() const override { return TestResultFormat::GITHUB_CLI; }
+    std::string getFormatName() const override { return "github_cli"; }
     int getPriority() const override { return 85; }
     
     bool canParse(const std::string& content) const override;

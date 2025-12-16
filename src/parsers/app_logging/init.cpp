@@ -11,8 +11,8 @@
 #include "ruby_logger_parser.hpp"
 #include "rails_log_parser.hpp"
 
+
 namespace duckdb {
-namespace log_parsers {
 
 /**
  * Python logging parser wrapper.
@@ -279,5 +279,5 @@ void RegisterAppLoggingParsers(ParserRegistry& registry) {
 // Auto-register this category
 REGISTER_PARSER_CATEGORY(AppLogging);
 
-} // namespace log_parsers
+
 } // namespace duckdb

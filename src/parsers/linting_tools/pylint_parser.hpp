@@ -13,7 +13,7 @@ class PylintParser : public IParser {
 public:
     bool canParse(const std::string& content) const override;
     std::vector<ValidationEvent> parse(const std::string& content) const override;
-    TestResultFormat getFormat() const override { return TestResultFormat::PYLINT_TEXT; }
+    std::string getFormatName() const override { return "pylint_text"; }
     std::string getName() const override { return "pylint"; }
     int getPriority() const override { return 80; }  // High priority for Python quality checking
     std::string getCategory() const override { return "linting_tool"; }

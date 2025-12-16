@@ -12,7 +12,7 @@ class PytestParser : public IParser {
 public:
     bool canParse(const std::string& content) const override;
     std::vector<ValidationEvent> parse(const std::string& content) const override;
-    TestResultFormat getFormat() const override { return TestResultFormat::PYTEST_TEXT; }
+    std::string getFormatName() const override { return "pytest_text"; }
     std::string getName() const override { return "pytest"; }
     int getPriority() const override { return 100; }  // High priority
     std::string getCategory() const override { return "test_framework"; }

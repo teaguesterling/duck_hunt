@@ -4,8 +4,8 @@
 #include "terraform_text_parser.hpp"
 #include "github_cli_parser.hpp"
 
+
 namespace duckdb {
-namespace log_parsers {
 
 /**
  * Drone CI parser wrapper.
@@ -101,5 +101,5 @@ void RegisterCISystemsParsers(ParserRegistry& registry) {
 // Auto-register this category
 REGISTER_PARSER_CATEGORY(CISystems);
 
-} // namespace log_parsers
+
 } // namespace duckdb

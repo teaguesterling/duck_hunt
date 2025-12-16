@@ -11,8 +11,8 @@
 #include "duckdb_test_parser.hpp"
 #include "pytest_cov_text_parser.hpp"
 
+
 namespace duckdb {
-namespace log_parsers {
 
 /**
  * JUnit text parser wrapper.
@@ -303,5 +303,5 @@ void RegisterTestFrameworksParsers(ParserRegistry& registry) {
 // Auto-register this category
 REGISTER_PARSER_CATEGORY(TestFrameworks);
 
-} // namespace log_parsers
+
 } // namespace duckdb

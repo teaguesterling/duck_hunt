@@ -3,8 +3,8 @@
 #include "jsonl_parser.hpp"
 #include "logfmt_parser.hpp"
 
+
 namespace duckdb {
-namespace log_parsers {
 
 /**
  * JSONL (JSON Lines) parser wrapper.
@@ -70,5 +70,5 @@ void RegisterStructuredLogsParsers(ParserRegistry& registry) {
 // Auto-register this category
 REGISTER_PARSER_CATEGORY(StructuredLogs);
 
-} // namespace log_parsers
+
 } // namespace duckdb

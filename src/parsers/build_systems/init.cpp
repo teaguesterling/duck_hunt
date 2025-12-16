@@ -10,8 +10,8 @@
 #include "python_parser.hpp"
 #include "bazel_parser.hpp"
 
+
 namespace duckdb {
-namespace log_parsers {
 
 /**
  * Make/GCC/Clang parser wrapper.
@@ -269,5 +269,5 @@ void RegisterBuildSystemsParsers(ParserRegistry& registry) {
 // Auto-register this category
 REGISTER_PARSER_CATEGORY(BuildSystems);
 
-} // namespace log_parsers
+
 } // namespace duckdb

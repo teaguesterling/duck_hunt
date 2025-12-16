@@ -4,8 +4,8 @@
 #include "apache_access_parser.hpp"
 #include "nginx_access_parser.hpp"
 
+
 namespace duckdb {
-namespace log_parsers {
 
 /**
  * Syslog parser wrapper.
@@ -97,5 +97,5 @@ void RegisterWebAccessParsers(ParserRegistry& registry) {
 // Auto-register this category
 REGISTER_PARSER_CATEGORY(WebAccess);
 
-} // namespace log_parsers
+
 } // namespace duckdb

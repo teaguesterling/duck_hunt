@@ -8,7 +8,7 @@ namespace duckdb {
 class JenkinsParser : public WorkflowEngineParser {
 public:
     bool canParse(const std::string& content) const override;
-    WorkflowLogFormat getFormat() const override { return WorkflowLogFormat::JENKINS; }
+    std::string getFormatName() const override { return "jenkins"; }
     std::vector<WorkflowEvent> parseWorkflowLog(const std::string& content) const override;
     int getPriority() const override { return 130; } // High priority for Jenkins
     std::string getName() const override { return "JenkinsParser"; }

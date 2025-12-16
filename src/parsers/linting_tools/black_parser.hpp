@@ -13,7 +13,7 @@ class BlackParser : public IParser {
 public:
     bool canParse(const std::string& content) const override;
     std::vector<ValidationEvent> parse(const std::string& content) const override;
-    TestResultFormat getFormat() const override { return TestResultFormat::BLACK_TEXT; }
+    std::string getFormatName() const override { return "black_text"; }
     std::string getName() const override { return "black"; }
     int getPriority() const override { return 75; }  // Medium-high priority for formatting
     std::string getCategory() const override { return "linting_tool"; }

@@ -8,8 +8,8 @@
 #include "clang_tidy_parser.hpp"
 #include "autopep8_text_parser.hpp"
 
+
 namespace duckdb {
-namespace log_parsers {
 
 /**
  * Pylint parser wrapper.
@@ -213,5 +213,5 @@ void RegisterLintingToolsParsers(ParserRegistry& registry) {
 // Auto-register this category
 REGISTER_PARSER_CATEGORY(LintingTools);
 
-} // namespace log_parsers
+
 } // namespace duckdb

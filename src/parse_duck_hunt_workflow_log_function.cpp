@@ -52,7 +52,7 @@ std::vector<WorkflowEvent> ParseDuckHuntWorkflowLogFromString(const std::string&
         if (format == WorkflowLogFormat::AUTO) {
             parser = registry.findParser(content);
         } else {
-            parser = registry.getParser(format);
+            parser = registry.getParser(WorkflowLogFormatToString(format));
         }
     
         if (parser) {

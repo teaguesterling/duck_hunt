@@ -12,7 +12,7 @@ class YamllintJSONParser : public IParser {
 public:
     bool canParse(const std::string& content) const override;
     std::vector<ValidationEvent> parse(const std::string& content) const override;
-    TestResultFormat getFormat() const override { return TestResultFormat::YAMLLINT_JSON; }
+    std::string getFormatName() const override { return "yamllint_json"; }
     std::string getName() const override { return "yamllint_json"; }
     int getPriority() const override { return 65; }  // Medium priority for config linting
     std::string getCategory() const override { return "tool_output"; }

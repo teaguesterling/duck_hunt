@@ -14,7 +14,7 @@ public:
 
     std::string getName() const override { return "Clang-Tidy Parser"; }
     std::string getCategory() const override { return "linting_tool"; }
-    TestResultFormat getFormat() const override { return TestResultFormat::CLANG_TIDY_TEXT; }
+    std::string getFormatName() const override { return "clang_tidy_text"; }
     int getPriority() const override { return 90; } // Higher priority than MyPy to be checked first
     
     bool canParse(const std::string& content) const override;

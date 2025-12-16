@@ -21,8 +21,8 @@
 #include "tflint_json_parser.hpp"
 #include "generic_lint_parser.hpp"
 
+
 namespace duckdb {
-namespace log_parsers {
 
 // Helper macro to reduce boilerplate for JSON parser wrappers
 #define DEFINE_JSON_PARSER_IMPL(ImplName, ParserClass, format_name, display_name, desc, ...) \
@@ -593,5 +593,5 @@ void RegisterToolOutputsParsers(ParserRegistry& registry) {
 // Auto-register this category
 REGISTER_PARSER_CATEGORY(ToolOutputs);
 
-} // namespace log_parsers
+
 } // namespace duckdb

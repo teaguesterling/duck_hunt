@@ -13,7 +13,7 @@ class MypyParser : public IParser {
 public:
     bool canParse(const std::string& content) const override;
     std::vector<ValidationEvent> parse(const std::string& content) const override;
-    TestResultFormat getFormat() const override { return TestResultFormat::MYPY_TEXT; }
+    std::string getFormatName() const override { return "mypy_text"; }
     std::string getName() const override { return "mypy"; }
     int getPriority() const override { return 80; }  // Lower priority than clang-tidy to avoid conflicts
     std::string getCategory() const override { return "linting_tool"; }

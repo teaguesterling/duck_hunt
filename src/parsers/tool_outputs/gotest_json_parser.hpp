@@ -15,7 +15,7 @@ class GoTestJSONParser : public IParser {
 public:
     bool canParse(const std::string& content) const override;
     std::vector<ValidationEvent> parse(const std::string& content) const override;
-    TestResultFormat getFormat() const override { return TestResultFormat::GOTEST_JSON; }
+    std::string getFormatName() const override { return "gotest_json"; }
     std::string getName() const override { return "go_test"; }
     int getPriority() const override { return 120; }  // Higher than text parsers
     std::string getCategory() const override { return "test_framework_json"; }

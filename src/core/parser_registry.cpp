@@ -3,7 +3,6 @@
 #include <mutex>
 
 namespace duckdb {
-namespace log_parsers {
 
 // Forward declarations of all category registration functions
 // These are defined in each category's init.cpp
@@ -213,5 +212,4 @@ void ParserRegistry::ensureSorted() const {
     needs_resort_ = false;
 }
 
-} // namespace log_parsers
 } // namespace duckdb

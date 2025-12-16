@@ -32,7 +32,7 @@ namespace duckdb {
 class JUnitXmlParser : public XmlParserBase {
 public:
     bool canParse(const std::string& content) const override;
-    TestResultFormat getFormat() const override { return TestResultFormat::JUNIT_XML; }
+    std::string getFormatName() const override { return "junit_xml"; }
     std::string getName() const override { return "JUnit XML Parser"; }
     int getPriority() const override { return 85; }  // High priority for XML detection
     std::string getCategory() const override { return "test_framework"; }
