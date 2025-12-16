@@ -1,6 +1,5 @@
 #include "include/read_duck_hunt_log_function.hpp"
 #include "include/validation_event_types.hpp"
-#include "core/legacy_parser_registry.hpp"
 #include "core/parser_registry.hpp"  // Modular parser registry
 #include "parsers/test_frameworks/duckdb_test_parser.hpp"
 #include "parsers/test_frameworks/pytest_cov_text_parser.hpp"
@@ -42,6 +41,9 @@
 namespace duckdb {
 
 using namespace duckdb_yyjson;
+
+// Forward declaration for auto-detection fallback
+log_parsers::IParser* TryAutoDetectNewRegistry(const std::string& content);
 
 // Phase 3B: Error Pattern Analysis Functions
 
@@ -702,14 +704,14 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
     if (content.find(": error:") != std::string::npos || content.find(": warning:") != std::string::npos) {
         return TestResultFormat::GENERIC_LINT;
     }
-    
-    // Fallback: try the modular parser registry for newly added parsers
-    auto& registry = ParserRegistry::getInstance();
-    auto parser = registry.findParser(content);
+
+    // Fallback: try modular parser registry auto-detection
+    auto* parser = TryAutoDetectNewRegistry(content);
     if (parser) {
-        return parser->getFormat();
+        // Convert format name back to enum
+        return StringToTestResultFormat(parser->getFormatName());
     }
-    
+
     return TestResultFormat::UNKNOWN;
 }
 
@@ -1217,15 +1219,7 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &co
                     duck_hunt::RegexpParser::ParseWithRegexp(content, bind_data.regexp_pattern, global_state->events);
                     break;
                 default:
-                    // Try old registry as fallback (indexed by enum)
-                    {
-                        auto& registry = ParserRegistry::getInstance();
-                        auto parser = registry.getParser(format);
-                        if (parser) {
-                            auto events = parser->parse(content);
-                            global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                        }
-                    }
+                    // All formats now handled by modular registry above
                     break;
             }
         }
@@ -1474,15 +1468,7 @@ unique_ptr<GlobalTableFunctionState> ParseDuckHuntLogInitGlobal(ClientContext &c
                 duck_hunt::RegexpParser::ParseWithRegexp(content, bind_data.regexp_pattern, global_state->events);
                 break;
             default:
-                // Try old registry as fallback (indexed by enum)
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(format);
-                    if (parser) {
-                        auto events = parser->parse(content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    }
-                }
+                // All formats now handled by modular registry above
                 break;
         }
     }
@@ -1643,117 +1629,20 @@ void ProcessMultipleFiles(ClientContext& context, const std::vector<std::string>
                 detected_format = DetectTestResultFormat(content);
             }
             
-            // Parse content and get events for this file
+            // Parse content using modular parser registry
             std::vector<ValidationEvent> file_events;
-            
-            // Dispatch to appropriate parser based on format
-            switch (detected_format) {
-                case TestResultFormat::PYTEST_JSON:
-                    {
-                        auto& registry = ParserRegistry::getInstance();
-                        auto parser = registry.getParser(detected_format);
-                        if (parser) {
-                            file_events = parser->parse(content);
-                        }
-                        // Note: Legacy ParsePytestJSON removed - fully replaced by modular PytestJSONParser
-                    }
-                    break;
-                case TestResultFormat::GOTEST_JSON:
-                    {
-                        auto& registry = ParserRegistry::getInstance();
-                        auto parser = registry.getParser(detected_format);
-                        if (parser) {
-                            file_events = parser->parse(content);
-                        }
-                        // Note: Legacy ParseGoTestJSON removed - fully replaced by modular GoTestJSONParser
-                    }
-                    break;
-                case TestResultFormat::ESLINT_JSON:
-                    {
-                        auto& registry = ParserRegistry::getInstance();
-                        auto parser = registry.getParser(detected_format);
-                        if (parser) {
-                            file_events = parser->parse(content);
-                        }
-                        // Note: Legacy ParseESLintJSON removed - fully replaced by modular ESLintJSONParser
-                    }
-                    break;
-                case TestResultFormat::GITHUB_ACTIONS_TEXT:
-                    // GitHub Actions is handled as a workflow engine - not a direct test tool
-                    break;
-                case TestResultFormat::GITHUB_CLI:
-                case TestResultFormat::CLANG_TIDY_TEXT:
-                    // These formats are handled by the modular parser registry at the end
-                    break;
-                case TestResultFormat::GITLAB_CI_TEXT:
-                    // GitLab CI is handled as a workflow engine - not a direct test tool
-                    break;
-                case TestResultFormat::JENKINS_TEXT:
-                    // Jenkins is handled as a workflow engine - not a direct test tool
-                    break;
-                case TestResultFormat::DRONE_CI_TEXT:
-                    {
-                        auto& registry = ParserRegistry::getInstance();
-                        auto parser = registry.getParser(detected_format);
-                        if (parser) {
-                            auto events = parser->parse(content);
-                            file_events.insert(file_events.end(), events.begin(), events.end());
-                        }
-                    }
-                    break;
-                case TestResultFormat::TERRAFORM_TEXT:
-                    {
-                        auto& registry = ParserRegistry::getInstance();
-                        auto parser = registry.getParser(detected_format);
-                        if (parser) {
-                            auto events = parser->parse(content);
-                            file_events.insert(file_events.end(), events.begin(), events.end());
-                        }
-                    }
-                    break;
-                case TestResultFormat::ANSIBLE_TEXT:
-                    {
-                        auto& registry = ParserRegistry::getInstance();
-                        auto parser = registry.getParser(detected_format);
-                        if (parser) {
-                            auto events = parser->parse(content);
-                            file_events.insert(file_events.end(), events.begin(), events.end());
-                        }
-                    }
-                    break;
-                case TestResultFormat::REGEXP:
-                    // REGEXP format requires pattern, which isn't available in multi-file processing
-                    // Skip this file - users should use single-file mode for regexp parsing
-                    continue;
-                // XML-based formats (require webbed extension for XML->JSON conversion)
-                case TestResultFormat::JUNIT_XML:
-                case TestResultFormat::NUNIT_XML:
-                case TestResultFormat::CHECKSTYLE_XML:
-                    {
-                        auto& registry = ParserRegistry::getInstance();
-                        auto parser = registry.getParser(detected_format);
-                        if (parser && parser->requiresContext()) {
-                            file_events = parser->parseWithContext(context, content);
-                        } else if (parser) {
-                            file_events = parser->parse(content);
-                        }
-                    }
-                    break;
-                default:
-                    // Try the modular parser registry for new parsers
-                    {
-                        auto& registry = ParserRegistry::getInstance();
-                        auto parser = registry.getParser(detected_format);
-                        if (parser) {
-                            file_events = parser->parse(content);
-                        } else {
-                            // For truly unsupported formats, continue to next file
-                            continue;
-                        }
-                    }
-                    break;
+
+            // Skip REGEXP format in multi-file mode (requires pattern)
+            if (detected_format == TestResultFormat::REGEXP) {
+                continue;
             }
-            
+
+            // Use modular parser registry for all formats
+            if (!TryNewParserRegistry(context, detected_format, content, file_events)) {
+                // No parser found for this format, skip file
+                continue;
+            }
+
             // Add events to main collection
             events.insert(events.end(), file_events.begin(), file_events.end());
             

@@ -15,9 +15,7 @@ set(EXTENSION_SOURCES
     src/read_duck_hunt_log_function.cpp
     
     # Core modular architecture
-    src/core/legacy_parser_registry.cpp
     src/core/parser_registry.cpp
-    src/core/format_detector.cpp
     src/core/webbed_integration.cpp
 
     # New parser category registrations
