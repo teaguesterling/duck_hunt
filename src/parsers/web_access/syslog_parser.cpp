@@ -1,5 +1,4 @@
 #include "syslog_parser.hpp"
-#include "../../core/parser_registry.hpp"
 #include "duckdb/common/string_util.hpp"
 #include <sstream>
 #include <regex>
@@ -260,6 +259,5 @@ std::vector<ValidationEvent> SyslogParser::parse(const std::string& content) con
     return events;
 }
 
-REGISTER_PARSER(SyslogParser);
 
 } // namespace duckdb

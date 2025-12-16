@@ -1,5 +1,4 @@
 #include "github_cli_parser.hpp"
-#include "../../core/parser_registry.hpp"
 #include <sstream>
 #include <regex>
 
@@ -327,7 +326,5 @@ std::vector<ValidationEvent> GitHubCliParser::parseWorkflowLog(const std::string
     return events;
 }
 
-// Auto-register this parser
-REGISTER_PARSER(GitHubCliParser);
 
 } // namespace duckdb

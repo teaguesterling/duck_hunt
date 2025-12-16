@@ -1,5 +1,4 @@
 #include "clippy_json_parser.hpp"
-#include "../../core/parser_registry.hpp"
 #include "yyjson.hpp"
 #include <sstream>
 
@@ -194,7 +193,5 @@ std::vector<ValidationEvent> ClippyJSONParser::parse(const std::string& content)
     return events;
 }
 
-// Auto-register this parser
-REGISTER_PARSER(ClippyJSONParser);
 
 } // namespace duckdb

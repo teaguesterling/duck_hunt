@@ -1,0 +1,141 @@
+# name: test/sql/sample_files.test
+# description: Test parsing of sample files in test/samples directory
+# group: [sql]
+
+require duck_hunt
+
+# Test 1: mypy.txt parsing with mypy_text format
+query IIII
+SELECT COUNT(*) as events,
+       COUNT(CASE WHEN status = 'ERROR' THEN 1 END) as errors,
+       COUNT(CASE WHEN status = 'WARNING' THEN 1 END) as warnings,
+       tool_name
+FROM read_duck_hunt_log('test/samples/mypy.txt', 'mypy_text')
+GROUP BY tool_name;
+----
+4	3	1	mypy
+
+# Test 2: mypy field validation
+query IIII
+SELECT file_path, line_number, error_code, status
+FROM read_duck_hunt_log('test/samples/mypy.txt', 'mypy_text')
+ORDER BY event_id
+LIMIT 3;
+----
+src/api/routes.py	23	arg-type	ERROR
+src/api/routes.py	45	union-attr	ERROR
+src/models/user.py	12	unused-ignore	WARNING
+
+# Test 3: mypy message parsing
+query I
+SELECT message LIKE '%incompatible type%' as has_type_error
+FROM read_duck_hunt_log('test/samples/mypy.txt', 'mypy_text')
+WHERE error_code = 'arg-type';
+----
+true
+
+# Test 4: large_build.out parsing with generic_lint format
+query IIII
+SELECT COUNT(*) as events,
+       COUNT(CASE WHEN status = 'ERROR' THEN 1 END) as errors,
+       COUNT(CASE WHEN status = 'WARNING' THEN 1 END) as warnings,
+       tool_name
+FROM read_duck_hunt_log('test/samples/large_build.out', 'generic_lint')
+GROUP BY tool_name;
+----
+20	8	8	lint
+
+# Test 5: large_build.out auto-detection (detected as make due to gcc compile lines)
+query I
+SELECT DISTINCT tool_name
+FROM read_duck_hunt_log('test/samples/large_build.out', 'auto');
+----
+make
+
+# Test 6: large_build.out field validation
+query IIII
+SELECT file_path, line_number, column_number, status
+FROM read_duck_hunt_log('test/samples/large_build.out', 'generic_lint')
+WHERE status = 'ERROR'
+ORDER BY event_id
+LIMIT 3;
+----
+src/main.c	15	5	ERROR
+src/main.c	42	8	ERROR
+src/utils.c	8	9	ERROR
+
+# Test 7: large_build.out warning detection
+query III
+SELECT file_path, line_number, message LIKE '%unused variable%' as is_unused_var
+FROM read_duck_hunt_log('test/samples/large_build.out', 'generic_lint')
+WHERE status = 'WARNING'
+ORDER BY event_id
+LIMIT 2;
+----
+src/main.c	28	true
+src/main.c	55	true
+
+# Test 8: mypy auto-detection (should detect as mypy)
+query I
+SELECT DISTINCT tool_name
+FROM read_duck_hunt_log('test/samples/mypy.txt', 'auto');
+----
+mypy
+
+# Test 9: pytest short summary format parsing
+# The pytest output has two formats:
+#   Standard: "file.py::test_name STATUS"
+#   Short summary: "STATUS file.py::test_name - message"
+query IIII
+SELECT COUNT(*) as events,
+       COUNT(CASE WHEN status = 'PASS' THEN 1 END) as passes,
+       COUNT(CASE WHEN status = 'FAIL' THEN 1 END) as failures,
+       tool_name
+FROM read_duck_hunt_log('workspace/ci-logs/staging/pytest-results.txt', 'pytest_text')
+GROUP BY tool_name;
+----
+4	2	2	pytest
+
+# Test 10: pytest short summary format field validation
+# The "FAILED file.py::test - message" format should parse correctly
+query IIII
+SELECT file_path, test_name, status, message LIKE '%assert%' as has_assert_msg
+FROM read_duck_hunt_log('workspace/ci-logs/staging/pytest-results.txt', 'pytest_text')
+WHERE status = 'FAIL'
+ORDER BY event_id;
+----
+test_user_auth.py	test_invalid_login	FAIL	false
+test_user_auth.py	test_invalid_login	FAIL	true
+
+# Test 11: pytest standard format parsing
+query III
+SELECT file_path, test_name, status
+FROM read_duck_hunt_log('workspace/ci-logs/staging/pytest-results.txt', 'pytest_text')
+WHERE status = 'PASS'
+ORDER BY event_id;
+----
+test_user_auth.py	test_login	PASS
+test_user_auth.py	test_logout	PASS
+
+# Test 12: pytest log line tracking
+query II
+SELECT log_line_start, log_line_end
+FROM read_duck_hunt_log('workspace/ci-logs/staging/pytest-results.txt', 'pytest_text')
+WHERE log_line_start IS NOT NULL
+ORDER BY log_line_start;
+----
+4	4
+5	5
+6	6
+17	17
+
+# Test 13: Regression test for catastrophic regex backtracking (issue: paths with many colons)
+# This file contains spack build output with very long paths containing many colons.
+# Previously, parsers with regex patterns like [^:]+ would cause catastrophic backtracking
+# leading to stack overflow/segfault when processing such files with auto-detection.
+# The test verifies that auto-detection completes without crashing.
+query I
+SELECT COUNT(*) >= 0 as completed
+FROM read_duck_hunt_log('test/samples/spack_build.out', 'auto');
+----
+true

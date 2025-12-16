@@ -1,5 +1,4 @@
 #include "jsonl_parser.hpp"
-#include "../../core/parser_registry.hpp"
 #include "duckdb/common/string_util.hpp"
 #include "yyjson.hpp"
 #include <sstream>
@@ -189,6 +188,5 @@ std::vector<ValidationEvent> JSONLParser::parse(const std::string& content) cons
     return events;
 }
 
-REGISTER_PARSER(JSONLParser);
 
 } // namespace duckdb

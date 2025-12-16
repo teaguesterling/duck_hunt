@@ -1,5 +1,4 @@
 #include "ansible_text_parser.hpp"
-#include "../../core/parser_registry.hpp"
 #include <regex>
 #include <sstream>
 
@@ -432,7 +431,5 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string& content
     return events;
 }
 
-// Register the parser
-REGISTER_PARSER(AnsibleTextParser);
 
 } // namespace duckdb

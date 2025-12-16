@@ -1,5 +1,4 @@
 #include "yamllint_json_parser.hpp"
-#include "../../core/parser_registry.hpp"
 #include "yyjson.hpp"
 
 namespace duckdb {
@@ -151,7 +150,5 @@ std::vector<ValidationEvent> YamllintJSONParser::parse(const std::string& conten
     return events;
 }
 
-// Auto-register this parser
-REGISTER_PARSER(YamllintJSONParser);
 
 } // namespace duckdb

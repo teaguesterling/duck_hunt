@@ -1,5 +1,4 @@
 #include "kubescore_json_parser.hpp"
-#include "../../core/parser_registry.hpp"
 #include "duckdb/common/exception.hpp"
 #include "yyjson.hpp"
 #include <sstream>
@@ -240,7 +239,5 @@ std::vector<ValidationEvent> KubeScoreJSONParser::parse(const std::string& conte
     return events;
 }
 
-// Auto-register this parser
-REGISTER_PARSER(KubeScoreJSONParser);
 
 } // namespace duckdb

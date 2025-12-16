@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "lq": {
+      "command": "lq",
+      "args": ["serve"]
+    }
+  }
+}

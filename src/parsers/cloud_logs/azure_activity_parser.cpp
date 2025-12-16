@@ -1,5 +1,4 @@
 #include "azure_activity_parser.hpp"
-#include "../../core/parser_registry.hpp"
 #include "duckdb/common/string_util.hpp"
 #include <sstream>
 #include <regex>
@@ -273,6 +272,5 @@ std::vector<ValidationEvent> AzureActivityParser::parse(const std::string& conte
     return events;
 }
 
-REGISTER_PARSER(AzureActivityParser);
 
 } // namespace duckdb

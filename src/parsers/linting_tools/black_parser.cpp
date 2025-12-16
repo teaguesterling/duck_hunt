@@ -1,5 +1,4 @@
 #include "black_parser.hpp"
-#include "../../core/parser_registry.hpp"
 #include <sstream>
 
 namespace duckdb {
@@ -174,8 +173,5 @@ std::vector<ValidationEvent> BlackParser::parse(const std::string& content) cons
     
     return events;
 }
-
-// Auto-register this parser
-REGISTER_PARSER(BlackParser);
 
 } // namespace duckdb

@@ -1,5 +1,4 @@
 #include "yapf_text_parser.hpp"
-#include "../../core/parser_registry.hpp"
 #include <regex>
 #include <sstream>
 
@@ -469,8 +468,5 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string& content) c
     
     return events;
 }
-
-// Register the parser
-REGISTER_PARSER(YapfTextParser);
 
 } // namespace duckdb

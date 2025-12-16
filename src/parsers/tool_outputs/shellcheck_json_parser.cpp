@@ -1,5 +1,4 @@
 #include "shellcheck_json_parser.hpp"
-#include "../../core/parser_registry.hpp"
 #include "yyjson.hpp"
 
 namespace duckdb {
@@ -155,7 +154,5 @@ std::vector<ValidationEvent> ShellCheckJSONParser::parse(const std::string& cont
     return events;
 }
 
-// Auto-register this parser
-REGISTER_PARSER(ShellCheckJSONParser);
 
 } // namespace duckdb

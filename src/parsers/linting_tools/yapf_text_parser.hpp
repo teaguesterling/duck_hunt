@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../base/parser_interface.hpp"
-#include "../../include/validation_event_types.hpp"
+#include "parsers/base/parser_interface.hpp"
+#include "include/validation_event_types.hpp"
 
 namespace duckdb {
 

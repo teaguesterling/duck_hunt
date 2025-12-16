@@ -1,5 +1,4 @@
 #include "cargo_test_json_parser.hpp"
-#include "../../core/parser_registry.hpp"
 #include "yyjson.hpp"
 #include <sstream>
 #include <map>
@@ -161,7 +160,5 @@ std::vector<ValidationEvent> CargoTestJSONParser::parse(const std::string& conte
     return events;
 }
 
-// Auto-register this parser
-REGISTER_PARSER(CargoTestJSONParser);
 
 } // namespace duckdb

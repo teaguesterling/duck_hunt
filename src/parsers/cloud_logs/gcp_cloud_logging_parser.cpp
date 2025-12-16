@@ -1,5 +1,4 @@
 #include "gcp_cloud_logging_parser.hpp"
-#include "../../core/parser_registry.hpp"
 #include "duckdb/common/string_util.hpp"
 #include <sstream>
 #include <regex>
@@ -264,6 +263,5 @@ std::vector<ValidationEvent> GCPCloudLoggingParser::parse(const std::string& con
     return events;
 }
 
-REGISTER_PARSER(GCPCloudLoggingParser);
 
 } // namespace duckdb

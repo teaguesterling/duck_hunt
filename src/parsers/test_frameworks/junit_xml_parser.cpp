@@ -1,5 +1,4 @@
 #include "junit_xml_parser.hpp"
-#include "../../core/parser_registry.hpp"
 #include "yyjson.hpp"
 #include <sstream>
 
@@ -221,7 +220,5 @@ static void ParseTestCaseFromJson(yyjson_val *testcase, const std::string& suite
     events.push_back(event);
 }
 
-// Auto-register this parser
-REGISTER_PARSER(JUnitXmlParser);
 
 } // namespace duckdb

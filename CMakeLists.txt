@@ -7,7 +7,7 @@ set(EXTENSION_NAME ${TARGET_NAME}_extension)
 set(LOADABLE_EXTENSION_NAME ${TARGET_NAME}_loadable_extension)
 
 project(${TARGET_NAME})
-include_directories(src/include)
+include_directories(src/include src)
 
 set(EXTENSION_SOURCES 
     src/duck_hunt_extension.cpp
@@ -16,8 +16,21 @@ set(EXTENSION_SOURCES
     
     # Core modular architecture
     src/core/parser_registry.cpp
-    src/core/format_detector.cpp
     src/core/webbed_integration.cpp
+
+    # New parser category registrations
+    src/parsers/debugging/init.cpp
+    src/parsers/test_frameworks/init.cpp
+    src/parsers/build_systems/init.cpp
+    src/parsers/linting_tools/init.cpp
+    src/parsers/tool_outputs/init.cpp
+    src/parsers/ci_systems/init.cpp
+    src/parsers/structured_logs/init.cpp
+    src/parsers/web_access/init.cpp
+    src/parsers/cloud_logs/init.cpp
+    src/parsers/app_logging/init.cpp
+    src/parsers/infrastructure/init.cpp
+    src/parsers/infrastructure_tools/init.cpp
 
     # Parser implementations
     src/parsers/test_frameworks/pytest_parser.cpp
@@ -52,7 +65,13 @@ set(EXTENSION_SOURCES
     src/parsers/tool_outputs/spotbugs_json_parser.cpp
     src/parsers/tool_outputs/ktlint_json_parser.cpp
     src/parsers/tool_outputs/kubescore_json_parser.cpp
-    
+
+    # Extracted inline JSON parsers
+    src/parsers/tool_outputs/hadolint_json_parser.cpp
+    src/parsers/tool_outputs/lintr_json_parser.cpp
+    src/parsers/tool_outputs/sqlfluff_json_parser.cpp
+    src/parsers/tool_outputs/tflint_json_parser.cpp
+
     # Phase 6: Text Parser Extraction - Batch 1
     src/parsers/test_frameworks/junit_text_parser.cpp
     
@@ -65,7 +84,13 @@ set(EXTENSION_SOURCES
     # Phase 6: Text Parser Extraction - Batch 4
     src/parsers/test_frameworks/gtest_text_parser.cpp
     src/parsers/test_frameworks/nunit_xunit_text_parser.cpp
-    
+
+    # Phase 8: Additional parser extractions
+    src/parsers/test_frameworks/duckdb_test_parser.cpp
+    src/parsers/test_frameworks/pytest_cov_text_parser.cpp
+    src/parsers/tool_outputs/generic_lint_parser.cpp
+    src/parsers/tool_outputs/regexp_parser.cpp
+
     # Phase 7: Specialized Parser Extraction - Batch 1
     src/parsers/specialized/valgrind_parser.cpp
     
@@ -90,7 +115,11 @@ set(EXTENSION_SOURCES
     # Phase 8: Build System Parser Extraction - Batch 3
     src/parsers/build_systems/cargo_parser.cpp
     src/parsers/build_systems/cmake_parser.cpp
-    
+
+    # Extracted inline text parsers
+    src/parsers/build_systems/bazel_parser.cpp
+    src/parsers/linting_tools/autopep8_text_parser.cpp
+
     # New parsers - CI Systems and improved linting tools
     src/parsers/ci_systems/github_cli_parser.cpp
     src/parsers/ci_systems/drone_ci_text_parser.cpp

@@ -1,6 +1,10 @@
 #include "include/read_duck_hunt_log_function.hpp"
 #include "include/validation_event_types.hpp"
-#include "core/parser_registry.hpp"
+#include "core/parser_registry.hpp"  // Modular parser registry
+#include "parsers/test_frameworks/duckdb_test_parser.hpp"
+#include "parsers/test_frameworks/pytest_cov_text_parser.hpp"
+#include "parsers/tool_outputs/generic_lint_parser.hpp"
+#include "parsers/tool_outputs/regexp_parser.hpp"
 #include "parsers/test_frameworks/junit_text_parser.hpp"
 #include "parsers/test_frameworks/rspec_text_parser.hpp"
 #include "parsers/test_frameworks/mocha_chai_text_parser.hpp"
@@ -28,6 +32,7 @@
 #include <fstream>
 #include <regex>
 #include <sstream>
+#include <unordered_map>
 #include <map>
 #include <algorithm>
 #include <cctype>
@@ -36,6 +41,9 @@
 namespace duckdb {
 
 using namespace duckdb_yyjson;
+
+// Forward declaration for auto-detection fallback
+log_parsers::IParser* TryAutoDetectNewRegistry(const std::string& content);
 
 // Phase 3B: Error Pattern Analysis Functions
 
@@ -696,254 +704,308 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
     if (content.find(": error:") != std::string::npos || content.find(": warning:") != std::string::npos) {
         return TestResultFormat::GENERIC_LINT;
     }
-    
-    // Fallback: try the modular parser registry for newly added parsers
-    auto& registry = ParserRegistry::getInstance();
-    auto parser = registry.findParser(content);
+
+    // Fallback: try modular parser registry auto-detection
+    auto* parser = TryAutoDetectNewRegistry(content);
     if (parser) {
-        return parser->getFormat();
+        // Convert format name back to enum
+        return StringToTestResultFormat(parser->getFormatName());
     }
-    
+
     return TestResultFormat::UNKNOWN;
 }
 
+// Static array for enum-to-string conversion (indexed by enum value)
+static const char* const FORMAT_NAMES[] = {
+    "unknown",           // 0: UNKNOWN
+    "auto",              // 1: AUTO
+    "pytest_json",       // 2: PYTEST_JSON
+    "gotest_json",       // 3: GOTEST_JSON
+    "eslint_json",       // 4: ESLINT_JSON
+    "pytest_text",       // 5: PYTEST_TEXT
+    "make_error",        // 6: MAKE_ERROR
+    "generic_lint",      // 7: GENERIC_LINT
+    "duckdb_test",       // 8: DUCKDB_TEST
+    "rubocop_json",      // 9: RUBOCOP_JSON
+    "cargo_test_json",   // 10: CARGO_TEST_JSON
+    "swiftlint_json",    // 11: SWIFTLINT_JSON
+    "phpstan_json",      // 12: PHPSTAN_JSON
+    "shellcheck_json",   // 13: SHELLCHECK_JSON
+    "stylelint_json",    // 14: STYLELINT_JSON
+    "clippy_json",       // 15: CLIPPY_JSON
+    "markdownlint_json", // 16: MARKDOWNLINT_JSON
+    "yamllint_json",     // 17: YAMLLINT_JSON
+    "bandit_json",       // 18: BANDIT_JSON
+    "spotbugs_json",     // 19: SPOTBUGS_JSON
+    "ktlint_json",       // 20: KTLINT_JSON
+    "hadolint_json",     // 21: HADOLINT_JSON
+    "lintr_json",        // 22: LINTR_JSON
+    "sqlfluff_json",     // 23: SQLFLUFF_JSON
+    "tflint_json",       // 24: TFLINT_JSON
+    "kube_score_json",   // 25: KUBE_SCORE_JSON
+    "cmake_build",       // 26: CMAKE_BUILD
+    "python_build",      // 27: PYTHON_BUILD
+    "node_build",        // 28: NODE_BUILD
+    "cargo_build",       // 29: CARGO_BUILD
+    "maven_build",       // 30: MAVEN_BUILD
+    "gradle_build",      // 31: GRADLE_BUILD
+    "msbuild",           // 32: MSBUILD
+    "junit_text",        // 33: JUNIT_TEXT
+    "valgrind",          // 34: VALGRIND
+    "gdb_lldb",          // 35: GDB_LLDB
+    "rspec_text",        // 36: RSPEC_TEXT
+    "mocha_chai_text",   // 37: MOCHA_CHAI_TEXT
+    "gtest_text",        // 38: GTEST_TEXT
+    "nunit_xunit_text",  // 39: NUNIT_XUNIT_TEXT
+    "pylint_text",       // 40: PYLINT_TEXT
+    "flake8_text",       // 41: FLAKE8_TEXT
+    "black_text",        // 42: BLACK_TEXT
+    "mypy_text",         // 43: MYPY_TEXT
+    "docker_build",      // 44: DOCKER_BUILD
+    "bazel_build",       // 45: BAZEL_BUILD
+    "isort_text",        // 46: ISORT_TEXT
+    "bandit_text",       // 47: BANDIT_TEXT
+    "autopep8_text",     // 48: AUTOPEP8_TEXT
+    "yapf_text",         // 49: YAPF_TEXT
+    "coverage_text",     // 50: COVERAGE_TEXT
+    "pytest_cov_text",   // 51: PYTEST_COV_TEXT
+    "github_actions_text", // 52: GITHUB_ACTIONS_TEXT
+    "gitlab_ci_text",    // 53: GITLAB_CI_TEXT
+    "jenkins_text",      // 54: JENKINS_TEXT
+    "drone_ci_text",     // 55: DRONE_CI_TEXT
+    "terraform_text",    // 56: TERRAFORM_TEXT
+    "ansible_text",      // 57: ANSIBLE_TEXT
+    "github_cli",        // 58: GITHUB_CLI
+    "clang_tidy_text",   // 59: CLANG_TIDY_TEXT
+    "regexp",            // 60: REGEXP
+    "junit_xml",         // 61: JUNIT_XML
+    "nunit_xml",         // 62: NUNIT_XML
+    "checkstyle_xml",    // 63: CHECKSTYLE_XML
+    "jsonl",             // 64: JSONL
+    "logfmt",            // 65: LOGFMT
+    "syslog",            // 66: SYSLOG
+    "apache_access",     // 67: APACHE_ACCESS
+    "nginx_access",      // 68: NGINX_ACCESS
+    "aws_cloudtrail",    // 69: AWS_CLOUDTRAIL
+    "gcp_cloud_logging", // 70: GCP_CLOUD_LOGGING
+    "azure_activity",    // 71: AZURE_ACTIVITY
+    "python_logging",    // 72: PYTHON_LOGGING
+    "log4j",             // 73: LOG4J
+    "logrus",            // 74: LOGRUS
+    "iptables",          // 75: IPTABLES
+    "pf",                // 76: PF_FIREWALL
+    "cisco_asa",         // 77: CISCO_ASA
+    "vpc_flow",          // 78: VPC_FLOW
+    "kubernetes",        // 79: KUBERNETES
+    "windows_event",     // 80: WINDOWS_EVENT
+    "auditd",            // 81: AUDITD
+    "s3_access",         // 82: S3_ACCESS
+    "winston",           // 83: WINSTON
+    "pino",              // 84: PINO
+    "bunyan",            // 85: BUNYAN
+    "serilog",           // 86: SERILOG
+    "nlog",              // 87: NLOG
+    "ruby_logger",       // 88: RUBY_LOGGER
+    "rails_log",         // 89: RAILS_LOG
+    "strace",            // 90: STRACE
+};
+
 std::string TestResultFormatToString(TestResultFormat format) {
-    switch (format) {
-        case TestResultFormat::UNKNOWN: return "unknown";
-        case TestResultFormat::AUTO: return "auto";
-        case TestResultFormat::PYTEST_JSON: return "pytest_json";
-        case TestResultFormat::GOTEST_JSON: return "gotest_json";
-        case TestResultFormat::ESLINT_JSON: return "eslint_json";
-        case TestResultFormat::PYTEST_TEXT: return "pytest_text";
-        case TestResultFormat::MAKE_ERROR: return "make_error";
-        case TestResultFormat::GENERIC_LINT: return "generic_lint";
-        case TestResultFormat::DUCKDB_TEST: return "duckdb_test";
-        case TestResultFormat::RUBOCOP_JSON: return "rubocop_json";
-        case TestResultFormat::CARGO_TEST_JSON: return "cargo_test_json";
-        case TestResultFormat::SWIFTLINT_JSON: return "swiftlint_json";
-        case TestResultFormat::PHPSTAN_JSON: return "phpstan_json";
-        case TestResultFormat::SHELLCHECK_JSON: return "shellcheck_json";
-        case TestResultFormat::STYLELINT_JSON: return "stylelint_json";
-        case TestResultFormat::CLIPPY_JSON: return "clippy_json";
-        case TestResultFormat::MARKDOWNLINT_JSON: return "markdownlint_json";
-        case TestResultFormat::YAMLLINT_JSON: return "yamllint_json";
-        case TestResultFormat::BANDIT_JSON: return "bandit_json";
-        case TestResultFormat::SPOTBUGS_JSON: return "spotbugs_json";
-        case TestResultFormat::KTLINT_JSON: return "ktlint_json";
-        case TestResultFormat::HADOLINT_JSON: return "hadolint_json";
-        case TestResultFormat::LINTR_JSON: return "lintr_json";
-        case TestResultFormat::SQLFLUFF_JSON: return "sqlfluff_json";
-        case TestResultFormat::TFLINT_JSON: return "tflint_json";
-        case TestResultFormat::KUBE_SCORE_JSON: return "kube_score_json";
-        case TestResultFormat::CMAKE_BUILD: return "cmake_build";
-        case TestResultFormat::PYTHON_BUILD: return "python_build";
-        case TestResultFormat::NODE_BUILD: return "node_build";
-        case TestResultFormat::CARGO_BUILD: return "cargo_build";
-        case TestResultFormat::MAVEN_BUILD: return "maven_build";
-        case TestResultFormat::GRADLE_BUILD: return "gradle_build";
-        case TestResultFormat::MSBUILD: return "msbuild";
-        case TestResultFormat::JUNIT_TEXT: return "junit_text";
-        case TestResultFormat::VALGRIND: return "valgrind";
-        case TestResultFormat::GDB_LLDB: return "gdb_lldb";
-        case TestResultFormat::RSPEC_TEXT: return "rspec_text";
-        case TestResultFormat::MOCHA_CHAI_TEXT: return "mocha_chai_text";
-        case TestResultFormat::GTEST_TEXT: return "gtest_text";
-        case TestResultFormat::NUNIT_XUNIT_TEXT: return "nunit_xunit_text";
-        case TestResultFormat::PYLINT_TEXT: return "pylint_text";
-        case TestResultFormat::FLAKE8_TEXT: return "flake8_text";
-        case TestResultFormat::BLACK_TEXT: return "black_text";
-        case TestResultFormat::MYPY_TEXT: return "mypy_text";
-        case TestResultFormat::DOCKER_BUILD: return "docker_build";
-        case TestResultFormat::BAZEL_BUILD: return "bazel_build";
-        case TestResultFormat::ISORT_TEXT: return "isort_text";
-        case TestResultFormat::BANDIT_TEXT: return "bandit_text";
-        case TestResultFormat::AUTOPEP8_TEXT: return "autopep8_text";
-        case TestResultFormat::YAPF_TEXT: return "yapf_text";
-        case TestResultFormat::COVERAGE_TEXT: return "coverage_text";
-        case TestResultFormat::PYTEST_COV_TEXT: return "pytest_cov_text";
-        case TestResultFormat::GITHUB_ACTIONS_TEXT: return "github_actions_text";
-        case TestResultFormat::GITHUB_CLI: return "github_cli";
-        case TestResultFormat::CLANG_TIDY_TEXT: return "clang_tidy_text";
-        case TestResultFormat::GITLAB_CI_TEXT: return "gitlab_ci_text";
-        case TestResultFormat::JENKINS_TEXT: return "jenkins_text";
-        case TestResultFormat::DRONE_CI_TEXT: return "drone_ci_text";
-        case TestResultFormat::TERRAFORM_TEXT: return "terraform_text";
-        case TestResultFormat::ANSIBLE_TEXT: return "ansible_text";
-        case TestResultFormat::REGEXP: return "regexp";
-        // XML-based formats (require webbed extension)
-        case TestResultFormat::JUNIT_XML: return "junit_xml";
-        case TestResultFormat::NUNIT_XML: return "nunit_xml";
-        case TestResultFormat::CHECKSTYLE_XML: return "checkstyle_xml";
-        // Cross-language structured formats
-        case TestResultFormat::JSONL: return "jsonl";
-        case TestResultFormat::LOGFMT: return "logfmt";
-        // Web access and system logs
-        case TestResultFormat::SYSLOG: return "syslog";
-        case TestResultFormat::APACHE_ACCESS: return "apache_access";
-        case TestResultFormat::NGINX_ACCESS: return "nginx_access";
-        // Cloud provider logs
-        case TestResultFormat::AWS_CLOUDTRAIL: return "aws_cloudtrail";
-        case TestResultFormat::GCP_CLOUD_LOGGING: return "gcp_cloud_logging";
-        case TestResultFormat::AZURE_ACTIVITY: return "azure_activity";
-        // Application logging formats
-        case TestResultFormat::PYTHON_LOGGING: return "python_logging";
-        case TestResultFormat::LOG4J: return "log4j";
-        case TestResultFormat::LOGRUS: return "logrus";
-        // Application logging formats - Phase 2 (Node.js, .NET, Ruby)
-        case TestResultFormat::WINSTON: return "winston";
-        case TestResultFormat::PINO: return "pino";
-        case TestResultFormat::BUNYAN: return "bunyan";
-        case TestResultFormat::SERILOG: return "serilog";
-        case TestResultFormat::NLOG: return "nlog";
-        case TestResultFormat::RUBY_LOGGER: return "ruby_logger";
-        case TestResultFormat::RAILS_LOG: return "rails_log";
-        // System tracing formats
-        case TestResultFormat::STRACE: return "strace";
-        // Infrastructure formats
-        case TestResultFormat::IPTABLES: return "iptables";
-        case TestResultFormat::PF_FIREWALL: return "pf";
-        case TestResultFormat::CISCO_ASA: return "cisco_asa";
-        case TestResultFormat::VPC_FLOW: return "vpc_flow";
-        case TestResultFormat::KUBERNETES: return "kubernetes";
-        case TestResultFormat::WINDOWS_EVENT: return "windows_event";
-        case TestResultFormat::AUDITD: return "auditd";
-        case TestResultFormat::S3_ACCESS: return "s3_access";
-        default: return "unknown";
+    auto index = static_cast<uint8_t>(format);
+    if (index < sizeof(FORMAT_NAMES) / sizeof(FORMAT_NAMES[0])) {
+        return FORMAT_NAMES[index];
     }
+    return "unknown";
+}
+
+// Static map for string-to-enum conversion (includes aliases)
+static const std::unordered_map<std::string, TestResultFormat>& GetFormatMap() {
+    static const std::unordered_map<std::string, TestResultFormat> map = {
+        // Primary names (must match FORMAT_NAMES array)
+        {"unknown", TestResultFormat::UNKNOWN},
+        {"auto", TestResultFormat::AUTO},
+        {"pytest_json", TestResultFormat::PYTEST_JSON},
+        {"gotest_json", TestResultFormat::GOTEST_JSON},
+        {"eslint_json", TestResultFormat::ESLINT_JSON},
+        {"pytest_text", TestResultFormat::PYTEST_TEXT},
+        {"make_error", TestResultFormat::MAKE_ERROR},
+        {"generic_lint", TestResultFormat::GENERIC_LINT},
+        {"duckdb_test", TestResultFormat::DUCKDB_TEST},
+        {"rubocop_json", TestResultFormat::RUBOCOP_JSON},
+        {"cargo_test_json", TestResultFormat::CARGO_TEST_JSON},
+        {"swiftlint_json", TestResultFormat::SWIFTLINT_JSON},
+        {"phpstan_json", TestResultFormat::PHPSTAN_JSON},
+        {"shellcheck_json", TestResultFormat::SHELLCHECK_JSON},
+        {"stylelint_json", TestResultFormat::STYLELINT_JSON},
+        {"clippy_json", TestResultFormat::CLIPPY_JSON},
+        {"markdownlint_json", TestResultFormat::MARKDOWNLINT_JSON},
+        {"yamllint_json", TestResultFormat::YAMLLINT_JSON},
+        {"bandit_json", TestResultFormat::BANDIT_JSON},
+        {"spotbugs_json", TestResultFormat::SPOTBUGS_JSON},
+        {"ktlint_json", TestResultFormat::KTLINT_JSON},
+        {"hadolint_json", TestResultFormat::HADOLINT_JSON},
+        {"lintr_json", TestResultFormat::LINTR_JSON},
+        {"sqlfluff_json", TestResultFormat::SQLFLUFF_JSON},
+        {"tflint_json", TestResultFormat::TFLINT_JSON},
+        {"kube_score_json", TestResultFormat::KUBE_SCORE_JSON},
+        {"cmake_build", TestResultFormat::CMAKE_BUILD},
+        {"python_build", TestResultFormat::PYTHON_BUILD},
+        {"node_build", TestResultFormat::NODE_BUILD},
+        {"cargo_build", TestResultFormat::CARGO_BUILD},
+        {"maven_build", TestResultFormat::MAVEN_BUILD},
+        {"gradle_build", TestResultFormat::GRADLE_BUILD},
+        {"msbuild", TestResultFormat::MSBUILD},
+        {"junit_text", TestResultFormat::JUNIT_TEXT},
+        {"valgrind", TestResultFormat::VALGRIND},
+        {"gdb_lldb", TestResultFormat::GDB_LLDB},
+        {"rspec_text", TestResultFormat::RSPEC_TEXT},
+        {"mocha_chai_text", TestResultFormat::MOCHA_CHAI_TEXT},
+        {"gtest_text", TestResultFormat::GTEST_TEXT},
+        {"nunit_xunit_text", TestResultFormat::NUNIT_XUNIT_TEXT},
+        {"pylint_text", TestResultFormat::PYLINT_TEXT},
+        {"flake8_text", TestResultFormat::FLAKE8_TEXT},
+        {"black_text", TestResultFormat::BLACK_TEXT},
+        {"mypy_text", TestResultFormat::MYPY_TEXT},
+        {"docker_build", TestResultFormat::DOCKER_BUILD},
+        {"bazel_build", TestResultFormat::BAZEL_BUILD},
+        {"isort_text", TestResultFormat::ISORT_TEXT},
+        {"bandit_text", TestResultFormat::BANDIT_TEXT},
+        {"autopep8_text", TestResultFormat::AUTOPEP8_TEXT},
+        {"yapf_text", TestResultFormat::YAPF_TEXT},
+        {"coverage_text", TestResultFormat::COVERAGE_TEXT},
+        {"pytest_cov_text", TestResultFormat::PYTEST_COV_TEXT},
+        {"github_actions_text", TestResultFormat::GITHUB_ACTIONS_TEXT},
+        {"gitlab_ci_text", TestResultFormat::GITLAB_CI_TEXT},
+        {"jenkins_text", TestResultFormat::JENKINS_TEXT},
+        {"drone_ci_text", TestResultFormat::DRONE_CI_TEXT},
+        {"terraform_text", TestResultFormat::TERRAFORM_TEXT},
+        {"ansible_text", TestResultFormat::ANSIBLE_TEXT},
+        {"github_cli", TestResultFormat::GITHUB_CLI},
+        {"clang_tidy_text", TestResultFormat::CLANG_TIDY_TEXT},
+        {"regexp", TestResultFormat::REGEXP},
+        {"junit_xml", TestResultFormat::JUNIT_XML},
+        {"nunit_xml", TestResultFormat::NUNIT_XML},
+        {"checkstyle_xml", TestResultFormat::CHECKSTYLE_XML},
+        {"jsonl", TestResultFormat::JSONL},
+        {"logfmt", TestResultFormat::LOGFMT},
+        {"syslog", TestResultFormat::SYSLOG},
+        {"apache_access", TestResultFormat::APACHE_ACCESS},
+        {"nginx_access", TestResultFormat::NGINX_ACCESS},
+        {"aws_cloudtrail", TestResultFormat::AWS_CLOUDTRAIL},
+        {"gcp_cloud_logging", TestResultFormat::GCP_CLOUD_LOGGING},
+        {"azure_activity", TestResultFormat::AZURE_ACTIVITY},
+        {"python_logging", TestResultFormat::PYTHON_LOGGING},
+        {"log4j", TestResultFormat::LOG4J},
+        {"logrus", TestResultFormat::LOGRUS},
+        {"iptables", TestResultFormat::IPTABLES},
+        {"pf", TestResultFormat::PF_FIREWALL},
+        {"cisco_asa", TestResultFormat::CISCO_ASA},
+        {"vpc_flow", TestResultFormat::VPC_FLOW},
+        {"kubernetes", TestResultFormat::KUBERNETES},
+        {"windows_event", TestResultFormat::WINDOWS_EVENT},
+        {"auditd", TestResultFormat::AUDITD},
+        {"s3_access", TestResultFormat::S3_ACCESS},
+        {"winston", TestResultFormat::WINSTON},
+        {"pino", TestResultFormat::PINO},
+        {"bunyan", TestResultFormat::BUNYAN},
+        {"serilog", TestResultFormat::SERILOG},
+        {"nlog", TestResultFormat::NLOG},
+        {"ruby_logger", TestResultFormat::RUBY_LOGGER},
+        {"rails_log", TestResultFormat::RAILS_LOG},
+        {"strace", TestResultFormat::STRACE},
+        // Aliases
+        {"ndjson", TestResultFormat::JSONL},
+        {"cloudtrail", TestResultFormat::AWS_CLOUDTRAIL},
+        {"gcp_logging", TestResultFormat::GCP_CLOUD_LOGGING},
+        {"azure_activity_log", TestResultFormat::AZURE_ACTIVITY},
+        {"python_log", TestResultFormat::PYTHON_LOGGING},
+        {"log4j_text", TestResultFormat::LOG4J},
+        {"logback", TestResultFormat::LOG4J},
+        {"logrus_text", TestResultFormat::LOGRUS},
+        {"winston_json", TestResultFormat::WINSTON},
+        {"pino_json", TestResultFormat::PINO},
+        {"bunyan_json", TestResultFormat::BUNYAN},
+        {"serilog_json", TestResultFormat::SERILOG},
+        {"serilog_text", TestResultFormat::SERILOG},
+        {"nlog_text", TestResultFormat::NLOG},
+        {"ruby_log", TestResultFormat::RUBY_LOGGER},
+        {"rails", TestResultFormat::RAILS_LOG},
+        {"netfilter", TestResultFormat::IPTABLES},
+        {"ufw", TestResultFormat::IPTABLES},
+        {"pf_firewall", TestResultFormat::PF_FIREWALL},
+        {"openbsd_pf", TestResultFormat::PF_FIREWALL},
+        {"asa", TestResultFormat::CISCO_ASA},
+        {"vpc_flow_logs", TestResultFormat::VPC_FLOW},
+        {"aws_vpc_flow", TestResultFormat::VPC_FLOW},
+        {"k8s", TestResultFormat::KUBERNETES},
+        {"kube", TestResultFormat::KUBERNETES},
+        {"windows_event_log", TestResultFormat::WINDOWS_EVENT},
+        {"eventlog", TestResultFormat::WINDOWS_EVENT},
+        {"audit", TestResultFormat::AUDITD},
+        {"ssh_auth", TestResultFormat::AUDITD},
+        {"s3_access_log", TestResultFormat::S3_ACCESS},
+    };
+    return map;
 }
 
 TestResultFormat StringToTestResultFormat(const std::string& str) {
     // Check for regexp: prefix (dynamic pattern matching)
     if (str.rfind("regexp:", 0) == 0) return TestResultFormat::REGEXP;
-    if (str == "auto") return TestResultFormat::AUTO;
-    if (str == "pytest_json") return TestResultFormat::PYTEST_JSON;
-    if (str == "gotest_json") return TestResultFormat::GOTEST_JSON;
-    if (str == "eslint_json") return TestResultFormat::ESLINT_JSON;
-    if (str == "pytest_text") return TestResultFormat::PYTEST_TEXT;
-    if (str == "make_error") return TestResultFormat::MAKE_ERROR;
-    if (str == "generic_lint") return TestResultFormat::GENERIC_LINT;
-    if (str == "duckdb_test") return TestResultFormat::DUCKDB_TEST;
-    if (str == "rubocop_json") return TestResultFormat::RUBOCOP_JSON;
-    if (str == "cargo_test_json") return TestResultFormat::CARGO_TEST_JSON;
-    if (str == "swiftlint_json") return TestResultFormat::SWIFTLINT_JSON;
-    if (str == "phpstan_json") return TestResultFormat::PHPSTAN_JSON;
-    if (str == "shellcheck_json") return TestResultFormat::SHELLCHECK_JSON;
-    if (str == "stylelint_json") return TestResultFormat::STYLELINT_JSON;
-    if (str == "clippy_json") return TestResultFormat::CLIPPY_JSON;
-    if (str == "markdownlint_json") return TestResultFormat::MARKDOWNLINT_JSON;
-    if (str == "yamllint_json") return TestResultFormat::YAMLLINT_JSON;
-    if (str == "bandit_json") return TestResultFormat::BANDIT_JSON;
-    if (str == "spotbugs_json") return TestResultFormat::SPOTBUGS_JSON;
-    if (str == "ktlint_json") return TestResultFormat::KTLINT_JSON;
-    if (str == "hadolint_json") return TestResultFormat::HADOLINT_JSON;
-    if (str == "lintr_json") return TestResultFormat::LINTR_JSON;
-    if (str == "sqlfluff_json") return TestResultFormat::SQLFLUFF_JSON;
-    if (str == "tflint_json") return TestResultFormat::TFLINT_JSON;
-    if (str == "kube_score_json") return TestResultFormat::KUBE_SCORE_JSON;
-    if (str == "cmake_build") return TestResultFormat::CMAKE_BUILD;
-    if (str == "python_build") return TestResultFormat::PYTHON_BUILD;
-    if (str == "node_build") return TestResultFormat::NODE_BUILD;
-    if (str == "cargo_build") return TestResultFormat::CARGO_BUILD;
-    if (str == "maven_build") return TestResultFormat::MAVEN_BUILD;
-    if (str == "gradle_build") return TestResultFormat::GRADLE_BUILD;
-    if (str == "msbuild") return TestResultFormat::MSBUILD;
-    if (str == "junit_text") return TestResultFormat::JUNIT_TEXT;
-    if (str == "valgrind") return TestResultFormat::VALGRIND;
-    if (str == "gdb_lldb") return TestResultFormat::GDB_LLDB;
-    if (str == "rspec_text") return TestResultFormat::RSPEC_TEXT;
-    if (str == "mocha_chai_text") return TestResultFormat::MOCHA_CHAI_TEXT;
-    if (str == "gtest_text") return TestResultFormat::GTEST_TEXT;
-    if (str == "nunit_xunit_text") return TestResultFormat::NUNIT_XUNIT_TEXT;
-    if (str == "pylint_text") return TestResultFormat::PYLINT_TEXT;
-    if (str == "flake8_text") return TestResultFormat::FLAKE8_TEXT;
-    if (str == "black_text") return TestResultFormat::BLACK_TEXT;
-    if (str == "mypy_text") return TestResultFormat::MYPY_TEXT;
-    if (str == "docker_build") return TestResultFormat::DOCKER_BUILD;
-    if (str == "bazel_build") return TestResultFormat::BAZEL_BUILD;
-    if (str == "isort_text") return TestResultFormat::ISORT_TEXT;
-    if (str == "bandit_text") return TestResultFormat::BANDIT_TEXT;
-    if (str == "autopep8_text") return TestResultFormat::AUTOPEP8_TEXT;
-    if (str == "yapf_text") return TestResultFormat::YAPF_TEXT;
-    if (str == "coverage_text") return TestResultFormat::COVERAGE_TEXT;
-    if (str == "pytest_cov_text") return TestResultFormat::PYTEST_COV_TEXT;
-    if (str == "github_actions_text") return TestResultFormat::GITHUB_ACTIONS_TEXT;
-    if (str == "github_cli") return TestResultFormat::GITHUB_CLI;
-    if (str == "clang_tidy_text") return TestResultFormat::CLANG_TIDY_TEXT;
-    if (str == "gitlab_ci_text") return TestResultFormat::GITLAB_CI_TEXT;
-    if (str == "jenkins_text") return TestResultFormat::JENKINS_TEXT;
-    if (str == "drone_ci_text") return TestResultFormat::DRONE_CI_TEXT;
-    if (str == "terraform_text") return TestResultFormat::TERRAFORM_TEXT;
-    if (str == "ansible_text") return TestResultFormat::ANSIBLE_TEXT;
-    // XML-based formats (require webbed extension)
-    if (str == "junit_xml") return TestResultFormat::JUNIT_XML;
-    if (str == "nunit_xml") return TestResultFormat::NUNIT_XML;
-    if (str == "checkstyle_xml") return TestResultFormat::CHECKSTYLE_XML;
-    // Cross-language structured formats
-    if (str == "jsonl") return TestResultFormat::JSONL;
-    if (str == "ndjson") return TestResultFormat::JSONL;  // Alias
-    if (str == "logfmt") return TestResultFormat::LOGFMT;
-    // Web access and system logs
-    if (str == "syslog") return TestResultFormat::SYSLOG;
-    if (str == "apache_access") return TestResultFormat::APACHE_ACCESS;
-    if (str == "nginx_access") return TestResultFormat::NGINX_ACCESS;
-    // Cloud provider logs
-    if (str == "aws_cloudtrail") return TestResultFormat::AWS_CLOUDTRAIL;
-    if (str == "cloudtrail") return TestResultFormat::AWS_CLOUDTRAIL;  // Alias
-    if (str == "gcp_cloud_logging") return TestResultFormat::GCP_CLOUD_LOGGING;
-    if (str == "gcp_logging") return TestResultFormat::GCP_CLOUD_LOGGING;  // Alias
-    if (str == "azure_activity") return TestResultFormat::AZURE_ACTIVITY;
-    if (str == "azure_activity_log") return TestResultFormat::AZURE_ACTIVITY;  // Alias
-    // Application logging formats
-    if (str == "python_logging") return TestResultFormat::PYTHON_LOGGING;
-    if (str == "python_log") return TestResultFormat::PYTHON_LOGGING;  // Alias
-    if (str == "log4j") return TestResultFormat::LOG4J;
-    if (str == "log4j_text") return TestResultFormat::LOG4J;  // Alias
-    if (str == "logback") return TestResultFormat::LOG4J;  // Alias (same format)
-    if (str == "logrus") return TestResultFormat::LOGRUS;
-    if (str == "logrus_text") return TestResultFormat::LOGRUS;  // Alias
-    // Application logging formats - Phase 2 (Node.js, .NET, Ruby)
-    if (str == "winston") return TestResultFormat::WINSTON;
-    if (str == "winston_json") return TestResultFormat::WINSTON;  // Alias
-    if (str == "pino") return TestResultFormat::PINO;
-    if (str == "pino_json") return TestResultFormat::PINO;  // Alias
-    if (str == "bunyan") return TestResultFormat::BUNYAN;
-    if (str == "bunyan_json") return TestResultFormat::BUNYAN;  // Alias
-    if (str == "serilog") return TestResultFormat::SERILOG;
-    if (str == "serilog_json") return TestResultFormat::SERILOG;  // Alias
-    if (str == "serilog_text") return TestResultFormat::SERILOG;  // Alias
-    if (str == "nlog") return TestResultFormat::NLOG;
-    if (str == "nlog_text") return TestResultFormat::NLOG;  // Alias
-    if (str == "ruby_logger") return TestResultFormat::RUBY_LOGGER;
-    if (str == "ruby_log") return TestResultFormat::RUBY_LOGGER;  // Alias
-    if (str == "rails_log") return TestResultFormat::RAILS_LOG;
-    if (str == "rails") return TestResultFormat::RAILS_LOG;  // Alias
-    // System tracing formats
-    if (str == "strace") return TestResultFormat::STRACE;
-    // Infrastructure formats
-    if (str == "iptables") return TestResultFormat::IPTABLES;
-    if (str == "netfilter") return TestResultFormat::IPTABLES;  // Alias
-    if (str == "ufw") return TestResultFormat::IPTABLES;  // Alias (UFW uses iptables format)
-    if (str == "pf") return TestResultFormat::PF_FIREWALL;
-    if (str == "pf_firewall") return TestResultFormat::PF_FIREWALL;  // Alias
-    if (str == "openbsd_pf") return TestResultFormat::PF_FIREWALL;  // Alias
-    if (str == "cisco_asa") return TestResultFormat::CISCO_ASA;
-    if (str == "asa") return TestResultFormat::CISCO_ASA;  // Alias
-    if (str == "vpc_flow") return TestResultFormat::VPC_FLOW;
-    if (str == "vpc_flow_logs") return TestResultFormat::VPC_FLOW;  // Alias
-    if (str == "aws_vpc_flow") return TestResultFormat::VPC_FLOW;  // Alias
-    if (str == "kubernetes") return TestResultFormat::KUBERNETES;
-    if (str == "k8s") return TestResultFormat::KUBERNETES;  // Alias
-    if (str == "kube") return TestResultFormat::KUBERNETES;  // Alias
-    if (str == "windows_event") return TestResultFormat::WINDOWS_EVENT;
-    if (str == "windows_event_log") return TestResultFormat::WINDOWS_EVENT;  // Alias
-    if (str == "eventlog") return TestResultFormat::WINDOWS_EVENT;  // Alias
-    if (str == "auditd") return TestResultFormat::AUDITD;
-    if (str == "audit") return TestResultFormat::AUDITD;  // Alias
-    if (str == "ssh_auth") return TestResultFormat::AUDITD;  // Alias (parsed by auditd parser)
-    if (str == "s3_access") return TestResultFormat::S3_ACCESS;
-    if (str == "s3_access_log") return TestResultFormat::S3_ACCESS;  // Alias
-    if (str == "unknown") return TestResultFormat::UNKNOWN;
-    return TestResultFormat::UNKNOWN;  // Unknown format string
+
+    auto& map = GetFormatMap();
+    auto it = map.find(str);
+    return it != map.end() ? it->second : TestResultFormat::UNKNOWN;
+}
+
+/**
+ * Try to parse content using the new modular parser registry.
+ * Returns true if a parser was found and content was parsed.
+ * Returns false if no parser found (caller should fall back to legacy switch).
+ *
+ * This dispatch function allows gradual migration: as parsers are added to
+ * log_parsers::ParserRegistry, they will be used automatically without
+ * needing to update the legacy switch statement.
+ */
+bool TryNewParserRegistry(ClientContext& context,
+                          TestResultFormat format,
+                          const std::string& content,
+                          std::vector<ValidationEvent>& events) {
+    // Get the format name string
+    std::string format_name = TestResultFormatToString(format);
+    if (format_name == "unknown" || format_name == "auto") {
+        return false;  // Let legacy code handle these
+    }
+
+    // Check new parser registry
+    auto& registry = log_parsers::ParserRegistry::getInstance();
+    auto* parser = registry.getParser(format_name);
+
+    if (!parser) {
+        return false;  // No parser in new registry, use legacy
+    }
+
+    // Parser found - use it
+    size_t events_before = events.size();
+    if (parser->requiresContext()) {
+        auto parsed_events = parser->parseWithContext(context, content);
+        events.insert(events.end(), parsed_events.begin(), parsed_events.end());
+    } else {
+        auto parsed_events = parser->parse(content);
+        events.insert(events.end(), parsed_events.begin(), parsed_events.end());
+    }
+
+    // Only return true if we actually parsed something
+    // This allows fallback to old registry if new parser produces no results
+    return events.size() > events_before;
+}
+
+/**
+ * Try to auto-detect content format using the new modular parser registry.
+ * Returns the parser if found, nullptr otherwise.
+ */
+log_parsers::IParser* TryAutoDetectNewRegistry(const std::string& content) {
+    auto& registry = log_parsers::ParserRegistry::getInstance();
+    return registry.findParser(content);
 }
 
 std::string ReadContentFromSource(ClientContext& context, const std::string& source) {
@@ -1138,422 +1200,32 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &co
         if (format == TestResultFormat::AUTO) {
             format = DetectTestResultFormat(content);
         }
-        
-        // Parse content based on detected format
-        switch (format) {
-            case TestResultFormat::PYTEST_JSON:
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(format);
-                    if (parser) {
-                        auto events = parser->parse(content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    }
-                    // Note: Legacy ParsePytestJSON removed - fully replaced by modular PytestJSONParser
-                }
-                break;
-            case TestResultFormat::DUCKDB_TEST:
-                ParseDuckDBTestOutput(content, global_state->events);
-                break;
-            case TestResultFormat::ESLINT_JSON:
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(format);
-                    if (parser) {
-                        auto events = parser->parse(content);
-                        // Insert parsed events into the global state
-                        // (removed debugging throws - parser registration fix worked!)
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    } else {
-                        throw std::runtime_error("ESLint modular parser NOT found in registry");
-                    }
-                }
-                break;
-            case TestResultFormat::GOTEST_JSON:
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(format);
-                    if (parser) {
-                        auto events = parser->parse(content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    }
-                    // Note: Legacy ParseGoTestJSON removed - fully replaced by modular GoTestJSONParser
-                }
-                break;
-            case TestResultFormat::MAKE_ERROR:
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(format);
-                    if (parser) {
-                        auto events = parser->parse(content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    }
-                    // Note: Legacy ParseMakeErrors removed - fully replaced by modular MakeParser
-                }
-                break;
-            case TestResultFormat::PYTEST_TEXT:
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(format);
-                    if (parser) {
-                        auto events = parser->parse(content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    } else {
-                        // Fallback to legacy parser if modular parser not found
-                        ParsePytestText(content, global_state->events);
-                    }
-                }
-                break;
-            case TestResultFormat::GENERIC_LINT:
-                ParseGenericLint(content, global_state->events);
-                break;
-            case TestResultFormat::RUBOCOP_JSON:
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(format);
-                    if (parser) {
-                        auto events = parser->parse(content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    }
-                    // Note: Legacy ParseRuboCopJSON removed - fully replaced by modular RuboCopJSONParser
-                }
-                break;
-            case TestResultFormat::CARGO_TEST_JSON:
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(format);
-                    if (parser) {
-                        auto events = parser->parse(content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    }
-                    // Note: Legacy ParseCargoTestJSON removed - fully replaced by modular CargoTestJSONParser
-                }
-                break;
-            case TestResultFormat::SWIFTLINT_JSON:
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(format);
-                    if (parser) {
-                        auto events = parser->parse(content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    }
-                    // Note: Legacy ParseSwiftLintJSON removed - fully replaced by modular SwiftLintJSONParser
-                }
-                break;
-            case TestResultFormat::PHPSTAN_JSON:
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(format);
-                    if (parser) {
-                        auto events = parser->parse(content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    }
-                    // Note: Legacy ParsePHPStanJSON removed - fully replaced by modular PHPStanJSONParser
-                }
-                break;
-            case TestResultFormat::SHELLCHECK_JSON:
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(format);
-                    if (parser) {
-                        auto events = parser->parse(content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    } else {
-                        throw std::runtime_error("ShellCheck JSON modular parser not found in registry");
-                    }
-                }
-                break;
-            case TestResultFormat::STYLELINT_JSON:
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(format);
-                    if (parser) {
-                        auto events = parser->parse(content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    } else {
-                        throw std::runtime_error("Stylelint JSON modular parser not found in registry");
-                    }
-                }
-                break;
-            case TestResultFormat::CLIPPY_JSON:
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(format);
-                    if (parser) {
-                        auto events = parser->parse(content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    } else {
-                        throw std::runtime_error("Clippy JSON modular parser not found in registry");
-                    }
-                }
-                break;
-            case TestResultFormat::MARKDOWNLINT_JSON:
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(format);
-                    if (parser) {
-                        auto events = parser->parse(content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    } else {
-                        throw std::runtime_error("Markdownlint JSON modular parser not found in registry");
-                    }
-                }
-                break;
-            case TestResultFormat::YAMLLINT_JSON:
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(format);
-                    if (parser) {
-                        auto events = parser->parse(content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    } else {
-                        throw std::runtime_error("Yamllint JSON modular parser not found in registry");
-                    }
-                }
-                break;
-            case TestResultFormat::BANDIT_JSON:
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(format);
-                    if (parser) {
-                        auto events = parser->parse(content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    } else {
-                        throw std::runtime_error("Bandit JSON modular parser not found in registry");
-                    }
-                }
-                break;
-            case TestResultFormat::SPOTBUGS_JSON:
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(format);
-                    if (parser) {
-                        auto events = parser->parse(content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    } else {
-                        throw std::runtime_error("SpotBugs JSON modular parser not found in registry");
-                    }
-                }
-                break;
-            case TestResultFormat::KTLINT_JSON:
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(format);
-                    if (parser) {
-                        auto events = parser->parse(content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    } else {
-                        throw std::runtime_error("Ktlint JSON modular parser not found in registry");
-                    }
-                }
-                break;
-            case TestResultFormat::HADOLINT_JSON:
-                ParseHadolintJSON(content, global_state->events);
-                break;
-            case TestResultFormat::LINTR_JSON:
-                ParseLintrJSON(content, global_state->events);
-                break;
-            case TestResultFormat::SQLFLUFF_JSON:
-                ParseSqlfluffJSON(content, global_state->events);
-                break;
-            case TestResultFormat::TFLINT_JSON:
-                ParseTflintJSON(content, global_state->events);
-                break;
-            case TestResultFormat::KUBE_SCORE_JSON:
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(format);
-                    if (parser) {
-                        auto events = parser->parse(content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    }
-                }
-                break;
-            case TestResultFormat::CMAKE_BUILD:
-                duck_hunt::CMakeParser::ParseCMakeBuild(content, global_state->events);
-                break;
-            case TestResultFormat::PYTHON_BUILD:
-                duck_hunt::PythonParser::ParsePythonBuild(content, global_state->events);
-                break;
-            case TestResultFormat::NODE_BUILD:
-                duck_hunt::NodeParser::ParseNodeBuild(content, global_state->events);
-                break;
-            case TestResultFormat::CARGO_BUILD:
-                duck_hunt::CargoParser::ParseCargoBuild(content, global_state->events);
-                break;
-            case TestResultFormat::MAVEN_BUILD:
-                duck_hunt::MavenParser::ParseMavenBuild(content, global_state->events);
-                break;
-            case TestResultFormat::GRADLE_BUILD:
-                duck_hunt::GradleParser::ParseGradleBuild(content, global_state->events);
-                break;
-            case TestResultFormat::MSBUILD:
-                duck_hunt::MSBuildParser::ParseMSBuild(content, global_state->events);
-                break;
-            case TestResultFormat::JUNIT_TEXT:
-                duck_hunt::JUnitTextParser::ParseJUnitText(content, global_state->events);
-                break;
-            case TestResultFormat::VALGRIND:
-                duck_hunt::ValgrindParser::ParseValgrind(content, global_state->events);
-                break;
-            case TestResultFormat::GDB_LLDB:
-                duck_hunt::GdbLldbParser::ParseGdbLldb(content, global_state->events);
-                break;
-            case TestResultFormat::STRACE:
-                duck_hunt::StraceParser::ParseStrace(content, global_state->events);
-                break;
-            case TestResultFormat::RSPEC_TEXT:
-                duck_hunt::RSpecTextParser::ParseRSpecText(content, global_state->events);
-                break;
-            case TestResultFormat::MOCHA_CHAI_TEXT:
-                duck_hunt::MochaChaiTextParser::ParseMochaChai(content, global_state->events);
-                break;
-            case TestResultFormat::GTEST_TEXT:
-                duck_hunt::GTestTextParser::ParseGoogleTest(content, global_state->events);
-                break;
-            case TestResultFormat::NUNIT_XUNIT_TEXT:
-                duck_hunt::NUnitXUnitTextParser::ParseNUnitXUnit(content, global_state->events);
-                break;
-            case TestResultFormat::PYLINT_TEXT:
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(format);
-                    if (parser) {
-                        auto events = parser->parse(content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    }
-                }
-                break;
-            case TestResultFormat::FLAKE8_TEXT:
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(format);
-                    if (parser) {
-                        auto events = parser->parse(content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    }
-                }
-                break;
-            case TestResultFormat::BLACK_TEXT:
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(format);
-                    if (parser) {
-                        auto events = parser->parse(content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    }
-                }
-                break;
-            case TestResultFormat::MYPY_TEXT:
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(format);
-                    if (parser) {
-                        auto events = parser->parse(content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    }
-                }
-                break;
-            case TestResultFormat::BAZEL_BUILD:
-                ParseBazelBuild(content, global_state->events);
-                break;
-            case TestResultFormat::AUTOPEP8_TEXT:
-                ParseAutopep8Text(content, global_state->events);
-                break;
-            case TestResultFormat::YAPF_TEXT:
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(TestResultFormat::YAPF_TEXT);
-                    if (parser) {
-                        auto events = parser->parse(content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    }
-                }
-                break;
-            case TestResultFormat::COVERAGE_TEXT:
-                duck_hunt::CoverageParser::ParseCoverageText(content, global_state->events);
-                break;
-            case TestResultFormat::PYTEST_COV_TEXT:
-                duck_hunt::CoverageParser::ParsePytestCovText(content, global_state->events);
-                break;
-            case TestResultFormat::GITHUB_CLI:
-            case TestResultFormat::CLANG_TIDY_TEXT:
-                // These formats are handled by the modular parser registry at the end
-                break;
-            case TestResultFormat::DRONE_CI_TEXT:
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(format);
-                    if (parser) {
-                        auto events = parser->parse(content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    }
-                }
-                break;
-            case TestResultFormat::TERRAFORM_TEXT:
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(format);
-                    if (parser) {
-                        auto events = parser->parse(content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    }
-                }
-                break;
-            case TestResultFormat::ANSIBLE_TEXT:
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(TestResultFormat::ANSIBLE_TEXT);
-                    if (parser) {
-                        auto events = parser->parse(content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    }
-                }
-                break;
-            case TestResultFormat::REGEXP:
-                // Dynamic regexp parser - uses user-provided pattern
-                ParseWithRegexp(content, bind_data.regexp_pattern, global_state->events);
-                break;
-            // XML-based formats (require webbed extension for XML->JSON conversion)
-            case TestResultFormat::JUNIT_XML:
-            case TestResultFormat::NUNIT_XML:
-            case TestResultFormat::CHECKSTYLE_XML:
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(format);
-                    if (parser) {
-                        // XML parsers require context for webbed integration
-                        if (parser->requiresContext()) {
-                            auto events = parser->parseWithContext(context, content);
-                            global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                        } else {
-                            auto events = parser->parse(content);
-                            global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                        }
-                    } else {
-                        throw InvalidInputException(
-                            "XML format '%s' parser not found. Ensure the webbed extension is installed:\n"
-                            "  INSTALL webbed FROM community;\n"
-                            "  LOAD webbed;",
-                            TestResultFormatToString(format));
-                    }
-                }
-                break;
-            default:
-                // Try the modular parser registry for new parsers
-                {
-                    auto& registry = ParserRegistry::getInstance();
-                    auto parser = registry.getParser(format);
-                    if (parser) {
-                        auto events = parser->parse(content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    }
-                }
-                break;
+
+        // Try new modular parser registry first
+        // All parsers are now registered here - this handles most formats
+        if (TryNewParserRegistry(context, format, content, global_state->events)) {
+            // Successfully parsed by new registry
+        } else {
+            // Legacy fallback for special cases not in modular registry
+            switch (format) {
+                case TestResultFormat::DUCKDB_TEST:
+                    duck_hunt::DuckDBTestParser::ParseDuckDBTestOutput(content, global_state->events);
+                    break;
+                case TestResultFormat::GENERIC_LINT:
+                    duck_hunt::GenericLintParser::ParseGenericLint(content, global_state->events);
+                    break;
+                case TestResultFormat::REGEXP:
+                    // Dynamic regexp parser - uses user-provided pattern
+                    duck_hunt::RegexpParser::ParseWithRegexp(content, bind_data.regexp_pattern, global_state->events);
+                    break;
+                default:
+                    // All formats now handled by modular registry above
+                    break;
+            }
         }
 
     }
-    
+
     // Phase 3B: Process error patterns for intelligent categorization
     ProcessErrorPatterns(global_state->events);
     
@@ -1646,931 +1318,7 @@ void PopulateDataChunkFromEvents(DataChunk &output, const std::vector<Validation
 }
 
 
-void ParseDuckDBTestOutput(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    
-    // Track current test being processed
-    std::string current_test_file;
-    bool in_failure_section = false;
-    std::string failure_message;
-    std::string failure_query;
-    int failure_line = -1;
-    std::string mismatch_details;
-    std::string expected_result;
-    std::string actual_result;
-    bool in_expected_section = false;
-    bool in_actual_section = false;
-    
-    while (std::getline(stream, line)) {
-        // Parse test progress lines: [X/Y] (Z%): /path/to/test.test
-        if (line.find("[") == 0 && line.find("]:") != std::string::npos) {
-            size_t path_start = line.find("): ");
-            if (path_start != std::string::npos) {
-                current_test_file = line.substr(path_start + 3);
-                // Trim any trailing whitespace/dots
-                while (!current_test_file.empty() && 
-                       (current_test_file.back() == '.' || current_test_file.back() == ' ')) {
-                    current_test_file.pop_back();
-                }
-            }
-        }
-        
-        // Detect failure start
-        else if (line.find("Wrong result in query!") != std::string::npos ||
-                 line.find("Query unexpectedly failed") != std::string::npos) {
-            in_failure_section = true;
-            failure_message = line;
-            
-            // Extract line number from failure message
-            size_t line_start = line.find(".test:");
-            if (line_start != std::string::npos) {
-                line_start += 6; // Length of ".test:"
-                size_t line_end = line.find(")", line_start);
-                if (line_end != std::string::npos) {
-                    try {
-                        failure_line = std::stoi(line.substr(line_start, line_end - line_start));
-                    } catch (...) {
-                        failure_line = -1;
-                    }
-                }
-            }
-        }
-        
-        // Capture SQL query in failure section
-        else if (in_failure_section && !line.empty() && 
-                 line.find("================================================================================") == std::string::npos &&
-                 line.find("SELECT") == 0) {
-            failure_query = line;
-        }
-        
-        // Capture mismatch details
-        else if (in_failure_section && line.find("Mismatch on row") != std::string::npos) {
-            mismatch_details = line;
-        }
-        
-        // Detect expected result section
-        else if (in_failure_section && line.find("Expected result:") != std::string::npos) {
-            in_expected_section = true;
-            in_actual_section = false;
-        }
-        
-        // Detect actual result section
-        else if (in_failure_section && line.find("Actual result:") != std::string::npos) {
-            in_expected_section = false;
-            in_actual_section = true;
-        }
-        
-        // Capture expected result data
-        else if (in_expected_section && !line.empty() && 
-                 line.find("================================================================================") == std::string::npos) {
-            if (!expected_result.empty()) expected_result += "\n";
-            expected_result += line;
-        }
-        
-        // Capture actual result data
-        else if (in_actual_section && !line.empty() && 
-                 line.find("================================================================================") == std::string::npos) {
-            if (!actual_result.empty()) actual_result += "\n";
-            actual_result += line;
-        }
-        
-        // End of failure section - create failure event
-        else if (in_failure_section && line.find("FAILED:") != std::string::npos) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "duckdb_test";
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.file_path = current_test_file;
-            event.line_number = failure_line;
-            event.column_number = -1;
-            event.function_name = failure_query.empty() ? "unknown" : failure_query.substr(0, 50);
-            event.status = ValidationEventStatus::FAIL;
-            event.category = "test_failure";
-            
-            // Enhanced message with mismatch details
-            std::string enhanced_message = failure_message;
-            if (!mismatch_details.empty()) {
-                enhanced_message += " | " + mismatch_details;
-            }
-            event.message = enhanced_message;
-            
-            // Enhanced raw_output with query and comparison details
-            std::string enhanced_output = failure_query;
-            if (!expected_result.empty() && !actual_result.empty()) {
-                enhanced_output += "\n--- Expected ---\n" + expected_result;
-                enhanced_output += "\n--- Actual ---\n" + actual_result;
-            }
-            event.raw_output = enhanced_output;
-            
-            // Use suggestion field for mismatch details
-            event.suggestion = mismatch_details;
-            event.execution_time = 0.0;
-            
-            events.push_back(event);
-            
-            // Reset failure tracking
-            in_failure_section = false;
-            in_expected_section = false;
-            in_actual_section = false;
-            failure_message.clear();
-            failure_query.clear();
-            failure_line = -1;
-            mismatch_details.clear();
-            expected_result.clear();
-            actual_result.clear();
-        }
-        
-        // Parse summary line: test cases: X | Y passed | Z failed
-        else if (line.find("test cases:") != std::string::npos) {
-            // Extract summary statistics and create summary events
-            std::string summary_line = line;
-            
-            // Extract passed count
-            size_t passed_pos = summary_line.find(" passed");
-            if (passed_pos != std::string::npos) {
-                size_t passed_start = summary_line.rfind(" ", passed_pos - 1);
-                if (passed_start != std::string::npos) {
-                    try {
-                        int passed_count = std::stoi(summary_line.substr(passed_start + 1, passed_pos - passed_start - 1));
-                        
-                        // Create passed test events (summary)
-                        ValidationEvent summary_event;
-                        summary_event.event_id = event_id++;
-                        summary_event.tool_name = "duckdb_test";
-                        summary_event.event_type = ValidationEventType::TEST_RESULT;
-                        summary_event.status = ValidationEventStatus::INFO;
-                        summary_event.category = "test_summary";
-                        summary_event.message = "Test summary: " + std::to_string(passed_count) + " tests passed";
-                        summary_event.line_number = -1;
-                        summary_event.column_number = -1;
-                        summary_event.execution_time = 0.0;
-                        
-                        events.push_back(summary_event);
-                    } catch (...) {
-                        // Ignore parsing errors
-                    }
-                }
-            }
-        }
-    }
-    
-    // If no events were created, add a basic summary
-    if (events.empty()) {
-        ValidationEvent summary_event;
-        summary_event.event_id = 1;
-        summary_event.tool_name = "duckdb_test";
-        summary_event.event_type = ValidationEventType::TEST_RESULT;
-        summary_event.status = ValidationEventStatus::INFO;
-        summary_event.category = "test_summary";
-        summary_event.message = "DuckDB test output parsed (no specific test results found)";
-        summary_event.line_number = -1;
-        summary_event.column_number = -1;
-        summary_event.execution_time = 0.0;
-        
-        events.push_back(summary_event);
-    }
-}
 
-
-
-
-void ParsePytestText(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    
-    while (std::getline(stream, line)) {
-        if (line.empty()) continue;
-        
-        // Look for pytest text output patterns: "file.py::test_name STATUS"
-        if (line.find("::") != std::string::npos) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "pytest";
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.line_number = -1;
-            event.column_number = -1;
-            event.execution_time = 0.0;
-            event.category = "test";
-            
-            // Parse the line format: "file.py::test_name STATUS"
-            size_t separator = line.find("::");
-            if (separator != std::string::npos) {
-                event.file_path = line.substr(0, separator);
-                
-                std::string rest = line.substr(separator + 2);
-                
-                // Find the status at the end
-                if (rest.find(" PASSED") != std::string::npos) {
-                    event.status = ValidationEventStatus::PASS;
-                    event.message = "Test passed";
-                    event.test_name = rest.substr(0, rest.find(" PASSED"));
-                } else if (rest.find(" FAILED") != std::string::npos) {
-                    event.status = ValidationEventStatus::FAIL;
-                    event.message = "Test failed";
-                    event.test_name = rest.substr(0, rest.find(" FAILED"));
-                } else if (rest.find(" SKIPPED") != std::string::npos) {
-                    event.status = ValidationEventStatus::SKIP;
-                    event.message = "Test skipped";
-                    event.test_name = rest.substr(0, rest.find(" SKIPPED"));
-                } else {
-                    // Default case
-                    event.status = ValidationEventStatus::INFO;
-                    event.message = "Test result";
-                    event.test_name = rest;
-                }
-            }
-            
-            events.push_back(event);
-        }
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-void ParseHadolintJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    // Parse JSON using yyjson
-    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
-    if (!doc) {
-        throw IOException("Failed to parse hadolint JSON");
-    }
-    
-    yyjson_val *root = yyjson_doc_get_root(doc);
-    if (!yyjson_is_arr(root)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid hadolint JSON: root is not an array");
-    }
-    
-    // Parse each issue
-    size_t idx, max;
-    yyjson_val *issue;
-    int64_t event_id = 1;
-    
-    yyjson_arr_foreach(root, idx, max, issue) {
-        if (!yyjson_is_obj(issue)) continue;
-        
-        ValidationEvent event;
-        event.event_id = event_id++;
-        event.tool_name = "hadolint";
-        event.event_type = ValidationEventType::LINT_ISSUE;
-        event.category = "dockerfile";
-        
-        // Get file path
-        yyjson_val *file = yyjson_obj_get(issue, "file");
-        if (file && yyjson_is_str(file)) {
-            event.file_path = yyjson_get_str(file);
-        }
-        
-        // Get line number
-        yyjson_val *line = yyjson_obj_get(issue, "line");
-        if (line && yyjson_is_int(line)) {
-            event.line_number = yyjson_get_int(line);
-        } else {
-            event.line_number = -1;
-        }
-        
-        // Get column number
-        yyjson_val *column = yyjson_obj_get(issue, "column");
-        if (column && yyjson_is_int(column)) {
-            event.column_number = yyjson_get_int(column);
-        } else {
-            event.column_number = -1;
-        }
-        
-        // Get code as error code
-        yyjson_val *code = yyjson_obj_get(issue, "code");
-        if (code && yyjson_is_str(code)) {
-            event.error_code = yyjson_get_str(code);
-        }
-        
-        // Get message
-        yyjson_val *message = yyjson_obj_get(issue, "message");
-        if (message && yyjson_is_str(message)) {
-            event.message = yyjson_get_str(message);
-        }
-        
-        // Get level and map to status
-        yyjson_val *level = yyjson_obj_get(issue, "level");
-        if (level && yyjson_is_str(level)) {
-            std::string level_str = yyjson_get_str(level);
-            event.severity = level_str;
-            
-            // Map hadolint levels to ValidationEventStatus
-            if (level_str == "error") {
-                event.status = ValidationEventStatus::ERROR;
-            } else if (level_str == "warning") {
-                event.status = ValidationEventStatus::WARNING;
-            } else if (level_str == "info") {
-                event.status = ValidationEventStatus::INFO;
-            } else if (level_str == "style") {
-                event.status = ValidationEventStatus::WARNING; // Treat style as warning
-            } else {
-                event.status = ValidationEventStatus::WARNING; // Default to warning
-            }
-        } else {
-            event.severity = "warning";
-            event.status = ValidationEventStatus::WARNING;
-        }
-        
-        // Set raw output and structured data
-        event.raw_output = content;
-        event.structured_data = "hadolint_json";
-        
-        events.push_back(event);
-    }
-    
-    yyjson_doc_free(doc);
-}
-
-void ParseLintrJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    // Parse JSON using yyjson
-    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
-    if (!doc) {
-        throw IOException("Failed to parse lintr JSON");
-    }
-    
-    yyjson_val *root = yyjson_doc_get_root(doc);
-    if (!yyjson_is_arr(root)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid lintr JSON: root is not an array");
-    }
-    
-    // Parse each lint issue
-    size_t idx, max;
-    yyjson_val *issue;
-    int64_t event_id = 1;
-    
-    yyjson_arr_foreach(root, idx, max, issue) {
-        if (!yyjson_is_obj(issue)) continue;
-        
-        ValidationEvent event;
-        event.event_id = event_id++;
-        event.tool_name = "lintr";
-        event.event_type = ValidationEventType::LINT_ISSUE;
-        event.category = "r_code_style";
-        
-        // Get filename
-        yyjson_val *filename = yyjson_obj_get(issue, "filename");
-        if (filename && yyjson_is_str(filename)) {
-            event.file_path = yyjson_get_str(filename);
-        }
-        
-        // Get line number
-        yyjson_val *line_number = yyjson_obj_get(issue, "line_number");
-        if (line_number && yyjson_is_int(line_number)) {
-            event.line_number = yyjson_get_int(line_number);
-        } else {
-            event.line_number = -1;
-        }
-        
-        // Get column number
-        yyjson_val *column_number = yyjson_obj_get(issue, "column_number");
-        if (column_number && yyjson_is_int(column_number)) {
-            event.column_number = yyjson_get_int(column_number);
-        } else {
-            event.column_number = -1;
-        }
-        
-        // Get linter name as error code
-        yyjson_val *linter = yyjson_obj_get(issue, "linter");
-        if (linter && yyjson_is_str(linter)) {
-            event.error_code = yyjson_get_str(linter);
-        }
-        
-        // Get message
-        yyjson_val *message = yyjson_obj_get(issue, "message");
-        if (message && yyjson_is_str(message)) {
-            event.message = yyjson_get_str(message);
-        }
-        
-        // Get type and map to status
-        yyjson_val *type = yyjson_obj_get(issue, "type");
-        if (type && yyjson_is_str(type)) {
-            std::string type_str = yyjson_get_str(type);
-            event.severity = type_str;
-            
-            // Map lintr types to ValidationEventStatus
-            if (type_str == "error") {
-                event.status = ValidationEventStatus::ERROR;
-            } else if (type_str == "warning") {
-                event.status = ValidationEventStatus::WARNING;
-            } else if (type_str == "style") {
-                event.status = ValidationEventStatus::WARNING; // Treat style as warning
-            } else {
-                event.status = ValidationEventStatus::INFO; // Default for other types
-            }
-        } else {
-            event.severity = "style";
-            event.status = ValidationEventStatus::WARNING;
-        }
-        
-        // Get line content as suggestion (if available)
-        yyjson_val *line_content = yyjson_obj_get(issue, "line");
-        if (line_content && yyjson_is_str(line_content)) {
-            event.suggestion = "Code: " + std::string(yyjson_get_str(line_content));
-        }
-        
-        // Set raw output and structured data
-        event.raw_output = content;
-        event.structured_data = "lintr_json";
-        
-        events.push_back(event);
-    }
-    
-    yyjson_doc_free(doc);
-}
-
-void ParseSqlfluffJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    // Parse JSON using yyjson
-    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
-    if (!doc) {
-        throw IOException("Failed to parse sqlfluff JSON");
-    }
-    
-    yyjson_val *root = yyjson_doc_get_root(doc);
-    if (!yyjson_is_arr(root)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid sqlfluff JSON: root is not an array");
-    }
-    
-    // Parse each file entry
-    size_t file_idx, file_max;
-    yyjson_val *file_entry;
-    int64_t event_id = 1;
-    
-    yyjson_arr_foreach(root, file_idx, file_max, file_entry) {
-        if (!yyjson_is_obj(file_entry)) continue;
-        
-        // Get filepath
-        yyjson_val *filepath = yyjson_obj_get(file_entry, "filepath");
-        if (!filepath || !yyjson_is_str(filepath)) continue;
-        
-        std::string file_path = yyjson_get_str(filepath);
-        
-        // Get violations array
-        yyjson_val *violations = yyjson_obj_get(file_entry, "violations");
-        if (!violations || !yyjson_is_arr(violations)) continue;
-        
-        // Parse each violation
-        size_t viol_idx, viol_max;
-        yyjson_val *violation;
-        
-        yyjson_arr_foreach(violations, viol_idx, viol_max, violation) {
-            if (!yyjson_is_obj(violation)) continue;
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "sqlfluff";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.category = "sql_style";
-            event.file_path = file_path;
-            
-            // Get line number
-            yyjson_val *line_no = yyjson_obj_get(violation, "line_no");
-            if (line_no && yyjson_is_int(line_no)) {
-                event.line_number = yyjson_get_int(line_no);
-            } else {
-                event.line_number = -1;
-            }
-            
-            // Get column position  
-            yyjson_val *line_pos = yyjson_obj_get(violation, "line_pos");
-            if (line_pos && yyjson_is_int(line_pos)) {
-                event.column_number = yyjson_get_int(line_pos);
-            } else {
-                event.column_number = -1;
-            }
-            
-            // Get rule code as error_code
-            yyjson_val *code = yyjson_obj_get(violation, "code");
-            if (code && yyjson_is_str(code)) {
-                event.error_code = yyjson_get_str(code);
-            }
-            
-            // Get rule name for context
-            yyjson_val *rule = yyjson_obj_get(violation, "rule");
-            if (rule && yyjson_is_str(rule)) {
-                event.function_name = yyjson_get_str(rule);
-            }
-            
-            // Get description as message
-            yyjson_val *description = yyjson_obj_get(violation, "description");
-            if (description && yyjson_is_str(description)) {
-                event.message = yyjson_get_str(description);
-            }
-            
-            // All sqlfluff violations are warnings by default
-            event.status = ValidationEventStatus::WARNING;
-            event.severity = "warning";
-            
-            // Create suggestion from rule name
-            if (!event.function_name.empty()) {
-                event.suggestion = "Rule: " + event.function_name;
-            }
-            
-            event.raw_output = content;
-            event.structured_data = "sqlfluff_json";
-            
-            events.push_back(event);
-        }
-    }
-    
-    yyjson_doc_free(doc);
-}
-
-void ParseTflintJSON(const std::string& content, std::vector<ValidationEvent>& events) {
-    // Parse JSON using yyjson
-    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
-    if (!doc) {
-        throw IOException("Failed to parse tflint JSON");
-    }
-    
-    yyjson_val *root = yyjson_doc_get_root(doc);
-    if (!yyjson_is_obj(root)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid tflint JSON: root is not an object");
-    }
-    
-    // Get issues array
-    yyjson_val *issues = yyjson_obj_get(root, "issues");
-    if (!issues || !yyjson_is_arr(issues)) {
-        yyjson_doc_free(doc);
-        return; // No issues to process
-    }
-    
-    // Parse each issue
-    size_t idx, max;
-    yyjson_val *issue;
-    int64_t event_id = 1;
-    
-    yyjson_arr_foreach(issues, idx, max, issue) {
-        if (!yyjson_is_obj(issue)) continue;
-        
-        ValidationEvent event;
-        event.event_id = event_id++;
-        event.tool_name = "tflint";
-        event.event_type = ValidationEventType::LINT_ISSUE;
-        event.category = "infrastructure";
-        
-        // Get rule information
-        yyjson_val *rule = yyjson_obj_get(issue, "rule");
-        if (rule && yyjson_is_obj(rule)) {
-            // Get rule name as error code
-            yyjson_val *rule_name = yyjson_obj_get(rule, "name");
-            if (rule_name && yyjson_is_str(rule_name)) {
-                event.error_code = yyjson_get_str(rule_name);
-                event.function_name = yyjson_get_str(rule_name);
-            }
-            
-            // Get severity
-            yyjson_val *severity = yyjson_obj_get(rule, "severity");
-            if (severity && yyjson_is_str(severity)) {
-                std::string severity_str = yyjson_get_str(severity);
-                event.severity = severity_str;
-                
-                // Map tflint severities to ValidationEventStatus
-                if (severity_str == "error") {
-                    event.status = ValidationEventStatus::ERROR;
-                } else if (severity_str == "warning") {
-                    event.status = ValidationEventStatus::WARNING;
-                } else if (severity_str == "notice") {
-                    event.status = ValidationEventStatus::INFO;
-                } else {
-                    event.status = ValidationEventStatus::WARNING; // Default
-                }
-            } else {
-                event.severity = "warning";
-                event.status = ValidationEventStatus::WARNING;
-            }
-        }
-        
-        // Get message
-        yyjson_val *message = yyjson_obj_get(issue, "message");
-        if (message && yyjson_is_str(message)) {
-            event.message = yyjson_get_str(message);
-        }
-        
-        // Get range information
-        yyjson_val *range = yyjson_obj_get(issue, "range");
-        if (range && yyjson_is_obj(range)) {
-            // Get filename
-            yyjson_val *filename = yyjson_obj_get(range, "filename");
-            if (filename && yyjson_is_str(filename)) {
-                event.file_path = yyjson_get_str(filename);
-            }
-            
-            // Get start position
-            yyjson_val *start = yyjson_obj_get(range, "start");
-            if (start && yyjson_is_obj(start)) {
-                yyjson_val *line = yyjson_obj_get(start, "line");
-                if (line && yyjson_is_int(line)) {
-                    event.line_number = yyjson_get_int(line);
-                } else {
-                    event.line_number = -1;
-                }
-                
-                yyjson_val *column = yyjson_obj_get(start, "column");
-                if (column && yyjson_is_int(column)) {
-                    event.column_number = yyjson_get_int(column);
-                } else {
-                    event.column_number = -1;
-                }
-            }
-        }
-        
-        // Create suggestion from rule name
-        if (!event.function_name.empty()) {
-            event.suggestion = "Rule: " + event.function_name;
-        }
-        
-        event.raw_output = content;
-        event.structured_data = "tflint_json";
-        
-        events.push_back(event);
-    }
-    
-    yyjson_doc_free(doc);
-}
-
-
-// Dynamic regexp parser implementation
-// Parses content using a user-provided regex pattern with named capture groups.
-// Named groups are mapped to ValidationEvent fields:
-//   - severity/level: Maps to status/severity (error, warning, info)
-//   - message/msg: The message text
-//   - file/file_path/path: File path
-//   - line/line_number/lineno: Line number
-//   - column/col/column_number: Column number
-//   - code/error_code/rule: Error code
-//   - category/type: Category
-//   - test_name/test/name: Test name
-//   - suggestion/fix/hint: Suggestion text
-//   - tool/tool_name: Tool name
-void ParseWithRegexp(const std::string& content, const std::string& pattern, std::vector<ValidationEvent>& events) {
-    // Extract named group names from the pattern
-    // Supports both Python-style (?P<name>...) and ECMAScript-style (?<name>...)
-    std::vector<std::string> group_names;
-    std::regex name_extractor(R"(\(\?(?:P)?<([a-zA-Z_][a-zA-Z0-9_]*)>)");
-    std::string::const_iterator search_start = pattern.cbegin();
-    std::smatch name_match;
-
-    while (std::regex_search(search_start, pattern.cend(), name_match, name_extractor)) {
-        group_names.push_back(name_match[1].str());
-        search_start = name_match.suffix().first;
-    }
-
-    // Convert Python-style named groups to std::regex compatible format
-    // (?P<name>...) -> (?:...) but we keep track of positions
-    std::string modified_pattern = std::regex_replace(pattern, std::regex(R"(\(\?P<([a-zA-Z_][a-zA-Z0-9_]*)>)"), "(?:");
-    // Also handle ECMAScript-style (?<name>...) -> (?:...)
-    modified_pattern = std::regex_replace(modified_pattern, std::regex(R"(\(\?<([a-zA-Z_][a-zA-Z0-9_]*)>)"), "(?:");
-
-    // Actually, std::regex in C++11/14 doesn't support named groups, so we need to use indexed groups.
-    // We'll convert named groups to regular groups and track which index corresponds to which name.
-    // (?P<name>...) and (?<name>...) become (...)
-    modified_pattern = std::regex_replace(pattern, std::regex(R"(\(\?P?<[a-zA-Z_][a-zA-Z0-9_]*>)"), "(");
-
-    std::regex user_regex;
-    try {
-        user_regex = std::regex(modified_pattern);
-    } catch (const std::regex_error& e) {
-        // If regex compilation fails, create an error event
-        ValidationEvent error_event;
-        error_event.event_id = 1;
-        error_event.tool_name = "regexp";
-        error_event.event_type = ValidationEventType::BUILD_ERROR;
-        error_event.status = ValidationEventStatus::ERROR;
-        error_event.severity = "error";
-        error_event.category = "parse_error";
-        error_event.message = std::string("Invalid regex pattern: ") + e.what();
-        error_event.line_number = -1;
-        error_event.column_number = -1;
-        events.push_back(error_event);
-        return;
-    }
-
-    // Build a map from group name to index
-    std::map<std::string, size_t> name_to_index;
-    for (size_t i = 0; i < group_names.size(); i++) {
-        name_to_index[group_names[i]] = i + 1;  // Groups are 1-indexed
-    }
-
-    // Helper function to get group value by name
-    auto getGroupValue = [&](const std::smatch& match, const std::vector<std::string>& names) -> std::string {
-        for (const auto& name : names) {
-            auto it = name_to_index.find(name);
-            if (it != name_to_index.end() && it->second < match.size() && match[it->second].matched) {
-                return match[it->second].str();
-            }
-        }
-        return "";
-    };
-
-    // Parse content line by line
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    int line_num = 0;
-
-    while (std::getline(stream, line)) {
-        line_num++;
-        std::smatch match;
-
-        if (std::regex_search(line, match, user_regex)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "regexp";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-
-            // Map captured groups to event fields
-            std::string severity = getGroupValue(match, {"severity", "level"});
-            if (!severity.empty()) {
-                std::string severity_lower = severity;
-                std::transform(severity_lower.begin(), severity_lower.end(), severity_lower.begin(), ::tolower);
-
-                if (severity_lower == "error" || severity_lower == "fatal" || severity_lower == "fail" || severity_lower == "failed") {
-                    event.status = ValidationEventStatus::ERROR;
-                    event.severity = "error";
-                } else if (severity_lower == "warning" || severity_lower == "warn") {
-                    event.status = ValidationEventStatus::WARNING;
-                    event.severity = "warning";
-                } else if (severity_lower == "info" || severity_lower == "note" || severity_lower == "debug") {
-                    event.status = ValidationEventStatus::INFO;
-                    event.severity = "info";
-                } else {
-                    event.status = ValidationEventStatus::WARNING;
-                    event.severity = severity;
-                }
-            } else {
-                event.status = ValidationEventStatus::WARNING;
-                event.severity = "warning";
-            }
-
-            // Message field
-            std::string message = getGroupValue(match, {"message", "msg", "description", "text"});
-            if (!message.empty()) {
-                event.message = message;
-            } else {
-                // If no message group, use the entire matched line
-                event.message = match[0].str();
-            }
-
-            // File path
-            std::string file_path = getGroupValue(match, {"file", "file_path", "path", "filename"});
-            if (!file_path.empty()) {
-                event.file_path = file_path;
-            }
-
-            // Line number
-            std::string line_str = getGroupValue(match, {"line", "line_number", "lineno", "line_num"});
-            if (!line_str.empty()) {
-                try {
-                    event.line_number = std::stoi(line_str);
-                } catch (...) {
-                    event.line_number = line_num;  // Fall back to input line number
-                }
-            } else {
-                event.line_number = line_num;
-            }
-
-            // Column number
-            std::string col_str = getGroupValue(match, {"column", "col", "column_number", "colno"});
-            if (!col_str.empty()) {
-                try {
-                    event.column_number = std::stoi(col_str);
-                } catch (...) {
-                    event.column_number = -1;
-                }
-            } else {
-                event.column_number = -1;
-            }
-
-            // Error code
-            std::string error_code = getGroupValue(match, {"code", "error_code", "rule", "rule_id"});
-            if (!error_code.empty()) {
-                event.error_code = error_code;
-            }
-
-            // Category
-            std::string category = getGroupValue(match, {"category", "type", "class"});
-            if (!category.empty()) {
-                event.category = category;
-            } else {
-                event.category = "regexp_match";
-            }
-
-            // Test name
-            std::string test_name = getGroupValue(match, {"test_name", "test", "name"});
-            if (!test_name.empty()) {
-                event.test_name = test_name;
-            }
-
-            // Suggestion
-            std::string suggestion = getGroupValue(match, {"suggestion", "fix", "hint"});
-            if (!suggestion.empty()) {
-                event.suggestion = suggestion;
-            }
-
-            // Tool name (can be overridden by pattern)
-            std::string tool = getGroupValue(match, {"tool", "tool_name"});
-            if (!tool.empty()) {
-                event.tool_name = tool;
-            }
-
-            event.raw_output = line;
-            event.execution_time = 0.0;
-
-            events.push_back(event);
-        }
-    }
-
-    // If no events were created, add a summary event
-    if (events.empty()) {
-        ValidationEvent summary_event;
-        summary_event.event_id = 1;
-        summary_event.tool_name = "regexp";
-        summary_event.event_type = ValidationEventType::LINT_ISSUE;
-        summary_event.status = ValidationEventStatus::INFO;
-        summary_event.severity = "info";
-        summary_event.category = "regexp_summary";
-        summary_event.message = "No matches found for the provided pattern";
-        summary_event.line_number = -1;
-        summary_event.column_number = -1;
-        summary_event.execution_time = 0.0;
-        events.push_back(summary_event);
-    }
-}
-
-
-void ParseGenericLint(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    
-    while (std::getline(stream, line)) {
-        // Parse generic lint format: file:line:column: level: message
-        std::regex lint_pattern(R"(([^:]+):(\d+):(\d*):?\s*(error|warning|info|note):\s*(.+))");
-        std::smatch match;
-        
-        if (std::regex_match(line, match, lint_pattern)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "lint";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = match[1].str();
-            event.line_number = std::stoi(match[2].str());
-            event.column_number = match[3].str().empty() ? -1 : std::stoi(match[3].str());
-            event.function_name = "";
-            event.message = match[5].str();
-            event.execution_time = 0.0;
-            
-            std::string level = match[4].str();
-            if (level == "error") {
-                event.status = ValidationEventStatus::ERROR;
-                event.category = "lint_error";
-                event.severity = "error";
-            } else if (level == "warning") {
-                event.status = ValidationEventStatus::WARNING;
-                event.category = "lint_warning";
-                event.severity = "warning";
-            } else {
-                event.status = ValidationEventStatus::INFO;
-                event.category = "lint_info";
-                event.severity = "info";
-            }
-            
-            events.push_back(event);
-        }
-    }
-    
-    // If no events were created, add a basic summary
-    if (events.empty()) {
-        ValidationEvent summary_event;
-        summary_event.event_id = 1;
-        summary_event.tool_name = "lint";
-        summary_event.event_type = ValidationEventType::LINT_ISSUE;
-        summary_event.status = ValidationEventStatus::INFO;
-        summary_event.category = "lint_summary";
-        summary_event.message = "Generic lint output parsed (no issues found)";
-        summary_event.line_number = -1;
-        summary_event.column_number = -1;
-        summary_event.execution_time = 0.0;
-        
-        events.push_back(summary_event);
-    }
-}
 
 // Parse test results implementation for string input
 unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunctionBindInput &input,
@@ -2701,418 +1449,28 @@ unique_ptr<GlobalTableFunctionState> ParseDuckHuntLogInitGlobal(ClientContext &c
     if (format == TestResultFormat::AUTO) {
         format = DetectTestResultFormat(content);
     }
-    
-    // Parse content based on detected format (same logic as read_duck_hunt_log)
-    switch (format) {
-        case TestResultFormat::PYTEST_JSON:
-            {
-                auto& registry = ParserRegistry::getInstance();
-                auto parser = registry.getParser(format);
-                if (parser) {
-                    auto events = parser->parse(content);
-                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                }
-                // Note: Legacy ParsePytestJSON removed - fully replaced by modular PytestJSONParser
-            }
-            break;
-        case TestResultFormat::DUCKDB_TEST:
-            ParseDuckDBTestOutput(content, global_state->events);
-            break;
-        case TestResultFormat::ESLINT_JSON:
-            {
-                auto& registry = ParserRegistry::getInstance();
-                auto parser = registry.getParser(format);
-                if (parser) {
-                    auto events = parser->parse(content);
-                    // Insert parsed events into the global state
-                    // (removed debugging throws - parser registration fix worked!)
-                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                } else {
-                    throw std::runtime_error("parse_duck_hunt_log: ESLint modular parser NOT found in registry");
-                }
-            }
-            break;
-        case TestResultFormat::GOTEST_JSON:
-            {
-                auto& registry = ParserRegistry::getInstance();
-                auto parser = registry.getParser(format);
-                if (parser) {
-                    auto events = parser->parse(content);
-                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                }
-                // Note: Legacy ParseGoTestJSON removed - fully replaced by modular GoTestJSONParser
-            }
-            break;
-        case TestResultFormat::MAKE_ERROR:
-            {
-                auto& registry = ParserRegistry::getInstance();
-                auto parser = registry.getParser(format);
-                if (parser) {
-                    auto events = parser->parse(content);
-                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                }
-                // Note: Legacy ParseMakeErrors removed - fully replaced by modular MakeParser
-            }
-            break;
-        case TestResultFormat::PYTEST_TEXT:
-            {
-                auto& registry = ParserRegistry::getInstance();
-                auto parser = registry.getParser(format);
-                if (parser) {
-                    auto events = parser->parse(content);
-                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                } else {
-                    // Fallback to legacy parser if modular parser not found
-                    ParsePytestText(content, global_state->events);
-                }
-            }
-            break;
-        case TestResultFormat::GENERIC_LINT:
-            ParseGenericLint(content, global_state->events);
-            break;
-        case TestResultFormat::RUBOCOP_JSON:
-            {
-                auto& registry = ParserRegistry::getInstance();
-                auto parser = registry.getParser(format);
-                if (parser) {
-                    auto events = parser->parse(content);
-                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                }
-                // Note: Legacy ParseRuboCopJSON removed - fully replaced by modular RuboCopJSONParser
-            }
-            break;
-        case TestResultFormat::CARGO_TEST_JSON:
-            {
-                auto& registry = ParserRegistry::getInstance();
-                auto parser = registry.getParser(format);
-                if (parser) {
-                    auto events = parser->parse(content);
-                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                }
-                // Note: Legacy ParseCargoTestJSON removed - fully replaced by modular CargoTestJSONParser
-            }
-            break;
-        case TestResultFormat::SWIFTLINT_JSON:
-            {
-                auto& registry = ParserRegistry::getInstance();
-                auto parser = registry.getParser(format);
-                if (parser) {
-                    auto events = parser->parse(content);
-                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                }
-                // Note: Legacy ParseSwiftLintJSON removed - fully replaced by modular SwiftLintJSONParser
-            }
-            break;
-        case TestResultFormat::PHPSTAN_JSON:
-            {
-                auto& registry = ParserRegistry::getInstance();
-                auto parser = registry.getParser(format);
-                if (parser) {
-                    auto events = parser->parse(content);
-                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                }
-                // Note: Legacy ParsePHPStanJSON removed - fully replaced by modular PHPStanJSONParser
-            }
-            break;
-        case TestResultFormat::SHELLCHECK_JSON:
-            {
-                auto& registry = ParserRegistry::getInstance();
-                auto parser = registry.getParser(format);
-                if (parser) {
-                    auto events = parser->parse(content);
-                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                } else {
-                    throw std::runtime_error("parse_duck_hunt_log: ShellCheck JSON modular parser not found in registry");
-                }
-            }
-            break;
-        case TestResultFormat::STYLELINT_JSON:
-            {
-                auto& registry = ParserRegistry::getInstance();
-                auto parser = registry.getParser(format);
-                if (parser) {
-                    auto events = parser->parse(content);
-                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                } else {
-                    throw std::runtime_error("parse_duck_hunt_log: Stylelint JSON modular parser not found in registry");
-                }
-            }
-            break;
-        case TestResultFormat::CLIPPY_JSON:
-            {
-                auto& registry = ParserRegistry::getInstance();
-                auto parser = registry.getParser(format);
-                if (parser) {
-                    auto events = parser->parse(content);
-                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                } else {
-                    throw std::runtime_error("parse_duck_hunt_log: Clippy JSON modular parser not found in registry");
-                }
-            }
-            break;
-        case TestResultFormat::MARKDOWNLINT_JSON:
-            {
-                auto& registry = ParserRegistry::getInstance();
-                auto parser = registry.getParser(format);
-                if (parser) {
-                    auto events = parser->parse(content);
-                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                } else {
-                    throw std::runtime_error("parse_duck_hunt_log: Markdownlint JSON modular parser not found in registry");
-                }
-            }
-            break;
-        case TestResultFormat::YAMLLINT_JSON:
-            {
-                auto& registry = ParserRegistry::getInstance();
-                auto parser = registry.getParser(format);
-                if (parser) {
-                    auto events = parser->parse(content);
-                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                } else {
-                    throw std::runtime_error("parse_duck_hunt_log: Yamllint JSON modular parser not found in registry");
-                }
-            }
-            break;
-        case TestResultFormat::BANDIT_JSON:
-            {
-                auto& registry = ParserRegistry::getInstance();
-                auto parser = registry.getParser(format);
-                if (parser) {
-                    auto events = parser->parse(content);
-                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                } else {
-                    throw std::runtime_error("parse_duck_hunt_log: Bandit JSON modular parser not found in registry");
-                }
-            }
-            break;
-        case TestResultFormat::SPOTBUGS_JSON:
-            {
-                auto& registry = ParserRegistry::getInstance();
-                auto parser = registry.getParser(format);
-                if (parser) {
-                    auto events = parser->parse(content);
-                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                } else {
-                    throw std::runtime_error("parse_duck_hunt_log: SpotBugs JSON modular parser not found in registry");
-                }
-            }
-            break;
-        case TestResultFormat::KTLINT_JSON:
-            {
-                auto& registry = ParserRegistry::getInstance();
-                auto parser = registry.getParser(format);
-                if (parser) {
-                    auto events = parser->parse(content);
-                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                } else {
-                    throw std::runtime_error("parse_duck_hunt_log: Ktlint JSON modular parser not found in registry");
-                }
-            }
-            break;
-        case TestResultFormat::HADOLINT_JSON:
-            ParseHadolintJSON(content, global_state->events);
-            break;
-        case TestResultFormat::LINTR_JSON:
-            ParseLintrJSON(content, global_state->events);
-            break;
-        case TestResultFormat::SQLFLUFF_JSON:
-            ParseSqlfluffJSON(content, global_state->events);
-            break;
-        case TestResultFormat::TFLINT_JSON:
-            ParseTflintJSON(content, global_state->events);
-            break;
-        case TestResultFormat::KUBE_SCORE_JSON:
-            {
-                auto& registry = ParserRegistry::getInstance();
-                auto parser = registry.getParser(format);
-                if (parser) {
-                    auto events = parser->parse(content);
-                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                }
-            }
-            break;
-        case TestResultFormat::CMAKE_BUILD:
-            duck_hunt::CMakeParser::ParseCMakeBuild(content, global_state->events);
-            break;
-        case TestResultFormat::PYTHON_BUILD:
-            duck_hunt::PythonParser::ParsePythonBuild(content, global_state->events);
-            break;
-        case TestResultFormat::NODE_BUILD:
-            duck_hunt::NodeParser::ParseNodeBuild(content, global_state->events);
-            break;
-        case TestResultFormat::CARGO_BUILD:
-            duck_hunt::CargoParser::ParseCargoBuild(content, global_state->events);
-            break;
-        case TestResultFormat::MAVEN_BUILD:
-            duck_hunt::MavenParser::ParseMavenBuild(content, global_state->events);
-            break;
-        case TestResultFormat::GRADLE_BUILD:
-            duck_hunt::GradleParser::ParseGradleBuild(content, global_state->events);
-            break;
-        case TestResultFormat::MSBUILD:
-            duck_hunt::MSBuildParser::ParseMSBuild(content, global_state->events);
-            break;
-        case TestResultFormat::JUNIT_TEXT:
-            duck_hunt::JUnitTextParser::ParseJUnitText(content, global_state->events);
-            break;
-        case TestResultFormat::VALGRIND:
-            duck_hunt::ValgrindParser::ParseValgrind(content, global_state->events);
-            break;
-        case TestResultFormat::GDB_LLDB:
-            duck_hunt::GdbLldbParser::ParseGdbLldb(content, global_state->events);
-            break;
-        case TestResultFormat::STRACE:
-            duck_hunt::StraceParser::ParseStrace(content, global_state->events);
-            break;
-        case TestResultFormat::RSPEC_TEXT:
-            duck_hunt::RSpecTextParser::ParseRSpecText(content, global_state->events);
-            break;
-        case TestResultFormat::MOCHA_CHAI_TEXT:
-            duck_hunt::MochaChaiTextParser::ParseMochaChai(content, global_state->events);
-            break;
-        case TestResultFormat::GTEST_TEXT:
-            duck_hunt::GTestTextParser::ParseGoogleTest(content, global_state->events);
-            break;
-        case TestResultFormat::NUNIT_XUNIT_TEXT:
-            duck_hunt::NUnitXUnitTextParser::ParseNUnitXUnit(content, global_state->events);
-            break;
-        case TestResultFormat::PYLINT_TEXT:
-            {
-                auto& registry = ParserRegistry::getInstance();
-                auto parser = registry.getParser(format);
-                if (parser) {
-                    auto events = parser->parse(content);
-                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                }
-            }
-            break;
-        case TestResultFormat::FLAKE8_TEXT:
-            {
-                auto& registry = ParserRegistry::getInstance();
-                auto parser = registry.getParser(format);
-                if (parser) {
-                    auto events = parser->parse(content);
-                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                }
-            }
-            break;
-        case TestResultFormat::BLACK_TEXT:
-            {
-                auto& registry = ParserRegistry::getInstance();
-                auto parser = registry.getParser(format);
-                if (parser) {
-                    auto events = parser->parse(content);
-                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                }
-            }
-            break;
-        case TestResultFormat::MYPY_TEXT:
-            {
-                auto& registry = ParserRegistry::getInstance();
-                auto parser = registry.getParser(format);
-                if (parser) {
-                    auto events = parser->parse(content);
-                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                }
-            }
-            break;
-        case TestResultFormat::BAZEL_BUILD:
-            ParseBazelBuild(content, global_state->events);
-            break;
-        case TestResultFormat::AUTOPEP8_TEXT:
-            ParseAutopep8Text(content, global_state->events);
-            break;
-        case TestResultFormat::YAPF_TEXT:
-            {
-                auto& registry = ParserRegistry::getInstance();
-                auto parser = registry.getParser(TestResultFormat::YAPF_TEXT);
-                if (parser) {
-                    auto events = parser->parse(content);
-                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                }
-            }
-            break;
-        case TestResultFormat::COVERAGE_TEXT:
-            duck_hunt::CoverageParser::ParseCoverageText(content, global_state->events);
-            break;
-        case TestResultFormat::PYTEST_COV_TEXT:
-            duck_hunt::CoverageParser::ParsePytestCovText(content, global_state->events);
-            break;
-        case TestResultFormat::GITHUB_CLI:
-        case TestResultFormat::CLANG_TIDY_TEXT:
-            // These formats are handled by the modular parser registry at the end
-            break;
-        case TestResultFormat::DRONE_CI_TEXT:
-            {
-                auto& registry = ParserRegistry::getInstance();
-                auto parser = registry.getParser(format);
-                if (parser) {
-                    auto events = parser->parse(content);
-                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                }
-            }
-            break;
-        case TestResultFormat::TERRAFORM_TEXT:
-            {
-                auto& registry = ParserRegistry::getInstance();
-                auto parser = registry.getParser(format);
-                if (parser) {
-                    auto events = parser->parse(content);
-                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                }
-            }
-            break;
-        case TestResultFormat::ANSIBLE_TEXT:
-            {
-                auto& registry = ParserRegistry::getInstance();
-                auto parser = registry.getParser(TestResultFormat::ANSIBLE_TEXT);
-                if (parser) {
-                    auto events = parser->parse(content);
-                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                }
-            }
-            break;
-        case TestResultFormat::REGEXP:
-            // Dynamic regexp parser - uses user-provided pattern
-            ParseWithRegexp(content, bind_data.regexp_pattern, global_state->events);
-            break;
-        // XML-based formats (require webbed extension for XML->JSON conversion)
-        case TestResultFormat::JUNIT_XML:
-        case TestResultFormat::NUNIT_XML:
-        case TestResultFormat::CHECKSTYLE_XML:
-            {
-                auto& registry = ParserRegistry::getInstance();
-                auto parser = registry.getParser(format);
-                if (parser) {
-                    // XML parsers require context for webbed integration
-                    if (parser->requiresContext()) {
-                        auto events = parser->parseWithContext(context, content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    } else {
-                        auto events = parser->parse(content);
-                        global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                    }
-                } else {
-                    throw InvalidInputException(
-                        "XML format '%s' parser not found. Ensure the webbed extension is installed:\n"
-                        "  INSTALL webbed FROM community;\n"
-                        "  LOAD webbed;",
-                        TestResultFormatToString(format));
-                }
-            }
-            break;
-        default:
-            // Try the modular parser registry for new parsers
-            {
-                auto& registry = ParserRegistry::getInstance();
-                auto parser = registry.getParser(format);
-                if (parser) {
-                    auto events = parser->parse(content);
-                    global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-                }
-            }
-            break;
+
+    // Try new modular parser registry first
+    // All parsers are now registered here - this handles most formats
+    if (TryNewParserRegistry(context, format, content, global_state->events)) {
+        // Successfully parsed by new registry
+    } else {
+        // Legacy fallback for special cases not in modular registry
+        switch (format) {
+            case TestResultFormat::DUCKDB_TEST:
+                duck_hunt::DuckDBTestParser::ParseDuckDBTestOutput(content, global_state->events);
+                break;
+            case TestResultFormat::GENERIC_LINT:
+                duck_hunt::GenericLintParser::ParseGenericLint(content, global_state->events);
+                break;
+            case TestResultFormat::REGEXP:
+                // Dynamic regexp parser - uses user-provided pattern
+                duck_hunt::RegexpParser::ParseWithRegexp(content, bind_data.regexp_pattern, global_state->events);
+                break;
+            default:
+                // All formats now handled by modular registry above
+                break;
+        }
     }
 
     // Phase 3B: Process error patterns for intelligent categorization
@@ -3169,1344 +1527,14 @@ TableFunction GetParseDuckHuntLogFunction() {
 
 
 
-void ParseBazelBuild(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    
-    // Regex patterns for Bazel build output
-    std::regex bazel_analyzed(R"(INFO: Analyzed (\d+) targets? \((\d+) packages? loaded, (\d+) targets? configured\)\.)");
-    std::regex bazel_found(R"(INFO: Found (\d+) targets?\.\.\.)");
-    std::regex bazel_build_completed(R"(INFO: Build completed successfully, (\d+) total actions)");
-    std::regex bazel_build_elapsed(R"(INFO: Elapsed time: ([\d\.]+)s, Critical Path: ([\d\.]+)s)");
-    std::regex bazel_test_passed(R"(PASSED: (//[^/\s]+(?:/[^/\s]+)*:[^/\s]+) \(([\d\.]+)s\))");
-    std::regex bazel_test_failed(R"(FAILED: (//[^/\s]+(?:/[^/\s]+)*:[^/\s]+) \(([\d\.]+)s\) \[(\d+)/(\d+) attempts\])");
-    std::regex bazel_test_timeout(R"(TIMEOUT: (//[^/\s]+(?:/[^/\s]+)*:[^/\s]+) \(([\d\.]+)s TIMEOUT\))");
-    std::regex bazel_test_flaky(R"(FLAKY: (//[^/\s]+(?:/[^/\s]+)*:[^/\s]+) passed in (\d+) out of (\d+) attempts)");
-    std::regex bazel_test_skipped(R"(SKIPPED: (//[^/\s]+(?:/[^/\s]+)*:[^/\s]+) \(SKIPPED\))");
-    std::regex bazel_compilation_error(R"(ERROR: ([^:]+):(\d+):(\d+): (.+) failed \(Exit (\d+)\): (.+))");
-    std::regex bazel_build_error(R"(ERROR: ([^:]+):(\d+):(\d+): (.+))");
-    std::regex bazel_linking_error(R"(ERROR: ([^:]+):(\d+):(\d+): Linking of rule '([^']+)' failed \(Exit (\d+)\): (.+))");
-    std::regex bazel_warning(R"(WARNING: (.+))");
-    std::regex bazel_fail_msg(R"(FAIL (.+):(\d+): (.+))");
-    std::regex bazel_loading(R"(Loading: (\d+) packages? loaded)");
-    std::regex bazel_analyzing(R"(Analyzing: (\d+) targets? \((\d+) packages? loaded, (\d+) targets? configured\))");
-    std::regex bazel_action_info(R"(INFO: From (.+):)");
-    std::regex bazel_up_to_date(R"(Target (//[^/\s]+(?:/[^/\s]+)*:[^/\s]+) up-to-date:)");
-    std::regex bazel_test_summary(R"(Total: (\d+) tests?, (\d+) passed, (\d+) failed(?:, (\d+) timeout)?(?:, (\d+) flaky)?(?:, (\d+) skipped)?)");
-    
-    std::string current_target;
-    std::string current_action;
-    bool in_test_suite = false;
-    
-    while (std::getline(stream, line)) {
-        std::smatch match;
-        
-        // Check for test suite header
-        if (line.find("==== Test Suite:") != std::string::npos) {
-            in_test_suite = true;
-            continue;
-        }
-        
-        // Check for analysis phase
-        if (std::regex_search(line, match, bazel_analyzed)) {
-            int targets = std::stoi(match[1].str());
-            int packages = std::stoi(match[2].str());
-            int configured = std::stoi(match[3].str());
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::SUMMARY;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "Analyzed " + std::to_string(targets) + " targets (" + 
-                           std::to_string(packages) + " packages loaded, " + 
-                           std::to_string(configured) + " targets configured)";
-            event.tool_name = "bazel";
-            event.category = "analysis";
-            event.raw_output = line;
-            event.structured_data = "{\"targets\": " + std::to_string(targets) + 
-                                   ", \"packages\": " + std::to_string(packages) + 
-                                   ", \"configured\": " + std::to_string(configured) + "}";
-            
-            events.push_back(event);
-        }
-        // Check for build completion
-        else if (std::regex_search(line, match, bazel_build_completed)) {
-            int actions = std::stoi(match[1].str());
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::SUMMARY;
-            event.severity = "info";
-            event.status = ValidationEventStatus::PASS;
-            event.message = "Build completed successfully with " + std::to_string(actions) + " total actions";
-            event.tool_name = "bazel";
-            event.category = "build_success";
-            event.raw_output = line;
-            event.structured_data = "{\"total_actions\": " + std::to_string(actions) + "}";
-            
-            events.push_back(event);
-        }
-        // Check for elapsed time
-        else if (std::regex_search(line, match, bazel_build_elapsed)) {
-            double elapsed = std::stod(match[1].str());
-            double critical_path = std::stod(match[2].str());
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::PERFORMANCE_METRIC;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "Build timing - Elapsed: " + match[1].str() + "s, Critical Path: " + match[2].str() + "s";
-            event.tool_name = "bazel";
-            event.category = "performance";
-            event.execution_time = elapsed;
-            event.raw_output = line;
-            event.structured_data = "{\"elapsed_time\": " + match[1].str() + 
-                                   ", \"critical_path_time\": " + match[2].str() + "}";
-            
-            events.push_back(event);
-        }
-        // Check for passed tests
-        else if (std::regex_search(line, match, bazel_test_passed)) {
-            std::string target = match[1].str();
-            double duration = std::stod(match[2].str());
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.severity = "info";
-            event.status = ValidationEventStatus::PASS;
-            event.message = "Test passed";
-            event.test_name = target;
-            event.tool_name = "bazel";
-            event.category = "test_result";
-            event.execution_time = duration;
-            event.raw_output = line;
-            event.structured_data = "{\"target\": \"" + target + "\", \"duration\": " + match[2].str() + "}";
-            
-            events.push_back(event);
-        }
-        // Check for failed tests
-        else if (std::regex_search(line, match, bazel_test_failed)) {
-            std::string target = match[1].str();
-            double duration = std::stod(match[2].str());
-            int current_attempt = std::stoi(match[3].str());
-            int total_attempts = std::stoi(match[4].str());
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.severity = "error";
-            event.status = ValidationEventStatus::FAIL;
-            event.message = "Test failed (" + std::to_string(current_attempt) + "/" + std::to_string(total_attempts) + " attempts)";
-            event.test_name = target;
-            event.tool_name = "bazel";
-            event.category = "test_result";
-            event.execution_time = duration;
-            event.raw_output = line;
-            event.structured_data = "{\"target\": \"" + target + "\", \"duration\": " + match[2].str() + 
-                                   ", \"current_attempt\": " + std::to_string(current_attempt) + 
-                                   ", \"total_attempts\": " + std::to_string(total_attempts) + "}";
-            
-            events.push_back(event);
-        }
-        // Check for timeout tests
-        else if (std::regex_search(line, match, bazel_test_timeout)) {
-            std::string target = match[1].str();
-            double duration = std::stod(match[2].str());
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.severity = "warning";
-            event.status = ValidationEventStatus::ERROR;
-            event.message = "Test exceeded maximum time limit";
-            event.test_name = target;
-            event.tool_name = "bazel";
-            event.category = "test_timeout";
-            event.execution_time = duration;
-            event.raw_output = line;
-            event.structured_data = "{\"target\": \"" + target + "\", \"duration\": " + match[2].str() + ", \"reason\": \"timeout\"}";
-            
-            events.push_back(event);
-        }
-        // Check for flaky tests
-        else if (std::regex_search(line, match, bazel_test_flaky)) {
-            std::string target = match[1].str();
-            int passed_attempts = std::stoi(match[2].str());
-            int total_attempts = std::stoi(match[3].str());
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.severity = "warning";
-            event.status = ValidationEventStatus::WARNING;
-            event.message = "Test is flaky - passed " + std::to_string(passed_attempts) + " out of " + std::to_string(total_attempts) + " attempts";
-            event.test_name = target;
-            event.tool_name = "bazel";
-            event.category = "test_flaky";
-            event.raw_output = line;
-            event.structured_data = "{\"target\": \"" + target + "\", \"passed_attempts\": " + std::to_string(passed_attempts) + 
-                                   ", \"total_attempts\": " + std::to_string(total_attempts) + "}";
-            
-            events.push_back(event);
-        }
-        // Check for skipped tests
-        else if (std::regex_search(line, match, bazel_test_skipped)) {
-            std::string target = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.severity = "info";
-            event.status = ValidationEventStatus::SKIP;
-            event.message = "Test skipped";
-            event.test_name = target;
-            event.tool_name = "bazel";
-            event.category = "test_result";
-            event.raw_output = line;
-            event.structured_data = "{\"target\": \"" + target + "\", \"reason\": \"skipped\"}";
-            
-            events.push_back(event);
-        }
-        // Check for compilation errors
-        else if (std::regex_search(line, match, bazel_compilation_error)) {
-            std::string file_path = match[1].str();
-            int line_num = std::stoi(match[2].str());
-            int col_num = std::stoi(match[3].str());
-            std::string rule_name = match[4].str();
-            int exit_code = std::stoi(match[5].str());
-            std::string error_msg = match[6].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.severity = "error";
-            event.status = ValidationEventStatus::ERROR;
-            event.message = rule_name + " failed: " + error_msg;
-            event.file_path = file_path;
-            event.line_number = line_num;
-            event.column_number = col_num;
-            event.error_code = "exit_" + std::to_string(exit_code);
-            event.tool_name = "bazel";
-            event.category = "compilation_error";
-            event.raw_output = line;
-            event.structured_data = "{\"rule\": \"" + rule_name + "\", \"exit_code\": " + std::to_string(exit_code) + 
-                                   ", \"error\": \"" + error_msg + "\"}";
-            
-            events.push_back(event);
-        }
-        // Check for linking errors
-        else if (std::regex_search(line, match, bazel_linking_error)) {
-            std::string file_path = match[1].str();
-            int line_num = std::stoi(match[2].str());
-            int col_num = std::stoi(match[3].str());
-            std::string rule_name = match[4].str();
-            int exit_code = std::stoi(match[5].str());
-            std::string error_msg = match[6].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.severity = "error";
-            event.status = ValidationEventStatus::ERROR;
-            event.message = "Linking failed for " + rule_name + ": " + error_msg;
-            event.file_path = file_path;
-            event.line_number = line_num;
-            event.column_number = col_num;
-            event.error_code = "link_exit_" + std::to_string(exit_code);
-            event.tool_name = "bazel";
-            event.category = "linking_error";
-            event.raw_output = line;
-            event.structured_data = "{\"rule\": \"" + rule_name + "\", \"exit_code\": " + std::to_string(exit_code) + 
-                                   ", \"error\": \"" + error_msg + "\"}";
-            
-            events.push_back(event);
-        }
-        // Check for general build errors
-        else if (std::regex_search(line, match, bazel_build_error)) {
-            std::string file_path = match[1].str();
-            int line_num = std::stoi(match[2].str());
-            int col_num = std::stoi(match[3].str());
-            std::string error_msg = match[4].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.severity = "error";
-            event.status = ValidationEventStatus::ERROR;
-            event.message = error_msg;
-            event.file_path = file_path;
-            event.line_number = line_num;
-            event.column_number = col_num;
-            event.tool_name = "bazel";
-            event.category = "build_error";
-            event.raw_output = line;
-            event.structured_data = "{\"error\": \"" + error_msg + "\"}";
-            
-            events.push_back(event);
-        }
-        // Check for warnings
-        else if (std::regex_search(line, match, bazel_warning)) {
-            std::string warning_msg = match[1].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.severity = "warning";
-            event.status = ValidationEventStatus::WARNING;
-            event.message = warning_msg;
-            event.tool_name = "bazel";
-            event.category = "build_warning";
-            event.raw_output = line;
-            event.structured_data = "{\"warning\": \"" + warning_msg + "\"}";
-            
-            events.push_back(event);
-        }
-        // Check for test failures with details
-        else if (std::regex_search(line, match, bazel_fail_msg)) {
-            std::string file_path = match[1].str();
-            int line_num = std::stoi(match[2].str());
-            std::string failure_msg = match[3].str();
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.severity = "error";
-            event.status = ValidationEventStatus::FAIL;
-            event.message = failure_msg;
-            event.file_path = file_path;
-            event.line_number = line_num;
-            event.tool_name = "bazel";
-            event.category = "test_failure";
-            event.raw_output = line;
-            event.structured_data = "{\"failure_message\": \"" + failure_msg + "\"}";
-            
-            events.push_back(event);
-        }
-        // Check for loading phase
-        else if (std::regex_search(line, match, bazel_loading)) {
-            int packages = std::stoi(match[1].str());
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::DEBUG_EVENT;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "Loading packages: " + std::to_string(packages) + " loaded";
-            event.tool_name = "bazel";
-            event.category = "loading";
-            event.raw_output = line;
-            event.structured_data = "{\"packages_loaded\": " + std::to_string(packages) + "}";
-            
-            events.push_back(event);
-        }
-        // Check for analyzing phase
-        else if (std::regex_search(line, match, bazel_analyzing)) {
-            int targets = std::stoi(match[1].str());
-            int packages = std::stoi(match[2].str());
-            int configured = std::stoi(match[3].str());
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::DEBUG_EVENT;
-            event.severity = "info";
-            event.status = ValidationEventStatus::INFO;
-            event.message = "Analyzing " + std::to_string(targets) + " targets (" + 
-                           std::to_string(packages) + " packages loaded, " + 
-                           std::to_string(configured) + " targets configured)";
-            event.tool_name = "bazel";
-            event.category = "analyzing";
-            event.raw_output = line;
-            event.structured_data = "{\"targets\": " + std::to_string(targets) + 
-                                   ", \"packages\": " + std::to_string(packages) + 
-                                   ", \"configured\": " + std::to_string(configured) + "}";
-            
-            events.push_back(event);
-        }
-        // Check for test summary
-        else if (std::regex_search(line, match, bazel_test_summary)) {
-            int total = std::stoi(match[1].str());
-            int passed = std::stoi(match[2].str());
-            int failed = std::stoi(match[3].str());
-            int timeout = match[4].matched ? std::stoi(match[4].str()) : 0;
-            int flaky = match[5].matched ? std::stoi(match[5].str()) : 0;
-            int skipped = match[6].matched ? std::stoi(match[6].str()) : 0;
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.event_type = ValidationEventType::SUMMARY;
-            event.severity = (failed > 0) ? "error" : "info";
-            event.status = (failed > 0) ? ValidationEventStatus::FAIL : ValidationEventStatus::PASS;
-            event.message = "Test Summary: " + std::to_string(total) + " tests, " + 
-                           std::to_string(passed) + " passed, " + std::to_string(failed) + " failed" +
-                           (timeout > 0 ? ", " + std::to_string(timeout) + " timeout" : "") +
-                           (flaky > 0 ? ", " + std::to_string(flaky) + " flaky" : "") +
-                           (skipped > 0 ? ", " + std::to_string(skipped) + " skipped" : "");
-            event.tool_name = "bazel";
-            event.category = "test_summary";
-            event.raw_output = line;
-            event.structured_data = "{\"total\": " + std::to_string(total) + 
-                                   ", \"passed\": " + std::to_string(passed) + 
-                                   ", \"failed\": " + std::to_string(failed) + 
-                                   ", \"timeout\": " + std::to_string(timeout) + 
-                                   ", \"flaky\": " + std::to_string(flaky) + 
-                                   ", \"skipped\": " + std::to_string(skipped) + "}";
-            
-            events.push_back(event);
-        }
-    }
-}
+// Inline parsers moved to modular files:
+// - ParseBazelBuild: src/parsers/build_systems/bazel_parser.cpp
+// - ParseAutopep8Text: src/parsers/linting_tools/autopep8_text_parser.cpp
+// - ParsePytestCovText: src/parsers/test_frameworks/pytest_cov_text_parser.cpp
+// - ParseDuckDBTestOutput: src/parsers/test_frameworks/duckdb_test_parser.cpp
+// - ParseGenericLint: src/parsers/tool_outputs/generic_lint_parser.cpp
+// - ParseWithRegexp: src/parsers/tool_outputs/regexp_parser.cpp
 
-
-
-void ParseAutopep8Text(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    
-    // Regex patterns for autopep8 output
-    std::regex diff_start(R"(--- original/(.+))");
-    std::regex diff_fixed(R"(\+\+\+ fixed/(.+))");
-    std::regex error_pattern(R"(ERROR: ([^:]+\.py):(\d+):(\d+): (E\d+) (.+))");
-    std::regex warning_pattern(R"(WARNING: ([^:]+\.py):(\d+):(\d+): (E\d+) (.+))");
-    std::regex info_pattern(R"(INFO: ([^:]+\.py): (.+))");
-    std::regex fixed_pattern(R"(fixed ([^:]+\.py))");
-    std::regex autopep8_cmd(R"(autopep8 (--[^\s]+.+))");
-    std::regex config_line(R"(Applied configuration:)");
-    std::regex summary_files_processed(R"(Files processed: (\d+))");
-    std::regex summary_files_modified(R"(Files modified: (\d+))");
-    std::regex summary_files_errors(R"(Files with errors: (\d+))");
-    std::regex summary_fixes_applied(R"(Total fixes applied: (\d+))");
-    std::regex summary_execution_time(R"(Execution time: ([\d\.]+)s)");
-    std::regex syntax_error(R"(ERROR: ([^:]+\.py):(\d+):(\d+): SyntaxError: (.+))");
-    std::regex encoding_error(R"(WARNING: ([^:]+\.py): could not determine file encoding)");
-    std::regex already_formatted(R"(INFO: ([^:]+\.py): already formatted correctly)");
-    
-    std::smatch match;
-    std::string current_file;
-    bool in_diff = false;
-    bool in_config = false;
-    
-    while (std::getline(stream, line)) {
-        // Handle diff sections
-        if (std::regex_search(line, match, diff_start)) {
-            current_file = match[1].str();
-            in_diff = true;
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "autopep8";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = current_file;
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "formatting";
-            event.message = "File formatting changes detected";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "autopep8_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle error patterns (E999 syntax errors)
-        if (std::regex_search(line, match, error_pattern)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "autopep8";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = match[1].str();
-            event.line_number = std::stoi(match[2].str());
-            event.column_number = std::stoi(match[3].str());
-            event.status = ValidationEventStatus::ERROR;
-            event.severity = "error";
-            event.category = "syntax";
-            event.message = match[5].str();
-            event.error_code = match[4].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "autopep8_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle warning patterns (line too long)
-        if (std::regex_search(line, match, warning_pattern)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "autopep8";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = match[1].str();
-            event.line_number = std::stoi(match[2].str());
-            event.column_number = std::stoi(match[3].str());
-            event.status = ValidationEventStatus::WARNING;
-            event.severity = "warning";
-            event.category = "style";
-            event.message = match[5].str();
-            event.error_code = match[4].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "autopep8_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle info patterns (no changes needed)
-        if (std::regex_search(line, match, info_pattern)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "autopep8";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = match[1].str();
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "formatting";
-            event.message = match[2].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "autopep8_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle fixed file patterns
-        if (std::regex_search(line, match, fixed_pattern)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "autopep8";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = match[1].str();
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "formatting";
-            event.message = "File formatting applied";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "autopep8_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle command patterns
-        if (std::regex_search(line, match, autopep8_cmd)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "autopep8";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "configuration";
-            event.message = "Command: autopep8 " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "autopep8_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle configuration section
-        if (std::regex_search(line, match, config_line)) {
-            in_config = true;
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "autopep8";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "configuration";
-            event.message = "Configuration applied";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "autopep8_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle summary statistics
-        if (std::regex_search(line, match, summary_files_processed)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "autopep8";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "summary";
-            event.message = "Files processed: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "autopep8_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        if (std::regex_search(line, match, summary_files_modified)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "autopep8";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "summary";
-            event.message = "Files modified: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "autopep8_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        if (std::regex_search(line, match, summary_files_errors)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "autopep8";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::ERROR;
-            event.severity = "error";
-            event.category = "summary";
-            event.message = "Files with errors: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "autopep8_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        if (std::regex_search(line, match, summary_fixes_applied)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "autopep8";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "summary";
-            event.message = "Total fixes applied: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "autopep8_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        if (std::regex_search(line, match, summary_execution_time)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "autopep8";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "performance";
-            event.message = "Execution time: " + match[1].str() + "s";
-            event.execution_time = std::stod(match[1].str());
-            event.raw_output = content;
-            event.structured_data = "autopep8_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle syntax errors
-        if (std::regex_search(line, match, syntax_error)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "autopep8";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = match[1].str();
-            event.line_number = std::stoi(match[2].str());
-            event.column_number = std::stoi(match[3].str());
-            event.status = ValidationEventStatus::ERROR;
-            event.severity = "error";
-            event.category = "syntax";
-            event.message = match[4].str();
-            event.error_code = "SyntaxError";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "autopep8_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle encoding errors
-        if (std::regex_search(line, match, encoding_error)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "autopep8";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = match[1].str();
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::WARNING;
-            event.severity = "warning";
-            event.category = "encoding";
-            event.message = "Could not determine file encoding";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "autopep8_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle already formatted files
-        if (std::regex_search(line, match, already_formatted)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "autopep8";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = match[1].str();
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "formatting";
-            event.message = "Already formatted correctly";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "autopep8_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Configuration line continuation
-        if (in_config && line.find(":") != std::string::npos && line.find(" ") == 0) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "autopep8";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "configuration";
-            event.message = line.substr(2); // Remove leading spaces
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "autopep8_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // End configuration section when we hit an empty line
-        if (in_config && line.empty()) {
-            in_config = false;
-        }
-    }
-}
-
-
-
-void ParsePytestCovText(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    
-    // Regex patterns for pytest-cov output
-    std::regex test_session_start(R"(={3,} test session starts ={3,})");
-    std::regex platform_info(R"(platform (.+) -- Python (.+), pytest-(.+), pluggy-(.+))");
-    std::regex pytest_cov_plugin(R"(plugins: cov-(.+))");
-    std::regex rootdir_info(R"(rootdir: (.+))");
-    std::regex collected_items(R"(collected (\d+) items?)");
-    std::regex test_result(R"((.+\.py)::(.+)\s+(PASSED|FAILED|SKIPPED|ERROR)\s+\[([^\]]+)\])");
-    std::regex test_failure_section(R"(={3,} FAILURES ={3,})");
-    std::regex test_short_summary(R"(={3,} short test summary info ={3,})");
-    std::regex test_summary_line(R"(={3,} (\d+) failed, (\d+) passed(?:, (\d+) skipped)? in ([\d\.]+)s ={3,})");
-    std::regex coverage_section(R"(----------- coverage: platform (.+), python (.+) -----------)");
-    std::regex coverage_header(R"(Name\s+Stmts\s+Miss\s+Cover(?:\s+Missing)?)");
-    std::regex coverage_branch_header(R"(Name\s+Stmts\s+Miss\s+Branch\s+BrPart\s+Cover(?:\s+Missing)?)");
-    std::regex coverage_row(R"(^([^\s]+(?:\.[^\s]+)*)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
-    std::regex coverage_branch_row(R"(^([^\s]+(?:\.[^\s]+)*)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
-    std::regex total_coverage(R"(^TOTAL\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
-    std::regex total_branch_coverage(R"(^TOTAL\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
-    std::regex coverage_threshold_fail(R"(Coverage threshold check failed\. Expected: >= (\d+)%, got: ([\d\.]+%))");
-    std::regex required_coverage_fail(R"(Required test coverage of (\d+)% not met\. Total coverage: ([\d\.]+%))");
-    std::regex pytest_cov_config(R"(pytest --cov=(.+) --cov-report=(.+))");
-    std::regex pytest_cov_options(R"(--(cov-[a-z-]+)(?:=(.+))?)");
-    std::regex coverage_xml_written(R"(Coverage XML written to (.+))");
-    std::regex coverage_html_written(R"(Coverage HTML written to dir (.+))");
-    std::regex coverage_config_used(R"(Using coverage configuration from (.+))");
-    std::regex coverage_context(R"(Context '(.+)' recorded)");
-    std::regex coverage_parallel(R"(Coverage data collected in parallel mode)");
-    std::regex coverage_data_not_found(R"(pytest-cov: Coverage data was not found for source '(.+)')");
-    std::regex module_never_imported(R"(pytest-cov: Module '(.+)' was never imported\.)");
-    std::regex failure_detail_header(R"(_{3,} (.+) _{3,})");
-    std::regex assertion_error(R"(E\s+(AssertionError: .+))");
-    std::regex traceback_file(R"((.+):(\d+): (.+))");
-    
-    std::smatch match;
-    bool in_test_execution = false;
-    bool in_coverage_section = false;
-    bool in_failure_section = false;
-    bool in_coverage_table = false;
-    bool in_branch_table = false;
-    std::string current_test_file = "";
-    
-    while (std::getline(stream, line)) {
-        // Handle test session start
-        if (std::regex_search(line, match, test_session_start)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "pytest-cov";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "test_session";
-            event.message = "Test session started";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "pytest_cov_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle platform and pytest info
-        if (std::regex_search(line, match, platform_info)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "pytest-cov";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "environment";
-            event.message = "Platform: " + match[1].str() + ", Python: " + match[2].str() + ", pytest: " + match[3].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "pytest_cov_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle pytest-cov plugin detection
-        if (std::regex_search(line, match, pytest_cov_plugin)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "pytest-cov";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "plugin";
-            event.message = "pytest-cov plugin version: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "pytest_cov_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle collected items
-        if (std::regex_search(line, match, collected_items)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "pytest-cov";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "test_collection";
-            event.message = "Collected " + match[1].str() + " test items";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "pytest_cov_text";
-            
-            events.push_back(event);
-            in_test_execution = true;
-            continue;
-        }
-        
-        // Handle individual test results
-        if (in_test_execution && std::regex_search(line, match, test_result)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "pytest-cov";
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.file_path = match[1].str();
-            event.line_number = -1;
-            event.column_number = -1;
-            
-            std::string status = match[3].str();
-            if (status == "PASSED") {
-                event.status = ValidationEventStatus::PASS;
-                event.severity = "info";
-            } else if (status == "FAILED") {
-                event.status = ValidationEventStatus::FAIL;
-                event.severity = "error";
-            } else if (status == "SKIPPED") {
-                event.status = ValidationEventStatus::SKIP;
-                event.severity = "warning";
-            } else if (status == "ERROR") {
-                event.status = ValidationEventStatus::ERROR;
-                event.severity = "error";
-            }
-            
-            event.category = "test_execution";
-            event.message = "Test " + match[2].str() + " " + status;
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "pytest_cov_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle test failure section
-        if (std::regex_search(line, match, test_failure_section)) {
-            in_failure_section = true;
-            in_test_execution = false;
-            continue;
-        }
-        
-        // Handle test summary section
-        if (std::regex_search(line, match, test_short_summary)) {
-            in_failure_section = false;
-            continue;
-        }
-        
-        // Handle test execution summary
-        if (std::regex_search(line, match, test_summary_line)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "pytest-cov";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            
-            std::string failed = match[1].str();
-            std::string passed = match[2].str();
-            std::string skipped = match[3].matched ? match[3].str() : "0";
-            std::string duration = match[4].str();
-            
-            if (failed != "0") {
-                event.status = ValidationEventStatus::FAIL;
-                event.severity = "error";
-            } else {
-                event.status = ValidationEventStatus::PASS;
-                event.severity = "info";
-            }
-            
-            event.category = "test_summary";
-            event.message = "Tests completed: " + failed + " failed, " + passed + " passed, " + skipped + " skipped in " + duration + "s";
-            event.execution_time = std::stod(duration);
-            event.raw_output = content;
-            event.structured_data = "pytest_cov_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle coverage section start
-        if (std::regex_search(line, match, coverage_section)) {
-            in_coverage_section = true;
-            
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "pytest-cov";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "coverage_section";
-            event.message = "Coverage analysis started - Platform: " + match[1].str() + ", Python: " + match[2].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "pytest_cov_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle coverage table headers
-        if (in_coverage_section && std::regex_search(line, match, coverage_header)) {
-            in_coverage_table = true;
-            in_branch_table = false;
-            continue;
-        }
-        
-        if (in_coverage_section && std::regex_search(line, match, coverage_branch_header)) {
-            in_coverage_table = true;
-            in_branch_table = true;
-            continue;
-        }
-        
-        // Handle coverage rows
-        if (in_coverage_table && !in_branch_table && std::regex_search(line, match, coverage_row)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "pytest-cov";
-            event.event_type = ValidationEventType::PERFORMANCE_METRIC;
-            event.file_path = match[1].str();
-            event.line_number = -1;
-            event.column_number = -1;
-            
-            std::string statements = match[2].str();
-            std::string missed = match[3].str();
-            std::string coverage_pct = match[4].str();
-            
-            // Remove % sign and convert to number for severity calculation
-            std::string pct_str = coverage_pct;
-            pct_str.erase(pct_str.find('%'));
-            double coverage_value = std::stod(pct_str);
-            
-            if (coverage_value >= 90.0) {
-                event.status = ValidationEventStatus::PASS;
-                event.severity = "info";
-            } else if (coverage_value >= 75.0) {
-                event.status = ValidationEventStatus::WARNING;
-                event.severity = "warning";
-            } else {
-                event.status = ValidationEventStatus::FAIL;
-                event.severity = "error";
-            }
-            
-            event.category = "file_coverage";
-            event.message = "Coverage: " + coverage_pct + " (" + statements + " statements, " + missed + " missed)";
-            
-            if (match[5].matched && !match[5].str().empty()) {
-                event.message += " - Missing lines: " + match[5].str();
-            }
-            
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "pytest_cov_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle branch coverage rows
-        if (in_coverage_table && in_branch_table && std::regex_search(line, match, coverage_branch_row)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "pytest-cov";
-            event.event_type = ValidationEventType::PERFORMANCE_METRIC;
-            event.file_path = match[1].str();
-            event.line_number = -1;
-            event.column_number = -1;
-            
-            std::string statements = match[2].str();
-            std::string missed = match[3].str();
-            std::string branches = match[4].str();
-            std::string partial = match[5].str();
-            std::string coverage_pct = match[6].str();
-            
-            // Remove % sign and convert to number for severity calculation
-            std::string pct_str = coverage_pct;
-            pct_str.erase(pct_str.find('%'));
-            double coverage_value = std::stod(pct_str);
-            
-            if (coverage_value >= 90.0) {
-                event.status = ValidationEventStatus::PASS;
-                event.severity = "info";
-            } else if (coverage_value >= 75.0) {
-                event.status = ValidationEventStatus::WARNING;
-                event.severity = "warning";
-            } else {
-                event.status = ValidationEventStatus::FAIL;
-                event.severity = "error";
-            }
-            
-            event.category = "file_branch_coverage";
-            event.message = "Branch coverage: " + coverage_pct + " (" + statements + " statements, " + missed + " missed, " + branches + " branches, " + partial + " partial)";
-            
-            if (match[7].matched && !match[7].str().empty()) {
-                event.message += " - Missing: " + match[7].str();
-            }
-            
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "pytest_cov_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle total coverage
-        if (in_coverage_section && std::regex_search(line, match, total_coverage)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "pytest-cov";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            
-            std::string statements = match[1].str();
-            std::string missed = match[2].str();
-            std::string coverage_pct = match[3].str();
-            
-            // Remove % sign and convert to number for severity calculation
-            std::string pct_str = coverage_pct;
-            pct_str.erase(pct_str.find('%'));
-            double coverage_value = std::stod(pct_str);
-            
-            if (coverage_value >= 90.0) {
-                event.status = ValidationEventStatus::PASS;
-                event.severity = "info";
-            } else if (coverage_value >= 75.0) {
-                event.status = ValidationEventStatus::WARNING;
-                event.severity = "warning";
-            } else {
-                event.status = ValidationEventStatus::FAIL;
-                event.severity = "error";
-            }
-            
-            event.category = "total_coverage";
-            event.message = "Total coverage: " + coverage_pct + " (" + statements + " statements, " + missed + " missed)";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "pytest_cov_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle total branch coverage
-        if (in_coverage_section && std::regex_search(line, match, total_branch_coverage)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "pytest-cov";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            
-            std::string statements = match[1].str();
-            std::string missed = match[2].str();
-            std::string branches = match[3].str();
-            std::string partial = match[4].str();
-            std::string coverage_pct = match[5].str();
-            
-            // Remove % sign and convert to number for severity calculation
-            std::string pct_str = coverage_pct;
-            pct_str.erase(pct_str.find('%'));
-            double coverage_value = std::stod(pct_str);
-            
-            if (coverage_value >= 90.0) {
-                event.status = ValidationEventStatus::PASS;
-                event.severity = "info";
-            } else if (coverage_value >= 75.0) {
-                event.status = ValidationEventStatus::WARNING;
-                event.severity = "warning";
-            } else {
-                event.status = ValidationEventStatus::FAIL;
-                event.severity = "error";
-            }
-            
-            event.category = "total_branch_coverage";
-            event.message = "Total branch coverage: " + coverage_pct + " (" + statements + " statements, " + missed + " missed, " + branches + " branches, " + partial + " partial)";
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "pytest_cov_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle coverage threshold failures
-        if (std::regex_search(line, match, coverage_threshold_fail)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "pytest-cov";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::FAIL;
-            event.severity = "error";
-            event.category = "coverage_threshold";
-            event.message = "Coverage threshold failed: Expected >= " + match[1].str() + "%, got " + match[2].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "pytest_cov_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        if (std::regex_search(line, match, required_coverage_fail)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "pytest-cov";
-            event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::FAIL;
-            event.severity = "error";
-            event.category = "coverage_threshold";
-            event.message = "Required coverage not met: Expected " + match[1].str() + "%, got " + match[2].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "pytest_cov_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle coverage report generation
-        if (std::regex_search(line, match, coverage_xml_written)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "pytest-cov";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "report_generation";
-            event.message = "Coverage XML report written to: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "pytest_cov_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        if (std::regex_search(line, match, coverage_html_written)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "pytest-cov";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "report_generation";
-            event.message = "Coverage HTML report written to: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "pytest_cov_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle assertion errors in failure section
-        if (in_failure_section && std::regex_search(line, match, assertion_error)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "pytest-cov";
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.file_path = current_test_file;
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::FAIL;
-            event.severity = "error";
-            event.category = "assertion_error";
-            event.message = match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "pytest_cov_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        // Handle configuration warnings/errors
-        if (std::regex_search(line, match, coverage_data_not_found)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "pytest-cov";
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::WARNING;
-            event.severity = "warning";
-            event.category = "configuration";
-            event.message = "Coverage data not found for source: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "pytest_cov_text";
-            
-            events.push_back(event);
-            continue;
-        }
-        
-        if (std::regex_search(line, match, module_never_imported)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "pytest-cov";
-            event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
-            event.status = ValidationEventStatus::WARNING;
-            event.severity = "warning";
-            event.category = "configuration";
-            event.message = "Module never imported: " + match[1].str();
-            event.execution_time = 0.0;
-            event.raw_output = content;
-            event.structured_data = "pytest_cov_text";
-            
-            events.push_back(event);
-            continue;
-        }
-    }
-}
 // Phase 3A: Multi-file processing implementation
 
 std::vector<std::string> GetFilesFromPattern(ClientContext& context, const std::string& pattern) {
@@ -4601,120 +1629,20 @@ void ProcessMultipleFiles(ClientContext& context, const std::vector<std::string>
                 detected_format = DetectTestResultFormat(content);
             }
             
-            // Parse content and get events for this file
+            // Parse content using modular parser registry
             std::vector<ValidationEvent> file_events;
-            
-            // Dispatch to appropriate parser based on format
-            switch (detected_format) {
-                case TestResultFormat::PYTEST_JSON:
-                    {
-                        auto& registry = ParserRegistry::getInstance();
-                        auto parser = registry.getParser(detected_format);
-                        if (parser) {
-                            file_events = parser->parse(content);
-                        }
-                        // Note: Legacy ParsePytestJSON removed - fully replaced by modular PytestJSONParser
-                    }
-                    break;
-                case TestResultFormat::GOTEST_JSON:
-                    {
-                        auto& registry = ParserRegistry::getInstance();
-                        auto parser = registry.getParser(detected_format);
-                        if (parser) {
-                            file_events = parser->parse(content);
-                        }
-                        // Note: Legacy ParseGoTestJSON removed - fully replaced by modular GoTestJSONParser
-                    }
-                    break;
-                case TestResultFormat::ESLINT_JSON:
-                    {
-                        auto& registry = ParserRegistry::getInstance();
-                        auto parser = registry.getParser(detected_format);
-                        if (parser) {
-                            file_events = parser->parse(content);
-                        }
-                        // Note: Legacy ParseESLintJSON removed - fully replaced by modular ESLintJSONParser
-                    }
-                    break;
-                case TestResultFormat::PYTEST_TEXT:
-                    ParsePytestText(content, file_events);
-                    break;
-                case TestResultFormat::GITHUB_ACTIONS_TEXT:
-                    // GitHub Actions is handled as a workflow engine - not a direct test tool
-                    break;
-                case TestResultFormat::GITHUB_CLI:
-                case TestResultFormat::CLANG_TIDY_TEXT:
-                    // These formats are handled by the modular parser registry at the end
-                    break;
-                case TestResultFormat::GITLAB_CI_TEXT:
-                    // GitLab CI is handled as a workflow engine - not a direct test tool
-                    break;
-                case TestResultFormat::JENKINS_TEXT:
-                    // Jenkins is handled as a workflow engine - not a direct test tool
-                    break;
-                case TestResultFormat::DRONE_CI_TEXT:
-                    {
-                        auto& registry = ParserRegistry::getInstance();
-                        auto parser = registry.getParser(detected_format);
-                        if (parser) {
-                            auto events = parser->parse(content);
-                            file_events.insert(file_events.end(), events.begin(), events.end());
-                        }
-                    }
-                    break;
-                case TestResultFormat::TERRAFORM_TEXT:
-                    {
-                        auto& registry = ParserRegistry::getInstance();
-                        auto parser = registry.getParser(detected_format);
-                        if (parser) {
-                            auto events = parser->parse(content);
-                            file_events.insert(file_events.end(), events.begin(), events.end());
-                        }
-                    }
-                    break;
-                case TestResultFormat::ANSIBLE_TEXT:
-                    {
-                        auto& registry = ParserRegistry::getInstance();
-                        auto parser = registry.getParser(detected_format);
-                        if (parser) {
-                            auto events = parser->parse(content);
-                            file_events.insert(file_events.end(), events.begin(), events.end());
-                        }
-                    }
-                    break;
-                case TestResultFormat::REGEXP:
-                    // REGEXP format requires pattern, which isn't available in multi-file processing
-                    // Skip this file - users should use single-file mode for regexp parsing
-                    continue;
-                // XML-based formats (require webbed extension for XML->JSON conversion)
-                case TestResultFormat::JUNIT_XML:
-                case TestResultFormat::NUNIT_XML:
-                case TestResultFormat::CHECKSTYLE_XML:
-                    {
-                        auto& registry = ParserRegistry::getInstance();
-                        auto parser = registry.getParser(detected_format);
-                        if (parser && parser->requiresContext()) {
-                            file_events = parser->parseWithContext(context, content);
-                        } else if (parser) {
-                            file_events = parser->parse(content);
-                        }
-                    }
-                    break;
-                default:
-                    // Try the modular parser registry for new parsers
-                    {
-                        auto& registry = ParserRegistry::getInstance();
-                        auto parser = registry.getParser(detected_format);
-                        if (parser) {
-                            file_events = parser->parse(content);
-                        } else {
-                            // For truly unsupported formats, continue to next file
-                            continue;
-                        }
-                    }
-                    break;
+
+            // Skip REGEXP format in multi-file mode (requires pattern)
+            if (detected_format == TestResultFormat::REGEXP) {
+                continue;
             }
-            
+
+            // Use modular parser registry for all formats
+            if (!TryNewParserRegistry(context, detected_format, content, file_events)) {
+                // No parser found for this format, skip file
+                continue;
+            }
+
             // Add events to main collection
             events.insert(events.end(), file_events.begin(), file_events.end());
             

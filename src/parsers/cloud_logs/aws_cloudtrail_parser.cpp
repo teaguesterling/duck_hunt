@@ -1,5 +1,4 @@
 #include "aws_cloudtrail_parser.hpp"
-#include "../../core/parser_registry.hpp"
 #include "duckdb/common/string_util.hpp"
 #include <sstream>
 #include <regex>
@@ -265,6 +264,5 @@ std::vector<ValidationEvent> AWSCloudTrailParser::parse(const std::string& conte
     return events;
 }
 
-REGISTER_PARSER(AWSCloudTrailParser);
 
 } // namespace duckdb

@@ -1,5 +1,4 @@
 #include "mypy_parser.hpp"
-#include "../../core/parser_registry.hpp"
 #include <sstream>
 
 namespace duckdb {
@@ -18,9 +17,19 @@ bool MypyParser::canParse(const std::string& content) const {
     }
     
     // Check for column numbers which are more common in clang-tidy than mypy
-    std::regex clang_tidy_pattern(R"([^:]+:\d+:\d+:\s*(error|warning|note):\s*)");
-    if (std::regex_search(content, clang_tidy_pattern)) {
-        return false;  // This looks like clang-tidy format
+    // Guard: only run expensive regex if we have error/warning/note patterns
+    if (content.find(": error:") != std::string::npos ||
+        content.find(": warning:") != std::string::npos ||
+        content.find(": note:") != std::string::npos) {
+        // Process line-by-line to avoid catastrophic backtracking on large files
+        std::regex clang_tidy_pattern(R"([^:]+:\d+:\d+:\s*(error|warning|note):\s*)");
+        std::istringstream stream(content);
+        std::string line;
+        while (std::getline(stream, line)) {
+            if (std::regex_search(line, clang_tidy_pattern)) {
+                return false;  // This looks like clang-tidy format
+            }
+        }
     }
     
     // Look for mypy-specific patterns
@@ -35,12 +44,20 @@ bool MypyParser::canParse(const std::string& content) const {
 
 bool MypyParser::isValidMypyOutput(const std::string& content) const {
     // Check for mypy-specific output patterns
+    // Process line-by-line to avoid catastrophic backtracking on large files
     std::regex mypy_pattern(R"([^:]+:\d+:\s*(error|warning|note):)");
+    std::istringstream stream(content);
+    std::string line;
+    while (std::getline(stream, line)) {
+        if (std::regex_search(line, mypy_pattern)) {
+            return true;
+        }
+    }
+
+    // These patterns are bounded and safe to run on full content
     std::regex mypy_summary(R"(Found \d+ errors? in \d+ files?)");
     std::regex mypy_success(R"(Success: no issues found in \d+ source files?)");
-    
-    return std::regex_search(content, mypy_pattern) || 
-           std::regex_search(content, mypy_summary) ||
+    return std::regex_search(content, mypy_summary) ||
            std::regex_search(content, mypy_success);
 }
 
@@ -216,8 +233,5 @@ std::vector<ValidationEvent> MypyParser::parse(const std::string& content) const
 
     return events;
 }
-
-// Auto-register this parser
-REGISTER_PARSER(MypyParser);
 
 } // namespace duckdb

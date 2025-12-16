@@ -1,7 +1,7 @@
 #pragma once
 
 #include "parser_interface.hpp"
-#include "../../core/webbed_integration.hpp"
+#include "core/webbed_integration.hpp"
 #include "duckdb/main/client_context.hpp"
 #include <string>
 
