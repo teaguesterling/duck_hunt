@@ -7,6 +7,6 @@
 
 namespace duckdb {
 
-TableFunction GetParseDuckHuntWorkflowLogFunction();
+TableFunctionSet GetParseDuckHuntWorkflowLogFunction();
 
 } // namespace duckdb

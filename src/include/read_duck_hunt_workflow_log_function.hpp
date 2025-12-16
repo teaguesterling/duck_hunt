@@ -65,8 +65,8 @@ struct ReadDuckHuntWorkflowLogLocalState : public LocalTableFunctionState {
     ReadDuckHuntWorkflowLogLocalState() : chunk_offset(0) {}
 };
 
-// Main table function
-TableFunction GetReadDuckHuntWorkflowLogFunction();
+// Main table function (returns set with single-arg and two-arg overloads)
+TableFunctionSet GetReadDuckHuntWorkflowLogFunction();
 
 // Table function implementation
 unique_ptr<FunctionData> ReadDuckHuntWorkflowLogBind(ClientContext &context, TableFunctionBindInput &input,

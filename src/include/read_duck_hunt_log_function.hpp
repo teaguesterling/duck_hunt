@@ -150,9 +150,9 @@ void ProcessMultipleFiles(ClientContext& context, const std::vector<std::string>
 std::string ExtractBuildIdFromPath(const std::string& file_path);
 std::string ExtractEnvironmentFromPath(const std::string& file_path);
 
-// Main table function
-TableFunction GetReadDuckHuntLogFunction();
-TableFunction GetParseDuckHuntLogFunction();
+// Main table function (returns set with single-arg and two-arg overloads)
+TableFunctionSet GetReadDuckHuntLogFunction();
+TableFunctionSet GetParseDuckHuntLogFunction();
 
 // Table function implementation for read_duck_hunt_log (file-based)
 unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFunctionBindInput &input,

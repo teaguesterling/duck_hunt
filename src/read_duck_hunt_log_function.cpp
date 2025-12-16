@@ -47,49 +47,75 @@ log_parsers::IParser* TryAutoDetectNewRegistry(const std::string& content);
 
 // Phase 3B: Error Pattern Analysis Functions
 
+// Pre-compiled regexes for error message normalization (compiled once, reused)
+namespace {
+    // File paths
+    const std::regex RE_FILE_EXT(R"([/\\][\w/\\.-]+\.(cpp|hpp|py|js|java|go|rs|rb|php|c|h)[:\s])");
+    const std::regex RE_UNIX_PATH(R"(/[\w/.-]+/)");
+    const std::regex RE_WIN_PATH(R"(\\[\w\\.-]+\\)");
+    // Timestamps
+    const std::regex RE_DATETIME(R"(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2})");
+    const std::regex RE_TIME(R"(\d{2}:\d{2}:\d{2})");
+    // Line/column numbers
+    const std::regex RE_LINE_COL(R"(:(\d+):(\d+):)");
+    const std::regex RE_LINE_NUM(R"(line\s+\d+)");
+    const std::regex RE_COL_NUM(R"(column\s+\d+)");
+    // IDs and addresses
+    const std::regex RE_HEX_ADDR(R"(0x[0-9a-fA-F]+)");
+    const std::regex RE_LONG_ID(R"(\b\d{6,}\b)");
+    // Quoted variables
+    const std::regex RE_SINGLE_QUOTED(R"('[\w.-]+')");
+    const std::regex RE_DOUBLE_QUOTED(R"("[\w.-]+")");
+    // Numbers
+    const std::regex RE_DECIMAL(R"(\b\d+\.\d+\b)");
+    const std::regex RE_INTEGER(R"(\b\d+\b)");
+    // Whitespace
+    const std::regex RE_WHITESPACE(R"(\s+)");
+}
+
 // Normalize error message for fingerprinting by removing variable content
 std::string NormalizeErrorMessage(const std::string& message) {
     std::string normalized = message;
-    
+
     // Convert to lowercase for case-insensitive comparison
     std::transform(normalized.begin(), normalized.end(), normalized.begin(), ::tolower);
-    
+
     // Remove file paths (anything that looks like a path)
-    normalized = std::regex_replace(normalized, std::regex(R"([/\\][\w/\\.-]+\.(cpp|hpp|py|js|java|go|rs|rb|php|c|h)[:\s])"), " <file> ");
-    normalized = std::regex_replace(normalized, std::regex(R"(/[\w/.-]+/)"), "/<path>/");
-    normalized = std::regex_replace(normalized, std::regex(R"(\\[\w\\.-]+\\)"), "\\<path>\\");
-    
+    normalized = std::regex_replace(normalized, RE_FILE_EXT, " <file> ");
+    normalized = std::regex_replace(normalized, RE_UNIX_PATH, "/<path>/");
+    normalized = std::regex_replace(normalized, RE_WIN_PATH, "\\<path>\\");
+
     // Remove timestamps
-    normalized = std::regex_replace(normalized, std::regex(R"(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2})"), "<timestamp>");
-    normalized = std::regex_replace(normalized, std::regex(R"(\d{2}:\d{2}:\d{2})"), "<time>");
-    
+    normalized = std::regex_replace(normalized, RE_DATETIME, "<timestamp>");
+    normalized = std::regex_replace(normalized, RE_TIME, "<time>");
+
     // Remove line and column numbers
-    normalized = std::regex_replace(normalized, std::regex(R"(:(\d+):(\d+):)"), ":<line>:<col>:");
-    normalized = std::regex_replace(normalized, std::regex(R"(line\s+\d+)"), "line <num>");
-    normalized = std::regex_replace(normalized, std::regex(R"(column\s+\d+)"), "column <num>");
-    
+    normalized = std::regex_replace(normalized, RE_LINE_COL, ":<line>:<col>:");
+    normalized = std::regex_replace(normalized, RE_LINE_NUM, "line <num>");
+    normalized = std::regex_replace(normalized, RE_COL_NUM, "column <num>");
+
     // Remove numeric IDs and memory addresses
-    normalized = std::regex_replace(normalized, std::regex(R"(0x[0-9a-fA-F]+)"), "<addr>");
-    normalized = std::regex_replace(normalized, std::regex(R"(\b\d{6,}\b)"), "<id>");
-    
+    normalized = std::regex_replace(normalized, RE_HEX_ADDR, "<addr>");
+    normalized = std::regex_replace(normalized, RE_LONG_ID, "<id>");
+
     // Remove variable names in quotes
-    normalized = std::regex_replace(normalized, std::regex(R"('[\w.-]+')"), "'<var>'");
-    normalized = std::regex_replace(normalized, std::regex(R"("[\w.-]+")"), "\"<var>\"");
-    
+    normalized = std::regex_replace(normalized, RE_SINGLE_QUOTED, "'<var>'");
+    normalized = std::regex_replace(normalized, RE_DOUBLE_QUOTED, "\"<var>\"");
+
     // Remove specific values but keep structure
-    normalized = std::regex_replace(normalized, std::regex(R"(\b\d+\.\d+\b)"), "<decimal>");
-    normalized = std::regex_replace(normalized, std::regex(R"(\b\d+\b)"), "<num>");
-    
+    normalized = std::regex_replace(normalized, RE_DECIMAL, "<decimal>");
+    normalized = std::regex_replace(normalized, RE_INTEGER, "<num>");
+
     // Normalize whitespace
-    normalized = std::regex_replace(normalized, std::regex(R"(\s+)"), " ");
-    
+    normalized = std::regex_replace(normalized, RE_WHITESPACE, " ");
+
     // Trim whitespace
     auto start = normalized.find_first_not_of(" \t");
     auto end = normalized.find_last_not_of(" \t");
     if (start != std::string::npos && end != std::string::npos) {
         normalized = normalized.substr(start, end - start + 1);
     }
-    
+
     return normalized;
 }
 
@@ -1495,18 +1521,36 @@ void ParseDuckHuntLogFunction(ClientContext &context, TableFunctionInput &data_p
     local_state.chunk_offset += output.size();
 }
 
-TableFunction GetReadDuckHuntLogFunction() {
-    TableFunction function("read_duck_hunt_log", {LogicalType::VARCHAR, LogicalType::VARCHAR}, 
-                          ReadDuckHuntLogFunction, ReadDuckHuntLogBind, ReadDuckHuntLogInitGlobal, ReadDuckHuntLogInitLocal);
-    
-    return function;
+TableFunctionSet GetReadDuckHuntLogFunction() {
+    TableFunctionSet set("read_duck_hunt_log");
+
+    // Single argument version: read_duck_hunt_log(source) - auto-detects format
+    TableFunction single_arg("read_duck_hunt_log", {LogicalType::VARCHAR},
+                            ReadDuckHuntLogFunction, ReadDuckHuntLogBind, ReadDuckHuntLogInitGlobal, ReadDuckHuntLogInitLocal);
+    set.AddFunction(single_arg);
+
+    // Two argument version: read_duck_hunt_log(source, format)
+    TableFunction two_arg("read_duck_hunt_log", {LogicalType::VARCHAR, LogicalType::VARCHAR},
+                         ReadDuckHuntLogFunction, ReadDuckHuntLogBind, ReadDuckHuntLogInitGlobal, ReadDuckHuntLogInitLocal);
+    set.AddFunction(two_arg);
+
+    return set;
 }
 
-TableFunction GetParseDuckHuntLogFunction() {
-    TableFunction function("parse_duck_hunt_log", {LogicalType::VARCHAR, LogicalType::VARCHAR}, 
-                          ParseDuckHuntLogFunction, ParseDuckHuntLogBind, ParseDuckHuntLogInitGlobal, ParseDuckHuntLogInitLocal);
-    
-    return function;
+TableFunctionSet GetParseDuckHuntLogFunction() {
+    TableFunctionSet set("parse_duck_hunt_log");
+
+    // Single argument version: parse_duck_hunt_log(content) - auto-detects format
+    TableFunction single_arg("parse_duck_hunt_log", {LogicalType::VARCHAR},
+                            ParseDuckHuntLogFunction, ParseDuckHuntLogBind, ParseDuckHuntLogInitGlobal, ParseDuckHuntLogInitLocal);
+    set.AddFunction(single_arg);
+
+    // Two argument version: parse_duck_hunt_log(content, format)
+    TableFunction two_arg("parse_duck_hunt_log", {LogicalType::VARCHAR, LogicalType::VARCHAR},
+                         ParseDuckHuntLogFunction, ParseDuckHuntLogBind, ParseDuckHuntLogInitGlobal, ParseDuckHuntLogInitLocal);
+    set.AddFunction(two_arg);
+
+    return set;
 }
 
 

@@ -283,11 +283,20 @@ void ParseDuckHuntWorkflowLogFunction(ClientContext &context, TableFunctionInput
     output.SetCardinality(count);
 }
 
-TableFunction GetParseDuckHuntWorkflowLogFunction() {
-    TableFunction function("parse_duck_hunt_workflow_log", {LogicalType::VARCHAR, LogicalType::VARCHAR}, 
-                          ParseDuckHuntWorkflowLogFunction, ParseDuckHuntWorkflowLogBind, ParseDuckHuntWorkflowLogInitGlobal);
-    
-    return function;
+TableFunctionSet GetParseDuckHuntWorkflowLogFunction() {
+    TableFunctionSet set("parse_duck_hunt_workflow_log");
+
+    // Single argument version: parse_duck_hunt_workflow_log(content) - auto-detects format
+    TableFunction single_arg("parse_duck_hunt_workflow_log", {LogicalType::VARCHAR},
+                            ParseDuckHuntWorkflowLogFunction, ParseDuckHuntWorkflowLogBind, ParseDuckHuntWorkflowLogInitGlobal);
+    set.AddFunction(single_arg);
+
+    // Two argument version: parse_duck_hunt_workflow_log(content, format)
+    TableFunction two_arg("parse_duck_hunt_workflow_log", {LogicalType::VARCHAR, LogicalType::VARCHAR},
+                         ParseDuckHuntWorkflowLogFunction, ParseDuckHuntWorkflowLogBind, ParseDuckHuntWorkflowLogInitGlobal);
+    set.AddFunction(two_arg);
+
+    return set;
 }
 
 } // namespace duckdb

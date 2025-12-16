@@ -26,7 +26,6 @@ static std::vector<std::pair<std::string, CategoryRegistrationFn>>& GetCategoryR
 }
 
 static std::once_flag g_init_flag;
-static bool g_initialized = false;
 
 void RegisterParserCategory(const std::string& category_name, CategoryRegistrationFn register_fn) {
     GetCategoryRegistry().emplace_back(category_name, std::move(register_fn));
@@ -49,8 +48,6 @@ void InitializeAllParsers() {
         RegisterAppLoggingParsers(registry);
         RegisterInfrastructureParsers(registry);
         RegisterInfrastructureToolsParsers(registry);
-
-        g_initialized = true;
     });
 }
 
@@ -81,9 +78,8 @@ void ParserRegistry::registerParser(ParserPtr parser) {
 
 IParser* ParserRegistry::getParser(const std::string& format_name) const {
     // Ensure parsers are initialized
-    if (!g_initialized) {
-        InitializeAllParsers();
-    }
+    // Ensure parsers are registered (call_once ensures this only runs once)
+    InitializeAllParsers();
 
     auto it = format_map_.find(format_name);
     return (it != format_map_.end()) ? it->second : nullptr;
@@ -91,9 +87,8 @@ IParser* ParserRegistry::getParser(const std::string& format_name) const {
 
 IParser* ParserRegistry::findParser(const std::string& content) const {
     // Ensure parsers are initialized
-    if (!g_initialized) {
-        InitializeAllParsers();
-    }
+    // Ensure parsers are registered (call_once ensures this only runs once)
+    InitializeAllParsers();
 
     ensureSorted();
 
@@ -108,9 +103,8 @@ IParser* ParserRegistry::findParser(const std::string& content) const {
 }
 
 std::vector<IParser*> ParserRegistry::getParsersByCategory(const std::string& category) const {
-    if (!g_initialized) {
-        InitializeAllParsers();
-    }
+    // Ensure parsers are registered (call_once ensures this only runs once)
+    InitializeAllParsers();
 
     std::vector<IParser*> result;
 
@@ -129,9 +123,8 @@ std::vector<IParser*> ParserRegistry::getParsersByCategory(const std::string& ca
 }
 
 std::vector<ParserInfo> ParserRegistry::getAllFormats() const {
-    if (!g_initialized) {
-        InitializeAllParsers();
-    }
+    // Ensure parsers are registered (call_once ensures this only runs once)
+    InitializeAllParsers();
 
     std::vector<ParserInfo> result;
     result.reserve(parsers_.size());
@@ -158,9 +151,8 @@ std::vector<ParserInfo> ParserRegistry::getAllFormats() const {
 }
 
 std::vector<std::string> ParserRegistry::getCategories() const {
-    if (!g_initialized) {
-        InitializeAllParsers();
-    }
+    // Ensure parsers are registered (call_once ensures this only runs once)
+    InitializeAllParsers();
 
     std::vector<std::string> categories;
     std::unordered_map<std::string, bool> seen;
@@ -178,9 +170,8 @@ std::vector<std::string> ParserRegistry::getCategories() const {
 }
 
 bool ParserRegistry::hasFormat(const std::string& format_name) const {
-    if (!g_initialized) {
-        InitializeAllParsers();
-    }
+    // Ensure parsers are registered (call_once ensures this only runs once)
+    InitializeAllParsers();
     return format_map_.find(format_name) != format_map_.end();
 }
 

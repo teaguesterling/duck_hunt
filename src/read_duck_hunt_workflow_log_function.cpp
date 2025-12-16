@@ -351,12 +351,21 @@ void ReadDuckHuntWorkflowLogFunction(ClientContext &context, TableFunctionInput 
     local_state.chunk_offset += rows_to_output;
 }
 
-// Create the table function
-TableFunction GetReadDuckHuntWorkflowLogFunction() {
-    TableFunction function("read_duck_hunt_workflow_log", {LogicalType::VARCHAR, LogicalType::VARCHAR}, 
-                          ReadDuckHuntWorkflowLogFunction, ReadDuckHuntWorkflowLogBind, ReadDuckHuntWorkflowLogInitGlobal, ReadDuckHuntWorkflowLogInitLocal);
-    
-    return function;
+// Create the table function set with single-arg and two-arg overloads
+TableFunctionSet GetReadDuckHuntWorkflowLogFunction() {
+    TableFunctionSet set("read_duck_hunt_workflow_log");
+
+    // Single argument version: read_duck_hunt_workflow_log(source) - auto-detects format
+    TableFunction single_arg("read_duck_hunt_workflow_log", {LogicalType::VARCHAR},
+                            ReadDuckHuntWorkflowLogFunction, ReadDuckHuntWorkflowLogBind, ReadDuckHuntWorkflowLogInitGlobal, ReadDuckHuntWorkflowLogInitLocal);
+    set.AddFunction(single_arg);
+
+    // Two argument version: read_duck_hunt_workflow_log(source, format)
+    TableFunction two_arg("read_duck_hunt_workflow_log", {LogicalType::VARCHAR, LogicalType::VARCHAR},
+                         ReadDuckHuntWorkflowLogFunction, ReadDuckHuntWorkflowLogBind, ReadDuckHuntWorkflowLogInitGlobal, ReadDuckHuntWorkflowLogInitLocal);
+    set.AddFunction(two_arg);
+
+    return set;
 }
 
 } // namespace duckdb
