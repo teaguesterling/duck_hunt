@@ -1,18 +1,25 @@
 #pragma once
 
-#include "validation_event_types.hpp"
-#include <string>
-#include <vector>
+#include "parsers/base/parser_interface.hpp"
+#include <regex>
 
-namespace duck_hunt {
+namespace duckdb {
 
-class NodeParser {
+/**
+ * Parser for Node.js/npm/yarn build output.
+ * Handles npm errors, Jest test results, ESLint issues, Webpack errors, and dependency resolution.
+ */
+class NodeParser : public IParser {
 public:
-    static void ParseNodeBuild(const std::string& content, std::vector<duckdb::ValidationEvent>& events);
-    
-    std::string GetName() const { return "node"; }
-    bool CanParse(const std::string& content) const;
-    void Parse(const std::string& content, std::vector<duckdb::ValidationEvent>& events) const;
+    bool canParse(const std::string& content) const override;
+    std::vector<ValidationEvent> parse(const std::string& content) const override;
+
+    std::string getFormatName() const override { return "node_build"; }
+    std::string getName() const override { return "Node.js Build Parser"; }
+    int getPriority() const override { return 80; }
+    std::string getCategory() const override { return "build_system"; }
+    std::string getDescription() const override { return "Node.js/npm build output"; }
+    std::vector<std::string> getAliases() const override { return {"node", "npm", "yarn"}; }
 };
 
-} // namespace duck_hunt
+} // namespace duckdb

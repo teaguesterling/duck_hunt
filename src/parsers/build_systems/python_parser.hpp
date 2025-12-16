@@ -1,18 +1,25 @@
 #pragma once
 
-#include "validation_event_types.hpp"
-#include <string>
-#include <vector>
+#include "parsers/base/parser_interface.hpp"
+#include <regex>
 
-namespace duck_hunt {
+namespace duckdb {
 
-class PythonParser {
+/**
+ * Parser for Python pip/setuptools build output.
+ * Handles pip wheel building errors, C extension compilation, pytest results, and setuptools failures.
+ */
+class PythonBuildParser : public IParser {
 public:
-    static void ParsePythonBuild(const std::string& content, std::vector<duckdb::ValidationEvent>& events);
-    
-    std::string GetName() const { return "python"; }
-    bool CanParse(const std::string& content) const;
-    void Parse(const std::string& content, std::vector<duckdb::ValidationEvent>& events) const;
+    bool canParse(const std::string& content) const override;
+    std::vector<ValidationEvent> parse(const std::string& content) const override;
+
+    std::string getFormatName() const override { return "python_build"; }
+    std::string getName() const override { return "Python Build Parser"; }
+    int getPriority() const override { return 80; }
+    std::string getCategory() const override { return "build_system"; }
+    std::string getDescription() const override { return "Python pip/setuptools build output"; }
+    std::vector<std::string> getAliases() const override { return {"pip", "setuptools"}; }
 };
 
-} // namespace duck_hunt
+} // namespace duckdb

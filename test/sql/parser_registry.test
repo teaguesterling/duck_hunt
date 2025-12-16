@@ -1,0 +1,159 @@
+# name: test/sql/parser_registry.test
+# description: test parser registry, format listing, and auto-detection
+# group: [sql]
+
+require duck_hunt
+
+# =============================================================================
+# Test 1: duck_hunt_formats() returns registered parsers
+# =============================================================================
+
+query I
+SELECT COUNT(*) > 50 FROM duck_hunt_formats();
+----
+true
+
+# Test format columns exist
+query IIIII
+SELECT format IS NOT NULL,
+       description IS NOT NULL,
+       category IS NOT NULL,
+       requires_extension IS NOT NULL OR requires_extension IS NULL,
+       supports_workflow IS NOT NULL
+FROM duck_hunt_formats() LIMIT 1;
+----
+true	true	true	true	true
+
+# =============================================================================
+# Test 2: Format aliases work correctly
+# =============================================================================
+
+# Test pylint alias
+query I
+SELECT tool_name FROM parse_duck_hunt_log(E'************* Module example\nsrc/example.py:1:0: C0114: Missing module docstring (missing-module-docstring)\n\nYour code has been rated at 8.00/10', 'pylint');
+----
+pylint
+
+# Test make alias
+query I
+SELECT DISTINCT tool_name FROM parse_duck_hunt_log(E'src/main.c:15:5: error: undeclared identifier\nmake: *** [Makefile:23: build/main] Error 1', 'make');
+----
+make
+
+# Test gtest alias
+query I
+SELECT DISTINCT tool_name FROM parse_duck_hunt_log(E'[==========] Running 3 tests from 1 test suite.\n[----------] 3 tests from MyTest\n[RUN      ] MyTest.Test1\n[       OK ] MyTest.Test1 (0 ms)\n[----------] 3 tests from MyTest (10 ms total)\n[==========] 3 tests from 1 test suite ran. (10 ms total)\n[  PASSED  ] 3 tests.', 'gtest');
+----
+gtest
+
+# =============================================================================
+# Test 3: Single-argument functions (auto-detection by default)
+# =============================================================================
+
+# parse_duck_hunt_log with single argument
+query I
+SELECT tool_name FROM parse_duck_hunt_log('[{"filePath":"/test.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"test","line":1,"column":8}]}]');
+----
+eslint
+
+# read_duck_hunt_log with single argument
+query I
+SELECT DISTINCT tool_name FROM read_duck_hunt_log('test/sample_strace.log');
+----
+strace
+
+# =============================================================================
+# Test 4: Parser priority ordering
+# =============================================================================
+
+# Pytest JSON should be detected before generic JSON (higher priority)
+query I
+SELECT tool_name FROM parse_duck_hunt_log('{"tests":[{"outcome":"passed","nodeid":"test_example.py::test_one"}],"created":1234567890}');
+----
+pytest
+
+# DuckDB test format should be detected over generic patterns
+query I
+SELECT DISTINCT tool_name FROM parse_duck_hunt_log(E'[0/5] (0%): test/sql/basic.test\n[1/5] (20%): test/sql/other.test\n5 test cases:\n  - 4 passed\n  - 1 failed');
+----
+duckdb_test
+
+# =============================================================================
+# Test 5: Category-based organization
+# =============================================================================
+
+# Verify categories are populated
+query I
+SELECT COUNT(DISTINCT category) >= 5 FROM duck_hunt_formats();
+----
+true
+
+# Test specific categories exist
+query I
+SELECT COUNT(*) > 0 FROM duck_hunt_formats() WHERE category = 'linting_tool';
+----
+true
+
+query I
+SELECT COUNT(*) > 0 FROM duck_hunt_formats() WHERE category = 'test_framework';
+----
+true
+
+query I
+SELECT COUNT(*) > 0 FROM duck_hunt_formats() WHERE category = 'build_system';
+----
+true
+
+# =============================================================================
+# Test 6: Explicit format lookup works
+# =============================================================================
+
+# Test explicit format name
+query I
+SELECT tool_name FROM parse_duck_hunt_log(E'{"Action":"run","Package":"test","Test":"TestExample"}\n{"Action":"pass","Package":"test","Test":"TestExample","Elapsed":0.001}', 'go_test_json');
+----
+go_test
+
+# Test explicit format overrides auto-detection
+query I
+SELECT tool_name FROM parse_duck_hunt_log('random content that would not match', 'generic_lint');
+----
+lint
+
+# =============================================================================
+# Test 7: Workflow log functions with single argument
+# =============================================================================
+
+# read_duck_hunt_workflow_log with single argument
+query I
+SELECT COUNT(*) >= 0 FROM read_duck_hunt_workflow_log('test/sample_github_actions.log');
+----
+true
+
+# =============================================================================
+# Test 8: Format descriptions are meaningful
+# =============================================================================
+
+query I
+SELECT LENGTH(description) > 10 FROM duck_hunt_formats() WHERE format = 'pylint_text';
+----
+true
+
+query I
+SELECT LENGTH(description) > 10 FROM duck_hunt_formats() WHERE format = 'make_error';
+----
+true
+
+# =============================================================================
+# Test 9: Auto format is listed
+# =============================================================================
+
+query I
+SELECT COUNT(*) = 1 FROM duck_hunt_formats() WHERE format = 'auto';
+----
+true
+
+query I
+SELECT description FROM duck_hunt_formats() WHERE format = 'auto';
+----
+Automatic format detection

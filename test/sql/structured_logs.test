@@ -129,12 +129,12 @@ info	2
 # Format Detection Tests
 # =============================================================================
 
-# Test 15: Auto-detect JSONL format
+# Test 15: Auto-detect JSON log format (winston detects level/message fields)
 query I
 SELECT DISTINCT tool_name
 FROM parse_duck_hunt_log(E'{"level":"info","message":"test1"}\n{"level":"error","message":"test2"}', 'auto');
 ----
-jsonl
+winston
 
 # Test 16: Auto-detect logfmt-style format (logrus is a specific implementation)
 query I

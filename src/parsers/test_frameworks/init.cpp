@@ -14,6 +14,8 @@
 
 namespace duckdb {
 
+// Old-style parsers with static methods need manual wrappers
+
 /**
  * JUnit text parser wrapper.
  */
@@ -141,58 +143,6 @@ public:
 };
 
 /**
- * Pytest text parser wrapper.
- * Delegates to existing duckdb::PytestParser IParser implementation.
- */
-class PytestTextParserImpl : public BaseParser {
-public:
-    PytestTextParserImpl()
-        : BaseParser("pytest_text",
-                     "Pytest Text Parser",
-                     ParserCategory::TEST_FRAMEWORK,
-                     "Python pytest text output",
-                     ParserPriority::HIGH) {
-        addAlias("pytest");
-    }
-
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
-
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
-
-private:
-    duckdb::PytestParser parser_;
-};
-
-/**
- * Pytest JSON parser wrapper.
- * Delegates to existing duckdb::PytestJSONParser IParser implementation.
- */
-class PytestJSONParserImpl : public BaseParser {
-public:
-    PytestJSONParserImpl()
-        : BaseParser("pytest_json",
-                     "Pytest JSON Parser",
-                     ParserCategory::TEST_FRAMEWORK,
-                     "Python pytest JSON report output",
-                     ParserPriority::VERY_HIGH) {}
-
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
-
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
-
-private:
-    duckdb::PytestJSONParser parser_;
-};
-
-/**
  * JUnit XML parser wrapper (requires webbed extension).
  */
 class JUnitXmlParserImpl : public BaseParser {
@@ -227,7 +177,6 @@ public:
 
 /**
  * DuckDB test output parser wrapper.
- * Handles DuckDB's unittest output format.
  */
 class DuckDBTestParserImpl : public BaseParser {
 public:
@@ -254,7 +203,6 @@ private:
 
 /**
  * Pytest coverage text parser wrapper.
- * Handles pytest-cov output with coverage information.
  */
 class PytestCovTextParserImpl : public BaseParser {
 public:
@@ -284,17 +232,28 @@ private:
 
 /**
  * Register all test framework parsers with the registry.
+ * Uses DelegatingParser for IParser-compliant parsers, manual wrappers for old-style.
  */
 DECLARE_PARSER_CATEGORY(TestFrameworks);
 
 void RegisterTestFrameworksParsers(ParserRegistry& registry) {
+    // IParser-compliant parsers use DelegatingParser template
+    registry.registerParser(make_uniq<DelegatingParser<PytestParser>>(
+        "pytest_text", "Pytest Text Parser", ParserCategory::TEST_FRAMEWORK,
+        "Python pytest text output", ParserPriority::HIGH,
+        std::vector<std::string>{"pytest"}));
+
+    registry.registerParser(make_uniq<DelegatingParser<PytestJSONParser>>(
+        "pytest_json", "Pytest JSON Parser", ParserCategory::TEST_FRAMEWORK,
+        "Python pytest JSON report output", ParserPriority::VERY_HIGH,
+        std::vector<std::string>{}));
+
+    // Old-style parsers need manual wrappers
     registry.registerParser(make_uniq<JUnitTextParserImpl>());
     registry.registerParser(make_uniq<GTestTextParserImpl>());
     registry.registerParser(make_uniq<RSpecTextParserImpl>());
     registry.registerParser(make_uniq<MochaChaiTextParserImpl>());
     registry.registerParser(make_uniq<NUnitXUnitTextParserImpl>());
-    registry.registerParser(make_uniq<PytestTextParserImpl>());
-    registry.registerParser(make_uniq<PytestJSONParserImpl>());
     registry.registerParser(make_uniq<JUnitXmlParserImpl>());
     registry.registerParser(make_uniq<DuckDBTestParserImpl>());
     registry.registerParser(make_uniq<PytestCovTextParserImpl>());

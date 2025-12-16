@@ -74,6 +74,72 @@ private:
     std::string required_extension_;
 };
 
+/**
+ * Template wrapper that delegates to an existing IParser implementation.
+ * Use this when you have a parser that already implements IParser but need
+ * to add aliases, descriptions, or register it with the registry.
+ *
+ * Example usage in init.cpp:
+ *   registry.registerParser(make_uniq<DelegatingParser<PylintParser>>(
+ *       "pylint_text", "Pylint Parser", ParserCategory::LINTING,
+ *       "Python Pylint code quality output", ParserPriority::HIGH,
+ *       {"pylint"}  // aliases
+ *   ));
+ */
+template<typename ParserT>
+class DelegatingParser : public BaseParser {
+private:
+    // Helper to get metadata from a temporary parser instance
+    static std::string getParserFormatName() { ParserT p; return p.getFormatName(); }
+    static std::string getParserName() { ParserT p; return p.getName(); }
+    static std::string getParserCategory() { ParserT p; return p.getCategory(); }
+    static std::string getParserDescription() { ParserT p; return p.getDescription(); }
+    static int getParserPriority() { ParserT p; return p.getPriority(); }
+    static std::vector<std::string> getParserAliases() { ParserT p; return p.getAliases(); }
+
+public:
+    /**
+     * Default constructor - pulls metadata from the underlying parser.
+     * The parser type must implement IParser methods: getFormatName(), getName(),
+     * getCategory(), getDescription(), getPriority(), getAliases().
+     */
+    DelegatingParser()
+        : BaseParser(getParserFormatName(), getParserName(),
+                     getParserCategory(), getParserDescription(),
+                     getParserPriority()) {
+        for (const auto& alias : getParserAliases()) {
+            addAlias(alias);
+        }
+    }
+
+    /**
+     * Explicit constructor - allows overriding parser metadata.
+     */
+    DelegatingParser(std::string format_name,
+                     std::string name,
+                     std::string category,
+                     std::string description,
+                     int priority = 50,
+                     std::vector<std::string> aliases = {})
+        : BaseParser(std::move(format_name), std::move(name),
+                     std::move(category), std::move(description), priority) {
+        for (const auto& alias : aliases) {
+            addAlias(alias);
+        }
+    }
+
+    bool canParse(const std::string& content) const override {
+        return parser_.canParse(content);
+    }
+
+    std::vector<ValidationEvent> parse(const std::string& content) const override {
+        return parser_.parse(content);
+    }
+
+private:
+    ParserT parser_;
+};
+
 // Backward compatibility: alias in log_parsers namespace
 namespace log_parsers {
     using BaseParser = duckdb::BaseParser;
