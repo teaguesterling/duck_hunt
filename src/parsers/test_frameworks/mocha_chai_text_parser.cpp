@@ -27,18 +27,27 @@ void MochaChaiTextParser::ParseMochaChai(const std::string& content, std::vector
     std::regex test_passed(R"(\s*✓\s*(.+)\s*\((\d+)ms\))");
     std::regex test_failed(R"(\s*✗\s*(.+))");
     std::regex test_pending(R"(\s*-\s*(.+)\s*\(pending\))");
+    // Also match pending tests without (pending) suffix
+    std::regex test_pending_simple(R"(^\s+-\s+(.+)$)");
     std::regex context_start(R"(^\s*([A-Z][A-Za-z0-9\s]+)\s*$)");
-    std::regex nested_context(R"(^\s{2,}([a-z][A-Za-z0-9\s]+)\s*$)");
-    std::regex error_line(R"((Error|AssertionError):\s*(.+))");
+    std::regex nested_context(R"(^\s{2,}([a-z#][A-Za-z0-9\s#]+)\s*$)");
+    std::regex error_line(R"(\s*(Error|AssertionError|TypeError|ReferenceError):\s*(.+))");
     std::regex file_line(R"(\s*at\s+Context\.<anonymous>\s+\((.+):(\d+):(\d+)\))");
     std::regex test_stack(R"(\s*at\s+Test\.Runnable\.run\s+\((.+):(\d+):(\d+)\))");
-    std::regex summary_line(R"(\s*(\d+)\s+passing\s*\(([0-9.]+s)\))");
+    // More general file:line:col pattern for stack traces
+    std::regex general_file_line(R"(\s*at\s+.+\s+\((.+):(\d+):(\d+)\))");
+    std::regex summary_line(R"(\s*(\d+)\s+passing\s*\(([0-9.]+s?)\))");
     std::regex failing_line(R"(\s*(\d+)\s+failing)");
     std::regex pending_line(R"(\s*(\d+)\s+pending)");
-    std::regex failed_example_start(R"(\s*(\d+)\)\s+(.+))");
+    // Numbered failure: "  1) Context name test name:"
+    std::regex failed_example_start(R"(\s*(\d+)\)\s+(.+?):?\s*$)");
+    // Continuation of test name (indented lines after failure number)
+    std::regex failed_example_continuation(R"(^\s{6,}(.+?):?\s*$)");
     std::regex expected_got_line(R"(\s*\+(.+))");
     std::regex actual_line(R"(\s*-(.+))");
-    
+    // Numbered test markers in initial list: "      1) should set createdAt timestamp"
+    std::regex numbered_failed_test(R"(\s*(\d+)\)\s+(.+))");
+
     std::string current_context;
     std::string current_nested_context;
     std::string current_test_name;
@@ -50,6 +59,8 @@ void MochaChaiTextParser::ParseMochaChai(const std::string& content, std::vector
     std::vector<std::string> stack_trace;
     bool in_failure_details = false;
     int failure_number = 0;
+    int32_t failure_start_line = 0;
+    std::string accumulated_test_name;
     
     while (std::getline(stream, line)) {
         current_line_num++;
@@ -127,17 +138,17 @@ void MochaChaiTextParser::ParseMochaChai(const std::string& content, std::vector
             current_nested_context = match[1].str();
         }
         // Check for error messages
-        else if (std::regex_match(line, match, error_line)) {
+        else if (std::regex_search(line, match, error_line)) {
             current_error_message = match[1].str() + ": " + match[2].str();
         }
-        // Check for file and line information
+        // Check for file and line information (Context.<anonymous> format)
         else if (std::regex_match(line, match, file_line)) {
             current_file_path = match[1].str();
             current_line_number = std::stoi(match[2].str());
             current_column = std::stoi(match[3].str());
-            
-            // If we have a failed test, create the event now
-            if (!current_test_name.empty() && !current_error_message.empty()) {
+
+            // If we have a failed test from inline ✗ marker, create the event now
+            if (!current_test_name.empty() && !current_error_message.empty() && !in_failure_details) {
                 duckdb::ValidationEvent event;
                 event.event_id = event_id++;
                 event.event_type = duckdb::ValidationEventType::TEST_RESULT;
@@ -154,9 +165,9 @@ void MochaChaiTextParser::ParseMochaChai(const std::string& content, std::vector
                 event.raw_output = line;
                 event.function_name = current_context;
                 event.structured_data = "{}";
-                
+
                 events.push_back(event);
-                
+
                 // Reset for next test
                 current_test_name = "";
                 current_error_message = "";
@@ -165,20 +176,60 @@ void MochaChaiTextParser::ParseMochaChai(const std::string& content, std::vector
                 current_column = 0;
             }
         }
-        // Check for failed example start (in failure summary)
+        // Check for general file and line information (any "at ... (file:line:col)" format)
+        else if (in_failure_details && current_file_path.empty() && std::regex_search(line, match, general_file_line)) {
+            current_file_path = match[1].str();
+            current_line_number = std::stoi(match[2].str());
+            current_column = std::stoi(match[3].str());
+        }
+        // Check for failed example start (in failure summary section)
+        // Format: "  1) Context name test name:" or "  1) Context name"
         else if (std::regex_match(line, match, failed_example_start)) {
-            failure_number = std::stoi(match[1].str());
-            std::string full_test_name = match[2].str();
-            in_failure_details = true;
-            
-            // Extract context and test name from full name
-            size_t last_space = full_test_name.rfind(' ');
-            if (last_space != std::string::npos) {
-                current_context = full_test_name.substr(0, last_space);
-                current_test_name = full_test_name.substr(last_space + 1);
-            } else {
-                current_test_name = full_test_name;
+            // If we have a pending failure from previous block, emit it
+            if (in_failure_details && !accumulated_test_name.empty()) {
+                duckdb::ValidationEvent event;
+                event.event_id = event_id++;
+                event.event_type = duckdb::ValidationEventType::TEST_RESULT;
+                event.severity = "error";
+                event.message = current_error_message.empty() ? "Test failed" : current_error_message;
+                event.test_name = accumulated_test_name;
+                event.status = duckdb::ValidationEventStatus::FAIL;
+                event.file_path = current_file_path;
+                event.line_number = current_line_number;
+                event.column_number = current_column;
+                event.execution_time = 0;
+                event.tool_name = "mocha";
+                event.category = "mocha_chai_text";
+                event.raw_output = "";
+                event.function_name = "";
+                event.structured_data = "{}";
+                event.log_line_start = failure_start_line;
+                event.log_line_end = current_line_num - 1;
+                events.push_back(event);
             }
+
+            // Start new failure
+            failure_number = std::stoi(match[1].str());
+            accumulated_test_name = match[2].str();
+            // Remove trailing colon if present
+            if (!accumulated_test_name.empty() && accumulated_test_name.back() == ':') {
+                accumulated_test_name.pop_back();
+            }
+            in_failure_details = true;
+            failure_start_line = current_line_num;
+            current_error_message = "";
+            current_file_path = "";
+            current_line_number = 0;
+            current_column = 0;
+        }
+        // Check for continuation lines in failure details (indented test name parts)
+        else if (in_failure_details && std::regex_match(line, match, failed_example_continuation)) {
+            std::string continuation = match[1].str();
+            // Remove trailing colon if present
+            if (!continuation.empty() && continuation.back() == ':') {
+                continuation.pop_back();
+            }
+            accumulated_test_name += " " + continuation;
         }
         // Check for summary lines
         else if (std::regex_match(line, match, summary_line)) {
@@ -253,6 +304,29 @@ void MochaChaiTextParser::ParseMochaChai(const std::string& content, std::vector
         if (std::regex_match(line, match, test_stack) || std::regex_match(line, match, file_line)) {
             stack_trace.push_back(line);
         }
+    }
+
+    // Emit any pending failure at the end of the file
+    if (in_failure_details && !accumulated_test_name.empty()) {
+        duckdb::ValidationEvent event;
+        event.event_id = event_id++;
+        event.event_type = duckdb::ValidationEventType::TEST_RESULT;
+        event.severity = "error";
+        event.message = current_error_message.empty() ? "Test failed" : current_error_message;
+        event.test_name = accumulated_test_name;
+        event.status = duckdb::ValidationEventStatus::FAIL;
+        event.file_path = current_file_path;
+        event.line_number = current_line_number;
+        event.column_number = current_column;
+        event.execution_time = 0;
+        event.tool_name = "mocha";
+        event.category = "mocha_chai_text";
+        event.raw_output = "";
+        event.function_name = "";
+        event.structured_data = "{}";
+        event.log_line_start = failure_start_line;
+        event.log_line_end = current_line_num;
+        events.push_back(event);
     }
 }
 

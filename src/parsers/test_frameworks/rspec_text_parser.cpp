@@ -6,10 +6,27 @@
 namespace duck_hunt {
 
 bool RSpecTextParser::CanParse(const std::string& content) const {
-    // Check for RSpec text patterns (should be checked after Mocha/Chai since they can contain similar keywords)
-    return (content.find("✓") != std::string::npos || content.find("✗") != std::string::npos) &&
-           (content.find("examples") != std::string::npos || content.find("failures") != std::string::npos) &&
-           (content.find("rspec") != std::string::npos || content.find("Failure/Error:") != std::string::npos);
+    // Check for RSpec text patterns
+    // RSpec documentation format has nested describe/context blocks with indented test names
+    // May use ✓/✗ markers or just indentation
+    bool has_markers = (content.find("✓") != std::string::npos || content.find("✗") != std::string::npos);
+    bool has_rspec_keywords = (content.find("examples") != std::string::npos ||
+                               content.find("failures") != std::string::npos ||
+                               content.find("Failure/Error:") != std::string::npos ||
+                               content.find("rspec") != std::string::npos);
+    // RSpec documentation format without markers - look for nested describe patterns
+    // Common patterns: "should", "is valid", "is not valid", "does not", "returns"
+    bool has_rspec_test_patterns = (content.find("is valid") != std::string::npos ||
+                                    content.find("is not valid") != std::string::npos ||
+                                    content.find("should") != std::string::npos ||
+                                    content.find("does not") != std::string::npos ||
+                                    content.find("FAILED") != std::string::npos ||
+                                    content.find("PENDING") != std::string::npos);
+
+    return (has_markers && has_rspec_keywords) ||
+           (has_rspec_test_patterns && (has_rspec_keywords ||
+            // Check for RSpec-style nested structure
+            (content.find("\n  ") != std::string::npos && content.find("\n    ") != std::string::npos)));
 }
 
 void RSpecTextParser::Parse(const std::string& content, std::vector<duckdb::ValidationEvent>& events) const {
@@ -23,18 +40,26 @@ void RSpecTextParser::ParseRSpecText(const std::string& content, std::vector<duc
     int32_t current_line_num = 0;
 
     // Regex patterns for RSpec output
-    std::regex test_passed(R"(\s*✓\s*(.+))");
-    std::regex test_failed(R"(\s*✗\s*(.+))");
+    // With markers
+    std::regex test_passed_marker(R"(\s*✓\s*(.+))");
+    std::regex test_failed_marker(R"(\s*✗\s*(.+))");
+    // Documentation format - tests are deeply indented (4+ spaces) with behavior descriptions
+    // Test names typically start with "is", "should", "does", "returns", "raises", "has", etc.
+    std::regex doc_test_line(R"(^(\s{4,})(.+?)\s*(\(FAILED - \d+\)|\(PENDING.*\))?\s*$)");
+    // Context/describe blocks - 2 spaces indent, often start with # for methods or capitalized words
+    std::regex doc_context_2space(R"(^  (#?\w.+?)\s*$)");
+    // Top-level context - no indent, capitalized
+    std::regex doc_context_top(R"(^([A-Z][A-Za-z0-9_:]+)\s*$)");
     std::regex test_pending(R"(\s*pending:\s*(.+)\s*\(PENDING:\s*(.+)\))");
-    std::regex context_start(R"(^([A-Z][A-Za-z0-9_:]+)\s*$)");
-    std::regex nested_context(R"(^\s+(#\w+|.+)\s*$)");
     std::regex failure_error(R"(Failure/Error:\s*(.+))");
     std::regex expected_pattern(R"(\s*expected\s*(.+))");
     std::regex got_pattern(R"(\s*got:\s*(.+))");
     std::regex file_line_pattern(R"(# (.+):(\d+):in)");
-    std::regex summary_pattern(R"(Finished in (.+) seconds .* (\d+) examples?, (\d+) failures?(, (\d+) pending)?)");;
+    std::regex summary_pattern(R"(Finished in (.+) seconds .* (\d+) examples?, (\d+) failures?(, (\d+) pending)?)");
     std::regex failed_example(R"(rspec (.+):(\d+) # (.+))");
-    
+    // Alternative summary patterns
+    std::regex simple_summary(R"((\d+) examples?, (\d+) failures?)");
+
     std::string current_context;
     std::string current_method;
     std::string current_failure_file;
@@ -42,6 +67,7 @@ void RSpecTextParser::ParseRSpecText(const std::string& content, std::vector<duc
     std::string current_failure_message;
     bool in_failure_section = false;
     bool in_failed_examples = false;
+    std::vector<std::string> context_stack;  // Track nested contexts
     
     while (std::getline(stream, line)) {
         current_line_num++;
@@ -79,24 +105,83 @@ void RSpecTextParser::ParseRSpecText(const std::string& content, std::vector<duc
             continue;
         }
         
-        // Parse test context (class/module names)
-        if (std::regex_match(line, match, context_start)) {
+        // Parse top-level context (class/module names) - no indent
+        if (std::regex_match(line, match, doc_context_top)) {
             current_context = match[1].str();
+            context_stack.clear();
+            context_stack.push_back(current_context);
+            current_method = "";
             continue;
         }
-        
-        // Parse nested context (method names or descriptions)
-        if (!current_context.empty() && std::regex_match(line, match, nested_context)) {
-            current_method = match[1].str();
-            // Remove leading # if present
-            if (current_method.substr(0, 1) == "#") {
-                current_method = current_method.substr(1);
+
+        // Parse 2-space indented context (describe/context blocks)
+        if (std::regex_match(line, match, doc_context_2space)) {
+            std::string ctx = match[1].str();
+            // This is a sub-context
+            if (context_stack.size() > 1) {
+                context_stack.resize(1);  // Keep only top-level
             }
+            context_stack.push_back(ctx);
+            current_method = ctx;
             continue;
         }
-        
-        // Parse passed tests
-        if (std::regex_search(line, match, test_passed)) {
+
+        // Parse documentation format test lines (4+ spaces indent)
+        // These are actual test cases (it blocks)
+        if (!in_failure_section && !in_failed_examples && std::regex_match(line, match, doc_test_line)) {
+            std::string indent = match[1].str();
+            std::string test_name = match[2].str();
+            std::string status_marker = match[3].matched ? match[3].str() : "";
+
+            // Skip if this looks like a context header (starts with #, or is very short capitalized word)
+            if (test_name.length() > 0 && test_name[0] == '#') {
+                // This is a method context like "#login"
+                current_method = test_name.substr(1);  // Remove #
+                continue;
+            }
+
+            // Determine status based on marker
+            duckdb::ValidationEventStatus status = duckdb::ValidationEventStatus::PASS;
+            std::string severity = "info";
+            std::string category = "test_success";
+
+            if (status_marker.find("FAILED") != std::string::npos) {
+                status = duckdb::ValidationEventStatus::FAIL;
+                severity = "error";
+                category = "test_failure";
+            } else if (status_marker.find("PENDING") != std::string::npos) {
+                status = duckdb::ValidationEventStatus::SKIP;
+                severity = "warning";
+                category = "test_pending";
+            }
+
+            duckdb::ValidationEvent event;
+            event.event_id = event_id++;
+            event.tool_name = "RSpec";
+            event.event_type = duckdb::ValidationEventType::TEST_RESULT;
+            event.status = status;
+            event.severity = severity;
+            event.category = category;
+
+            // Build full context name
+            std::string full_context;
+            for (const auto& ctx : context_stack) {
+                if (!full_context.empty()) full_context += " ";
+                full_context += ctx;
+            }
+            event.function_name = full_context;
+            event.test_name = test_name;
+            event.message = (status == duckdb::ValidationEventStatus::PASS ? "Test passed: " :
+                           status == duckdb::ValidationEventStatus::FAIL ? "Test failed: " : "Test pending: ") + test_name;
+            event.raw_output = line;
+            event.log_line_start = current_line_num;
+            event.log_line_end = current_line_num;
+            events.push_back(event);
+            continue;
+        }
+
+        // Parse passed tests with ✓ marker
+        if (std::regex_search(line, match, test_passed_marker)) {
             duckdb::ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = "RSpec";
@@ -104,12 +189,12 @@ void RSpecTextParser::ParseRSpecText(const std::string& content, std::vector<duc
             event.status = duckdb::ValidationEventStatus::PASS;
             event.severity = "info";
             event.category = "test_success";
-            if (!current_context.empty()) {
-                event.function_name = current_context;
-                if (!current_method.empty()) {
-                    event.function_name += "::" + current_method;
-                }
+            std::string full_context;
+            for (const auto& ctx : context_stack) {
+                if (!full_context.empty()) full_context += " ";
+                full_context += ctx;
             }
+            event.function_name = full_context;
             event.test_name = match[1].str();
             event.message = "Test passed: " + match[1].str();
             event.raw_output = line;
@@ -117,9 +202,9 @@ void RSpecTextParser::ParseRSpecText(const std::string& content, std::vector<duc
             event.log_line_end = current_line_num;
             events.push_back(event);
         }
-        
-        // Parse failed tests
-        else if (std::regex_search(line, match, test_failed)) {
+
+        // Parse failed tests with ✗ marker
+        else if (std::regex_search(line, match, test_failed_marker)) {
             duckdb::ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = "RSpec";
