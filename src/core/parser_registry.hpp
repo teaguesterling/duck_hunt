@@ -125,19 +125,4 @@ void InitializeAllParsers();
         } \
     } g_##category##_registrar
 
-// Backward compatibility alias
-namespace log_parsers {
-    using IParser = duckdb::IParser;
-    using ParserPtr = duckdb::ParserPtr;
-    using ParserRegistry = duckdb::ParserRegistry;
-    using ParserInfo = duckdb::ParserInfo;
-    using CategoryRegistrationFn = duckdb::CategoryRegistrationFn;
-    inline void RegisterParserCategory(const std::string& name, CategoryRegistrationFn fn) {
-        duckdb::RegisterParserCategory(name, fn);
-    }
-    inline void InitializeAllParsers() {
-        duckdb::InitializeAllParsers();
-    }
-}
-
 } // namespace duckdb

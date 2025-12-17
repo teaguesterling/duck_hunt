@@ -43,7 +43,7 @@ namespace duckdb {
 using namespace duckdb_yyjson;
 
 // Forward declaration for auto-detection fallback
-log_parsers::IParser* TryAutoDetectNewRegistry(const std::string& content);
+IParser* TryAutoDetectNewRegistry(const std::string& content);
 
 // Phase 3B: Error Pattern Analysis Functions
 
@@ -1042,7 +1042,7 @@ TestResultFormat StringToTestResultFormat(const std::string& str) {
  * Returns false if no parser found (caller should fall back to legacy switch).
  *
  * This dispatch function allows gradual migration: as parsers are added to
- * log_parsers::ParserRegistry, they will be used automatically without
+ * ParserRegistry, they will be used automatically without
  * needing to update the legacy switch statement.
  */
 /**
@@ -1058,7 +1058,7 @@ bool TryNewParserRegistryByName(ClientContext& context,
     }
 
     // Check new parser registry
-    auto& registry = log_parsers::ParserRegistry::getInstance();
+    auto& registry = ParserRegistry::getInstance();
     auto* parser = registry.getParser(format_name);
 
     if (!parser) {
@@ -1093,8 +1093,8 @@ bool TryNewParserRegistry(ClientContext& context,
  * Try to auto-detect content format using the new modular parser registry.
  * Returns the parser if found, nullptr otherwise.
  */
-log_parsers::IParser* TryAutoDetectNewRegistry(const std::string& content) {
-    auto& registry = log_parsers::ParserRegistry::getInstance();
+IParser* TryAutoDetectNewRegistry(const std::string& content) {
+    auto& registry = ParserRegistry::getInstance();
     return registry.findParser(content);
 }
 

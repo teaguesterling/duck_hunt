@@ -26,7 +26,7 @@ static void LoadInternal(ExtensionLoader &loader) {
 	// throw InternalException("DEBUG: LoadInternal was called");
 
 	// Initialize modular parser registry (category-based auto-registration)
-	log_parsers::InitializeAllParsers();
+	InitializeAllParsers();
 
 	// Register table functions for test result parsing
 	auto read_duck_hunt_log_function = GetReadDuckHuntLogFunction();
