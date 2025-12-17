@@ -22,9 +22,6 @@
 namespace duckdb {
 
 static void LoadInternal(ExtensionLoader &loader) {
-	// DEBUG: Test if LoadInternal is being called
-	// throw InternalException("DEBUG: LoadInternal was called");
-
 	// Initialize modular parser registry (category-based auto-registration)
 	InitializeAllParsers();
 

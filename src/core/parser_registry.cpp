@@ -1,10 +1,8 @@
 #include "parser_registry.hpp"
 #include <algorithm>
 #include <mutex>
-#include <iostream>
 
-// Debug tracing for parser registration - disabled for release
-// #define PARSER_TRACE(msg) std::cerr << "[ParserRegistry] " << msg << std::endl
+// Parser tracing disabled - no-op macro
 #define PARSER_TRACE(msg) do {} while(0)
 
 namespace duckdb {
