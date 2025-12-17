@@ -10,7 +10,7 @@ public:
     std::vector<ValidationEvent> parse(const std::string& content) const override;
     std::string getFormatName() const override { return "logrus"; }
     std::string getName() const override { return "logrus"; }
-    int getPriority() const override { return 50; }  // Medium priority for app logs
+    int getPriority() const override { return 45; }  // Medium priority for app logs
     std::string getCategory() const override { return "app_logging"; }
 };
 
