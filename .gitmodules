@@ -6,3 +6,6 @@
 	path = extension-ci-tools
 	url = https://github.com/duckdb/extension-ci-tools
 	branch = main
+[submodule "test/samples/loghub"]
+	path = test/samples/loghub
+	url = https://github.com/logpai/loghub.git
