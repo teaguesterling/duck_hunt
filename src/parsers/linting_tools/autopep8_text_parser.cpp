@@ -39,14 +39,12 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string& conten
 
     std::smatch match;
     std::string current_file;
-    bool in_diff = false;
     bool in_config = false;
 
     while (std::getline(stream, line)) {
         // Handle diff sections
         if (std::regex_search(line, match, diff_start)) {
             current_file = match[1].str();
-            in_diff = true;
 
             ValidationEvent event;
             event.event_id = event_id++;

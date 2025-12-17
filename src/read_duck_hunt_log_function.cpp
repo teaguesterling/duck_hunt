@@ -493,14 +493,22 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
         return TestResultFormat::NUNIT_XUNIT_TEXT;
     }
     
-    // Check for RSpec text patterns (should be checked after Mocha/Chai since they can contain similar keywords)
-    if ((content.find("Finished in") != std::string::npos && content.find("examples") != std::string::npos) ||
-        (content.find("Randomized with seed") != std::string::npos && content.find("failures") != std::string::npos) ||
-        (content.find("Failed examples:") != std::string::npos && content.find("rspec") != std::string::npos) ||
-        (content.find("✓") != std::string::npos && content.find("✗") != std::string::npos) ||
-        (content.find("pending:") != std::string::npos && content.find("PENDING:") != std::string::npos) ||
-        (content.find("Failure/Error:") != std::string::npos && content.find("expected") != std::string::npos)) {
+    // Check for RSpec text patterns - use strict patterns to avoid false positives with Jest/Mocha
+    // Strong RSpec indicators: "Failure/Error:", "rspec ./", "Failed examples:", "(FAILED - N)", "(PENDING:"
+    if (content.find("Failure/Error:") != std::string::npos ||
+        content.find("rspec ./") != std::string::npos ||
+        content.find("Failed examples:") != std::string::npos ||
+        content.find("(FAILED - ") != std::string::npos ||
+        content.find("(PENDING:") != std::string::npos) {
         return TestResultFormat::RSPEC_TEXT;
+    }
+    // RSpec summary: "N examples, N failures" but NOT Jest/Mocha patterns
+    if (content.find(" examples,") != std::string::npos && content.find(" failures") != std::string::npos) {
+        // Exclude Jest/Mocha which use "passing"/"Test Suites"
+        if (content.find("Test Suites:") == std::string::npos &&
+            content.find(" passing") == std::string::npos) {
+            return TestResultFormat::RSPEC_TEXT;
+        }
     }
     
     // Check for JUnit text patterns (should be checked before pytest since they can contain similar keywords)
@@ -1037,13 +1045,15 @@ TestResultFormat StringToTestResultFormat(const std::string& str) {
  * log_parsers::ParserRegistry, they will be used automatically without
  * needing to update the legacy switch statement.
  */
-bool TryNewParserRegistry(ClientContext& context,
-                          TestResultFormat format,
-                          const std::string& content,
-                          std::vector<ValidationEvent>& events) {
-    // Get the format name string
-    std::string format_name = TestResultFormatToString(format);
-    if (format_name == "unknown" || format_name == "auto") {
+/**
+ * Try parsing with the new modular parser registry using a format name string.
+ * This overload allows direct lookup for registry-only formats.
+ */
+bool TryNewParserRegistryByName(ClientContext& context,
+                                 const std::string& format_name,
+                                 const std::string& content,
+                                 std::vector<ValidationEvent>& events) {
+    if (format_name.empty() || format_name == "unknown" || format_name == "auto") {
         return false;  // Let legacy code handle these
     }
 
@@ -1068,6 +1078,15 @@ bool TryNewParserRegistry(ClientContext& context,
     // Only return true if we actually parsed something
     // This allows fallback to old registry if new parser produces no results
     return events.size() > events_before;
+}
+
+bool TryNewParserRegistry(ClientContext& context,
+                          TestResultFormat format,
+                          const std::string& content,
+                          std::vector<ValidationEvent>& events) {
+    // Get the format name string from enum
+    std::string format_name = TestResultFormatToString(format);
+    return TryNewParserRegistryByName(context, format_name, content, events);
 }
 
 /**
@@ -1134,11 +1153,17 @@ unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFuncti
     // Get format parameter (optional, defaults to auto)
     if (input.inputs.size() > 1) {
         std::string format_str = input.inputs[1].ToString();
+        bind_data->format_name = format_str;  // Store raw format name for registry lookup
         bind_data->format = StringToTestResultFormat(format_str);
 
-        // Check for unknown format
+        // Check for unknown format - but allow registry-only formats
         if (bind_data->format == TestResultFormat::UNKNOWN) {
-            throw BinderException("Unknown format: '" + format_str + "'. Use 'auto' for auto-detection or see docs/formats.md for supported formats.");
+            // Check if this format exists in the new parser registry
+            auto& registry = ParserRegistry::getInstance();
+            if (!registry.hasFormat(format_str)) {
+                throw BinderException("Unknown format: '" + format_str + "'. Use 'auto' for auto-detection or see docs/formats.md for supported formats.");
+            }
+            // Format exists in registry, keep UNKNOWN enum but format_name has the string
         }
 
         // For REGEXP format, extract the pattern after the "regexp:" prefix
@@ -1150,6 +1175,7 @@ unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFuncti
         }
     } else {
         bind_data->format = TestResultFormat::AUTO;
+        bind_data->format_name = "auto";
     }
 
     // Define return schema (Schema V2)
@@ -1242,7 +1268,6 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &co
     auto global_state = make_uniq<ReadDuckHuntLogGlobalState>();
     
     // Phase 3A: Check if source contains glob patterns or multiple files
-    auto &fs = FileSystem::GetFileSystem(context);
     std::vector<std::string> files;
     
     try {
@@ -1268,15 +1293,32 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &co
         
         // Auto-detect format if needed
         TestResultFormat format = bind_data.format;
+        std::string format_name = bind_data.format_name;
         if (format == TestResultFormat::AUTO) {
             format = DetectTestResultFormat(content);
+            format_name = TestResultFormatToString(format);
+
+            // If legacy detection returned UNKNOWN, try new registry auto-detection
+            if (format == TestResultFormat::UNKNOWN) {
+                auto* detected_parser = TryAutoDetectNewRegistry(content);
+                if (detected_parser) {
+                    format_name = detected_parser->getFormatName();
+                }
+            }
         }
 
         // Try new modular parser registry first
-        // All parsers are now registered here - this handles most formats
-        if (TryNewParserRegistry(context, format, content, global_state->events)) {
-            // Successfully parsed by new registry
+        // For registry-only formats (UNKNOWN enum but valid format_name), use by-name lookup
+        bool parsed = false;
+        if (format == TestResultFormat::UNKNOWN && !format_name.empty() && format_name != "unknown") {
+            // Registry-only format - use format_name directly
+            parsed = TryNewParserRegistryByName(context, format_name, content, global_state->events);
         } else {
+            // Known enum format - try registry with enum
+            parsed = TryNewParserRegistry(context, format, content, global_state->events);
+        }
+
+        if (!parsed) {
             // Legacy fallback for special cases not in modular registry
             switch (format) {
                 case TestResultFormat::DUCKDB_TEST:
@@ -1299,7 +1341,7 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &co
 
     // Phase 3B: Process error patterns for intelligent categorization
     ProcessErrorPatterns(global_state->events);
-    
+
     return std::move(global_state);
 }
 
@@ -1405,11 +1447,17 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
     // Get format parameter (optional, defaults to auto)
     if (input.inputs.size() > 1) {
         std::string format_str = input.inputs[1].ToString();
+        bind_data->format_name = format_str;  // Store raw format name for registry lookup
         bind_data->format = StringToTestResultFormat(format_str);
 
-        // Check for unknown format
+        // Check for unknown format - but allow registry-only formats
         if (bind_data->format == TestResultFormat::UNKNOWN) {
-            throw BinderException("Unknown format: '" + format_str + "'. Use 'auto' for auto-detection or see docs/formats.md for supported formats.");
+            // Check if this format exists in the new parser registry
+            auto& registry = ParserRegistry::getInstance();
+            if (!registry.hasFormat(format_str)) {
+                throw BinderException("Unknown format: '" + format_str + "'. Use 'auto' for auto-detection or see docs/formats.md for supported formats.");
+            }
+            // Format exists in registry, keep UNKNOWN enum but format_name has the string
         }
 
         // For REGEXP format, extract the pattern after the "regexp:" prefix
@@ -1421,6 +1469,7 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
         }
     } else {
         bind_data->format = TestResultFormat::AUTO;
+        bind_data->format_name = "auto";
     }
 
     // Define return schema (Schema V2 - same as read_duck_hunt_log)
@@ -1511,21 +1560,38 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
 unique_ptr<GlobalTableFunctionState> ParseDuckHuntLogInitGlobal(ClientContext &context, TableFunctionInitInput &input) {
     auto &bind_data = input.bind_data->Cast<ReadDuckHuntLogBindData>();
     auto global_state = make_uniq<ReadDuckHuntLogGlobalState>();
-    
+
     // Use source directly as content (no file reading)
     std::string content = bind_data.source;
-    
+
     // Auto-detect format if needed
     TestResultFormat format = bind_data.format;
+    std::string format_name = bind_data.format_name;
     if (format == TestResultFormat::AUTO) {
         format = DetectTestResultFormat(content);
+        format_name = TestResultFormatToString(format);
+
+        // If legacy detection returned UNKNOWN, try new registry auto-detection
+        if (format == TestResultFormat::UNKNOWN) {
+            auto* detected_parser = TryAutoDetectNewRegistry(content);
+            if (detected_parser) {
+                format_name = detected_parser->getFormatName();
+            }
+        }
     }
 
     // Try new modular parser registry first
-    // All parsers are now registered here - this handles most formats
-    if (TryNewParserRegistry(context, format, content, global_state->events)) {
-        // Successfully parsed by new registry
+    // For registry-only formats (UNKNOWN enum but valid format_name), use by-name lookup
+    bool parsed = false;
+    if (format == TestResultFormat::UNKNOWN && !format_name.empty() && format_name != "unknown") {
+        // Registry-only format - use format_name directly
+        parsed = TryNewParserRegistryByName(context, format_name, content, global_state->events);
     } else {
+        // Known enum format - try registry with enum
+        parsed = TryNewParserRegistry(context, format, content, global_state->events);
+    }
+
+    if (!parsed) {
         // Legacy fallback for special cases not in modular registry
         switch (format) {
             case TestResultFormat::DUCKDB_TEST:

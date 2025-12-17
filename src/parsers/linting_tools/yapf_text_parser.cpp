@@ -15,8 +15,8 @@ bool YapfTextParser::canParse(const std::string& content) const {
     // Check for YAPF-specific patterns
     return content.find("yapf") != std::string::npos ||
            content.find("Reformatted ") != std::string::npos ||
-           content.find("--- a/") != std::string::npos && content.find("(original)") != std::string::npos ||
-           content.find("+++ b/") != std::string::npos && content.find("(reformatted)") != std::string::npos ||
+           (content.find("--- a/") != std::string::npos && content.find("(original)") != std::string::npos) ||
+           (content.find("+++ b/") != std::string::npos && content.find("(reformatted)") != std::string::npos) ||
            content.find("files reformatted") != std::string::npos ||
            content.find("Files processed:") != std::string::npos;
 }
@@ -50,15 +50,12 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string& content) c
     
     std::smatch match;
     std::string current_file;
-    bool in_diff = false;
-    bool in_config = false;
 
     while (std::getline(stream, line)) {
         current_line_num++;
         // Handle yapf diff sections
         if (std::regex_search(line, match, diff_start_yapf)) {
             current_file = match[1].str();
-            in_diff = true;
             
             ValidationEvent event;
             event.event_id = event_id++;

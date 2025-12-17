@@ -15,7 +15,7 @@ public:
     SyslogParserImpl()
         : BaseParser("syslog",
                      "Syslog Parser",
-                     ParserCategory::WEB_ACCESS,
+                     ParserCategory::SYSTEM_LOG,
                      "Unix/Linux syslog format",
                      ParserPriority::HIGH) {}
 

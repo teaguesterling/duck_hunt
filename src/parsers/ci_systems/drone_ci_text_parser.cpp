@@ -53,8 +53,7 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string& content
     
     std::smatch match;
     std::string current_step = "";
-    bool in_jest_failure = false;
-    
+
     while (std::getline(stream, line)) {
         current_line_num++;
         // Parse DroneCI step start
@@ -301,7 +300,6 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string& content
             event.structured_data = "drone_ci_text";
             
             events.push_back(event);
-            in_jest_failure = true;
             continue;
         }
         

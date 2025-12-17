@@ -60,8 +60,8 @@ WorkflowLogFormat DetectWorkflowLogFormat(const std::string& content) {
     // GitLab CI patterns
     if (content.find("Running with gitlab-runner") != std::string::npos ||
         content.find("Preparing the \"docker\"") != std::string::npos ||
-        content.find("$ docker run") != std::string::npos && content.find("gitlab") != std::string::npos ||
-        content.find("Job succeeded") != std::string::npos && content.find("Pipeline #") != std::string::npos) {
+        (content.find("$ docker run") != std::string::npos && content.find("gitlab") != std::string::npos) ||
+        (content.find("Job succeeded") != std::string::npos && content.find("Pipeline #") != std::string::npos)) {
         return WorkflowLogFormat::GITLAB_CI;
     }
     
@@ -75,7 +75,7 @@ WorkflowLogFormat DetectWorkflowLogFormat(const std::string& content) {
     }
     
     // Docker build patterns
-    if (content.find("Step ") != std::string::npos && content.find("/") != std::string::npos ||
+    if ((content.find("Step ") != std::string::npos && content.find("/") != std::string::npos) ||
         content.find("Sending build context to Docker daemon") != std::string::npos ||
         content.find("Successfully built") != std::string::npos ||
         content.find("Successfully tagged") != std::string::npos ||
@@ -269,7 +269,6 @@ unique_ptr<LocalTableFunctionState> ReadDuckHuntWorkflowLogInitLocal(ExecutionCo
 
 // Main table function implementation
 void ReadDuckHuntWorkflowLogFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output) {
-    auto &bind_data = data_p.bind_data->Cast<ReadDuckHuntWorkflowLogBindData>();
     auto &global_state = data_p.global_state->Cast<ReadDuckHuntWorkflowLogGlobalState>();
     auto &local_state = data_p.local_state->Cast<ReadDuckHuntWorkflowLogLocalState>();
 

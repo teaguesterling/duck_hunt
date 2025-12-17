@@ -15,6 +15,7 @@ public:
     std::vector<ValidationEvent> parse(const std::string& content) const override;
     std::string getFormatName() const override { return "make_error"; }
     std::string getName() const override { return "make"; }
+    std::string getDescription() const override { return "Make/GCC/Clang build error output"; }
     int getPriority() const override { return 90; }  // High priority for common build errors
     std::string getCategory() const override { return "build_system"; }
 

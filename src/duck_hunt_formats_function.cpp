@@ -1,150 +1,28 @@
 #include "include/duck_hunt_formats_function.hpp"
+#include "core/parser_registry.hpp"
 #include "duckdb/common/exception.hpp"
 #include <vector>
 
 namespace duckdb {
 
-// Format metadata struct
-struct FormatInfo {
-    std::string format_name;
-    std::string description;
-    std::string category;
-    std::string requires_extension;
-    bool supports_workflow;
-};
-
-// All supported formats with metadata
-static std::vector<FormatInfo> GetAllFormats() {
-    return {
-        // Meta formats
-        {"auto", "Automatic format detection", "meta", "", false},
-        {"regexp", "Custom regex pattern (use 'regexp:PATTERN')", "meta", "", false},
-
-        // Test frameworks
-        {"pytest_json", "pytest --json-report output", "test_framework", "", false},
-        {"pytest_text", "pytest terminal output", "test_framework", "", false},
-        {"gotest_json", "go test -json output", "test_framework", "", false},
-        {"junit_xml", "JUnit XML test results", "test_framework", "webbed", false},
-        {"junit_text", "JUnit text output", "test_framework", "", false},
-        {"gtest_text", "Google Test output", "test_framework", "", false},
-        {"rspec_text", "RSpec output", "test_framework", "", false},
-        {"mocha_chai_text", "Mocha/Chai output", "test_framework", "", false},
-        {"nunit_xunit_text", "NUnit/xUnit text output", "test_framework", "", false},
-        {"nunit_xml", "NUnit XML results", "test_framework", "webbed", false},
-        {"cargo_test_json", "Rust cargo test JSON", "test_framework", "", false},
-        {"duckdb_test", "DuckDB test runner output", "test_framework", "", false},
-
-        // Build systems
-        {"make_error", "make/gcc build output", "build_system", "", false},
-        {"cmake_build", "CMake build output", "build_system", "", false},
-        {"cargo_build", "Rust cargo build output", "build_system", "", false},
-        {"maven_build", "Maven build output", "build_system", "", false},
-        {"gradle_build", "Gradle build output", "build_system", "", false},
-        {"msbuild", "MSBuild output", "build_system", "", false},
-        {"node_build", "npm/yarn/webpack output", "build_system", "", false},
-        {"python_build", "Python build/pip output", "build_system", "", false},
-        {"bazel_build", "Bazel build output", "build_system", "", false},
-        {"docker_build", "Docker build output", "build_system", "", false},
-
-        // Linting tools - JSON
-        {"eslint_json", "ESLint JSON format", "linting_tool", "", false},
-        {"clippy_json", "Rust clippy JSON", "linting_tool", "", false},
-        {"shellcheck_json", "ShellCheck JSON", "linting_tool", "", false},
-        {"rubocop_json", "RuboCop JSON", "linting_tool", "", false},
-        {"phpstan_json", "PHPStan JSON", "linting_tool", "", false},
-        {"stylelint_json", "Stylelint JSON", "linting_tool", "", false},
-        {"markdownlint_json", "Markdownlint JSON", "linting_tool", "", false},
-        {"yamllint_json", "yamllint JSON", "linting_tool", "", false},
-        {"hadolint_json", "Hadolint (Dockerfile) JSON", "linting_tool", "", false},
-        {"ktlint_json", "ktlint (Kotlin) JSON", "linting_tool", "", false},
-        {"swiftlint_json", "SwiftLint JSON", "linting_tool", "", false},
-        {"lintr_json", "lintr (R) JSON", "linting_tool", "", false},
-        {"sqlfluff_json", "SQLFluff JSON", "linting_tool", "", false},
-        {"tflint_json", "TFLint JSON", "linting_tool", "", false},
-        {"spotbugs_json", "SpotBugs JSON", "linting_tool", "", false},
-        {"checkstyle_xml", "Checkstyle XML", "linting_tool", "webbed", false},
-
-        // Linting tools - Text
-        {"pylint_text", "pylint output", "linting_tool", "", false},
-        {"flake8_text", "flake8 output", "linting_tool", "", false},
-        {"mypy_text", "mypy output", "linting_tool", "", false},
-        {"black_text", "black formatter output", "linting_tool", "", false},
-        {"clang_tidy_text", "clang-tidy output", "linting_tool", "", false},
-        {"generic_lint", "Generic file:line:col: message format", "linting_tool", "", false},
-
-        // Python tools
-        {"autopep8_text", "autopep8 output", "python_tool", "", false},
-        {"yapf_text", "yapf formatter output", "python_tool", "", false},
-        {"isort_text", "isort output", "python_tool", "", false},
-        {"coverage_text", "coverage.py output", "python_tool", "", false},
-        {"pytest_cov_text", "pytest-cov output", "python_tool", "", false},
-
-        // Security tools
-        {"bandit_json", "Bandit security JSON", "security_tool", "", false},
-        {"bandit_text", "Bandit security text", "security_tool", "", false},
-
-        // CI/CD systems (workflow-aware)
-        {"github_cli", "gh run view output", "ci_system", "", true},
-        {"github_actions_text", "GitHub Actions log format", "ci_system", "", true},
-        {"gitlab_ci_text", "GitLab CI log format", "ci_system", "", true},
-        {"jenkins_text", "Jenkins log format", "ci_system", "", true},
-        {"drone_ci_text", "Drone CI log format", "ci_system", "", true},
-
-        // Infrastructure tools
-        {"terraform_text", "Terraform output", "infrastructure_tool", "", false},
-        {"ansible_text", "Ansible output", "infrastructure_tool", "", false},
-        {"kube_score_json", "kube-score JSON", "infrastructure_tool", "", false},
-
-        // Debugging tools
-        {"valgrind", "Valgrind output", "debugging_tool", "", false},
-        {"gdb_lldb", "GDB/LLDB output", "debugging_tool", "", false},
-        {"strace", "strace system call trace output", "debugging_tool", "", false},
-
-        // Cross-language structured log formats
-        {"jsonl", "JSON Lines (one JSON object per line)", "structured_log", "", false},
-        {"logfmt", "Key=value pairs (popular in Go/Heroku)", "structured_log", "", false},
-
-        // Web access and system log formats
-        {"syslog", "BSD/RFC5424 syslog format", "system_log", "", false},
-        {"apache_access", "Apache HTTP Server access logs", "web_access", "", false},
-        {"nginx_access", "NGINX access logs", "web_access", "", false},
-
-        // Cloud provider log formats
-        {"aws_cloudtrail", "AWS CloudTrail audit logs", "cloud_audit", "", false},
-        {"gcp_cloud_logging", "GCP Cloud Logging entries", "cloud_audit", "", false},
-        {"azure_activity", "Azure Activity Log entries", "cloud_audit", "", false},
-
-        // Application logging formats
-        {"python_logging", "Python stdlib logging format", "app_logging", "", false},
-        {"log4j", "Java Log4j/Logback text format", "app_logging", "", false},
-        {"logrus", "Go Logrus text/key=value format", "app_logging", "", false},
-
-        // Application logging formats - Phase 2 (Node.js, .NET, Ruby)
-        {"winston", "Node.js Winston logger (JSON + text)", "app_logging", "", false},
-        {"pino", "Node.js Pino logger JSON format", "app_logging", "", false},
-        {"bunyan", "Node.js Bunyan logger JSON format", "app_logging", "", false},
-        {"serilog", ".NET Serilog (JSON + text)", "app_logging", "", false},
-        {"nlog", ".NET NLog text format", "app_logging", "", false},
-        {"ruby_logger", "Ruby stdlib Logger format", "app_logging", "", false},
-        {"rails_log", "Ruby on Rails request logs", "app_logging", "", false},
-
-        // Infrastructure log formats
-        {"iptables", "Linux iptables/netfilter firewall logs", "infrastructure", "", false},
-        {"pf", "BSD Packet Filter (pf) firewall logs", "infrastructure", "", false},
-        {"cisco_asa", "Cisco ASA firewall syslog", "infrastructure", "", false},
-        {"vpc_flow", "AWS/GCP/Azure VPC Flow Logs", "infrastructure", "", false},
-        {"kubernetes", "Kubernetes/kubectl logs", "infrastructure", "", false},
-        {"windows_event", "Windows Event Log export format", "infrastructure", "", false},
-        {"auditd", "Linux auditd/SSH auth logs", "infrastructure", "", false},
-        {"s3_access", "AWS S3 access logs", "infrastructure", "", false},
-    };
-}
-
-// Bind data
+// Bind data - pulls from actual registry
 struct DuckHuntFormatsBindData : public TableFunctionData {
-    std::vector<FormatInfo> formats;
+    std::vector<ParserInfo> formats;
 
-    DuckHuntFormatsBindData() : formats(GetAllFormats()) {}
+    DuckHuntFormatsBindData() {
+        // Get formats from the actual parser registry
+        auto& registry = ParserRegistry::getInstance();
+        formats = registry.getAllFormats();
+
+        // Add meta formats that aren't parsers
+        ParserInfo auto_format;
+        auto_format.format_name = "auto";
+        auto_format.description = "Automatic format detection";
+        auto_format.category = "meta";
+        auto_format.required_extension = "";
+        auto_format.priority = 0;
+        formats.insert(formats.begin(), auto_format);
+    }
 };
 
 // Global state
@@ -153,6 +31,13 @@ struct DuckHuntFormatsGlobalState : public GlobalTableFunctionState {
 
     DuckHuntFormatsGlobalState() : current_idx(0) {}
 };
+
+// Determine if a category supports workflow parsing
+static bool CategorySupportsWorkflow(const std::string& category) {
+    return category == "ci_system" ||
+           category == "workflow" ||
+           category.find("ci") != std::string::npos;
+}
 
 static unique_ptr<FunctionData> DuckHuntFormatsBind(ClientContext &context, TableFunctionBindInput &input,
                                                     vector<LogicalType> &return_types, vector<string> &names) {
@@ -194,8 +79,8 @@ static void DuckHuntFormatsFunction(ClientContext &context, TableFunctionInput &
         output.SetValue(0, count, Value(fmt.format_name));
         output.SetValue(1, count, Value(fmt.description));
         output.SetValue(2, count, Value(fmt.category));
-        output.SetValue(3, count, fmt.requires_extension.empty() ? Value() : Value(fmt.requires_extension));
-        output.SetValue(4, count, Value::BOOLEAN(fmt.supports_workflow));
+        output.SetValue(3, count, fmt.required_extension.empty() ? Value() : Value(fmt.required_extension));
+        output.SetValue(4, count, Value::BOOLEAN(CategorySupportsWorkflow(fmt.category)));
 
         state.current_idx++;
         count++;

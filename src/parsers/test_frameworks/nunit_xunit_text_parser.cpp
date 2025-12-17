@@ -50,9 +50,6 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
     
     std::string current_test_suite;
     std::string current_framework = "unknown";
-    bool in_failed_tests_section = false;
-    bool in_skipped_tests_section = false;
-    bool in_xunit_test_failure = false;
     std::vector<std::string> failure_details;
     
     while (std::getline(stream, line)) {
@@ -101,16 +98,15 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             int total_tests = std::stoi(match[1].str());
             int passed = std::stoi(match[2].str());
             int failed = std::stoi(match[3].str());
-            int warnings = std::stoi(match[4].str());
-            int inconclusive = std::stoi(match[5].str());
             int skipped = std::stoi(match[6].str());
-            
+            // Note: warnings (match[4]) and inconclusive (match[5]) are parsed but typically not critical for summaries
+
             duckdb::ValidationEvent event;
             event.event_id = event_id++;
             event.event_type = duckdb::ValidationEventType::SUMMARY;
             event.severity = failed > 0 ? "error" : "info";
             event.status = failed > 0 ? duckdb::ValidationEventStatus::FAIL : duckdb::ValidationEventStatus::PASS;
-            event.message = "Test summary: " + std::to_string(total_tests) + " total, " + 
+            event.message = "Test summary: " + std::to_string(total_tests) + " total, " +
                           std::to_string(passed) + " passed, " + std::to_string(failed) + " failed, " +
                           std::to_string(skipped) + " skipped";
             event.tool_name = "nunit";

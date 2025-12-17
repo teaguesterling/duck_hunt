@@ -46,14 +46,12 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string& content) cons
 
     std::string current_target;
     std::string current_action;
-    bool in_test_suite = false;
 
     while (std::getline(stream, line)) {
         std::smatch match;
 
-        // Check for test suite header
+        // Skip test suite headers
         if (line.find("==== Test Suite:") != std::string::npos) {
-            in_test_suite = true;
             continue;
         }
 
@@ -100,7 +98,7 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string& content) cons
         // Check for elapsed time
         else if (std::regex_search(line, match, bazel_build_elapsed)) {
             double elapsed = std::stod(match[1].str());
-            double critical_path = std::stod(match[2].str());
+            // Note: critical_path (match[2]) available but not currently used
 
             ValidationEvent event;
             event.event_id = event_id++;

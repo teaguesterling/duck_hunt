@@ -73,7 +73,6 @@ std::vector<ValidationEvent> GoTestJSONParser::parse(const std::string& content)
         yyjson_val *package = yyjson_obj_get(root, "Package");
         yyjson_val *test = yyjson_obj_get(root, "Test");
         yyjson_val *elapsed = yyjson_obj_get(root, "Elapsed");
-        yyjson_val *output = yyjson_obj_get(root, "Output");
         
         if (!action || !yyjson_is_str(action)) {
             yyjson_doc_free(doc);

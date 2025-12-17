@@ -18,18 +18,6 @@ static std::string MapRubyLevel(char level_char) {
     }
 }
 
-static std::string RubyLevelName(char level_char) {
-    switch (level_char) {
-        case 'F': return "FATAL";
-        case 'E': return "ERROR";
-        case 'W': return "WARN";
-        case 'I': return "INFO";
-        case 'D': return "DEBUG";
-        case 'A': return "ANY";
-        default: return "UNKNOWN";
-    }
-}
-
 static ValidationEventStatus MapLevelToStatus(const std::string& severity) {
     if (severity == "error") return ValidationEventStatus::ERROR;
     if (severity == "warning") return ValidationEventStatus::WARNING;

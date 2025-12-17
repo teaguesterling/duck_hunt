@@ -16,15 +16,6 @@ static std::string MapPinoLevel(int level) {
     return "info";                         // trace, debug, info
 }
 
-static std::string PinoLevelName(int level) {
-    if (level >= 60) return "fatal";
-    if (level >= 50) return "error";
-    if (level >= 40) return "warn";
-    if (level >= 30) return "info";
-    if (level >= 20) return "debug";
-    return "trace";
-}
-
 static ValidationEventStatus MapLevelToStatus(const std::string& severity) {
     if (severity == "error") return ValidationEventStatus::ERROR;
     if (severity == "warning") return ValidationEventStatus::WARNING;

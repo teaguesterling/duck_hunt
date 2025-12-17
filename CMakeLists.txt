@@ -71,6 +71,8 @@ set(EXTENSION_SOURCES
     src/parsers/tool_outputs/lintr_json_parser.cpp
     src/parsers/tool_outputs/sqlfluff_json_parser.cpp
     src/parsers/tool_outputs/tflint_json_parser.cpp
+    src/parsers/tool_outputs/trivy_json_parser.cpp
+    src/parsers/tool_outputs/tfsec_json_parser.cpp
 
     # Phase 6: Text Parser Extraction - Batch 1
     src/parsers/test_frameworks/junit_text_parser.cpp

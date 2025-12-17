@@ -144,6 +144,7 @@ namespace ParserCategory {
     constexpr const char* APP_LOGGING = "app_logging";
     constexpr const char* INFRASTRUCTURE = "infrastructure";
     constexpr const char* WEB_ACCESS = "web_access";
+    constexpr const char* SYSTEM_LOG = "system_log";
     constexpr const char* CLOUD_AUDIT = "cloud_audit";
     constexpr const char* STRUCTURED_LOG = "structured_log";
     constexpr const char* PYTHON_TOOL = "python_tool";

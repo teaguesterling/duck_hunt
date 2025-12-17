@@ -101,7 +101,7 @@ struct ValidationEvent {
     int64_t pattern_id;               // Pattern cluster ID (-1 if unassigned)
 
     ValidationEvent() : event_id(0), line_number(-1), column_number(-1),
-                       execution_time(0.0), log_line_start(-1), log_line_end(-1),
+                       log_line_start(-1), log_line_end(-1), execution_time(0.0),
                        similarity_score(0.0), pattern_id(-1) {}
 };
 

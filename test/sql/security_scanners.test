@@ -1,0 +1,181 @@
+# name: test/sql/security_scanners.test
+# description: Test Trivy and tfsec security scanner parsers
+# group: [sql]
+
+require duck_hunt
+
+# =============================================================================
+# Test 1: Trivy and tfsec formats are registered
+# =============================================================================
+
+query I
+SELECT COUNT(*) FROM duck_hunt_formats() WHERE format = 'trivy_json';
+----
+1
+
+query I
+SELECT COUNT(*) FROM duck_hunt_formats() WHERE format = 'tfsec_json';
+----
+1
+
+# =============================================================================
+# Test 2: Trivy JSON parsing - vulnerabilities
+# =============================================================================
+
+query IIII
+SELECT tool_name, error_code, severity, status
+FROM parse_duck_hunt_log('{"SchemaVersion":2,"Results":[{"Target":"test:latest","Vulnerabilities":[{"VulnerabilityID":"CVE-2023-12345","PkgName":"openssl","Severity":"CRITICAL","Title":"Buffer overflow"}]}]}', 'trivy_json');
+----
+trivy	CVE-2023-12345	CRITICAL	ERROR
+
+# Test Trivy with HIGH severity
+query II
+SELECT error_code, status
+FROM parse_duck_hunt_log('{"Results":[{"Target":"app","Vulnerabilities":[{"VulnerabilityID":"CVE-2023-99999","PkgName":"curl","Severity":"HIGH","Title":"Use after free"}]}]}', 'trivy_json');
+----
+CVE-2023-99999	ERROR
+
+# Test Trivy with MEDIUM severity
+query II
+SELECT error_code, status
+FROM parse_duck_hunt_log('{"Results":[{"Target":"app","Vulnerabilities":[{"VulnerabilityID":"CVE-2023-11111","PkgName":"zlib","Severity":"MEDIUM","Title":"DoS vulnerability"}]}]}', 'trivy_json');
+----
+CVE-2023-11111	WARNING
+
+# Test Trivy with LOW severity
+query II
+SELECT error_code, status
+FROM parse_duck_hunt_log('{"Results":[{"Target":"app","Vulnerabilities":[{"VulnerabilityID":"CVE-2023-22222","PkgName":"libpng","Severity":"LOW","Title":"Minor issue"}]}]}', 'trivy_json');
+----
+CVE-2023-22222	INFO
+
+# =============================================================================
+# Test 3: Trivy JSON parsing - misconfigurations
+# =============================================================================
+
+query IIII
+SELECT tool_name, error_code, severity, category
+FROM parse_duck_hunt_log('{"Results":[{"Target":"Dockerfile","Misconfigurations":[{"ID":"DS002","Type":"Dockerfile Security","Severity":"HIGH","Title":"Root user","Message":"Running as root"}]}]}', 'trivy_json');
+----
+trivy	DS002	HIGH	misconfiguration
+
+# =============================================================================
+# Test 4: Trivy suggestion from fixed version
+# =============================================================================
+
+query I
+SELECT suggestion LIKE '%Upgrade to version 1.2.0%'
+FROM parse_duck_hunt_log('{"Results":[{"Target":"app","Vulnerabilities":[{"VulnerabilityID":"CVE-2023-12345","PkgName":"pkg","Severity":"HIGH","Title":"Issue","FixedVersion":"1.2.0","InstalledVersion":"1.1.0"}]}]}', 'trivy_json');
+----
+true
+
+# =============================================================================
+# Test 5: tfsec JSON parsing
+# =============================================================================
+
+query IIIII
+SELECT tool_name, error_code, severity, status, file_path
+FROM parse_duck_hunt_log('{"results":[{"rule_id":"aws-s3-enable-bucket-encryption","rule_description":"S3 should have encryption","severity":"HIGH","resource":"aws_s3_bucket.data","location":{"filename":"main.tf","start_line":15}}]}', 'tfsec_json');
+----
+tfsec	aws-s3-enable-bucket-encryption	HIGH	ERROR	main.tf
+
+# Test tfsec with CRITICAL severity
+query II
+SELECT error_code, status
+FROM parse_duck_hunt_log('{"results":[{"rule_id":"aws-iam-no-wildcards","rule_description":"No wildcards","severity":"CRITICAL","resource":"aws_iam_policy.admin","location":{"filename":"iam.tf","start_line":10}}]}', 'tfsec_json');
+----
+aws-iam-no-wildcards	ERROR
+
+# Test tfsec with MEDIUM severity
+query II
+SELECT error_code, status
+FROM parse_duck_hunt_log('{"results":[{"rule_id":"aws-ec2-no-public-ip","rule_description":"No public IP","severity":"MEDIUM","resource":"aws_instance.web","location":{"filename":"ec2.tf","start_line":20}}]}', 'tfsec_json');
+----
+aws-ec2-no-public-ip	WARNING
+
+# Test tfsec with LOW severity
+query II
+SELECT error_code, status
+FROM parse_duck_hunt_log('{"results":[{"rule_id":"aws-s3-versioning","rule_description":"Enable versioning","severity":"LOW","resource":"aws_s3_bucket.logs","location":{"filename":"s3.tf","start_line":5}}]}', 'tfsec_json');
+----
+aws-s3-versioning	INFO
+
+# =============================================================================
+# Test 6: tfsec line number extraction
+# =============================================================================
+
+query II
+SELECT line_number, file_path
+FROM parse_duck_hunt_log('{"results":[{"rule_id":"test-rule","rule_description":"Test","severity":"HIGH","resource":"test","location":{"filename":"modules/storage/main.tf","start_line":45,"end_line":50}}]}', 'tfsec_json');
+----
+45	modules/storage/main.tf
+
+# =============================================================================
+# Test 7: tfsec suggestion from resolution
+# =============================================================================
+
+query I
+SELECT suggestion
+FROM parse_duck_hunt_log('{"results":[{"rule_id":"test-rule","rule_description":"Test","severity":"HIGH","resource":"test","resolution":"Enable encryption","location":{"filename":"main.tf","start_line":1}}]}', 'tfsec_json');
+----
+Enable encryption
+
+# =============================================================================
+# Test 8: Trivy auto-detection
+# =============================================================================
+
+query I
+SELECT DISTINCT tool_name
+FROM parse_duck_hunt_log('{"SchemaVersion":2,"ArtifactName":"myapp:latest","Results":[{"Target":"myapp:latest","Vulnerabilities":[{"VulnerabilityID":"CVE-2023-12345","PkgName":"openssl","Severity":"CRITICAL","Title":"Buffer overflow"}]}]}', 'auto');
+----
+trivy
+
+# =============================================================================
+# Test 9: tfsec auto-detection
+# =============================================================================
+
+query I
+SELECT DISTINCT tool_name
+FROM parse_duck_hunt_log('{"results":[{"rule_id":"aws-s3-enable-bucket-encryption","rule_description":"S3 should have encryption","severity":"HIGH","resource":"aws_s3_bucket.data","location":{"filename":"main.tf","start_line":15}}],"passed":10,"failed":1}', 'auto');
+----
+tfsec
+
+# =============================================================================
+# Test 10: Multiple vulnerabilities in single Trivy scan
+# =============================================================================
+
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('{"Results":[{"Target":"app","Vulnerabilities":[{"VulnerabilityID":"CVE-1","PkgName":"pkg1","Severity":"HIGH","Title":"Issue 1"},{"VulnerabilityID":"CVE-2","PkgName":"pkg2","Severity":"MEDIUM","Title":"Issue 2"},{"VulnerabilityID":"CVE-3","PkgName":"pkg3","Severity":"LOW","Title":"Issue 3"}]}]}', 'trivy_json');
+----
+3
+
+# =============================================================================
+# Test 11: Multiple findings in single tfsec scan
+# =============================================================================
+
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('{"results":[{"rule_id":"rule1","rule_description":"Desc1","severity":"HIGH","resource":"res1","location":{"filename":"f1.tf","start_line":1}},{"rule_id":"rule2","rule_description":"Desc2","severity":"MEDIUM","resource":"res2","location":{"filename":"f2.tf","start_line":2}}]}', 'tfsec_json');
+----
+2
+
+# =============================================================================
+# Test 12: Trivy event type and category
+# =============================================================================
+
+query II
+SELECT DISTINCT event_type, category
+FROM parse_duck_hunt_log('{"Results":[{"Target":"app","Vulnerabilities":[{"VulnerabilityID":"CVE-1","PkgName":"pkg","Severity":"HIGH","Title":"Issue"}]}]}', 'trivy_json');
+----
+security_finding	vulnerability
+
+# =============================================================================
+# Test 13: tfsec event type and category
+# =============================================================================
+
+query II
+SELECT DISTINCT event_type, category
+FROM parse_duck_hunt_log('{"results":[{"rule_id":"rule1","rule_description":"Desc","severity":"HIGH","resource":"res","location":{"filename":"main.tf","start_line":1}}]}', 'tfsec_json');
+----
+security_finding	infrastructure_security

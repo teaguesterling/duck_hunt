@@ -113,9 +113,10 @@ enum class TestResultFormat : uint8_t {
 struct ReadDuckHuntLogBindData : public TableFunctionData {
     std::string source;
     TestResultFormat format;
+    std::string format_name;     // Raw format name for registry-only formats (e.g., trivy_json)
     std::string regexp_pattern;  // For REGEXP format: stores the user-provided pattern
 
-    ReadDuckHuntLogBindData() {}
+    ReadDuckHuntLogBindData() : format(TestResultFormat::AUTO) {}
 };
 
 // Global state for read_duck_hunt_log table function

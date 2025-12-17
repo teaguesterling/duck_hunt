@@ -58,7 +58,6 @@ void MochaChaiTextParser::ParseMochaChai(const std::string& content, std::vector
     int64_t current_execution_time = 0;
     std::vector<std::string> stack_trace;
     bool in_failure_details = false;
-    int failure_number = 0;
     int32_t failure_start_line = 0;
     std::string accumulated_test_name;
     
@@ -208,8 +207,7 @@ void MochaChaiTextParser::ParseMochaChai(const std::string& content, std::vector
                 events.push_back(event);
             }
 
-            // Start new failure
-            failure_number = std::stoi(match[1].str());
+            // Start new failure (match[1] contains the failure number)
             accumulated_test_name = match[2].str();
             // Remove trailing colon if present
             if (!accumulated_test_name.empty() && accumulated_test_name.back() == ':') {

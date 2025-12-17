@@ -135,7 +135,7 @@ std::string GitLabCIParser::extractStatus(const std::string& line) const {
     std::string lower_line = StringUtil::Lower(line);
     
     if (lower_line.find("job succeeded") != std::string::npos ||
-        lower_line.find("pipeline") != std::string::npos && lower_line.find("passed") != std::string::npos) {
+        (lower_line.find("pipeline") != std::string::npos && lower_line.find("passed") != std::string::npos)) {
         return "success";
     }
     

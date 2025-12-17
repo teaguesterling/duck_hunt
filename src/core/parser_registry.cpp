@@ -1,6 +1,11 @@
 #include "parser_registry.hpp"
 #include <algorithm>
 #include <mutex>
+#include <iostream>
+
+// Debug tracing for parser registration - disabled for release
+// #define PARSER_TRACE(msg) std::cerr << "[ParserRegistry] " << msg << std::endl
+#define PARSER_TRACE(msg) do {} while(0)
 
 namespace duckdb {
 
@@ -33,21 +38,35 @@ void RegisterParserCategory(const std::string& category_name, CategoryRegistrati
 
 void InitializeAllParsers() {
     std::call_once(g_init_flag, []() {
+        PARSER_TRACE("=== Starting parser initialization ===");
         auto& registry = ParserRegistry::getInstance();
 
         // Explicitly call all registration functions to avoid static initialization issues
+        PARSER_TRACE("Registering ToolOutputs category...");
         RegisterToolOutputsParsers(registry);
+        PARSER_TRACE("Registering TestFrameworks category...");
         RegisterTestFrameworksParsers(registry);
+        PARSER_TRACE("Registering BuildSystems category...");
         RegisterBuildSystemsParsers(registry);
+        PARSER_TRACE("Registering LintingTools category...");
         RegisterLintingToolsParsers(registry);
+        PARSER_TRACE("Registering Debugging category...");
         RegisterDebuggingParsers(registry);
+        PARSER_TRACE("Registering CISystems category...");
         RegisterCISystemsParsers(registry);
+        PARSER_TRACE("Registering StructuredLogs category...");
         RegisterStructuredLogsParsers(registry);
+        PARSER_TRACE("Registering WebAccess category...");
         RegisterWebAccessParsers(registry);
+        PARSER_TRACE("Registering CloudLogs category...");
         RegisterCloudLogsParsers(registry);
+        PARSER_TRACE("Registering AppLogging category...");
         RegisterAppLoggingParsers(registry);
+        PARSER_TRACE("Registering Infrastructure category...");
         RegisterInfrastructureParsers(registry);
+        PARSER_TRACE("Registering InfrastructureTools category...");
         RegisterInfrastructureToolsParsers(registry);
+        PARSER_TRACE("=== Parser initialization complete ===");
     });
 }
 
@@ -60,15 +79,18 @@ ParserRegistry& ParserRegistry::getInstance() {
 
 void ParserRegistry::registerParser(ParserPtr parser) {
     if (!parser) {
+        PARSER_TRACE("WARNING: Attempted to register null parser!");
         return;
     }
 
     // Register by primary format name
     std::string format_name = parser->getFormatName();
+    PARSER_TRACE("Registering parser: " << format_name);
     format_map_[format_name] = parser.get();
 
     // Register aliases
     for (const auto& alias : parser->getAliases()) {
+        PARSER_TRACE("  Adding alias: " << alias);
         format_map_[alias] = parser.get();
     }
 

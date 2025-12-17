@@ -19,6 +19,8 @@
 #include "lintr_json_parser.hpp"
 #include "sqlfluff_json_parser.hpp"
 #include "tflint_json_parser.hpp"
+#include "trivy_json_parser.hpp"
+#include "tfsec_json_parser.hpp"
 #include "generic_lint_parser.hpp"
 
 
@@ -410,7 +412,7 @@ public:
     KubeScoreJSONParserImpl()
         : BaseParser("kube_score_json",
                      "KubeScore JSON Parser",
-                     ParserCategory::INFRASTRUCTURE,
+                     ParserCategory::LINTING,
                      "Kubernetes kube-score analyzer JSON output",
                      ParserPriority::VERY_HIGH) {
         addAlias("kubescore");
@@ -515,7 +517,7 @@ public:
     TflintJSONParserImpl()
         : BaseParser("tflint_json",
                      "TFLint JSON Parser",
-                     ParserCategory::INFRASTRUCTURE,
+                     ParserCategory::LINTING,
                      "Terraform TFLint linter JSON output",
                      ParserPriority::VERY_HIGH) {
         addAlias("tflint");
@@ -531,6 +533,58 @@ public:
 
 private:
     TflintJSONParser parser_;
+};
+
+/**
+ * Trivy JSON parser wrapper.
+ */
+class TrivyJSONParserImpl : public BaseParser {
+public:
+    TrivyJSONParserImpl()
+        : BaseParser("trivy_json",
+                     "Trivy JSON Parser",
+                     ParserCategory::SECURITY_TOOL,
+                     "Trivy container/dependency vulnerability scanner JSON output",
+                     ParserPriority::VERY_HIGH) {
+        addAlias("trivy");
+    }
+
+    bool canParse(const std::string& content) const override {
+        return parser_.canParse(content);
+    }
+
+    std::vector<ValidationEvent> parse(const std::string& content) const override {
+        return parser_.parse(content);
+    }
+
+private:
+    TrivyJSONParser parser_;
+};
+
+/**
+ * tfsec JSON parser wrapper.
+ */
+class TfsecJSONParserImpl : public BaseParser {
+public:
+    TfsecJSONParserImpl()
+        : BaseParser("tfsec_json",
+                     "tfsec JSON Parser",
+                     ParserCategory::SECURITY_TOOL,
+                     "tfsec Terraform security scanner JSON output",
+                     ParserPriority::VERY_HIGH) {
+        addAlias("tfsec");
+    }
+
+    bool canParse(const std::string& content) const override {
+        return parser_.canParse(content);
+    }
+
+    std::vector<ValidationEvent> parse(const std::string& content) const override {
+        return parser_.parse(content);
+    }
+
+private:
+    TfsecJSONParser parser_;
 };
 
 /**
@@ -587,6 +641,8 @@ void RegisterToolOutputsParsers(ParserRegistry& registry) {
     registry.registerParser(make_uniq<LintrJSONParserImpl>());
     registry.registerParser(make_uniq<SqlfluffJSONParserImpl>());
     registry.registerParser(make_uniq<TflintJSONParserImpl>());
+    registry.registerParser(make_uniq<TrivyJSONParserImpl>());
+    registry.registerParser(make_uniq<TfsecJSONParserImpl>());
     registry.registerParser(make_uniq<GenericLintParserImpl>());
 }
 

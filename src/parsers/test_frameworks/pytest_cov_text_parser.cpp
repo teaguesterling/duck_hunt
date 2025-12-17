@@ -12,7 +12,7 @@ bool PytestCovTextParser::CanParse(const std::string& content) const {
            (content.find("test session starts") != std::string::npos &&
             content.find("cov") != std::string::npos) ||
            content.find("pytest-cov") != std::string::npos ||
-           content.find("TOTAL") != std::string::npos && content.find("Stmts") != std::string::npos;
+           (content.find("TOTAL") != std::string::npos && content.find("Stmts") != std::string::npos);
 }
 
 void PytestCovTextParser::Parse(const std::string& content, std::vector<duckdb::ValidationEvent>& events) const {

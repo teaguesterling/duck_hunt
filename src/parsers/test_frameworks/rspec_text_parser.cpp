@@ -6,27 +6,44 @@
 namespace duck_hunt {
 
 bool RSpecTextParser::CanParse(const std::string& content) const {
-    // Check for RSpec text patterns
-    // RSpec documentation format has nested describe/context blocks with indented test names
-    // May use ✓/✗ markers or just indentation
-    bool has_markers = (content.find("✓") != std::string::npos || content.find("✗") != std::string::npos);
-    bool has_rspec_keywords = (content.find("examples") != std::string::npos ||
-                               content.find("failures") != std::string::npos ||
-                               content.find("Failure/Error:") != std::string::npos ||
-                               content.find("rspec") != std::string::npos);
-    // RSpec documentation format without markers - look for nested describe patterns
-    // Common patterns: "should", "is valid", "is not valid", "does not", "returns"
-    bool has_rspec_test_patterns = (content.find("is valid") != std::string::npos ||
-                                    content.find("is not valid") != std::string::npos ||
-                                    content.find("should") != std::string::npos ||
-                                    content.find("does not") != std::string::npos ||
-                                    content.find("FAILED") != std::string::npos ||
-                                    content.find("PENDING") != std::string::npos);
+    // RSpec-specific patterns that distinguish it from other test frameworks
+    // Key distinguishing features:
+    // 1. "N examples, N failures" summary format (not "tests" or "test suites")
+    // 2. "Failure/Error:" pattern unique to RSpec
+    // 3. "rspec ./path:line" in failed examples section
+    // 4. "Failed examples:" section header
 
-    return (has_markers && has_rspec_keywords) ||
-           (has_rspec_test_patterns && (has_rspec_keywords ||
-            // Check for RSpec-style nested structure
-            (content.find("\n  ") != std::string::npos && content.find("\n    ") != std::string::npos)));
+    // Strong RSpec indicators (highly specific)
+    bool has_rspec_summary = (content.find(" examples,") != std::string::npos &&
+                              content.find(" failures") != std::string::npos);
+    bool has_failure_error = content.find("Failure/Error:") != std::string::npos;
+    bool has_rspec_command = content.find("rspec ./") != std::string::npos;
+    bool has_failed_examples = content.find("Failed examples:") != std::string::npos;
+
+    // If we have strong RSpec indicators, it's definitely RSpec
+    if (has_failure_error || has_rspec_command || has_failed_examples) {
+        return true;
+    }
+
+    // RSpec summary format: "N examples, N failures" (NOT "tests" or "Test Suites")
+    if (has_rspec_summary) {
+        // Make sure it's not Jest/Mocha (they use "passing"/"failing" or "Test Suites")
+        bool is_jest_mocha = content.find("Test Suites:") != std::string::npos ||
+                             content.find(" passing") != std::string::npos;
+        if (!is_jest_mocha) {
+            return true;
+        }
+    }
+
+    // RSpec documentation format with pending marker
+    // Format: "test name (PENDING: reason)" or "(FAILED - N)"
+    bool has_rspec_markers = content.find("(PENDING:") != std::string::npos ||
+                             content.find("(FAILED - ") != std::string::npos;
+    if (has_rspec_markers) {
+        return true;
+    }
+
+    return false;
 }
 
 void RSpecTextParser::Parse(const std::string& content, std::vector<duckdb::ValidationEvent>& events) const {

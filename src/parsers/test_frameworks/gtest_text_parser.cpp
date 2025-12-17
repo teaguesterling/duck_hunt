@@ -40,7 +40,6 @@ void GTestTextParser::ParseGoogleTest(const std::string& content, std::vector<du
     
     std::string current_test_suite;
     std::string current_test_name;
-    bool in_failure_details = false;
     std::vector<std::string> failure_lines;
     
     while (std::getline(stream, line)) {

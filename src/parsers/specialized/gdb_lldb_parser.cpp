@@ -30,7 +30,6 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
     std::string current_frame;
     std::vector<std::string> stack_trace;
     bool in_backtrace = false;
-    bool in_register_dump = false;
     
     // Regular expressions for GDB/LLDB patterns
     std::regex gdb_header(R"(GNU gdb \(.*\) ([\d.]+))");
