@@ -30,7 +30,7 @@ true	true	true	true	true
 
 # Test pylint alias
 query I
-SELECT tool_name FROM parse_duck_hunt_log(E'************* Module example\nsrc/example.py:1:0: C0114: Missing module docstring (missing-module-docstring)\n\nYour code has been rated at 8.00/10', 'pylint');
+SELECT DISTINCT tool_name FROM parse_duck_hunt_log(E'************* Module example\nsrc/example.py:1:0: C0114: Missing module docstring (missing-module-docstring)\n\nYour code has been rated at 8.00/10', 'pylint');
 ----
 pylint
 
