@@ -23,573 +23,14 @@
 #include "tfsec_json_parser.hpp"
 #include "generic_lint_parser.hpp"
 
-
 namespace duckdb {
 
-// Helper macro to reduce boilerplate for JSON parser wrappers
-#define DEFINE_JSON_PARSER_IMPL(ImplName, ParserClass, format_name, display_name, desc, ...) \
-class ImplName : public BaseParser { \
-public: \
-    ImplName() \
-        : BaseParser(format_name, display_name, ParserCategory::LINTING, desc, ParserPriority::VERY_HIGH) \
-        { __VA_ARGS__ } \
-    bool canParse(const std::string& content) const override { return parser_.canParse(content); } \
-    std::vector<ValidationEvent> parse(const std::string& content) const override { return parser_.parse(content); } \
-private: \
-    ParserClass parser_; \
-}
+// Alias for convenience
+template<typename T>
+using P = DelegatingParser<T>;
 
 /**
- * ESLint JSON parser wrapper.
- */
-class ESLintJSONParserImpl : public BaseParser {
-public:
-    ESLintJSONParserImpl()
-        : BaseParser("eslint_json",
-                     "ESLint JSON Parser",
-                     ParserCategory::LINTING,
-                     "ESLint JavaScript/TypeScript linter JSON output",
-                     ParserPriority::VERY_HIGH) {
-        addAlias("eslint");
-    }
-
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
-
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
-
-private:
-    ESLintJSONParser parser_;
-};
-
-/**
- * GoTest JSON parser wrapper.
- */
-class GoTestJSONParserImpl : public BaseParser {
-public:
-    GoTestJSONParserImpl()
-        : BaseParser("gotest_json",
-                     "Go Test JSON Parser",
-                     ParserCategory::TEST_FRAMEWORK,
-                     "Go test JSON output (go test -json)",
-                     ParserPriority::VERY_HIGH) {
-        addAlias("gotest");
-        addAlias("go_test");
-    }
-
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
-
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
-
-private:
-    GoTestJSONParser parser_;
-};
-
-/**
- * RuboCop JSON parser wrapper.
- */
-class RuboCopJSONParserImpl : public BaseParser {
-public:
-    RuboCopJSONParserImpl()
-        : BaseParser("rubocop_json",
-                     "RuboCop JSON Parser",
-                     ParserCategory::LINTING,
-                     "Ruby RuboCop linter JSON output",
-                     ParserPriority::VERY_HIGH) {
-        addAlias("rubocop");
-    }
-
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
-
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
-
-private:
-    RuboCopJSONParser parser_;
-};
-
-/**
- * Cargo Test JSON parser wrapper.
- */
-class CargoTestJSONParserImpl : public BaseParser {
-public:
-    CargoTestJSONParserImpl()
-        : BaseParser("cargo_test_json",
-                     "Cargo Test JSON Parser",
-                     ParserCategory::TEST_FRAMEWORK,
-                     "Rust Cargo test JSON output",
-                     ParserPriority::VERY_HIGH) {
-        addAlias("cargo_test");
-    }
-
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
-
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
-
-private:
-    CargoTestJSONParser parser_;
-};
-
-/**
- * SwiftLint JSON parser wrapper.
- */
-class SwiftLintJSONParserImpl : public BaseParser {
-public:
-    SwiftLintJSONParserImpl()
-        : BaseParser("swiftlint_json",
-                     "SwiftLint JSON Parser",
-                     ParserCategory::LINTING,
-                     "Swift SwiftLint linter JSON output",
-                     ParserPriority::VERY_HIGH) {
-        addAlias("swiftlint");
-    }
-
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
-
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
-
-private:
-    SwiftLintJSONParser parser_;
-};
-
-/**
- * PHPStan JSON parser wrapper.
- */
-class PHPStanJSONParserImpl : public BaseParser {
-public:
-    PHPStanJSONParserImpl()
-        : BaseParser("phpstan_json",
-                     "PHPStan JSON Parser",
-                     ParserCategory::LINTING,
-                     "PHP PHPStan static analyzer JSON output",
-                     ParserPriority::VERY_HIGH) {
-        addAlias("phpstan");
-    }
-
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
-
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
-
-private:
-    PHPStanJSONParser parser_;
-};
-
-/**
- * ShellCheck JSON parser wrapper.
- */
-class ShellCheckJSONParserImpl : public BaseParser {
-public:
-    ShellCheckJSONParserImpl()
-        : BaseParser("shellcheck_json",
-                     "ShellCheck JSON Parser",
-                     ParserCategory::LINTING,
-                     "ShellCheck shell script linter JSON output",
-                     ParserPriority::VERY_HIGH) {
-        addAlias("shellcheck");
-    }
-
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
-
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
-
-private:
-    ShellCheckJSONParser parser_;
-};
-
-/**
- * Stylelint JSON parser wrapper.
- */
-class StylelintJSONParserImpl : public BaseParser {
-public:
-    StylelintJSONParserImpl()
-        : BaseParser("stylelint_json",
-                     "Stylelint JSON Parser",
-                     ParserCategory::LINTING,
-                     "Stylelint CSS linter JSON output",
-                     ParserPriority::VERY_HIGH) {
-        addAlias("stylelint");
-    }
-
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
-
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
-
-private:
-    StylelintJSONParser parser_;
-};
-
-/**
- * Clippy JSON parser wrapper.
- */
-class ClippyJSONParserImpl : public BaseParser {
-public:
-    ClippyJSONParserImpl()
-        : BaseParser("clippy_json",
-                     "Clippy JSON Parser",
-                     ParserCategory::LINTING,
-                     "Rust Clippy linter JSON output",
-                     ParserPriority::VERY_HIGH) {
-        addAlias("clippy");
-    }
-
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
-
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
-
-private:
-    ClippyJSONParser parser_;
-};
-
-/**
- * Markdownlint JSON parser wrapper.
- */
-class MarkdownlintJSONParserImpl : public BaseParser {
-public:
-    MarkdownlintJSONParserImpl()
-        : BaseParser("markdownlint_json",
-                     "Markdownlint JSON Parser",
-                     ParserCategory::LINTING,
-                     "Markdownlint Markdown linter JSON output",
-                     ParserPriority::VERY_HIGH) {
-        addAlias("markdownlint");
-    }
-
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
-
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
-
-private:
-    MarkdownlintJSONParser parser_;
-};
-
-/**
- * Yamllint JSON parser wrapper.
- */
-class YamllintJSONParserImpl : public BaseParser {
-public:
-    YamllintJSONParserImpl()
-        : BaseParser("yamllint_json",
-                     "Yamllint JSON Parser",
-                     ParserCategory::LINTING,
-                     "Yamllint YAML linter JSON output",
-                     ParserPriority::VERY_HIGH) {
-        addAlias("yamllint");
-    }
-
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
-
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
-
-private:
-    YamllintJSONParser parser_;
-};
-
-/**
- * Bandit JSON parser wrapper.
- */
-class BanditJSONParserImpl : public BaseParser {
-public:
-    BanditJSONParserImpl()
-        : BaseParser("bandit_json",
-                     "Bandit JSON Parser",
-                     ParserCategory::LINTING,
-                     "Python Bandit security linter JSON output",
-                     ParserPriority::VERY_HIGH) {
-        addAlias("bandit");
-    }
-
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
-
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
-
-private:
-    BanditJSONParser parser_;
-};
-
-/**
- * SpotBugs JSON parser wrapper.
- */
-class SpotBugsJSONParserImpl : public BaseParser {
-public:
-    SpotBugsJSONParserImpl()
-        : BaseParser("spotbugs_json",
-                     "SpotBugs JSON Parser",
-                     ParserCategory::LINTING,
-                     "Java SpotBugs static analyzer JSON output",
-                     ParserPriority::VERY_HIGH) {
-        addAlias("spotbugs");
-    }
-
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
-
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
-
-private:
-    SpotBugsJSONParser parser_;
-};
-
-/**
- * Ktlint JSON parser wrapper.
- */
-class KtlintJSONParserImpl : public BaseParser {
-public:
-    KtlintJSONParserImpl()
-        : BaseParser("ktlint_json",
-                     "Ktlint JSON Parser",
-                     ParserCategory::LINTING,
-                     "Kotlin ktlint linter JSON output",
-                     ParserPriority::VERY_HIGH) {
-        addAlias("ktlint");
-    }
-
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
-
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
-
-private:
-    KtlintJSONParser parser_;
-};
-
-/**
- * KubeScore JSON parser wrapper.
- */
-class KubeScoreJSONParserImpl : public BaseParser {
-public:
-    KubeScoreJSONParserImpl()
-        : BaseParser("kube_score_json",
-                     "KubeScore JSON Parser",
-                     ParserCategory::LINTING,
-                     "Kubernetes kube-score analyzer JSON output",
-                     ParserPriority::VERY_HIGH) {
-        addAlias("kubescore");
-        addAlias("kube_score");
-    }
-
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
-
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
-
-private:
-    KubeScoreJSONParser parser_;
-};
-
-/**
- * Hadolint JSON parser wrapper.
- */
-class HadolintJSONParserImpl : public BaseParser {
-public:
-    HadolintJSONParserImpl()
-        : BaseParser("hadolint_json",
-                     "Hadolint JSON Parser",
-                     ParserCategory::LINTING,
-                     "Dockerfile Hadolint linter JSON output",
-                     ParserPriority::VERY_HIGH) {
-        addAlias("hadolint");
-    }
-
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
-
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
-
-private:
-    HadolintJSONParser parser_;
-};
-
-/**
- * Lintr JSON parser wrapper.
- */
-class LintrJSONParserImpl : public BaseParser {
-public:
-    LintrJSONParserImpl()
-        : BaseParser("lintr_json",
-                     "Lintr JSON Parser",
-                     ParserCategory::LINTING,
-                     "R lintr linter JSON output",
-                     ParserPriority::VERY_HIGH) {
-        addAlias("lintr");
-    }
-
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
-
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
-
-private:
-    LintrJSONParser parser_;
-};
-
-/**
- * SQLFluff JSON parser wrapper.
- */
-class SqlfluffJSONParserImpl : public BaseParser {
-public:
-    SqlfluffJSONParserImpl()
-        : BaseParser("sqlfluff_json",
-                     "SQLFluff JSON Parser",
-                     ParserCategory::LINTING,
-                     "SQL SQLFluff linter JSON output",
-                     ParserPriority::VERY_HIGH) {
-        addAlias("sqlfluff");
-    }
-
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
-
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
-
-private:
-    SqlfluffJSONParser parser_;
-};
-
-/**
- * TFLint JSON parser wrapper.
- */
-class TflintJSONParserImpl : public BaseParser {
-public:
-    TflintJSONParserImpl()
-        : BaseParser("tflint_json",
-                     "TFLint JSON Parser",
-                     ParserCategory::LINTING,
-                     "Terraform TFLint linter JSON output",
-                     ParserPriority::VERY_HIGH) {
-        addAlias("tflint");
-    }
-
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
-
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
-
-private:
-    TflintJSONParser parser_;
-};
-
-/**
- * Trivy JSON parser wrapper.
- */
-class TrivyJSONParserImpl : public BaseParser {
-public:
-    TrivyJSONParserImpl()
-        : BaseParser("trivy_json",
-                     "Trivy JSON Parser",
-                     ParserCategory::SECURITY_TOOL,
-                     "Trivy container/dependency vulnerability scanner JSON output",
-                     ParserPriority::VERY_HIGH) {
-        addAlias("trivy");
-    }
-
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
-
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
-
-private:
-    TrivyJSONParser parser_;
-};
-
-/**
- * tfsec JSON parser wrapper.
- */
-class TfsecJSONParserImpl : public BaseParser {
-public:
-    TfsecJSONParserImpl()
-        : BaseParser("tfsec_json",
-                     "tfsec JSON Parser",
-                     ParserCategory::SECURITY_TOOL,
-                     "tfsec Terraform security scanner JSON output",
-                     ParserPriority::VERY_HIGH) {
-        addAlias("tfsec");
-    }
-
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
-
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
-
-private:
-    TfsecJSONParser parser_;
-};
-
-/**
- * Generic Lint parser wrapper.
- * Handles generic lint format: file:line:column: level: message
+ * Wrapper for GenericLintParser which uses different interface (Parse with events param)
  */
 class GenericLintParserImpl : public BaseParser {
 public:
@@ -622,32 +63,119 @@ private:
 DECLARE_PARSER_CATEGORY(ToolOutputs);
 
 void RegisterToolOutputsParsers(ParserRegistry& registry) {
-    registry.registerParser(make_uniq<ESLintJSONParserImpl>());
-    registry.registerParser(make_uniq<GoTestJSONParserImpl>());
-    registry.registerParser(make_uniq<RuboCopJSONParserImpl>());
-    registry.registerParser(make_uniq<CargoTestJSONParserImpl>());
-    registry.registerParser(make_uniq<SwiftLintJSONParserImpl>());
-    registry.registerParser(make_uniq<PHPStanJSONParserImpl>());
-    registry.registerParser(make_uniq<ShellCheckJSONParserImpl>());
-    registry.registerParser(make_uniq<StylelintJSONParserImpl>());
-    registry.registerParser(make_uniq<ClippyJSONParserImpl>());
-    registry.registerParser(make_uniq<MarkdownlintJSONParserImpl>());
-    registry.registerParser(make_uniq<YamllintJSONParserImpl>());
-    registry.registerParser(make_uniq<BanditJSONParserImpl>());
-    registry.registerParser(make_uniq<SpotBugsJSONParserImpl>());
-    registry.registerParser(make_uniq<KtlintJSONParserImpl>());
-    registry.registerParser(make_uniq<KubeScoreJSONParserImpl>());
-    registry.registerParser(make_uniq<HadolintJSONParserImpl>());
-    registry.registerParser(make_uniq<LintrJSONParserImpl>());
-    registry.registerParser(make_uniq<SqlfluffJSONParserImpl>());
-    registry.registerParser(make_uniq<TflintJSONParserImpl>());
-    registry.registerParser(make_uniq<TrivyJSONParserImpl>());
-    registry.registerParser(make_uniq<TfsecJSONParserImpl>());
+    // Linting tools
+    registry.registerParser(make_uniq<P<ESLintJSONParser>>(
+        "eslint_json", "ESLint JSON Parser", ParserCategory::LINTING,
+        "ESLint JavaScript/TypeScript linter JSON output", ParserPriority::VERY_HIGH,
+        std::vector<std::string>{"eslint"}));
+
+    registry.registerParser(make_uniq<P<RuboCopJSONParser>>(
+        "rubocop_json", "RuboCop JSON Parser", ParserCategory::LINTING,
+        "RuboCop Ruby linter JSON output", ParserPriority::VERY_HIGH,
+        std::vector<std::string>{"rubocop"}));
+
+    registry.registerParser(make_uniq<P<SwiftLintJSONParser>>(
+        "swiftlint_json", "SwiftLint JSON Parser", ParserCategory::LINTING,
+        "SwiftLint Swift linter JSON output", ParserPriority::VERY_HIGH,
+        std::vector<std::string>{"swiftlint"}));
+
+    registry.registerParser(make_uniq<P<PHPStanJSONParser>>(
+        "phpstan_json", "PHPStan JSON Parser", ParserCategory::LINTING,
+        "PHPStan PHP static analysis JSON output", ParserPriority::VERY_HIGH,
+        std::vector<std::string>{"phpstan"}));
+
+    registry.registerParser(make_uniq<P<ShellCheckJSONParser>>(
+        "shellcheck_json", "ShellCheck JSON Parser", ParserCategory::LINTING,
+        "ShellCheck shell script linter JSON output", ParserPriority::VERY_HIGH,
+        std::vector<std::string>{"shellcheck"}));
+
+    registry.registerParser(make_uniq<P<StylelintJSONParser>>(
+        "stylelint_json", "Stylelint JSON Parser", ParserCategory::LINTING,
+        "Stylelint CSS linter JSON output", ParserPriority::VERY_HIGH,
+        std::vector<std::string>{"stylelint"}));
+
+    registry.registerParser(make_uniq<P<ClippyJSONParser>>(
+        "clippy_json", "Clippy JSON Parser", ParserCategory::LINTING,
+        "Rust Clippy linter JSON output", ParserPriority::VERY_HIGH,
+        std::vector<std::string>{"clippy"}));
+
+    registry.registerParser(make_uniq<P<MarkdownlintJSONParser>>(
+        "markdownlint_json", "Markdownlint JSON Parser", ParserCategory::LINTING,
+        "Markdownlint markdown linter JSON output", ParserPriority::VERY_HIGH,
+        std::vector<std::string>{"markdownlint"}));
+
+    registry.registerParser(make_uniq<P<YamllintJSONParser>>(
+        "yamllint_json", "Yamllint JSON Parser", ParserCategory::LINTING,
+        "Yamllint YAML linter JSON output", ParserPriority::VERY_HIGH,
+        std::vector<std::string>{"yamllint"}));
+
+    registry.registerParser(make_uniq<P<SpotBugsJSONParser>>(
+        "spotbugs_json", "SpotBugs JSON Parser", ParserCategory::LINTING,
+        "SpotBugs Java static analysis JSON output", ParserPriority::VERY_HIGH,
+        std::vector<std::string>{"spotbugs"}));
+
+    registry.registerParser(make_uniq<P<KtlintJSONParser>>(
+        "ktlint_json", "Ktlint JSON Parser", ParserCategory::LINTING,
+        "Ktlint Kotlin linter JSON output", ParserPriority::VERY_HIGH,
+        std::vector<std::string>{"ktlint"}));
+
+    registry.registerParser(make_uniq<P<HadolintJSONParser>>(
+        "hadolint_json", "Hadolint JSON Parser", ParserCategory::LINTING,
+        "Hadolint Dockerfile linter JSON output", ParserPriority::VERY_HIGH,
+        std::vector<std::string>{"hadolint"}));
+
+    registry.registerParser(make_uniq<P<LintrJSONParser>>(
+        "lintr_json", "Lintr JSON Parser", ParserCategory::LINTING,
+        "Lintr R linter JSON output", ParserPriority::VERY_HIGH,
+        std::vector<std::string>{"lintr"}));
+
+    registry.registerParser(make_uniq<P<SqlfluffJSONParser>>(
+        "sqlfluff_json", "SQLFluff JSON Parser", ParserCategory::LINTING,
+        "SQLFluff SQL linter JSON output", ParserPriority::VERY_HIGH,
+        std::vector<std::string>{"sqlfluff"}));
+
+    registry.registerParser(make_uniq<P<TflintJSONParser>>(
+        "tflint_json", "TFLint JSON Parser", ParserCategory::LINTING,
+        "Terraform TFLint linter JSON output", ParserPriority::VERY_HIGH,
+        std::vector<std::string>{"tflint"}));
+
+    registry.registerParser(make_uniq<P<KubeScoreJSONParser>>(
+        "kube_score_json", "Kube-score JSON Parser", ParserCategory::LINTING,
+        "Kube-score Kubernetes manifest linter JSON output", ParserPriority::VERY_HIGH,
+        std::vector<std::string>{"kubescore", "kube_score"}));
+
+    // Security tools
+    registry.registerParser(make_uniq<P<BanditJSONParser>>(
+        "bandit_json", "Bandit JSON Parser", ParserCategory::SECURITY_TOOL,
+        "Bandit Python security linter JSON output", ParserPriority::VERY_HIGH,
+        std::vector<std::string>{"bandit"}));
+
+    registry.registerParser(make_uniq<P<TrivyJSONParser>>(
+        "trivy_json", "Trivy JSON Parser", ParserCategory::SECURITY_TOOL,
+        "Trivy container/dependency vulnerability scanner JSON output", ParserPriority::VERY_HIGH,
+        std::vector<std::string>{"trivy"}));
+
+    registry.registerParser(make_uniq<P<TfsecJSONParser>>(
+        "tfsec_json", "tfsec JSON Parser", ParserCategory::SECURITY_TOOL,
+        "tfsec Terraform security scanner JSON output", ParserPriority::VERY_HIGH,
+        std::vector<std::string>{"tfsec"}));
+
+    // Test frameworks
+    registry.registerParser(make_uniq<P<GoTestJSONParser>>(
+        "gotest_json", "Go Test JSON Parser", ParserCategory::TEST_FRAMEWORK,
+        "Go test JSON output (go test -json)", ParserPriority::VERY_HIGH,
+        std::vector<std::string>{"gotest", "go_test"}));
+
+    registry.registerParser(make_uniq<P<CargoTestJSONParser>>(
+        "cargo_test_json", "Cargo Test JSON Parser", ParserCategory::TEST_FRAMEWORK,
+        "Rust cargo test JSON output", ParserPriority::VERY_HIGH,
+        std::vector<std::string>{"cargo_test"}));
+
+    // Generic fallback
     registry.registerParser(make_uniq<GenericLintParserImpl>());
 }
 
 // Auto-register this category
 REGISTER_PARSER_CATEGORY(ToolOutputs);
-
 
 } // namespace duckdb
