@@ -66,7 +66,7 @@ std::vector<WorkflowEvent> GitHubActionsParser::parseWorkflowLog(const std::stri
                 event.base_event.event_id = event_id;
                 event.base_event.tool_name = "github_actions";
                 event.base_event.message = line;
-                event.base_event.raw_output = line;
+                event.base_event.log_content = line;
                 event.base_event.event_type = ValidationEventType::SUMMARY;
                 event.base_event.status = ValidationEventStatus::INFO;
             }
@@ -114,7 +114,7 @@ std::vector<WorkflowEvent> GitHubActionsParser::parseWorkflowLog(const std::stri
             summary_event.base_event.event_id = 1;
             summary_event.base_event.tool_name = "github_actions";
             summary_event.base_event.message = "Workflow log processed";
-            summary_event.base_event.raw_output = content.substr(0, std::min(size_t(500), content.length()));
+            summary_event.base_event.log_content = content.substr(0, std::min(size_t(500), content.length()));
             summary_event.base_event.event_type = ValidationEventType::SUMMARY;
             summary_event.base_event.status = ValidationEventStatus::INFO;
             summary_event.base_event.severity = "info";
@@ -132,7 +132,7 @@ std::vector<WorkflowEvent> GitHubActionsParser::parseWorkflowLog(const std::stri
         error_event.base_event.event_id = 1;
         error_event.base_event.tool_name = "github_actions";
         error_event.base_event.message = std::string("Parser error: ") + e.what();
-        error_event.base_event.raw_output = content.substr(0, std::min(size_t(200), content.length()));
+        error_event.base_event.log_content = content.substr(0, std::min(size_t(200), content.length()));
         error_event.base_event.event_type = ValidationEventType::SUMMARY;
         error_event.base_event.status = ValidationEventStatus::ERROR;
         error_event.base_event.severity = "error";

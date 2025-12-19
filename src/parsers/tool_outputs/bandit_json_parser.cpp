@@ -88,23 +88,23 @@ std::vector<ValidationEvent> BanditJSONParser::parse(const std::string& content)
         // Get file path
         yyjson_val *filename = yyjson_obj_get(issue, "filename");
         if (filename && yyjson_is_str(filename)) {
-            event.file_path = yyjson_get_str(filename);
+            event.ref_file = yyjson_get_str(filename);
         }
         
         // Get line number
         yyjson_val *line_number = yyjson_obj_get(issue, "line_number");
         if (line_number && yyjson_is_num(line_number)) {
-            event.line_number = yyjson_get_int(line_number);
+            event.ref_line = yyjson_get_int(line_number);
         } else {
-            event.line_number = -1;
+            event.ref_line = -1;
         }
         
         // Get column offset (Bandit uses col_offset)
         yyjson_val *col_offset = yyjson_obj_get(issue, "col_offset");
         if (col_offset && yyjson_is_num(col_offset)) {
-            event.column_number = yyjson_get_int(col_offset);
+            event.ref_column = yyjson_get_int(col_offset);
         } else {
-            event.column_number = -1;
+            event.ref_column = -1;
         }
         
         // Get test ID as error code
@@ -160,7 +160,7 @@ std::vector<ValidationEvent> BanditJSONParser::parse(const std::string& content)
         }
         
         // Set raw output and structured data
-        event.raw_output = content;
+        event.log_content = content;
         event.structured_data = "{\"tool\": \"bandit\", \"test_id\": \"" + event.error_code + "\", \"severity\": \"" + event.severity + "\"}";
         
         events.push_back(event);

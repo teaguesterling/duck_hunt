@@ -121,10 +121,10 @@ std::vector<ValidationEvent> GitHubCliParser::parseRunsList(const std::string& c
             
             event.message = "Workflow '" + workflow + "' " + conclusion + " on branch '" + branch + "'";
             event.function_name = workflow;
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.execution_time = 0.0;
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"status\": \"" + status + "\", \"conclusion\": \"" + conclusion +
                                    "\", \"branch\": \"" + branch + "\", \"time\": \"" + time + "\"}";
             event.log_line_start = current_line_num;
@@ -202,10 +202,10 @@ std::vector<ValidationEvent> GitHubCliParser::parseRunView(const std::string& co
             
             event.message = "Job '" + job_name + "' " + job_status;
             event.function_name = job_name;
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.execution_time = 0.0;
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"run_id\": \"" + run_id + "\", \"job_status\": \"" + job_status + "\"}";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -267,10 +267,10 @@ std::vector<ValidationEvent> GitHubCliParser::parseWorkflowLog(const std::string
             event.severity = "error";
             event.message = match[1].str();
             event.function_name = current_step;
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.execution_time = 0.0;
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"step\": \"" + current_step + "\", \"type\": \"error\"}";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -289,10 +289,10 @@ std::vector<ValidationEvent> GitHubCliParser::parseWorkflowLog(const std::string
             event.severity = "warning";
             event.message = match[1].str();
             event.function_name = current_step;
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.execution_time = 0.0;
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"step\": \"" + current_step + "\", \"type\": \"warning\"}";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -311,10 +311,10 @@ std::vector<ValidationEvent> GitHubCliParser::parseWorkflowLog(const std::string
             event.severity = "info";
             event.message = match[1].str();
             event.function_name = current_step;
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.execution_time = 0.0;
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"step\": \"" + current_step + "\", \"type\": \"notice\"}";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;

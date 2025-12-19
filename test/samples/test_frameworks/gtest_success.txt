@@ -1,0 +1,39 @@
+Running main() from gmock_main.cc
+[==========] Running 12 tests from 3 test suites.
+[----------] Global test environment set-up.
+[----------] 4 tests from ParserTest
+[ RUN      ] ParserTest.ParseValidInput
+[       OK ] ParserTest.ParseValidInput (2 ms)
+[ RUN      ] ParserTest.ParseEmptyInput
+[       OK ] ParserTest.ParseEmptyInput (0 ms)
+[ RUN      ] ParserTest.ParseComplexInput
+[       OK ] ParserTest.ParseComplexInput (5 ms)
+[ RUN      ] ParserTest.ParseUnicodeInput
+[       OK ] ParserTest.ParseUnicodeInput (1 ms)
+[----------] 4 tests from ParserTest (9 ms total)
+
+[----------] 5 tests from UtilsTest
+[ RUN      ] UtilsTest.ComputeHash
+[       OK ] UtilsTest.ComputeHash (3 ms)
+[ RUN      ] UtilsTest.EncodeData
+[       OK ] UtilsTest.EncodeData (1 ms)
+[ RUN      ] UtilsTest.DecodeData
+[       OK ] UtilsTest.DecodeData (1 ms)
+[ RUN      ] UtilsTest.ValidateInput
+[       OK ] UtilsTest.ValidateInput (0 ms)
+[ RUN      ] UtilsTest.ProcessBatch
+[       OK ] UtilsTest.ProcessBatch (12 ms)
+[----------] 5 tests from UtilsTest (18 ms total)
+
+[----------] 3 tests from IntegrationTest
+[ RUN      ] IntegrationTest.FullWorkflow
+[       OK ] IntegrationTest.FullWorkflow (45 ms)
+[ RUN      ] IntegrationTest.ErrorRecovery
+[       OK ] IntegrationTest.ErrorRecovery (23 ms)
+[ RUN      ] IntegrationTest.ConcurrentAccess
+[       OK ] IntegrationTest.ConcurrentAccess (67 ms)
+[----------] 3 tests from IntegrationTest (136 ms total)
+
+[----------] Global test environment tear-down
+[==========] 12 tests from 3 test suites ran. (165 ms total)
+[  PASSED  ] 12 tests.

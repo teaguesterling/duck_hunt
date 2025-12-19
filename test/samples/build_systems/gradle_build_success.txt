@@ -1,0 +1,23 @@
+> Task :compileJava UP-TO-DATE
+> Task :processResources UP-TO-DATE
+> Task :classes UP-TO-DATE
+> Task :jar UP-TO-DATE
+> Task :compileTestJava UP-TO-DATE
+> Task :processTestResources NO-SOURCE
+> Task :testClasses UP-TO-DATE
+> Task :test
+
+com.example.UserServiceTest > testCreateUser PASSED
+com.example.UserServiceTest > testDeleteUser PASSED
+com.example.UserServiceTest > testUpdateUser PASSED
+com.example.AuthServiceTest > testLogin PASSED
+com.example.AuthServiceTest > testLogout PASSED
+com.example.AuthServiceTest > testTokenRefresh PASSED
+
+6 tests completed, 0 failed, 0 skipped
+
+> Task :check UP-TO-DATE
+> Task :build UP-TO-DATE
+
+BUILD SUCCESSFUL in 3s
+7 actionable tasks: 1 executed, 6 up-to-date

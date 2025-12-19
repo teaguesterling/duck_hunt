@@ -1,0 +1,6 @@
+requests 2.28.0 has requirement charset-normalizer<3,>=2, but you have charset-normalizer 3.1.0.
+django 4.2.0 has requirement asgiref<4,>=3.6.0, but you have asgiref 3.5.2.
+celery 5.3.0 has requirement kombu<6.0,>=5.3.0, but you have kombu 5.2.4.
+boto3 1.28.0 has requirement botocore<1.32.0,>=1.31.0, but you have botocore 1.30.0.
+numpy 1.24.0 requires Python >=3.8, but you have Python 3.7.12.
+No broken requirements found.

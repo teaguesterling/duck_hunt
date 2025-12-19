@@ -1,0 +1,83 @@
+[
+  {
+    "file": "scripts/deploy.sh",
+    "line": 5,
+    "endLine": 5,
+    "column": 1,
+    "endColumn": 8,
+    "level": "warning",
+    "code": 2086,
+    "message": "Double quote to prevent globbing and word splitting.",
+    "fix": {
+      "replacements": [
+        {
+          "line": 5,
+          "endLine": 5,
+          "column": 6,
+          "endColumn": 12,
+          "replacement": "\"$files\""
+        }
+      ]
+    }
+  },
+  {
+    "file": "scripts/deploy.sh",
+    "line": 12,
+    "endLine": 12,
+    "column": 1,
+    "endColumn": 4,
+    "level": "error",
+    "code": 2154,
+    "message": "undefined_var is referenced but not assigned."
+  },
+  {
+    "file": "scripts/deploy.sh",
+    "line": 23,
+    "endLine": 23,
+    "column": 8,
+    "endColumn": 10,
+    "level": "warning",
+    "code": 2034,
+    "message": "x appears unused. Verify use (or export if used externally)."
+  },
+  {
+    "file": "scripts/deploy.sh",
+    "line": 34,
+    "endLine": 34,
+    "column": 3,
+    "endColumn": 5,
+    "level": "info",
+    "code": 2103,
+    "message": "Use a ( subshell ) to avoid having to cd back."
+  },
+  {
+    "file": "scripts/backup.sh",
+    "line": 8,
+    "endLine": 8,
+    "column": 5,
+    "endColumn": 15,
+    "level": "error",
+    "code": 2012,
+    "message": "Use ${} to avoid interpreting special characters."
+  },
+  {
+    "file": "scripts/backup.sh",
+    "line": 15,
+    "endLine": 15,
+    "column": 1,
+    "endColumn": 20,
+    "level": "warning",
+    "code": 2162,
+    "message": "read without -r will mangle backslashes."
+  },
+  {
+    "file": "scripts/backup.sh",
+    "line": 23,
+    "endLine": 23,
+    "column": 3,
+    "endColumn": 6,
+    "level": "style",
+    "code": 2006,
+    "message": "Use $(...) notation instead of legacy backticks `...`."
+  }
+]

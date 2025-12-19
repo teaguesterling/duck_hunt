@@ -46,6 +46,7 @@ static unique_ptr<FunctionData> DuckHuntFormatsBind(ClientContext &context, Tabl
         LogicalType::VARCHAR,  // format
         LogicalType::VARCHAR,  // description
         LogicalType::VARCHAR,  // category
+        LogicalType::INTEGER,  // priority
         LogicalType::VARCHAR,  // requires_extension
         LogicalType::BOOLEAN   // supports_workflow
     };
@@ -54,6 +55,7 @@ static unique_ptr<FunctionData> DuckHuntFormatsBind(ClientContext &context, Tabl
         "format",
         "description",
         "category",
+        "priority",
         "requires_extension",
         "supports_workflow"
     };
@@ -79,8 +81,9 @@ static void DuckHuntFormatsFunction(ClientContext &context, TableFunctionInput &
         output.SetValue(0, count, Value(fmt.format_name));
         output.SetValue(1, count, Value(fmt.description));
         output.SetValue(2, count, Value(fmt.category));
-        output.SetValue(3, count, fmt.required_extension.empty() ? Value() : Value(fmt.required_extension));
-        output.SetValue(4, count, Value::BOOLEAN(CategorySupportsWorkflow(fmt.category)));
+        output.SetValue(3, count, Value::INTEGER(fmt.priority));
+        output.SetValue(4, count, fmt.required_extension.empty() ? Value() : Value(fmt.required_extension));
+        output.SetValue(5, count, Value::BOOLEAN(CategorySupportsWorkflow(fmt.category)));
 
         state.current_idx++;
         count++;

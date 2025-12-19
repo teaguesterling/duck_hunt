@@ -118,14 +118,14 @@ std::vector<ValidationEvent> MypyParser::parse(const std::string& content) const
             }
             
             event.message = message;
-            event.file_path = file_path;
-            event.line_number = line_number;
-            event.column_number = -1;
+            event.ref_file = file_path;
+            event.ref_line = line_number;
+            event.ref_column = -1;
             event.error_code = error_code;
             event.tool_name = "mypy";
             event.category = "type_checking";
             event.execution_time = 0.0;
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"error_code\": \"" + error_code + "\", \"severity\": \"" + severity + "\"}";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -170,13 +170,13 @@ std::vector<ValidationEvent> MypyParser::parse(const std::string& content) const
             }
             
             event.message = message;
-            event.file_path = file_path;
-            event.line_number = line_number;
-            event.column_number = -1;
+            event.ref_file = file_path;
+            event.ref_line = line_number;
+            event.ref_column = -1;
             event.tool_name = "mypy";
             event.category = "type_checking";
             event.execution_time = 0.0;
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"severity\": \"" + severity + "\"}";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -197,10 +197,10 @@ std::vector<ValidationEvent> MypyParser::parse(const std::string& content) const
             event.message = "Found " + error_count + " errors in " + file_count + " files (checked " + checked_count + " files)";
             event.tool_name = "mypy";
             event.category = "type_checking";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.execution_time = 0.0;
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"error_count\": " + error_count + ", \"file_count\": " + file_count + ", \"checked_count\": " + checked_count + "}";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -219,10 +219,10 @@ std::vector<ValidationEvent> MypyParser::parse(const std::string& content) const
             event.message = "Success: no issues found in " + checked_count + " source files";
             event.tool_name = "mypy";
             event.category = "type_checking";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.execution_time = 0.0;
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"checked_count\": " + checked_count + "}";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;

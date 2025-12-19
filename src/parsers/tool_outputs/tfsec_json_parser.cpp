@@ -140,19 +140,19 @@ std::vector<ValidationEvent> TfsecJSONParser::parse(const std::string& content) 
             // Note: end_line is available but not currently used
 
             if (filename && yyjson_is_str(filename)) {
-                event.file_path = yyjson_get_str(filename);
+                event.ref_file = yyjson_get_str(filename);
             }
 
             if (start_line && yyjson_is_num(start_line)) {
-                event.line_number = yyjson_get_int(start_line);
+                event.ref_line = yyjson_get_int(start_line);
             } else {
-                event.line_number = -1;
+                event.ref_line = -1;
             }
 
-            event.column_number = -1;
+            event.ref_column = -1;
         } else {
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_line = -1;
+            event.ref_column = -1;
         }
 
         // Get resolution as suggestion
@@ -179,7 +179,7 @@ std::vector<ValidationEvent> TfsecJSONParser::parse(const std::string& content) 
             service_str = yyjson_get_str(service);
         }
 
-        event.raw_output = content;
+        event.log_content = content;
         event.structured_data = "{\"tool\": \"tfsec\", \"rule_id\": \"" + event.error_code +
                                "\", \"severity\": \"" + event.severity +
                                "\", \"resource\": \"" + event.function_name + "\"" +

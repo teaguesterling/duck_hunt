@@ -40,10 +40,10 @@ struct ValidationEvent {
     std::string tool_name;
     ValidationEventType event_type;
 
-    // Code location (lint, test, stack trace)
-    std::string file_path;            // Source code file path
-    int32_t line_number;
-    int32_t column_number;
+    // Reference location (file/line/column mentioned IN the log)
+    std::string ref_file;             // File path referenced in log (e.g., "src/main.c:15")
+    int32_t ref_line;                 // Line number in referenced file
+    int32_t ref_column;               // Column number in referenced file
     std::string function_name;        // Function/method name in code
 
     // Classification
@@ -55,12 +55,13 @@ struct ValidationEvent {
     // Content
     std::string message;
     std::string suggestion;
-    std::string raw_output;
+    std::string log_content;          // Raw content from the log line(s)
     std::string structured_data;      // JSON for extra fields
 
-    // Log tracking
-    int32_t log_line_start;           // 1-indexed line where event starts
-    int32_t log_line_end;             // 1-indexed line where event ends
+    // Log source tracking (the log file being parsed)
+    std::string log_file;             // Path to log file being parsed
+    int32_t log_line_start;           // 1-indexed line where event starts in log
+    int32_t log_line_end;             // 1-indexed line where event ends in log
 
     // Test-specific
     std::string test_name;
@@ -100,7 +101,7 @@ struct ValidationEvent {
     double similarity_score;          // Similarity to cluster centroid (0.0-1.0)
     int64_t pattern_id;               // Pattern cluster ID (-1 if unassigned)
 
-    ValidationEvent() : event_id(0), line_number(-1), column_number(-1),
+    ValidationEvent() : event_id(0), ref_line(-1), ref_column(-1),
                        log_line_start(-1), log_line_end(-1), execution_time(0.0),
                        similarity_score(0.0), pattern_id(-1) {}
 };

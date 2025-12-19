@@ -92,11 +92,11 @@ std::vector<ValidationEvent> GoTestJSONParser::parse(const std::string& content)
             event.event_id = event_id++;
             event.tool_name = "go_test";
             event.event_type = ValidationEventType::TEST_RESULT;
-            event.file_path = package_str;
+            event.ref_file = package_str;
             event.test_name = test_str;
             event.function_name = test_str;
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.execution_time = 0.0;
             
             test_events[test_key] = event;

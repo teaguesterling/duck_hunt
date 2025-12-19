@@ -1,0 +1,76 @@
+ PASS  src/components/__tests__/Button.test.js
+  Button Component
+    ✓ renders without crashing (23 ms)
+    ✓ displays the correct label (5 ms)
+    ✓ calls onClick handler when clicked (12 ms)
+
+ FAIL  src/utils/__tests__/helpers.test.js
+  Helper Functions
+    formatDate
+      ✓ formats date correctly (3 ms)
+      ✕ handles null input (5 ms)
+      ✓ handles invalid date (2 ms)
+    validateEmail
+      ✓ returns true for valid email (1 ms)
+      ✕ returns false for invalid email (3 ms)
+
+  ● Helper Functions › formatDate › handles null input
+
+    TypeError: Cannot read properties of null (reading 'toISOString')
+
+      12 |   formatDate: (date) => {
+      13 |     if (!date) return 'N/A';
+    > 14 |     return date.toISOString().split('T')[0];
+         |                 ^
+      15 |   },
+
+      at formatDate (src/utils/helpers.js:14:17)
+      at Object.<anonymous> (src/utils/__tests__/helpers.test.js:15:20)
+
+  ● Helper Functions › validateEmail › returns false for invalid email
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      28 |   it('returns false for invalid email', () => {
+      29 |     const result = validateEmail('not-an-email');
+    > 30 |     expect(result).toBe(false);
+         |                    ^
+      31 |   });
+
+      at Object.<anonymous> (src/utils/__tests__/helpers.test.js:30:20)
+
+ FAIL  src/services/__tests__/api.test.js
+  API Service
+    fetchUsers
+      ✓ fetches users successfully (45 ms)
+      ✕ handles network errors (234 ms)
+    createUser
+      ✓ creates user with valid data (34 ms)
+
+  ● API Service › fetchUsers › handles network errors
+
+    Timeout - Async callback was not invoked within the 5000 ms timeout specified by jest.setTimeout.
+
+      at Object.<anonymous> (src/services/__tests__/api.test.js:23:3)
+
+ FAIL  src/components/__tests__/Modal.test.js
+  ● Test suite failed to run
+
+    Cannot find module '../Modal' from 'Modal.test.js'
+
+      1 | import React from 'react';
+    > 2 | import Modal from '../Modal';
+        | ^
+      3 | import { render, screen } from '@testing-library/react';
+
+      at Resolver.resolveModule (node_modules/jest-resolve/build/resolver.js:311:11)
+      at Object.<anonymous> (src/components/__tests__/Modal.test.js:2:1)
+
+Test Suites: 3 failed, 1 passed, 4 total
+Tests:       3 failed, 8 passed, 11 total
+Snapshots:   0 total
+Time:        5.678 s
+Ran all test suites.

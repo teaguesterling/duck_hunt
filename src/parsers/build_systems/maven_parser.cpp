@@ -40,14 +40,14 @@ std::vector<ValidationEvent> MavenParser::parse(const std::string& content) cons
             event.event_id = event_id++;
             event.tool_name = "maven-compiler";
             event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = match[1].str();
-            event.line_number = std::stoi(match[3].str());
-            event.column_number = std::stoi(match[4].str());
+            event.ref_file = match[1].str();
+            event.ref_line = std::stoi(match[3].str());
+            event.ref_column = std::stoi(match[4].str());
             event.status = ValidationEventStatus::ERROR;
             event.severity = "error";
             event.category = "compilation";
             event.message = match[5].str();
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "maven_build";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -58,14 +58,14 @@ std::vector<ValidationEvent> MavenParser::parse(const std::string& content) cons
             event.event_id = event_id++;
             event.tool_name = "maven-compiler";
             event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = match[1].str();
-            event.line_number = std::stoi(match[3].str());
-            event.column_number = std::stoi(match[4].str());
+            event.ref_file = match[1].str();
+            event.ref_line = std::stoi(match[3].str());
+            event.ref_column = std::stoi(match[4].str());
             event.status = ValidationEventStatus::WARNING;
             event.severity = "warning";
             event.category = "compilation";
             event.message = match[5].str();
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "maven_build";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -85,7 +85,7 @@ std::vector<ValidationEvent> MavenParser::parse(const std::string& content) cons
             std::string failure_type = match[4].str();
             std::transform(failure_type.begin(), failure_type.end(), failure_type.begin(), ::tolower);
             event.message = "Test " + failure_type;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "maven_build";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -98,15 +98,15 @@ std::vector<ValidationEvent> MavenParser::parse(const std::string& content) cons
             event.event_id = event_id++;
             event.tool_name = "checkstyle";
             event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = match[2].str();
-            event.line_number = std::stoi(match[3].str());
-            event.column_number = -1;
+            event.ref_file = match[2].str();
+            event.ref_line = std::stoi(match[3].str());
+            event.ref_column = -1;
             event.status = (match[1].str() == "ERROR") ? ValidationEventStatus::ERROR : ValidationEventStatus::WARNING;
             event.severity = (match[1].str() == "ERROR") ? "error" : "warning";
             event.category = "style";
             event.message = match[4].str();
             event.error_code = match[5].str();
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "maven_build";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -124,7 +124,7 @@ std::vector<ValidationEvent> MavenParser::parse(const std::string& content) cons
             event.category = "static_analysis";
             event.message = match[3].str();
             event.error_code = match[5].str();
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "maven_build";
 
             if (event.error_code.find("SQL") != std::string::npos) {
@@ -144,15 +144,15 @@ std::vector<ValidationEvent> MavenParser::parse(const std::string& content) cons
             event.event_id = event_id++;
             event.tool_name = "pmd";
             event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = match[2].str();
-            event.line_number = std::stoi(match[3].str());
-            event.column_number = -1;
+            event.ref_file = match[2].str();
+            event.ref_line = std::stoi(match[3].str());
+            event.ref_column = -1;
             event.status = (match[1].str() == "ERROR") ? ValidationEventStatus::ERROR : ValidationEventStatus::WARNING;
             event.severity = (match[1].str() == "ERROR") ? "error" : "warning";
             event.category = "code_quality";
             event.message = match[4].str();
             event.error_code = match[5].str();
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "maven_build";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -167,7 +167,7 @@ std::vector<ValidationEvent> MavenParser::parse(const std::string& content) cons
             event.severity = "warning";
             event.category = "dependency";
             event.message = match[1].str();
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "maven_build";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -182,7 +182,7 @@ std::vector<ValidationEvent> MavenParser::parse(const std::string& content) cons
             event.severity = "error";
             event.category = "build_failure";
             event.message = "Maven build failed";
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "maven_build";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -206,7 +206,7 @@ std::vector<ValidationEvent> MavenParser::parse(const std::string& content) cons
                                " total, " + std::to_string(failures) + " failures, " +
                                std::to_string(errors) + " errors, " +
                                std::to_string(skipped) + " skipped";
-                event.raw_output = content;
+                event.log_content = content;
                 event.structured_data = "maven_build";
                 events.push_back(event);
             }

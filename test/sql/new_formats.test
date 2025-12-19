@@ -49,7 +49,7 @@ cargo_test
 
 # Test 5: RuboCop field validation
 query IIII
-SELECT file_path, line_number, error_code, severity
+SELECT ref_file, ref_line, error_code, severity
 FROM parse_duck_hunt_log('{"files":[{"path":"/src/test.rb","offenses":[{"severity":"convention","cop_name":"Style/TestRule","message":"Test convention","location":{"start_line":5,"start_column":10}}]}]}', 'rubocop_json');
 ----
 /src/test.rb	5	Style/TestRule	convention
@@ -119,7 +119,7 @@ test
 
 # Test 15: RuboCop location parsing
 query II
-SELECT line_number, column_number FROM parse_duck_hunt_log('{"files":[{"path":"test.rb","offenses":[{"severity":"error","cop_name":"TestCop","message":"Test","location":{"start_line":15,"start_column":25}}]}]}', 'rubocop_json');
+SELECT ref_line, ref_column FROM parse_duck_hunt_log('{"files":[{"path":"test.rb","offenses":[{"severity":"error","cop_name":"TestCop","message":"Test","location":{"start_line":15,"start_column":25}}]}]}', 'rubocop_json');
 ----
 15	25
 
@@ -167,14 +167,14 @@ phpstan
 
 # Test 20: SwiftLint field validation
 query IIII
-SELECT file_path, line_number, error_code, severity
+SELECT ref_file, ref_line, error_code, severity
 FROM parse_duck_hunt_log('[{"file":"/src/Test.swift","rule_id":"force_cast","severity":"error","reason":"Force casts should be avoided","line":10,"column":5}]', 'swiftlint_json');
 ----
 /src/Test.swift	10	force_cast	error
 
 # Test 21: PHPStan field validation
 query IIII
-SELECT file_path, line_number, status, category
+SELECT ref_file, ref_line, status, category
 FROM parse_duck_hunt_log('{"files":{"/src/Test.php":{"messages":[{"message":"Test error","line":25,"ignorable":false}]}}}', 'phpstan_json');
 ----
 /src/Test.php	25	ERROR	static_analysis
@@ -228,7 +228,7 @@ shellcheck
 
 # Test 28: ShellCheck field validation
 query IIII
-SELECT file_path, line_number, error_code, severity
+SELECT ref_file, ref_line, error_code, severity
 FROM parse_duck_hunt_log('[{"file":"/src/script.sh","line":10,"column":5,"level":"warning","code":"SC2034","message":"Variable unused"}]', 'shellcheck_json');
 ----
 /src/script.sh	10	SC2034	warning
@@ -278,7 +278,7 @@ stylelint
 
 # Test 34: stylelint field validation
 query IIII
-SELECT file_path, line_number, error_code, severity
+SELECT ref_file, ref_line, error_code, severity
 FROM parse_duck_hunt_log('[{"source":"/styles/main.css","warnings":[{"line":10,"column":5,"rule":"color-no-invalid-hex","severity":"error","text":"Invalid hex color"}]}]', 'stylelint_json');
 ----
 /styles/main.css	10	color-no-invalid-hex	error
@@ -324,7 +324,7 @@ clippy
 
 # Test 40: Clippy field validation
 query IIII
-SELECT file_path, line_number, error_code, severity
+SELECT ref_file, ref_line, error_code, severity
 FROM parse_duck_hunt_log('{"message":{"message":"test warning","code":{"code":"test_lint"},"spans":[{"file_name":"src/test.rs","line_start":10,"column_start":5,"is_primary":true}],"level":"warn"}}', 'clippy_json');
 ----
 src/test.rs	10	test_lint	warn
@@ -371,7 +371,7 @@ markdownlint
 
 # Test 46: markdownlint field validation
 query IIII
-SELECT file_path, line_number, error_code, category
+SELECT ref_file, ref_line, error_code, category
 FROM parse_duck_hunt_log('[{"fileName":"docs/README.md","lineNumber":5,"ruleNames":["MD032","blanks-around-lists"],"ruleDescription":"Lists should be surrounded by blank lines"}]', 'markdownlint_json');
 ----
 docs/README.md	5	MD032	documentation
@@ -409,7 +409,7 @@ yamllint
 
 # Test 51: yamllint field validation
 query IIII
-SELECT file_path, line_number, error_code, category
+SELECT ref_file, ref_line, error_code, category
 FROM parse_duck_hunt_log('[{"file":"config.yaml","line":5,"column":10,"level":"error","rule":"line_length","message":"line too long"}]', 'yamllint_json');
 ----
 config.yaml	5	line_length	configuration
@@ -445,7 +445,7 @@ bandit
 
 # Test 55: Bandit field validation
 query IIII
-SELECT file_path, line_number, error_code, severity
+SELECT ref_file, ref_line, error_code, severity
 FROM parse_duck_hunt_log('{"results":[{"filename":"src/auth.py","line_number":45,"test_id":"B608","issue_severity":"HIGH","issue_confidence":"HIGH","issue_text":"SQL injection vulnerability"}]}', 'bandit_json');
 ----
 src/auth.py	45	B608	HIGH
@@ -501,7 +501,7 @@ spotbugs
 
 # Test 62: SpotBugs field validation
 query IIII
-SELECT file_path, line_number, error_code, category
+SELECT ref_file, ref_line, error_code, category
 FROM parse_duck_hunt_log('{"BugCollection":{"BugInstance":[{"type":"SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE","priority":"1","category":"SECURITY","ShortMessage":"SQL injection","SourceLine":{"sourcepath":"com/example/Database.java","start":"45","primary":true}}]}}', 'spotbugs_json');
 ----
 com/example/Database.java	45	SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE	security
@@ -560,7 +560,7 @@ ktlint
 
 # Test 69: ktlint field validation
 query IIIII
-SELECT file_path, line_number, column_number, error_code, category
+SELECT ref_file, ref_line, ref_column, error_code, category
 FROM parse_duck_hunt_log('[{"file":"src/main/kotlin/Example.kt","errors":[{"line":15,"column":25,"message":"Unnecessary semicolon","rule":"no-semi"}]}]', 'ktlint_json');
 ----
 src/main/kotlin/Example.kt	15	25	no-semi	code_style
@@ -588,8 +588,8 @@ code_style
 
 # Test 73: ktlint multi-file parsing
 query II
-SELECT file_path, COUNT(*) as error_count FROM parse_duck_hunt_log('[{"file":"File1.kt","errors":[{"line":1,"column":1,"message":"Error 1","rule":"rule1"}]},{"file":"File2.kt","errors":[{"line":2,"column":2,"message":"Error 2","rule":"rule2"},{"line":3,"column":3,"message":"Error 3","rule":"rule3"}]}]', 'ktlint_json')
-GROUP BY file_path ORDER BY file_path;
+SELECT ref_file, COUNT(*) as error_count FROM parse_duck_hunt_log('[{"file":"File1.kt","errors":[{"line":1,"column":1,"message":"Error 1","rule":"rule1"}]},{"file":"File2.kt","errors":[{"line":2,"column":2,"message":"Error 2","rule":"rule2"},{"line":3,"column":3,"message":"Error 3","rule":"rule3"}]}]', 'ktlint_json')
+GROUP BY ref_file ORDER BY ref_file;
 ----
 File1.kt	1
 File2.kt	2
@@ -618,7 +618,7 @@ hadolint
 
 # Test 76: hadolint field validation
 query IIIII
-SELECT file_path, line_number, column_number, error_code, category
+SELECT ref_file, ref_line, ref_column, error_code, category
 FROM parse_duck_hunt_log('[{"file":"Dockerfile","line":5,"column":1,"level":"warning","code":"DL3008","message":"Pin versions in apt get install"}]', 'hadolint_json');
 ----
 Dockerfile	5	1	DL3008	dockerfile
@@ -647,8 +647,8 @@ dockerfile
 
 # Test 80: hadolint multi-file Docker project
 query II
-SELECT file_path, COUNT(*) as issue_count FROM parse_duck_hunt_log('[{"file":"Dockerfile","line":1,"column":1,"level":"error","code":"DL3006","message":"Issue 1"},{"file":"Dockerfile.prod","line":2,"column":1,"level":"warning","code":"DL3008","message":"Issue 2"},{"file":"docker/app/Dockerfile","line":3,"column":1,"level":"info","code":"DL3009","message":"Issue 3"}]', 'hadolint_json')
-GROUP BY file_path ORDER BY file_path;
+SELECT ref_file, COUNT(*) as issue_count FROM parse_duck_hunt_log('[{"file":"Dockerfile","line":1,"column":1,"level":"error","code":"DL3006","message":"Issue 1"},{"file":"Dockerfile.prod","line":2,"column":1,"level":"warning","code":"DL3008","message":"Issue 2"},{"file":"docker/app/Dockerfile","line":3,"column":1,"level":"info","code":"DL3009","message":"Issue 3"}]', 'hadolint_json')
+GROUP BY ref_file ORDER BY ref_file;
 ----
 Dockerfile	1
 Dockerfile.prod	1
@@ -677,7 +677,7 @@ lintr
 
 # Test 83: lintr field validation
 query IIIII
-SELECT file_path, line_number, column_number, error_code, category
+SELECT ref_file, ref_line, ref_column, error_code, category
 FROM parse_duck_hunt_log('[{"filename":"analysis/script.R","line_number":15,"column_number":8,"type":"warning","message":"Line too long","linter":"line_length_linter"}]', 'lintr_json');
 ----
 analysis/script.R	15	8	line_length_linter	r_code_style
@@ -711,8 +711,8 @@ Code: calculateMean <- function(x) {
 
 # Test 88: lintr multi-file R project
 query II
-SELECT file_path, COUNT(*) as issue_count FROM parse_duck_hunt_log('[{"filename":"analysis/data.R","line_number":1,"column_number":1,"type":"style","message":"Issue 1","linter":"linter1"},{"filename":"models/regression.R","line_number":2,"column_number":2,"type":"warning","message":"Issue 2","linter":"linter2"},{"filename":"utils/helpers.R","line_number":3,"column_number":3,"type":"error","message":"Issue 3","linter":"linter3"}]', 'lintr_json')
-GROUP BY file_path ORDER BY file_path;
+SELECT ref_file, COUNT(*) as issue_count FROM parse_duck_hunt_log('[{"filename":"analysis/data.R","line_number":1,"column_number":1,"type":"style","message":"Issue 1","linter":"linter1"},{"filename":"models/regression.R","line_number":2,"column_number":2,"type":"warning","message":"Issue 2","linter":"linter2"},{"filename":"utils/helpers.R","line_number":3,"column_number":3,"type":"error","message":"Issue 3","linter":"linter3"}]', 'lintr_json')
+GROUP BY ref_file ORDER BY ref_file;
 ----
 analysis/data.R	1
 models/regression.R	1
@@ -739,7 +739,7 @@ sqlfluff
 
 # Test 91: sqlfluff field validation
 query IIIII
-SELECT file_path, line_number, column_number, error_code, category
+SELECT ref_file, ref_line, ref_column, error_code, category
 FROM parse_duck_hunt_log('[{"filepath":"queries/analytics.sql","violations":[{"line_no":10,"line_pos":5,"code":"L010","description":"Keywords must be consistently upper case","rule":"capitalisation.keywords"}]}]', 'sqlfluff_json');
 ----
 queries/analytics.sql	10	5	L010	sql_style
@@ -770,8 +770,8 @@ Rule: indentation
 
 # Test 96: sqlfluff multi-file SQL project
 query II
-SELECT file_path, COUNT(*) as violation_count FROM parse_duck_hunt_log('[{"filepath":"queries/users.sql","violations":[{"line_no":1,"line_pos":1,"code":"L001","description":"Issue 1","rule":"rule1"}]},{"filepath":"migrations/schema.sql","violations":[{"line_no":2,"line_pos":2,"code":"L002","description":"Issue 2","rule":"rule2"},{"line_no":3,"line_pos":3,"code":"L003","description":"Issue 3","rule":"rule3"}]}]', 'sqlfluff_json')
-GROUP BY file_path ORDER BY file_path;
+SELECT ref_file, COUNT(*) as violation_count FROM parse_duck_hunt_log('[{"filepath":"queries/users.sql","violations":[{"line_no":1,"line_pos":1,"code":"L001","description":"Issue 1","rule":"rule1"}]},{"filepath":"migrations/schema.sql","violations":[{"line_no":2,"line_pos":2,"code":"L002","description":"Issue 2","rule":"rule2"},{"line_no":3,"line_pos":3,"code":"L003","description":"Issue 3","rule":"rule3"}]}]', 'sqlfluff_json')
+GROUP BY ref_file ORDER BY ref_file;
 ----
 migrations/schema.sql	2
 queries/users.sql	1
@@ -806,7 +806,7 @@ tflint
 
 # Test 100: tflint field validation
 query IIIII
-SELECT file_path, line_number, column_number, error_code, category
+SELECT ref_file, ref_line, ref_column, error_code, category
 FROM parse_duck_hunt_log('{"issues":[{"rule":{"name":"aws_instance_invalid_type","severity":"error"},"message":"Invalid instance type","range":{"filename":"main.tf","start":{"line":10,"column":5}}}]}', 'tflint_json');
 ----
 main.tf	10	5	aws_instance_invalid_type	infrastructure
@@ -840,8 +840,8 @@ Rule: terraform_deprecated_interpolation
 
 # Test 105: tflint multi-file Terraform project
 query II
-SELECT file_path, COUNT(*) as issue_count FROM parse_duck_hunt_log('{"issues":[{"rule":{"name":"rule1","severity":"error"},"message":"Issue 1","range":{"filename":"main.tf","start":{"line":1,"column":1}}},{"rule":{"name":"rule2","severity":"warning"},"message":"Issue 2","range":{"filename":"variables.tf","start":{"line":2,"column":2}}},{"rule":{"name":"rule3","severity":"notice"},"message":"Issue 3","range":{"filename":"variables.tf","start":{"line":3,"column":3}}}]}', 'tflint_json')
-GROUP BY file_path ORDER BY file_path;
+SELECT ref_file, COUNT(*) as issue_count FROM parse_duck_hunt_log('{"issues":[{"rule":{"name":"rule1","severity":"error"},"message":"Issue 1","range":{"filename":"main.tf","start":{"line":1,"column":1}}},{"rule":{"name":"rule2","severity":"warning"},"message":"Issue 2","range":{"filename":"variables.tf","start":{"line":2,"column":2}}},{"rule":{"name":"rule3","severity":"notice"},"message":"Issue 3","range":{"filename":"variables.tf","start":{"line":3,"column":3}}}]}', 'tflint_json')
+GROUP BY ref_file ORDER BY ref_file;
 ----
 main.tf	1
 variables.tf	2
@@ -875,7 +875,7 @@ kube-score
 
 # Test 109: kube-score field validation
 query IIIII
-SELECT file_path, line_number, error_code, category, function_name
+SELECT ref_file, ref_line, error_code, category, function_name
 FROM parse_duck_hunt_log('[{"object_name":"my-app","type_meta":{"kind":"Deployment"},"file_name":"deployment.yaml","file_row":5,"checks":[{"check":{"id":"container-security-context","name":"Container Security"},"grade":"CRITICAL","comments":[{"summary":"Container runs as root"}]}]}]', 'kube_score_json');
 ----
 deployment.yaml	5	container-security-context	kubernetes	my-app (Deployment)
@@ -952,14 +952,14 @@ cmake
 
 # Test 119: CMake compilation error parsing
 query IIIII
-SELECT file_path, line_number, column_number, category, severity
+SELECT ref_file, ref_line, ref_column, category, severity
 FROM parse_duck_hunt_log('/home/user/src/main.cpp:15:10: error: iostream file not found', 'cmake_build');
 ----
 /home/user/src/main.cpp	15	10	compilation	error
 
 # Test 120: CMake configuration error parsing
 query IIII
-SELECT file_path, line_number, category, message LIKE '%Could not find%' as has_package_error
+SELECT ref_file, ref_line, category, message LIKE '%Could not find%' as has_package_error
 FROM parse_duck_hunt_log('CMake Error at CMakeLists.txt:25 (find_package):
   Could not find a package configuration file provided by "Boost"', 'cmake_build');
 ----
@@ -1020,11 +1020,11 @@ linking
 
 # Test 125: CMake multi-file project errors
 query II
-SELECT file_path, COUNT(*) as error_count FROM parse_duck_hunt_log('/home/main.cpp:10:5: error: syntax error
+SELECT ref_file, COUNT(*) as error_count FROM parse_duck_hunt_log('/home/main.cpp:10:5: error: syntax error
 /home/utils.cpp:15:8: warning: unused variable
 /home/config.cpp:20:1: error: missing semicolon', 'cmake_build')
-WHERE file_path IS NOT NULL
-GROUP BY file_path ORDER BY file_path;
+WHERE ref_file IS NOT NULL
+GROUP BY ref_file ORDER BY ref_file;
 ----
 /home/config.cpp	1
 /home/main.cpp	1

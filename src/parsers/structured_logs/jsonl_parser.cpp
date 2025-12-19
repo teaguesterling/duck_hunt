@@ -54,8 +54,8 @@ static ValidationEvent ParseJsonLine(const std::string& line, int64_t event_id, 
     event.log_line_start = line_number;
     event.log_line_end = line_number;
     event.execution_time = 0.0;
-    event.line_number = -1;
-    event.column_number = -1;
+    event.ref_line = -1;
+    event.ref_column = -1;
 
     yyjson_doc *doc = yyjson_read(line.c_str(), line.length(), 0);
     if (!doc) {
@@ -101,10 +101,10 @@ static ValidationEvent ParseJsonLine(const std::string& line, int64_t event_id, 
     }
 
     // Extract file path if present
-    event.file_path = ExtractStringField(root, {"file", "file_path", "filepath", "filename", "source", "caller"});
+    event.ref_file = ExtractStringField(root, {"file", "file_path", "filepath", "filename", "source", "caller"});
 
     // Extract line number if present
-    event.line_number = ExtractIntField(root, {"line", "line_number", "lineno", "lineNumber"}, -1);
+    event.ref_line = ExtractIntField(root, {"line", "line_number", "lineno", "lineNumber"}, -1);
 
     // Extract category/logger name
     event.category = ExtractStringField(root, {"logger", "name", "category", "component", "service", "module"});
@@ -113,7 +113,7 @@ static ValidationEvent ParseJsonLine(const std::string& line, int64_t event_id, 
     }
 
     // Store the raw JSON line
-    event.raw_output = line;
+    event.log_content = line;
 
     yyjson_doc_free(doc);
     return event;

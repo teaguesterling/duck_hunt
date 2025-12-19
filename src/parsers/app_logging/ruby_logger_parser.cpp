@@ -45,8 +45,8 @@ static bool ParseRubyLoggerLine(const std::string& line, ValidationEvent& event,
     event.log_line_start = line_number;
     event.log_line_end = line_number;
     event.execution_time = 0.0;
-    event.line_number = -1;
-    event.column_number = -1;
+    event.ref_line = -1;
+    event.ref_column = -1;
 
     char level_char = match[1].str()[0];
     event.started_at = match[2].str();
@@ -66,7 +66,7 @@ static bool ParseRubyLoggerLine(const std::string& line, ValidationEvent& event,
     json += "}";
     event.structured_data = json;
 
-    event.raw_output = line;
+    event.log_content = line;
     return true;
 }
 

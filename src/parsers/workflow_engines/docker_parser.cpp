@@ -334,7 +334,7 @@ std::vector<WorkflowEvent> DockerParser::convertToEvents(const std::vector<Docke
                     // Override specific fields in base_event (Schema V2)
                     event.base_event.status = ValidationEventStatus::INFO;
                     event.base_event.severity = determineSeverity(layer.status, output_line);
-                    event.base_event.file_path = build.dockerfile_path;
+                    event.base_event.ref_file = build.dockerfile_path;
                     event.base_event.function_name = layer.command;
                     event.base_event.category = "docker_build";
                     event.base_event.scope = "Docker Build";

@@ -1,0 +1,16 @@
+myapp/services/user_service.py:15: error: Incompatible types in assignment (expression has type "str", variable has type "int")  [assignment]
+myapp/services/user_service.py:23: error: Argument 1 to "process" has incompatible type "None"; expected "str"  [arg-type]
+myapp/services/user_service.py:34: error: Missing return statement  [return]
+myapp/services/user_service.py:45: error: "User" has no attribute "save_to_db"  [attr-defined]
+myapp/utils/helpers.py:12: error: Cannot find implementation or library stub for module named "missing_module"  [import]
+myapp/utils/helpers.py:23: error: Function is missing a return type annotation  [no-untyped-def]
+myapp/utils/helpers.py:34: note: Revealed type is "builtins.str"
+myapp/utils/helpers.py:45: error: Incompatible return value type (got "Optional[str]", expected "str")  [return-value]
+myapp/utils/helpers.py:56: error: Item "None" of "Optional[str]" has no attribute "upper"  [union-attr]
+myapp/api/endpoints.py:23: error: Value of type "Optional[User]" is not indexable  [index]
+myapp/api/endpoints.py:34: error: Argument "user_id" to "get_user" has incompatible type "str"; expected "int"  [arg-type]
+myapp/api/endpoints.py:45: error: Unsupported operand types for + ("int" and "str")  [operator]
+myapp/api/endpoints.py:56: warning: Unused "type: ignore" comment  [unused-ignore]
+myapp/models/user.py:12: error: Class "User" has no attribute "objects"  [attr-defined]
+myapp/models/user.py:23: error: Need type annotation for "cache" (hint: "cache: Dict[<type>, <type>] = ...")  [var-annotated]
+Found 14 errors in 4 files (checked 8 source files)

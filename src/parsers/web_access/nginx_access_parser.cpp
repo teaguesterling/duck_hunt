@@ -41,8 +41,8 @@ static bool ParseNginxAccessLine(const std::string& line, ValidationEvent& event
     event.event_type = ValidationEventType::DEBUG_INFO;
     event.log_line_start = line_number;
     event.log_line_end = line_number;
-    event.line_number = -1;
-    event.column_number = -1;
+    event.ref_line = -1;
+    event.ref_column = -1;
 
     // Extract fields
     std::string ip_address = match[1].str();
@@ -57,7 +57,7 @@ static bool ParseNginxAccessLine(const std::string& line, ValidationEvent& event
 
     // Field mappings - using new Phase 4 columns
     event.started_at = timestamp;              // Timestamp (proper column)
-    event.file_path = path;                    // Request path = "file" being accessed
+    event.ref_file = path;                    // Request path = "file" being accessed
     event.category = method;                   // HTTP method as category
     event.error_code = status_str;             // Status code as error_code
     event.message = method + " " + path;       // Human-readable summary
@@ -111,7 +111,7 @@ static bool ParseNginxAccessLine(const std::string& line, ValidationEvent& event
     json += "}";
     event.structured_data = json;
 
-    event.raw_output = line;
+    event.log_content = line;
     return true;
 }
 

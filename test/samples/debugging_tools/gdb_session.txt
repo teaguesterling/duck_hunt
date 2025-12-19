@@ -1,0 +1,62 @@
+GNU gdb (Ubuntu 12.1-0ubuntu1) 12.1
+Copyright (C) 2022 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "x86_64-linux-gnu".
+Reading symbols from ./myapp...
+(gdb) run --config=test.conf
+Starting program: /home/user/project/myapp --config=test.conf
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+[New Thread 0x7ffff7a00700 (LWP 12346)]
+[New Thread 0x7ffff7200700 (LWP 12347)]
+Application initialized
+
+Program received signal SIGSEGV, Segmentation fault.
+0x0000555555556789 in process_data (data=0x0, size=1024) at src/processor.cpp:45
+45	    memcpy(buffer, data, size);
+(gdb) bt
+#0  0x0000555555556789 in process_data (data=0x0, size=1024) at src/processor.cpp:45
+#1  0x0000555555557890 in handle_request (req=0x7fffffffde80) at src/handler.cpp:123
+#2  0x0000555555558901 in main_loop () at src/main.cpp:78
+#3  0x0000555555559012 in main (argc=2, argv=0x7fffffffe0a8) at src/main.cpp:156
+(gdb) frame 1
+#1  0x0000555555557890 in handle_request (req=0x7fffffffde80) at src/handler.cpp:123
+123	    result = process_data(req->payload, req->size);
+(gdb) print req->payload
+$1 = (char *) 0x0
+(gdb) print req->size
+$2 = 1024
+(gdb) info locals
+result = <optimized out>
+temp_buffer = {0x7fffffffd000, 256}
+(gdb) list
+118	int handle_request(Request* req) {
+119	    int result;
+120	    char temp_buffer[256];
+121
+122	    // BUG: payload might be NULL
+123	    result = process_data(req->payload, req->size);
+124
+125	    if (result < 0) {
+126	        return -1;
+127	    }
+(gdb) watch req->payload
+Hardware watchpoint 1: req->payload
+(gdb) continue
+Continuing.
+
+Thread 1 "myapp" received signal SIGABRT, Aborted.
+0x00007ffff7a42e87 in raise () from /lib/x86_64-linux-gnu/libc.so.6
+(gdb) bt full
+#0  0x00007ffff7a42e87 in raise () from /lib/x86_64-linux-gnu/libc.so.6
+#1  0x00007ffff7a447ec in abort () from /lib/x86_64-linux-gnu/libc.so.6
+#2  0x0000555555555abc in __assert_fail_custom (msg=0x55555555d000 "buffer != nullptr") at src/utils.cpp:34
+        buf = "Assertion failed: buffer != nullptr at src/utils.cpp:34\n"
+#3  0x0000555555556def in allocate_buffer (size=4096) at src/memory.cpp:67
+        ptr = 0x0
+#4  0x0000555555557012 in initialize () at src/init.cpp:23
+No locals.
+(gdb) quit

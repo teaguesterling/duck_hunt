@@ -64,15 +64,15 @@ void PytestCovTextParser::ParsePytestCovText(const std::string& content, std::ve
             event.event_id = event_id++;
             event.tool_name = "pytest-cov";
             event.event_type = duckdb::ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = duckdb::ValidationEventStatus::INFO;
             event.severity = "info";
             event.category = "test_session";
             event.message = "Test session started";
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "pytest_cov_text";
 
             events.push_back(event);
@@ -85,15 +85,15 @@ void PytestCovTextParser::ParsePytestCovText(const std::string& content, std::ve
             event.event_id = event_id++;
             event.tool_name = "pytest-cov";
             event.event_type = duckdb::ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = duckdb::ValidationEventStatus::INFO;
             event.severity = "info";
             event.category = "environment";
             event.message = "Platform: " + match[1].str() + ", Python: " + match[2].str() + ", pytest: " + match[3].str();
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "pytest_cov_text";
 
             events.push_back(event);
@@ -106,15 +106,15 @@ void PytestCovTextParser::ParsePytestCovText(const std::string& content, std::ve
             event.event_id = event_id++;
             event.tool_name = "pytest-cov";
             event.event_type = duckdb::ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = duckdb::ValidationEventStatus::INFO;
             event.severity = "info";
             event.category = "plugin";
             event.message = "pytest-cov plugin version: " + match[1].str();
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "pytest_cov_text";
 
             events.push_back(event);
@@ -127,15 +127,15 @@ void PytestCovTextParser::ParsePytestCovText(const std::string& content, std::ve
             event.event_id = event_id++;
             event.tool_name = "pytest-cov";
             event.event_type = duckdb::ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = duckdb::ValidationEventStatus::INFO;
             event.severity = "info";
             event.category = "test_collection";
             event.message = "Collected " + match[1].str() + " test items";
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "pytest_cov_text";
 
             events.push_back(event);
@@ -149,9 +149,9 @@ void PytestCovTextParser::ParsePytestCovText(const std::string& content, std::ve
             event.event_id = event_id++;
             event.tool_name = "pytest-cov";
             event.event_type = duckdb::ValidationEventType::TEST_RESULT;
-            event.file_path = match[1].str();
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = match[1].str();
+            event.ref_line = -1;
+            event.ref_column = -1;
 
             std::string status = match[3].str();
             if (status == "PASSED") {
@@ -171,7 +171,7 @@ void PytestCovTextParser::ParsePytestCovText(const std::string& content, std::ve
             event.category = "test_execution";
             event.message = "Test " + match[2].str() + " " + status;
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "pytest_cov_text";
 
             events.push_back(event);
@@ -197,9 +197,9 @@ void PytestCovTextParser::ParsePytestCovText(const std::string& content, std::ve
             event.event_id = event_id++;
             event.tool_name = "pytest-cov";
             event.event_type = duckdb::ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
 
             std::string failed = match[1].str();
             std::string passed = match[2].str();
@@ -217,7 +217,7 @@ void PytestCovTextParser::ParsePytestCovText(const std::string& content, std::ve
             event.category = "test_summary";
             event.message = "Tests completed: " + failed + " failed, " + passed + " passed, " + skipped + " skipped in " + duration + "s";
             event.execution_time = std::stod(duration);
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "pytest_cov_text";
 
             events.push_back(event);
@@ -232,15 +232,15 @@ void PytestCovTextParser::ParsePytestCovText(const std::string& content, std::ve
             event.event_id = event_id++;
             event.tool_name = "pytest-cov";
             event.event_type = duckdb::ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = duckdb::ValidationEventStatus::INFO;
             event.severity = "info";
             event.category = "coverage_section";
             event.message = "Coverage analysis started - Platform: " + match[1].str() + ", Python: " + match[2].str();
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "pytest_cov_text";
 
             events.push_back(event);
@@ -266,9 +266,9 @@ void PytestCovTextParser::ParsePytestCovText(const std::string& content, std::ve
             event.event_id = event_id++;
             event.tool_name = "pytest-cov";
             event.event_type = duckdb::ValidationEventType::PERFORMANCE_METRIC;
-            event.file_path = match[1].str();
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = match[1].str();
+            event.ref_line = -1;
+            event.ref_column = -1;
 
             std::string statements = match[2].str();
             std::string missed = match[3].str();
@@ -298,7 +298,7 @@ void PytestCovTextParser::ParsePytestCovText(const std::string& content, std::ve
             }
 
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "pytest_cov_text";
 
             events.push_back(event);
@@ -311,9 +311,9 @@ void PytestCovTextParser::ParsePytestCovText(const std::string& content, std::ve
             event.event_id = event_id++;
             event.tool_name = "pytest-cov";
             event.event_type = duckdb::ValidationEventType::PERFORMANCE_METRIC;
-            event.file_path = match[1].str();
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = match[1].str();
+            event.ref_line = -1;
+            event.ref_column = -1;
 
             std::string statements = match[2].str();
             std::string missed = match[3].str();
@@ -345,7 +345,7 @@ void PytestCovTextParser::ParsePytestCovText(const std::string& content, std::ve
             }
 
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "pytest_cov_text";
 
             events.push_back(event);
@@ -358,9 +358,9 @@ void PytestCovTextParser::ParsePytestCovText(const std::string& content, std::ve
             event.event_id = event_id++;
             event.tool_name = "pytest-cov";
             event.event_type = duckdb::ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
 
             std::string statements = match[1].str();
             std::string missed = match[2].str();
@@ -385,7 +385,7 @@ void PytestCovTextParser::ParsePytestCovText(const std::string& content, std::ve
             event.category = "total_coverage";
             event.message = "Total coverage: " + coverage_pct + " (" + statements + " statements, " + missed + " missed)";
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "pytest_cov_text";
 
             events.push_back(event);
@@ -398,9 +398,9 @@ void PytestCovTextParser::ParsePytestCovText(const std::string& content, std::ve
             event.event_id = event_id++;
             event.tool_name = "pytest-cov";
             event.event_type = duckdb::ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
 
             std::string statements = match[1].str();
             std::string missed = match[2].str();
@@ -427,7 +427,7 @@ void PytestCovTextParser::ParsePytestCovText(const std::string& content, std::ve
             event.category = "total_branch_coverage";
             event.message = "Total branch coverage: " + coverage_pct + " (" + statements + " statements, " + missed + " missed, " + branches + " branches, " + partial + " partial)";
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "pytest_cov_text";
 
             events.push_back(event);
@@ -440,15 +440,15 @@ void PytestCovTextParser::ParsePytestCovText(const std::string& content, std::ve
             event.event_id = event_id++;
             event.tool_name = "pytest-cov";
             event.event_type = duckdb::ValidationEventType::LINT_ISSUE;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = duckdb::ValidationEventStatus::FAIL;
             event.severity = "error";
             event.category = "coverage_threshold";
             event.message = "Coverage threshold failed: Expected >= " + match[1].str() + "%, got " + match[2].str();
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "pytest_cov_text";
 
             events.push_back(event);
@@ -460,15 +460,15 @@ void PytestCovTextParser::ParsePytestCovText(const std::string& content, std::ve
             event.event_id = event_id++;
             event.tool_name = "pytest-cov";
             event.event_type = duckdb::ValidationEventType::LINT_ISSUE;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = duckdb::ValidationEventStatus::FAIL;
             event.severity = "error";
             event.category = "coverage_threshold";
             event.message = "Required coverage not met: Expected " + match[1].str() + "%, got " + match[2].str();
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "pytest_cov_text";
 
             events.push_back(event);
@@ -481,15 +481,15 @@ void PytestCovTextParser::ParsePytestCovText(const std::string& content, std::ve
             event.event_id = event_id++;
             event.tool_name = "pytest-cov";
             event.event_type = duckdb::ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = duckdb::ValidationEventStatus::INFO;
             event.severity = "info";
             event.category = "report_generation";
             event.message = "Coverage XML report written to: " + match[1].str();
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "pytest_cov_text";
 
             events.push_back(event);
@@ -501,15 +501,15 @@ void PytestCovTextParser::ParsePytestCovText(const std::string& content, std::ve
             event.event_id = event_id++;
             event.tool_name = "pytest-cov";
             event.event_type = duckdb::ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = duckdb::ValidationEventStatus::INFO;
             event.severity = "info";
             event.category = "report_generation";
             event.message = "Coverage HTML report written to: " + match[1].str();
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "pytest_cov_text";
 
             events.push_back(event);
@@ -522,15 +522,15 @@ void PytestCovTextParser::ParsePytestCovText(const std::string& content, std::ve
             event.event_id = event_id++;
             event.tool_name = "pytest-cov";
             event.event_type = duckdb::ValidationEventType::TEST_RESULT;
-            event.file_path = current_test_file;
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = current_test_file;
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = duckdb::ValidationEventStatus::FAIL;
             event.severity = "error";
             event.category = "assertion_error";
             event.message = match[1].str();
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "pytest_cov_text";
 
             events.push_back(event);
@@ -543,15 +543,15 @@ void PytestCovTextParser::ParsePytestCovText(const std::string& content, std::ve
             event.event_id = event_id++;
             event.tool_name = "pytest-cov";
             event.event_type = duckdb::ValidationEventType::BUILD_ERROR;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = duckdb::ValidationEventStatus::WARNING;
             event.severity = "warning";
             event.category = "configuration";
             event.message = "Coverage data not found for source: " + match[1].str();
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "pytest_cov_text";
 
             events.push_back(event);
@@ -563,15 +563,15 @@ void PytestCovTextParser::ParsePytestCovText(const std::string& content, std::ve
             event.event_id = event_id++;
             event.tool_name = "pytest-cov";
             event.event_type = duckdb::ValidationEventType::BUILD_ERROR;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = duckdb::ValidationEventStatus::WARNING;
             event.severity = "warning";
             event.category = "configuration";
             event.message = "Module never imported: " + match[1].str();
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "pytest_cov_text";
 
             events.push_back(event);

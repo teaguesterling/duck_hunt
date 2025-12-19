@@ -159,9 +159,9 @@ std::vector<ValidationEvent> KubeScoreJSONParser::parse(const std::string& conte
                     event.tool_name = "kube-score";
                     event.event_type = ValidationEventType::LINT_ISSUE;
                     event.category = "kubernetes";
-                    event.file_path = file_name;
-                    event.line_number = line_number;
-                    event.column_number = -1;
+                    event.ref_file = file_name;
+                    event.ref_line = line_number;
+                    event.ref_column = -1;
                     event.error_code = check_id;
                     event.function_name = object_name + " (" + resource_kind + ")";
                     
@@ -196,7 +196,7 @@ std::vector<ValidationEvent> KubeScoreJSONParser::parse(const std::string& conte
                     }
                     
                     event.execution_time = 0.0;
-                    event.raw_output = content;
+                    event.log_content = content;
                     event.structured_data = "kube_score_json";
                     
                     events.push_back(event);
@@ -208,9 +208,9 @@ std::vector<ValidationEvent> KubeScoreJSONParser::parse(const std::string& conte
                 event.tool_name = "kube-score";
                 event.event_type = ValidationEventType::LINT_ISSUE;
                 event.category = "kubernetes";
-                event.file_path = file_name;
-                event.line_number = line_number;
-                event.column_number = -1;
+                event.ref_file = file_name;
+                event.ref_line = line_number;
+                event.ref_column = -1;
                 event.error_code = check_id;
                 event.function_name = object_name + " (" + resource_kind + ")";
                 event.message = check_name;
@@ -227,7 +227,7 @@ std::vector<ValidationEvent> KubeScoreJSONParser::parse(const std::string& conte
                 }
                 
                 event.execution_time = 0.0;
-                event.raw_output = content;
+                event.log_content = content;
                 event.structured_data = "kube_score_json";
                 
                 events.push_back(event);

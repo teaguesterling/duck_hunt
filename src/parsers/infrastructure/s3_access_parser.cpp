@@ -28,8 +28,8 @@ static bool ParseS3AccessLine(const std::string& line, ValidationEvent& event, i
     event.log_line_start = line_number;
     event.log_line_end = line_number;
     event.execution_time = 0.0;
-    event.line_number = -1;
-    event.column_number = -1;
+    event.ref_line = -1;
+    event.ref_column = -1;
 
     event.started_at = ts_match[1].str();
 
@@ -152,7 +152,7 @@ static bool ParseS3AccessLine(const std::string& line, ValidationEvent& event, i
     json += "}";
     event.structured_data = json;
 
-    event.raw_output = line;
+    event.log_content = line;
     return true;
 }
 

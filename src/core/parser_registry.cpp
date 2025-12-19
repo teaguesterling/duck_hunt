@@ -134,8 +134,8 @@ std::vector<IParser*> ParserRegistry::getParsersByCategory(const std::string& ca
         }
     }
 
-    // Sort by priority within category
-    std::sort(result.begin(), result.end(), [](IParser* a, IParser* b) {
+    // Sort by priority within category (stable for determinism)
+    std::stable_sort(result.begin(), result.end(), [](IParser* a, IParser* b) {
         return a->getPriority() > b->getPriority();
     });
 
@@ -214,11 +214,13 @@ void ParserRegistry::ensureSorted() const {
         sorted_parsers_.push_back(parser.get());
     }
 
-    // Sort by priority (highest first)
-    std::sort(sorted_parsers_.begin(), sorted_parsers_.end(),
-              [](IParser* a, IParser* b) {
-                  return a->getPriority() > b->getPriority();
-              });
+    // Sort by priority (highest first), using stable_sort to preserve
+    // registration order as tie-breaker when priorities are equal.
+    // This ensures deterministic detection across platforms. (Issue #21)
+    std::stable_sort(sorted_parsers_.begin(), sorted_parsers_.end(),
+                     [](IParser* a, IParser* b) {
+                         return a->getPriority() > b->getPriority();
+                     });
 
     needs_resort_ = false;
 }

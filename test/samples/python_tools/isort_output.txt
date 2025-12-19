@@ -1,0 +1,30 @@
+--- myapp/services/user_service.py:before	2024-01-15 10:00:00.000000
++++ myapp/services/user_service.py:after	2024-01-15 10:00:01.000000
+@@ -1,8 +1,9 @@
+-from typing import Optional
+-import json
+-from myapp.models import User
+ import os
+-from myapp.db import Database
+ import sys
++import json
++from typing import Optional
++
++from myapp.db import Database
++from myapp.models import User
+
+Fixing myapp/services/user_service.py
+--- myapp/api/routes.py:before	2024-01-15 10:00:00.000000
++++ myapp/api/routes.py:after	2024-01-15 10:00:01.000000
+@@ -1,6 +1,7 @@
+-from flask import Flask, request, jsonify
+ import logging
+-from myapp.services import UserService, AuthService
++
++from flask import Flask, jsonify, request
++
+ from myapp.middleware import auth_required
++from myapp.services import AuthService, UserService
+
+Fixing myapp/api/routes.py
+Skipped 12 files

@@ -36,7 +36,7 @@ struct RailsRequest {
     std::string ar_time;
     int start_line;
     int end_line;
-    std::string raw_output;
+    std::string log_content;  // Accumulated raw log content
     bool has_started;
     bool has_completed;
 };
@@ -69,10 +69,10 @@ static bool ParseRailsLine(const std::string& line, RailsRequest& request, int l
         request.timestamp = match[4].str();
         request.start_line = line_number;
         request.has_started = true;
-        if (request.raw_output.empty()) {
-            request.raw_output = line;
+        if (request.log_content.empty()) {
+            request.log_content = line;
         } else {
-            request.raw_output += "\n" + line;
+            request.log_content += "\n" + line;
         }
         return true;
     }
@@ -81,7 +81,7 @@ static bool ParseRailsLine(const std::string& line, RailsRequest& request, int l
         request.controller = match[1].str();
         request.action = match[2].str();
         request.format = match[3].str();
-        request.raw_output += "\n" + line;
+        request.log_content += "\n" + line;
         return true;
     }
 
@@ -92,7 +92,7 @@ static bool ParseRailsLine(const std::string& line, RailsRequest& request, int l
         if (match[4].matched) request.ar_time = match[4].str();
         request.end_line = line_number;
         request.has_completed = true;
-        request.raw_output += "\n" + line;
+        request.log_content += "\n" + line;
         return true;
     }
 
@@ -105,8 +105,8 @@ static void CreateEventFromRequest(const RailsRequest& request, ValidationEvent&
     event.event_type = ValidationEventType::DEBUG_INFO;
     event.log_line_start = request.start_line;
     event.log_line_end = request.end_line > 0 ? request.end_line : request.start_line;
-    event.line_number = -1;
-    event.column_number = -1;
+    event.ref_line = -1;
+    event.ref_column = -1;
 
     // Parse duration to execution_time
     if (!request.duration.empty()) {
@@ -123,7 +123,7 @@ static void CreateEventFromRequest(const RailsRequest& request, ValidationEvent&
 
     event.started_at = request.timestamp;
     event.origin = request.remote_ip;
-    event.file_path = request.path;
+    event.ref_file = request.path;
 
     if (!request.controller.empty()) {
         event.category = request.controller + "#" + request.action;
@@ -165,7 +165,7 @@ static void CreateEventFromRequest(const RailsRequest& request, ValidationEvent&
     json += "}";
     event.structured_data = json;
 
-    event.raw_output = request.raw_output;
+    event.log_content = request.log_content;
 }
 
 bool RailsLogParser::canParse(const std::string& content) const {

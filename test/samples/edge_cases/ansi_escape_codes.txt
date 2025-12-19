@@ -1,0 +1,15 @@
+[0;32m✓[0m [0;90mtest_user_creation[0m [0;90m(0.05s)[0m
+[0;32m✓[0m [0;90mtest_user_update[0m [0;90m(0.03s)[0m
+[0;31m✗[0m [0;37mtest_user_deletion[0m [0;90m(0.12s)[0m
+[1;31m  FAILED[0m
+[0;33m⚠[0m [0;90mtest_deprecated_method[0m [0;90m(0.01s)[0m [0;33m(deprecated)[0m
+
+[0;31msrc/models/user.rb:45:12:[0m [1;31merror:[0m [1mmethod 'delete' is undefined[0m
+[0;36m    45 |[0m     user.[1;31mdelete[0m()
+[0;36m       |[0m          [1;31m^^^^^^[0m
+
+[0;33msrc/services/auth.rb:123:5:[0m [1;33mwarning:[0m [1mvariable 'temp' is unused[0m
+[0;36m   123 |[0m     [0;33mtemp[0m = calculate_hash(password)
+[0;36m       |[0m     [0;33m^^^^[0m
+
+[0;34minfo:[0m Build completed with [0;31m1 error[0m and [0;33m1 warning[0m

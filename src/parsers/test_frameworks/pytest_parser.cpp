@@ -45,11 +45,11 @@ void PytestParser::parseTestLine(const std::string& line, int64_t& event_id,
     event.event_id = event_id++;
     event.tool_name = "pytest";
     event.event_type = ValidationEventType::TEST_RESULT;
-    event.line_number = -1;
-    event.column_number = -1;
+    event.ref_line = -1;
+    event.ref_column = -1;
     event.execution_time = 0.0;
     event.category = "test";
-    event.raw_output = line;
+    event.log_content = line;
     event.structured_data = "pytest_text";
     event.log_line_start = log_line_num;
     event.log_line_end = log_line_num;
@@ -78,7 +78,7 @@ void PytestParser::parseTestLine(const std::string& line, int64_t& event_id,
         // Format 2: "STATUS file.py::test_name - message"
         // Find the file path (starts after "STATUS ")
         size_t file_start = line.find(' ') + 1;
-        event.file_path = line.substr(file_start, separator - file_start);
+        event.ref_file = line.substr(file_start, separator - file_start);
 
         // Find the test name (between :: and " - " or end)
         std::string rest = line.substr(separator + 2);
@@ -94,7 +94,7 @@ void PytestParser::parseTestLine(const std::string& line, int64_t& event_id,
         }
     } else {
         // Format 1: "file.py::test_name STATUS [extra]"
-        event.file_path = line.substr(0, separator);
+        event.ref_file = line.substr(0, separator);
         std::string rest = line.substr(separator + 2);
 
         // Find the status at the end

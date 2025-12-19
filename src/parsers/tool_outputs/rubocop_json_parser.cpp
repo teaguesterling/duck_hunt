@@ -84,9 +84,9 @@ std::vector<ValidationEvent> RuboCopJSONParser::parse(const std::string& content
             event.event_id = event_id++;
             event.tool_name = "rubocop";
             event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = file_path;
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = file_path;
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.execution_time = 0.0;
             event.category = "code_quality";
             
@@ -128,15 +128,15 @@ std::vector<ValidationEvent> RuboCopJSONParser::parse(const std::string& content
                 yyjson_val *start_column = yyjson_obj_get(location, "start_column");
                 
                 if (start_line && yyjson_is_num(start_line)) {
-                    event.line_number = yyjson_get_int(start_line);
+                    event.ref_line = yyjson_get_int(start_line);
                 }
                 if (start_column && yyjson_is_num(start_column)) {
-                    event.column_number = yyjson_get_int(start_column);
+                    event.ref_column = yyjson_get_int(start_column);
                 }
             }
             
             // Set raw output and structured data
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "{\"tool\": \"rubocop\", \"cop_name\": \"" + event.error_code + "\"}";
             
             events.push_back(event);

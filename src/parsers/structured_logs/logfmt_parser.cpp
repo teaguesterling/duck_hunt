@@ -109,8 +109,8 @@ static ValidationEvent CreateEventFromFields(
     event.log_line_start = line_number;
     event.log_line_end = line_number;
     event.execution_time = 0.0;
-    event.line_number = -1;
-    event.column_number = -1;
+    event.ref_line = -1;
+    event.ref_column = -1;
 
     // Extract level/severity
     std::string level = GetFieldValue(fields, {"level", "lvl", "severity", "loglevel"});
@@ -145,7 +145,7 @@ static ValidationEvent CreateEventFromFields(
     }
 
     // Extract caller/source
-    event.file_path = GetFieldValue(fields, {"caller", "source", "file", "src"});
+    event.ref_file = GetFieldValue(fields, {"caller", "source", "file", "src"});
 
     // Extract component/logger
     event.category = GetFieldValue(fields, {"component", "logger", "service", "name", "module"});
@@ -153,7 +153,7 @@ static ValidationEvent CreateEventFromFields(
         event.category = "log_entry";
     }
 
-    event.raw_output = raw_line;
+    event.log_content = raw_line;
     return event;
 }
 

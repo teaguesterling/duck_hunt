@@ -1,0 +1,11 @@
+gcc -c -o src/main.o src/main.c
+gcc -c -o src/utils.o src/utils.c
+gcc -c -o src/parser.o src/parser.c
+ar rcs libparser.a src/main.o src/utils.o src/parser.o
+gcc -o myapp src/app.c -L. -lparser
+make[1]: Entering directory '/home/user/project/tests'
+gcc -c -o test_main.o test_main.c
+gcc -o test_runner test_main.o -L.. -lparser
+./test_runner
+All tests passed!
+make[1]: Leaving directory '/home/user/project/tests'

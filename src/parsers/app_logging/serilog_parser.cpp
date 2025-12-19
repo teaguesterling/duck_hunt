@@ -55,8 +55,8 @@ static bool ParseSerilogJSON(const std::string& line, ValidationEvent& event, in
     event.log_line_start = line_number;
     event.log_line_end = line_number;
     event.execution_time = 0.0;
-    event.line_number = -1;
-    event.column_number = -1;
+    event.ref_line = -1;
+    event.ref_column = -1;
 
     if (t_val && yyjson_is_str(t_val)) {
         event.started_at = yyjson_get_str(t_val);
@@ -84,7 +84,7 @@ static bool ParseSerilogJSON(const std::string& line, ValidationEvent& event, in
     }
 
     event.structured_data = line;
-    event.raw_output = line;
+    event.log_content = line;
 
     yyjson_doc_free(doc);
     return true;
@@ -115,8 +115,8 @@ static bool ParseSerilogText(const std::string& line, ValidationEvent& event, in
         event.log_line_start = line_number;
         event.log_line_end = line_number;
         event.execution_time = 0.0;
-        event.line_number = -1;
-        event.column_number = -1;
+        event.ref_line = -1;
+        event.ref_column = -1;
 
         event.started_at = match[1].str();
         std::string level = match[2].str();
@@ -127,7 +127,7 @@ static bool ParseSerilogText(const std::string& line, ValidationEvent& event, in
 
         std::string json = "{\"level\":\"" + level + "\"}";
         event.structured_data = json;
-        event.raw_output = line;
+        event.log_content = line;
         return true;
     }
 
@@ -138,8 +138,8 @@ static bool ParseSerilogText(const std::string& line, ValidationEvent& event, in
         event.log_line_start = line_number;
         event.log_line_end = line_number;
         event.execution_time = 0.0;
-        event.line_number = -1;
-        event.column_number = -1;
+        event.ref_line = -1;
+        event.ref_column = -1;
 
         event.started_at = match[1].str();
         std::string level = match[2].str();
@@ -150,7 +150,7 @@ static bool ParseSerilogText(const std::string& line, ValidationEvent& event, in
 
         std::string json = "{\"level\":\"" + level + "\"}";
         event.structured_data = json;
-        event.raw_output = line;
+        event.log_content = line;
         return true;
     }
 

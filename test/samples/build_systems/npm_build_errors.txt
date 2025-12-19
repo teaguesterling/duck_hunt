@@ -1,0 +1,30 @@
+> my-app@1.0.0 build
+> webpack --mode production
+
+ERROR in ./src/components/Header.js
+Module not found: Error: Can't resolve './missing-module' in '/home/user/project/src/components'
+ @ ./src/components/Header.js 3:0-42
+ @ ./src/App.js 5:0-38
+ @ ./src/index.js 2:0-24
+
+ERROR in ./src/utils/helper.js 15:23
+Module parse failed: Unexpected token (15:23)
+You may need an appropriate loader to handle this file type.
+|
+| export const process = (data) => {
+>     const result = data?.value ?? 'default';
+|     return result;
+| };
+
+WARNING in ./src/components/OldComponent.js
+Module Warning (from ./node_modules/source-map-loader/dist/cjs.js):
+Failed to parse source map
+
+WARNING in asset size limit: The following asset(s) exceed the recommended size limit (244 KiB)
+  bundle.js (1.23 MiB)
+
+webpack 5.89.0 compiled with 2 errors and 2 warnings in 3456 ms
+npm ERR! code ELIFECYCLE
+npm ERR! errno 1
+npm ERR! my-app@1.0.0 build: `webpack --mode production`
+npm ERR! Exit status 1

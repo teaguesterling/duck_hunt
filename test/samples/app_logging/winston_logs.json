@@ -1,0 +1,10 @@
+{"level":"info","message":"Server starting","timestamp":"2024-01-15T10:00:00.000Z","service":"user-api"}
+{"level":"info","message":"Database connected","timestamp":"2024-01-15T10:00:01.123Z","service":"user-api","host":"localhost","port":5432}
+{"level":"debug","message":"Loading configuration","timestamp":"2024-01-15T10:00:01.500Z","service":"user-api","config":{"env":"production","debug":false}}
+{"level":"info","message":"Express server listening on port 3000","timestamp":"2024-01-15T10:00:02.000Z","service":"user-api","port":3000}
+{"level":"http","message":"GET /api/users 200 45ms","timestamp":"2024-01-15T10:01:00.000Z","service":"user-api","method":"GET","url":"/api/users","status":200,"responseTime":45}
+{"level":"warn","message":"Deprecated API endpoint called","timestamp":"2024-01-15T10:01:30.000Z","service":"user-api","endpoint":"/api/v1/users","deprecatedSince":"2023-06-01"}
+{"level":"error","message":"Database query failed","timestamp":"2024-01-15T10:02:00.000Z","service":"user-api","error":"ECONNREFUSED","query":"SELECT * FROM users","stack":"Error: ECONNREFUSED\n    at Connection.connect (/app/node_modules/pg/lib/connection.js:45:11)"}
+{"level":"error","message":"Unhandled rejection","timestamp":"2024-01-15T10:02:01.000Z","service":"user-api","error":"TypeError: Cannot read property 'id' of undefined","stack":"TypeError: Cannot read property 'id' of undefined\n    at UserService.getById (/app/services/user.js:23:15)"}
+{"level":"info","message":"Health check passed","timestamp":"2024-01-15T10:03:00.000Z","service":"user-api","checks":{"database":"ok","redis":"ok","memory":"256MB"}}
+{"level":"silly","message":"Verbose trace data","timestamp":"2024-01-15T10:03:30.000Z","service":"user-api","traceId":"abc123","spanId":"def456"}

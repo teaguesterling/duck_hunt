@@ -1,0 +1,32 @@
+ PASS  src/components/__tests__/Button.test.js
+  Button Component
+    ✓ renders without crashing (23 ms)
+    ✓ displays the correct label (5 ms)
+    ✓ calls onClick handler when clicked (12 ms)
+    ✓ applies disabled state correctly (8 ms)
+
+ PASS  src/utils/__tests__/helpers.test.js
+  Helper Functions
+    formatDate
+      ✓ formats date correctly (3 ms)
+      ✓ handles null input (1 ms)
+      ✓ handles invalid date (2 ms)
+    validateEmail
+      ✓ returns true for valid email (1 ms)
+      ✓ returns false for invalid email (1 ms)
+      ✓ handles edge cases (2 ms)
+
+ PASS  src/services/__tests__/api.test.js
+  API Service
+    fetchUsers
+      ✓ fetches users successfully (45 ms)
+      ✓ handles network errors (12 ms)
+    createUser
+      ✓ creates user with valid data (34 ms)
+      ✓ validates required fields (8 ms)
+
+Test Suites: 3 passed, 3 total
+Tests:       14 passed, 14 total
+Snapshots:   0 total
+Time:        2.345 s
+Ran all test suites.

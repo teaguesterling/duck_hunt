@@ -103,8 +103,8 @@ std::vector<ValidationEvent> CargoTestJSONParser::parse(const std::string& conte
                 event.event_type = ValidationEventType::TEST_RESULT;
                 event.test_name = test_name;
                 event.function_name = test_name;
-                event.line_number = -1;
-                event.column_number = -1;
+                event.ref_line = -1;
+                event.ref_column = -1;
                 event.execution_time = 0.0;
                 event.category = "test";
                 
@@ -145,7 +145,7 @@ std::vector<ValidationEvent> CargoTestJSONParser::parse(const std::string& conte
                     }
                     
                     // Set raw output and structured data
-                    event.raw_output = line; // Use the specific line for this test
+                    event.log_content = line; // Use the specific line for this test
                     event.structured_data = "{\"tool\": \"cargo_test\", \"event\": \"" + event_str + "\"}";
                     
                     events.push_back(event);

@@ -1,0 +1,24 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.6, pytest-7.4.3, pluggy-1.3.0
+rootdir: /home/user/project
+configfile: pytest.ini
+plugins: cov-4.1.0, mock-3.12.0, asyncio-0.21.1
+collected 15 items
+
+tests/test_user.py::test_create_user PASSED                              [  6%]
+tests/test_user.py::test_update_user PASSED                              [ 13%]
+tests/test_user.py::test_delete_user PASSED                              [ 20%]
+tests/test_auth.py::test_login PASSED                                    [ 26%]
+tests/test_auth.py::test_logout PASSED                                   [ 33%]
+tests/test_auth.py::test_refresh_token PASSED                            [ 40%]
+tests/test_api.py::test_get_users PASSED                                 [ 46%]
+tests/test_api.py::test_get_user_by_id PASSED                            [ 53%]
+tests/test_api.py::test_create_user_api PASSED                           [ 60%]
+tests/test_api.py::test_update_user_api PASSED                           [ 66%]
+tests/test_api.py::test_delete_user_api PASSED                           [ 73%]
+tests/test_integration.py::test_full_flow PASSED                         [ 80%]
+tests/test_integration.py::test_error_handling PASSED                    [ 86%]
+tests/test_integration.py::test_concurrent_requests PASSED               [ 93%]
+tests/test_integration.py::test_rate_limiting PASSED                     [100%]
+
+============================== 15 passed in 2.34s ==============================

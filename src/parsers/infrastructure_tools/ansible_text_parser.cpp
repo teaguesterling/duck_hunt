@@ -52,15 +52,15 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string& content
             event.event_id = event_id++;
             event.tool_name = "ansible";
             event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = ValidationEventStatus::INFO;
             event.severity = "info";
             event.category = "play_start";
             event.message = "Starting play: " + current_play;
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "ansible_text";
             
             events.push_back(event);
@@ -74,15 +74,15 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string& content
             event.event_id = event_id++;
             event.tool_name = "ansible";
             event.event_type = ValidationEventType::DEBUG_INFO;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = ValidationEventStatus::INFO;
             event.severity = "info";
             event.category = "task_start";
             event.message = "Starting task: " + current_task;
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "ansible_text";
             
             events.push_back(event);
@@ -95,9 +95,9 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string& content
             event.event_id = event_id++;
             event.tool_name = "ansible";
             event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = ValidationEventStatus::PASS;
             event.severity = "info";
             event.category = "task_success";
@@ -106,7 +106,7 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string& content
                 event.suggestion = match[3].str();
             }
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "ansible_text";
             
             events.push_back(event);
@@ -119,9 +119,9 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string& content
             event.event_id = event_id++;
             event.tool_name = "ansible";
             event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = ValidationEventStatus::PASS;
             event.severity = "info";
             event.category = "task_changed";
@@ -130,7 +130,7 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string& content
                 event.suggestion = match[3].str();
             }
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "ansible_text";
             
             events.push_back(event);
@@ -143,9 +143,9 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string& content
             event.event_id = event_id++;
             event.tool_name = "ansible";
             event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = ValidationEventStatus::SKIP;
             event.severity = "info";
             event.category = "task_skipped";
@@ -154,7 +154,7 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string& content
                 event.suggestion = match[3].str();
             }
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "ansible_text";
             
             events.push_back(event);
@@ -167,15 +167,15 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string& content
             event.event_id = event_id++;
             event.tool_name = "ansible";
             event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = ValidationEventStatus::ERROR;
             event.severity = "error";
             event.category = "task_failed";
             event.message = "Task failed on " + match[1].str() + ": " + match[2].str();
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "ansible_text";
             
             events.push_back(event);
@@ -188,15 +188,15 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string& content
             event.event_id = event_id++;
             event.tool_name = "ansible";
             event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = ValidationEventStatus::ERROR;
             event.severity = "error";
             event.category = "host_unreachable";
             event.message = "Host unreachable " + match[1].str() + ": " + match[2].str();
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "ansible_text";
             
             events.push_back(event);
@@ -209,15 +209,15 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string& content
             event.event_id = event_id++;
             event.tool_name = "ansible";
             event.event_type = ValidationEventType::DEBUG_INFO;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = ValidationEventStatus::INFO;
             event.severity = "info";
             event.category = "handler";
             event.message = "Running handler: " + match[1].str();
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "ansible_text";
             
             events.push_back(event);
@@ -231,15 +231,15 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string& content
             event.event_id = event_id++;
             event.tool_name = "ansible";
             event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = ValidationEventStatus::INFO;
             event.severity = "info";
             event.category = "play_recap";
             event.message = "Play recap";
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "ansible_text";
             
             events.push_back(event);
@@ -252,9 +252,9 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string& content
             event.event_id = event_id++;
             event.tool_name = "ansible";
             event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             
             // Determine overall status based on failed/unreachable counts
             int failed = std::stoi(match[5].str());
@@ -273,7 +273,7 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string& content
                           " failed=" + match[5].str() + " skipped=" + match[6].str() + 
                           " rescued=" + match[7].str() + " ignored=" + match[8].str();
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "ansible_text";
             
             events.push_back(event);
@@ -286,15 +286,15 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string& content
             event.event_id = event_id++;
             event.tool_name = "ansible";
             event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = ValidationEventStatus::ERROR;
             event.severity = "error";
             event.category = "ansible_error";
             event.message = match[1].str();
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "ansible_text";
             
             events.push_back(event);
@@ -307,15 +307,15 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string& content
             event.event_id = event_id++;
             event.tool_name = "ansible";
             event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = ValidationEventStatus::WARNING;
             event.severity = "warning";
             event.category = "ansible_warning";
             event.message = match[1].str();
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "ansible_text";
             
             events.push_back(event);
@@ -328,15 +328,15 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string& content
             event.event_id = event_id++;
             event.tool_name = "ansible";
             event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = ValidationEventStatus::WARNING;
             event.severity = "warning";
             event.category = "deprecation";
             event.message = match[1].str();
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "ansible_text";
             
             events.push_back(event);
@@ -349,15 +349,15 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string& content
             event.event_id = event_id++;
             event.tool_name = "ansible";
             event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = ValidationEventStatus::WARNING;
             event.severity = "warning";
             event.category = "retry";
             event.message = "Retrying: " + match[1].str() + " (" + match[2].str() + " retries left)";
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "ansible_text";
             
             events.push_back(event);
@@ -370,15 +370,15 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string& content
             event.event_id = event_id++;
             event.tool_name = "ansible";
             event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = ValidationEventStatus::ERROR;
             event.severity = "error";
             event.category = "retry_exhausted";
             event.message = "Retry exhausted on " + match[1].str() + " after " + match[2].str() + " attempts: " + match[3].str();
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "ansible_text";
             
             events.push_back(event);
@@ -391,15 +391,15 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string& content
             event.event_id = event_id++;
             event.tool_name = "ansible";
             event.event_type = ValidationEventType::DEBUG_INFO;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = ValidationEventStatus::INFO;
             event.severity = "info";
             event.category = "config_diff";
             event.message = "Configuration diff: " + match[1].str();
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "ansible_text";
             
             events.push_back(event);
@@ -412,15 +412,15 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string& content
             event.event_id = event_id++;
             event.tool_name = "ansible";
             event.event_type = ValidationEventType::DEBUG_INFO;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = ValidationEventStatus::INFO;
             event.severity = "info";
             event.category = "notification";
             event.message = "Notified: " + match[1].str();
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "ansible_text";
             
             events.push_back(event);

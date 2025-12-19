@@ -111,6 +111,12 @@ make release
 make test
 ```
 
+## Acknowledgments
+
+Test data includes samples from [loghub](https://github.com/logpai/loghub), a collection of system logs for AI-based log analysis research:
+
+> Jieming Zhu, Shilin He, Jinyang Liu, Pinjia He, Qi Xie, Zibin Zheng, Michael R. Lyu. [Tools and Benchmarks for Automated Log Parsing](https://arxiv.org/abs/1811.03509). *International Conference on Software Engineering (ICSE)*, 2019.
+
 ## License
 
 MIT License - see [LICENSE](LICENSE)

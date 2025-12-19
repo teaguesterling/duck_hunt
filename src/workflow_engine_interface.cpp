@@ -18,7 +18,7 @@ ValidationEvent WorkflowEngineParser::createBaseEvent(const std::string& raw_lin
     // Set basic fields
     event.tool_name = getFormatName();
     event.event_type = ValidationEventType::SUMMARY;  // Use SUMMARY type for workflow events
-    event.raw_output = raw_line;
+    event.log_content = raw_line;
     event.message = raw_line;
     event.status = ValidationEventStatus::INFO;
     event.severity = "info";

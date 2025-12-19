@@ -1,0 +1,85 @@
+{
+  "results": [
+    {
+      "rule_id": "aws-s3-enable-bucket-encryption",
+      "long_id": "aws-s3-enable-bucket-encryption",
+      "rule_description": "S3 Bucket should have encryption enabled",
+      "rule_provider": "aws",
+      "rule_service": "s3",
+      "impact": "The bucket contents could be read if compromised",
+      "resolution": "Configure server-side encryption for S3 bucket",
+      "links": [
+        "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket",
+        "https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucket-encryption.html"
+      ],
+      "description": "Resource 'aws_s3_bucket.data' does not have encryption enabled",
+      "severity": "HIGH",
+      "warning": false,
+      "status": 0,
+      "resource": "aws_s3_bucket.data",
+      "location": {
+        "filename": "modules/storage/main.tf",
+        "start_line": 15,
+        "end_line": 22
+      }
+    },
+    {
+      "rule_id": "aws-ec2-no-public-ip",
+      "long_id": "aws-ec2-no-public-ip",
+      "rule_description": "EC2 instance should not have public IP",
+      "rule_provider": "aws",
+      "rule_service": "ec2",
+      "impact": "Instance exposed to internet increases attack surface",
+      "resolution": "Set associate_public_ip_address to false",
+      "description": "Resource 'aws_instance.web' has a public IP address",
+      "severity": "MEDIUM",
+      "status": 0,
+      "resource": "aws_instance.web",
+      "location": {
+        "filename": "modules/compute/main.tf",
+        "start_line": 45,
+        "end_line": 60
+      }
+    },
+    {
+      "rule_id": "aws-iam-no-policy-wildcards",
+      "long_id": "aws-iam-no-policy-wildcards",
+      "rule_description": "IAM policy should not use wildcards",
+      "rule_provider": "aws",
+      "rule_service": "iam",
+      "impact": "Overly permissive policies can lead to privilege escalation",
+      "resolution": "Specify explicit resources instead of wildcards",
+      "description": "Resource 'aws_iam_policy.admin' uses wildcard in action",
+      "severity": "CRITICAL",
+      "status": 0,
+      "resource": "aws_iam_policy.admin",
+      "location": {
+        "filename": "modules/iam/policies.tf",
+        "start_line": 10,
+        "end_line": 25
+      }
+    },
+    {
+      "rule_id": "aws-rds-enable-storage-encryption",
+      "long_id": "aws-rds-enable-storage-encryption",
+      "rule_description": "RDS storage should be encrypted",
+      "rule_provider": "aws",
+      "rule_service": "rds",
+      "impact": "Data at rest could be compromised if storage is accessed",
+      "resolution": "Enable storage_encrypted on the RDS instance",
+      "description": "Resource 'aws_db_instance.main' does not have storage encryption",
+      "severity": "HIGH",
+      "status": 0,
+      "resource": "aws_db_instance.main",
+      "location": {
+        "filename": "modules/database/main.tf",
+        "start_line": 30,
+        "end_line": 50
+      }
+    }
+  ],
+  "passed": 45,
+  "ignored": 2,
+  "warned": 0,
+  "failed": 4
+}

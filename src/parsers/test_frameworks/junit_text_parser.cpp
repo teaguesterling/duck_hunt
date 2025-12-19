@@ -88,7 +88,7 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
                            std::to_string(errors) + " errors, " +
                            std::to_string(skipped) + " skipped";
             event.execution_time = time_elapsed;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "junit";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -109,7 +109,7 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
             event.function_name = test_method;
             event.test_name = test_class + "." + test_method;
             event.execution_time = time_elapsed;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "junit";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -155,7 +155,7 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
             event.category = "test_framework";
             event.message = "JUnit Jupiter " + match[1].str();
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "junit";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -179,7 +179,7 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
             event.function_name = test_method;
             event.test_name = current_class + "." + test_method;
             event.execution_time = static_cast<double>(time_ms) / 1000.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "junit";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -223,7 +223,7 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
             event.function_name = test_method;
             event.test_name = test_class + "." + test_method;
             event.execution_time = time_elapsed;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "junit";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -264,7 +264,7 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
                            std::to_string(errors) + " errors, " +
                            std::to_string(skipped) + " skipped";
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "junit";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -284,7 +284,7 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
             event.function_name = test_method;
             event.test_name = test_class + "." + test_method;
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "junit";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -329,7 +329,7 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
                            std::to_string(failed) + " failed, " + 
                            std::to_string(skipped) + " skipped";
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "junit";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -349,7 +349,7 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
             event.function_name = test_method;
             event.test_name = test_class + "." + test_method;
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "junit";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -394,7 +394,7 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
                            std::to_string(failed) + " failed, " + 
                            std::to_string(skipped) + " skipped";
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "junit";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -413,8 +413,8 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
                 // Update the last test event with exception details
                 if (!events.empty() && events.back().test_name == current_test) {
                     duckdb::ValidationEvent& last_event = events.back();
-                    last_event.file_path = file;
-                    last_event.line_number = line_number;
+                    last_event.ref_file = file;
+                    last_event.ref_line = line_number;
                     if (!current_exception.empty()) {
                         last_event.message = current_exception;
                     }

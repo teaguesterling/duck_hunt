@@ -1,0 +1,69 @@
+{
+  "created": 1705329045.123,
+  "duration": 2.345,
+  "exitcode": 0,
+  "root": "/home/user/project",
+  "environment": {
+    "Python": "3.11.6",
+    "Platform": "Linux-5.15.0-x86_64",
+    "pytest": "7.4.3"
+  },
+  "summary": {
+    "passed": 8,
+    "failed": 0,
+    "error": 0,
+    "skipped": 0,
+    "total": 8
+  },
+  "tests": [
+    {
+      "nodeid": "tests/test_user.py::test_create_user",
+      "outcome": "passed",
+      "duration": 0.123,
+      "setup": {"outcome": "passed", "duration": 0.001},
+      "call": {"outcome": "passed", "duration": 0.120},
+      "teardown": {"outcome": "passed", "duration": 0.002}
+    },
+    {
+      "nodeid": "tests/test_user.py::test_update_user",
+      "outcome": "passed",
+      "duration": 0.234,
+      "setup": {"outcome": "passed", "duration": 0.001},
+      "call": {"outcome": "passed", "duration": 0.231},
+      "teardown": {"outcome": "passed", "duration": 0.002}
+    },
+    {
+      "nodeid": "tests/test_user.py::test_delete_user",
+      "outcome": "passed",
+      "duration": 0.156,
+      "setup": {"outcome": "passed", "duration": 0.001},
+      "call": {"outcome": "passed", "duration": 0.153},
+      "teardown": {"outcome": "passed", "duration": 0.002}
+    },
+    {
+      "nodeid": "tests/test_auth.py::test_login",
+      "outcome": "passed",
+      "duration": 0.345
+    },
+    {
+      "nodeid": "tests/test_auth.py::test_logout",
+      "outcome": "passed",
+      "duration": 0.123
+    },
+    {
+      "nodeid": "tests/test_api.py::test_get_users",
+      "outcome": "passed",
+      "duration": 0.567
+    },
+    {
+      "nodeid": "tests/test_api.py::test_create_user_api",
+      "outcome": "passed",
+      "duration": 0.432
+    },
+    {
+      "nodeid": "tests/test_integration.py::test_full_flow",
+      "outcome": "passed",
+      "duration": 1.234
+    }
+  ]
+}

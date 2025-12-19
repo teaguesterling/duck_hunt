@@ -120,23 +120,23 @@ std::vector<ValidationEvent> ClippyJSONParser::parse(const std::string& content)
         // Get file name from primary span
         yyjson_val *file_name = yyjson_obj_get(primary_span, "file_name");
         if (file_name && yyjson_is_str(file_name)) {
-            event.file_path = yyjson_get_str(file_name);
+            event.ref_file = yyjson_get_str(file_name);
         }
         
         // Get line number from primary span
         yyjson_val *line_start = yyjson_obj_get(primary_span, "line_start");
         if (line_start && yyjson_is_num(line_start)) {
-            event.line_number = yyjson_get_int(line_start);
+            event.ref_line = yyjson_get_int(line_start);
         } else {
-            event.line_number = -1;
+            event.ref_line = -1;
         }
         
         // Get column number from primary span
         yyjson_val *column_start = yyjson_obj_get(primary_span, "column_start");
         if (column_start && yyjson_is_num(column_start)) {
-            event.column_number = yyjson_get_int(column_start);
+            event.ref_column = yyjson_get_int(column_start);
         } else {
-            event.column_number = -1;
+            event.ref_column = -1;
         }
         
         // Get severity level
@@ -182,7 +182,7 @@ std::vector<ValidationEvent> ClippyJSONParser::parse(const std::string& content)
         }
         
         // Set raw output and structured data
-        event.raw_output = line; // Use the specific line for this issue
+        event.log_content = line; // Use the specific line for this issue
         event.structured_data = "{\"tool\": \"clippy\", \"level\": \"" + event.severity + "\", \"code\": \"" + event.error_code + "\"}";
         
         events.push_back(event);

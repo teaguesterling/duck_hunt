@@ -1,0 +1,22 @@
+{"Time":"2024-01-15T10:30:45.123456789Z","Action":"run","Package":"github.com/example/myapp/pkg/parser","Test":"TestParseValidInput"}
+{"Time":"2024-01-15T10:30:45.125Z","Action":"output","Package":"github.com/example/myapp/pkg/parser","Test":"TestParseValidInput","Output":"=== RUN   TestParseValidInput\n"}
+{"Time":"2024-01-15T10:30:45.128Z","Action":"output","Package":"github.com/example/myapp/pkg/parser","Test":"TestParseValidInput","Output":"--- PASS: TestParseValidInput (0.00s)\n"}
+{"Time":"2024-01-15T10:30:45.128Z","Action":"pass","Package":"github.com/example/myapp/pkg/parser","Test":"TestParseValidInput","Elapsed":0.003}
+{"Time":"2024-01-15T10:30:45.128Z","Action":"run","Package":"github.com/example/myapp/pkg/parser","Test":"TestParseEmptyInput"}
+{"Time":"2024-01-15T10:30:45.129Z","Action":"output","Package":"github.com/example/myapp/pkg/parser","Test":"TestParseEmptyInput","Output":"=== RUN   TestParseEmptyInput\n"}
+{"Time":"2024-01-15T10:30:45.130Z","Action":"output","Package":"github.com/example/myapp/pkg/parser","Test":"TestParseEmptyInput","Output":"--- PASS: TestParseEmptyInput (0.00s)\n"}
+{"Time":"2024-01-15T10:30:45.130Z","Action":"pass","Package":"github.com/example/myapp/pkg/parser","Test":"TestParseEmptyInput","Elapsed":0.002}
+{"Time":"2024-01-15T10:30:45.130Z","Action":"run","Package":"github.com/example/myapp/pkg/utils","Test":"TestComputeHash"}
+{"Time":"2024-01-15T10:30:45.131Z","Action":"output","Package":"github.com/example/myapp/pkg/utils","Test":"TestComputeHash","Output":"=== RUN   TestComputeHash\n"}
+{"Time":"2024-01-15T10:30:45.145Z","Action":"output","Package":"github.com/example/myapp/pkg/utils","Test":"TestComputeHash","Output":"--- PASS: TestComputeHash (0.01s)\n"}
+{"Time":"2024-01-15T10:30:45.145Z","Action":"pass","Package":"github.com/example/myapp/pkg/utils","Test":"TestComputeHash","Elapsed":0.015}
+{"Time":"2024-01-15T10:30:45.145Z","Action":"run","Package":"github.com/example/myapp/pkg/utils","Test":"TestEncodeData"}
+{"Time":"2024-01-15T10:30:45.146Z","Action":"output","Package":"github.com/example/myapp/pkg/utils","Test":"TestEncodeData","Output":"=== RUN   TestEncodeData\n"}
+{"Time":"2024-01-15T10:30:45.148Z","Action":"output","Package":"github.com/example/myapp/pkg/utils","Test":"TestEncodeData","Output":"--- PASS: TestEncodeData (0.00s)\n"}
+{"Time":"2024-01-15T10:30:45.148Z","Action":"pass","Package":"github.com/example/myapp/pkg/utils","Test":"TestEncodeData","Elapsed":0.003}
+{"Time":"2024-01-15T10:30:45.150Z","Action":"output","Package":"github.com/example/myapp/pkg/parser","Output":"PASS\n"}
+{"Time":"2024-01-15T10:30:45.150Z","Action":"output","Package":"github.com/example/myapp/pkg/parser","Output":"ok  \tgithub.com/example/myapp/pkg/parser\t0.025s\n"}
+{"Time":"2024-01-15T10:30:45.150Z","Action":"pass","Package":"github.com/example/myapp/pkg/parser","Elapsed":0.025}
+{"Time":"2024-01-15T10:30:45.152Z","Action":"output","Package":"github.com/example/myapp/pkg/utils","Output":"PASS\n"}
+{"Time":"2024-01-15T10:30:45.152Z","Action":"output","Package":"github.com/example/myapp/pkg/utils","Output":"ok  \tgithub.com/example/myapp/pkg/utils\t0.020s\n"}
+{"Time":"2024-01-15T10:30:45.152Z","Action":"pass","Package":"github.com/example/myapp/pkg/utils","Elapsed":0.020}

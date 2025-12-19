@@ -1,0 +1,65 @@
+Started by user admin
+Running as SYSTEM
+Building in workspace /var/jenkins_home/workspace/deploy-pipeline
+[Pipeline] Start of Pipeline
+[Pipeline] node
+Running on agent-1 in /home/jenkins/workspace/deploy-pipeline
+[Pipeline] {
+[Pipeline] stage
+[Pipeline] { (Checkout)
+[Pipeline] checkout
+Fetching changes from the remote Git repository
+ > git fetch --tags --progress -- https://github.com/myorg/myrepo.git # timeout=10
+Checking out Revision def456abc789 (refs/remotes/origin/release/v2.0.0)
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Build)
+[Pipeline] sh
++ ./gradlew clean build
+> Task :clean
+> Task :compileJava
+> Task :processResources
+> Task :classes
+> Task :jar
+> Task :assemble
+> Task :compileTestJava
+> Task :processTestResources NO-SOURCE
+> Task :testClasses
+> Task :test
+> Task :check
+> Task :build
+
+BUILD SUCCESSFUL in 45s
+8 actionable tasks: 8 executed
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Test)
+[Pipeline] sh
++ ./gradlew test
+> Task :test
+
+com.myorg.service.UserServiceTest > testCreateUser PASSED
+com.myorg.service.UserServiceTest > testDeleteUser PASSED
+com.myorg.api.ApiControllerTest > testHealthEndpoint PASSED
+com.myorg.api.ApiControllerTest > testUserEndpoint PASSED
+com.myorg.utils.ValidatorTest > testEmailValidation PASSED
+
+BUILD SUCCESSFUL in 23s
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Deploy)
+[Pipeline] sh
++ kubectl apply -f k8s/deployment.yaml
+deployment.apps/myapp configured
+service/myapp unchanged
++ kubectl rollout status deployment/myapp
+deployment "myapp" successfully rolled out
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] }
+[Pipeline] // node
+[Pipeline] End of Pipeline
+Finished: SUCCESS

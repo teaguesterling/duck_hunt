@@ -50,15 +50,15 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string& conten
             event.event_id = event_id++;
             event.tool_name = "autopep8";
             event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = current_file;
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = current_file;
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = ValidationEventStatus::INFO;
             event.severity = "info";
             event.category = "formatting";
             event.message = "File formatting changes detected";
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "autopep8_text";
 
             events.push_back(event);
@@ -71,16 +71,16 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string& conten
             event.event_id = event_id++;
             event.tool_name = "autopep8";
             event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = match[1].str();
-            event.line_number = std::stoi(match[2].str());
-            event.column_number = std::stoi(match[3].str());
+            event.ref_file = match[1].str();
+            event.ref_line = std::stoi(match[2].str());
+            event.ref_column = std::stoi(match[3].str());
             event.status = ValidationEventStatus::ERROR;
             event.severity = "error";
             event.category = "syntax";
             event.message = match[5].str();
             event.error_code = match[4].str();
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "autopep8_text";
 
             events.push_back(event);
@@ -93,16 +93,16 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string& conten
             event.event_id = event_id++;
             event.tool_name = "autopep8";
             event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = match[1].str();
-            event.line_number = std::stoi(match[2].str());
-            event.column_number = std::stoi(match[3].str());
+            event.ref_file = match[1].str();
+            event.ref_line = std::stoi(match[2].str());
+            event.ref_column = std::stoi(match[3].str());
             event.status = ValidationEventStatus::WARNING;
             event.severity = "warning";
             event.category = "style";
             event.message = match[5].str();
             event.error_code = match[4].str();
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "autopep8_text";
 
             events.push_back(event);
@@ -115,15 +115,15 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string& conten
             event.event_id = event_id++;
             event.tool_name = "autopep8";
             event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = match[1].str();
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = match[1].str();
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = ValidationEventStatus::INFO;
             event.severity = "info";
             event.category = "formatting";
             event.message = match[2].str();
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "autopep8_text";
 
             events.push_back(event);
@@ -136,15 +136,15 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string& conten
             event.event_id = event_id++;
             event.tool_name = "autopep8";
             event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = match[1].str();
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = match[1].str();
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = ValidationEventStatus::INFO;
             event.severity = "info";
             event.category = "formatting";
             event.message = "File formatting applied";
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "autopep8_text";
 
             events.push_back(event);
@@ -157,15 +157,15 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string& conten
             event.event_id = event_id++;
             event.tool_name = "autopep8";
             event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = ValidationEventStatus::INFO;
             event.severity = "info";
             event.category = "configuration";
             event.message = "Command: autopep8 " + match[1].str();
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "autopep8_text";
 
             events.push_back(event);
@@ -180,15 +180,15 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string& conten
             event.event_id = event_id++;
             event.tool_name = "autopep8";
             event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = ValidationEventStatus::INFO;
             event.severity = "info";
             event.category = "configuration";
             event.message = "Configuration applied";
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "autopep8_text";
 
             events.push_back(event);
@@ -201,15 +201,15 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string& conten
             event.event_id = event_id++;
             event.tool_name = "autopep8";
             event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = ValidationEventStatus::INFO;
             event.severity = "info";
             event.category = "summary";
             event.message = "Files processed: " + match[1].str();
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "autopep8_text";
 
             events.push_back(event);
@@ -221,15 +221,15 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string& conten
             event.event_id = event_id++;
             event.tool_name = "autopep8";
             event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = ValidationEventStatus::INFO;
             event.severity = "info";
             event.category = "summary";
             event.message = "Files modified: " + match[1].str();
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "autopep8_text";
 
             events.push_back(event);
@@ -241,15 +241,15 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string& conten
             event.event_id = event_id++;
             event.tool_name = "autopep8";
             event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = ValidationEventStatus::ERROR;
             event.severity = "error";
             event.category = "summary";
             event.message = "Files with errors: " + match[1].str();
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "autopep8_text";
 
             events.push_back(event);
@@ -261,15 +261,15 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string& conten
             event.event_id = event_id++;
             event.tool_name = "autopep8";
             event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = ValidationEventStatus::INFO;
             event.severity = "info";
             event.category = "summary";
             event.message = "Total fixes applied: " + match[1].str();
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "autopep8_text";
 
             events.push_back(event);
@@ -281,15 +281,15 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string& conten
             event.event_id = event_id++;
             event.tool_name = "autopep8";
             event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = ValidationEventStatus::INFO;
             event.severity = "info";
             event.category = "performance";
             event.message = "Execution time: " + match[1].str() + "s";
             event.execution_time = std::stod(match[1].str());
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "autopep8_text";
 
             events.push_back(event);
@@ -302,16 +302,16 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string& conten
             event.event_id = event_id++;
             event.tool_name = "autopep8";
             event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = match[1].str();
-            event.line_number = std::stoi(match[2].str());
-            event.column_number = std::stoi(match[3].str());
+            event.ref_file = match[1].str();
+            event.ref_line = std::stoi(match[2].str());
+            event.ref_column = std::stoi(match[3].str());
             event.status = ValidationEventStatus::ERROR;
             event.severity = "error";
             event.category = "syntax";
             event.message = match[4].str();
             event.error_code = "SyntaxError";
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "autopep8_text";
 
             events.push_back(event);
@@ -324,15 +324,15 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string& conten
             event.event_id = event_id++;
             event.tool_name = "autopep8";
             event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = match[1].str();
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = match[1].str();
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = ValidationEventStatus::WARNING;
             event.severity = "warning";
             event.category = "encoding";
             event.message = "Could not determine file encoding";
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "autopep8_text";
 
             events.push_back(event);
@@ -345,15 +345,15 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string& conten
             event.event_id = event_id++;
             event.tool_name = "autopep8";
             event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = match[1].str();
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = match[1].str();
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = ValidationEventStatus::INFO;
             event.severity = "info";
             event.category = "formatting";
             event.message = "Already formatted correctly";
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "autopep8_text";
 
             events.push_back(event);
@@ -366,15 +366,15 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string& conten
             event.event_id = event_id++;
             event.tool_name = "autopep8";
             event.event_type = ValidationEventType::SUMMARY;
-            event.file_path = "";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = "";
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.status = ValidationEventStatus::INFO;
             event.severity = "info";
             event.category = "configuration";
             event.message = line.substr(2); // Remove leading spaces
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "autopep8_text";
 
             events.push_back(event);

@@ -79,14 +79,14 @@ std::vector<ValidationEvent> Flake8Parser::parse(const std::string& content) con
             }
             
             event.message = message;
-            event.file_path = file_path;
-            event.line_number = line_number;
-            event.column_number = column_number;
+            event.ref_file = file_path;
+            event.ref_line = line_number;
+            event.ref_column = column_number;
             event.error_code = error_code;
             event.tool_name = "flake8";
             event.category = "style_guide";
             event.execution_time = 0.0;
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"error_code\": \"" + error_code + "\", \"error_type\": \"" + std::string(1, error_code.front()) + "\"}";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;

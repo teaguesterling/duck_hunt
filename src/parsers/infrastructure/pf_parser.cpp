@@ -32,8 +32,8 @@ static bool ParsePfLine(const std::string& line, ValidationEvent& event, int64_t
         event.log_line_start = line_number;
         event.log_line_end = line_number;
         event.execution_time = 0.0;
-        event.line_number = -1;
-        event.column_number = -1;
+        event.ref_line = -1;
+        event.ref_column = -1;
 
         event.started_at = match[1].str();
 
@@ -84,7 +84,7 @@ static bool ParsePfLine(const std::string& line, ValidationEvent& event, int64_t
         json += "}";
         event.structured_data = json;
 
-        event.raw_output = line;
+        event.log_content = line;
         return true;
     }
 
@@ -118,8 +118,8 @@ static bool ParsePfLine(const std::string& line, ValidationEvent& event, int64_t
         event.log_line_start = line_number;
         event.log_line_end = line_number;
         event.execution_time = 0.0;
-        event.line_number = -1;
-        event.column_number = -1;
+        event.ref_line = -1;
+        event.ref_column = -1;
 
         // Extract timestamp from syslog prefix
         static std::regex ts_pattern(R"(^(\w{3}\s+\d+\s+\d{2}:\d{2}:\d{2}))", std::regex::optimize);
@@ -155,7 +155,7 @@ static bool ParsePfLine(const std::string& line, ValidationEvent& event, int64_t
         json += "}";
         event.structured_data = json;
 
-        event.raw_output = line;
+        event.log_content = line;
         return true;
     }
 

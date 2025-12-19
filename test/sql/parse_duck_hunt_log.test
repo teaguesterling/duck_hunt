@@ -108,10 +108,10 @@ eslint	1
 # Test 6: ValidationEvent schema completeness
 query I
 SELECT COUNT(*) FROM (
-  SELECT event_id, tool_name, event_type, file_path, line_number, 
-         column_number, function_name, status, severity, category, 
+  SELECT event_id, tool_name, event_type, ref_file, ref_line, 
+         ref_column, function_name, status, severity, category, 
          message, suggestion, error_code, test_name, execution_time, 
-         raw_output, structured_data
+         log_content, structured_data
   FROM parse_duck_hunt_log('src/test.c:1:1: error: test message', 'generic_lint')
 );
 ----
@@ -137,7 +137,7 @@ Unknown format
 
 # Test 10: Field validation tests
 query IIIIII
-SELECT file_path, line_number, column_number, status, severity, error_code
+SELECT ref_file, ref_line, ref_column, status, severity, error_code
 FROM parse_duck_hunt_log('[{"filePath":"/src/Button.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"React is defined but never used.","line":1,"column":8}]}]', 'eslint_json');
 ----
 /src/Button.js	1	8	ERROR	error	no-unused-vars
@@ -180,7 +180,7 @@ FROM regexp_gcc;
 
 # Verify file path and line extraction
 query ITI
-SELECT file_path, line_number, message
+SELECT ref_file, ref_line, message
 FROM regexp_gcc
 WHERE status = 'ERROR';
 ----
@@ -219,9 +219,9 @@ SELECT * FROM parse_duck_hunt_log('file.py:10:5: E501 line too long (120 > 79)
 file.py:20:1: W293 blank line contains whitespace', 'regexp:(?P<file>[^:]+):(?P<line>\d+):(?P<column>\d+):\s+(?P<code>\w+)\s+(?P<message>.+)');
 
 query TIIII
-SELECT file_path, line_number, column_number, error_code, message
+SELECT ref_file, ref_line, ref_column, error_code, message
 FROM regexp_columns
-ORDER BY line_number;
+ORDER BY ref_line;
 ----
 file.py	10	5	E501	line too long (120 > 79)
 file.py	20	1	W293	blank line contains whitespace

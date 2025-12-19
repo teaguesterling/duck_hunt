@@ -67,8 +67,8 @@ static bool ParseEventRecord(const WindowsEventRecord& record, ValidationEvent& 
     event.log_line_start = record.start_line;
     event.log_line_end = record.end_line;
     event.execution_time = 0.0;
-    event.line_number = -1;
-    event.column_number = -1;
+    event.ref_line = -1;
+    event.ref_column = -1;
 
     event.severity = MapWindowsLevel(record.level);
     event.status = MapLevelToStatus(event.severity);
@@ -150,7 +150,7 @@ std::vector<ValidationEvent> WindowsEventParser::parse(const std::string& conten
     auto finalize_record = [&]() {
         if (in_record) {
             ValidationEvent event;
-            event.raw_output = raw_output;
+            event.log_content = raw_output;
             if (ParseEventRecord(current_record, event, event_id)) {
                 events.push_back(event);
                 event_id++;

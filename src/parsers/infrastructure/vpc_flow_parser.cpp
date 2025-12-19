@@ -57,8 +57,8 @@ static bool ParseVpcFlowLine(const std::string& line, ValidationEvent& event, in
     event.log_line_start = line_number;
     event.log_line_end = line_number;
     event.execution_time = 0.0;
-    event.line_number = -1;
-    event.column_number = -1;
+    event.ref_line = -1;
+    event.ref_column = -1;
 
     // Default field positions (v2 format)
     std::string version = fields.size() > 0 ? fields[0] : "";
@@ -147,7 +147,7 @@ static bool ParseVpcFlowLine(const std::string& line, ValidationEvent& event, in
     json += "}";
     event.structured_data = json;
 
-    event.raw_output = line;
+    event.log_content = line;
     return true;
 }
 

@@ -1,0 +1,72 @@
+  User Model
+    #create
+      ✓ should create a new user with valid attributes (45ms)
+      ✓ should hash the password before saving (23ms)
+      1) should set createdAt timestamp
+    #update
+      ✓ should update user attributes (34ms)
+      2) should not allow changing email
+    #delete
+      ✓ should soft delete the user (28ms)
+      ✓ should preserve associated data (67ms)
+
+  Auth Service
+    #login
+      ✓ should return token for valid credentials (89ms)
+      3) should reject invalid password
+      ✓ should reject non-existent user (23ms)
+    #logout
+      ✓ should invalidate the token (34ms)
+      - should clear session data
+    #refreshToken
+      ✓ should issue new token (56ms)
+      4) should reject expired refresh token
+
+  API Endpoints
+    GET /users
+      ✓ should return list of users (123ms)
+      ✓ should support pagination (89ms)
+      5) should filter by status
+    POST /users
+      ✓ should create new user (156ms)
+      ✓ should validate required fields (45ms)
+
+  14 passing (1.8s)
+  1 pending
+  5 failing
+
+  1) User Model
+       #create
+         should set createdAt timestamp:
+     AssertionError: expected undefined to equal '2024-01-15T10:30:45.000Z'
+      at Context.<anonymous> (test/models/user.test.js:34:41)
+
+  2) User Model
+       #update
+         should not allow changing email:
+     Error: expected error to be thrown but none was
+      at Context.<anonymous> (test/models/user.test.js:56:12)
+
+  3) Auth Service
+       #login
+         should reject invalid password:
+
+      AssertionError: expected { Object (success, error) } to have property 'error' of 'Invalid password', but got 'Authentication failed'
+      + expected - actual
+
+      -Authentication failed
+      +Invalid password
+
+      at Context.<anonymous> (test/services/auth.test.js:45:34)
+
+  4) Auth Service
+       #refreshToken
+         should reject expired refresh token:
+     Error: Timeout of 2000ms exceeded. For async tests and hooks, ensure "done()" is called; if returning a Promise, ensure it resolves.
+      at listOnTimeout (node:internal/timers:569:17)
+
+  5) API Endpoints
+       GET /users
+         should filter by status:
+     TypeError: Cannot read properties of undefined (reading 'filter')
+      at Context.<anonymous> (test/api/users.test.js:89:23)

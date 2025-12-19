@@ -1,0 +1,134 @@
+{
+  "Records": [
+    {
+      "eventVersion": "1.08",
+      "userIdentity": {
+        "type": "IAMUser",
+        "principalId": "AIDAEXAMPLE123456",
+        "arn": "arn:aws:iam::123456789012:user/alice",
+        "accountId": "123456789012",
+        "accessKeyId": "AKIAIOSFODNN7EXAMPLE",
+        "userName": "alice"
+      },
+      "eventTime": "2024-01-15T14:30:45Z",
+      "eventSource": "ec2.amazonaws.com",
+      "eventName": "RunInstances",
+      "awsRegion": "us-east-1",
+      "sourceIPAddress": "198.51.100.50",
+      "userAgent": "aws-cli/2.13.0 Python/3.11.4 Linux/5.15.0",
+      "requestParameters": {
+        "instanceType": "t3.medium",
+        "imageId": "ami-0abcdef1234567890",
+        "minCount": 1,
+        "maxCount": 1
+      },
+      "responseElements": {
+        "instancesSet": {
+          "items": [{"instanceId": "i-0123456789abcdef0"}]
+        }
+      },
+      "requestID": "abcd1234-5678-90ab-cdef-EXAMPLE11111",
+      "eventID": "fedcba98-7654-3210-fedc-EXAMPLE22222",
+      "eventType": "AwsApiCall",
+      "managementEvent": true,
+      "recipientAccountId": "123456789012"
+    },
+    {
+      "eventVersion": "1.08",
+      "userIdentity": {
+        "type": "AssumedRole",
+        "principalId": "AROAEXAMPLE:admin-session",
+        "arn": "arn:aws:sts::123456789012:assumed-role/AdminRole/admin-session",
+        "accountId": "123456789012",
+        "sessionContext": {
+          "sessionIssuer": {
+            "type": "Role",
+            "principalId": "AROAEXAMPLE",
+            "arn": "arn:aws:iam::123456789012:role/AdminRole",
+            "accountId": "123456789012",
+            "userName": "AdminRole"
+          },
+          "attributes": {
+            "creationDate": "2024-01-15T14:00:00Z",
+            "mfaAuthenticated": "true"
+          }
+        }
+      },
+      "eventTime": "2024-01-15T14:35:12Z",
+      "eventSource": "s3.amazonaws.com",
+      "eventName": "DeleteBucket",
+      "awsRegion": "us-east-1",
+      "sourceIPAddress": "203.0.113.25",
+      "userAgent": "aws-sdk-python/1.28.0",
+      "errorCode": "BucketNotEmpty",
+      "errorMessage": "The bucket you tried to delete is not empty",
+      "requestParameters": {
+        "bucketName": "my-important-bucket"
+      },
+      "responseElements": null,
+      "requestID": "EXAMPLE-REQUEST-ID",
+      "eventID": "EXAMPLE-EVENT-ID-2",
+      "eventType": "AwsApiCall",
+      "managementEvent": true,
+      "recipientAccountId": "123456789012"
+    },
+    {
+      "eventVersion": "1.08",
+      "userIdentity": {
+        "type": "Root",
+        "principalId": "123456789012",
+        "arn": "arn:aws:iam::123456789012:root",
+        "accountId": "123456789012"
+      },
+      "eventTime": "2024-01-15T15:00:00Z",
+      "eventSource": "iam.amazonaws.com",
+      "eventName": "CreateUser",
+      "awsRegion": "us-east-1",
+      "sourceIPAddress": "192.0.2.100",
+      "userAgent": "console.amazonaws.com",
+      "requestParameters": {
+        "userName": "new-admin-user"
+      },
+      "responseElements": {
+        "user": {
+          "userName": "new-admin-user",
+          "userId": "AIDANEWUSER123456",
+          "arn": "arn:aws:iam::123456789012:user/new-admin-user",
+          "createDate": "2024-01-15T15:00:00Z"
+        }
+      },
+      "requestID": "root-action-example",
+      "eventID": "root-event-example",
+      "eventType": "AwsApiCall",
+      "managementEvent": true,
+      "recipientAccountId": "123456789012"
+    },
+    {
+      "eventVersion": "1.08",
+      "userIdentity": {
+        "type": "IAMUser",
+        "principalId": "AIDAUNAUTHORIZED",
+        "arn": "arn:aws:iam::123456789012:user/limited-user",
+        "accountId": "123456789012",
+        "userName": "limited-user"
+      },
+      "eventTime": "2024-01-15T15:30:45Z",
+      "eventSource": "kms.amazonaws.com",
+      "eventName": "Decrypt",
+      "awsRegion": "us-west-2",
+      "sourceIPAddress": "198.51.100.99",
+      "userAgent": "aws-cli/2.13.0",
+      "errorCode": "AccessDenied",
+      "errorMessage": "User: arn:aws:iam::123456789012:user/limited-user is not authorized to perform: kms:Decrypt",
+      "requestParameters": {
+        "keyId": "arn:aws:kms:us-west-2:123456789012:key/12345678-1234-1234-1234-123456789012"
+      },
+      "responseElements": null,
+      "requestID": "denied-request-id",
+      "eventID": "denied-event-id",
+      "eventType": "AwsApiCall",
+      "managementEvent": true,
+      "recipientAccountId": "123456789012"
+    }
+  ]
+}

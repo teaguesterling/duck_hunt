@@ -61,7 +61,7 @@ error	Critical error occurred
 
 # Test 8: Syslog stores raw output
 query I
-SELECT raw_output
+SELECT log_content
 FROM parse_duck_hunt_log('Dec 12 10:15:42 localhost test[1]: Test message', 'syslog');
 ----
 Dec 12 10:15:42 localhost test[1]: Test message
@@ -72,7 +72,7 @@ Dec 12 10:15:42 localhost test[1]: Test message
 
 # Test 9: Basic Apache combined log format - semantic mappings
 query IIII
-SELECT tool_name, file_path, category, error_code
+SELECT tool_name, ref_file, category, error_code
 FROM parse_duck_hunt_log('127.0.0.1 - - [12/Dec/2025:10:15:42 +0000] "GET /index.html HTTP/1.1" 200 1024 "-" "Mozilla/5.0"', 'apache_access');
 ----
 apache_access	/index.html	GET	200
@@ -86,21 +86,21 @@ FROM parse_duck_hunt_log('192.168.1.1 - - [15/Jan/2025:08:30:00 +0100] "POST /ap
 
 # Test 11: Apache log with 4xx status maps to warning
 query II
-SELECT severity, file_path
+SELECT severity, ref_file
 FROM parse_duck_hunt_log('10.0.0.1 - - [12/Dec/2025:10:15:42 +0000] "GET /notfound HTTP/1.1" 404 0 "-" "Mozilla/5.0"', 'apache_access');
 ----
 warning	/notfound
 
 # Test 12: Apache log with 5xx status maps to error
 query II
-SELECT severity, file_path
+SELECT severity, ref_file
 FROM parse_duck_hunt_log('10.0.0.1 - - [12/Dec/2025:10:15:42 +0000] "GET /error HTTP/1.1" 500 0 "-" "Mozilla/5.0"', 'apache_access');
 ----
 error	/error
 
 # Test 13: Apache log with 2xx status maps to info
 query II
-SELECT severity, file_path
+SELECT severity, ref_file
 FROM parse_duck_hunt_log('10.0.0.1 - - [12/Dec/2025:10:15:42 +0000] "GET /success HTTP/1.1" 200 1024 "-" "Mozilla/5.0"', 'apache_access');
 ----
 info	/success
@@ -134,21 +134,21 @@ true	true
 
 # Test 17: Basic NGINX log format - semantic mappings
 query IIII
-SELECT tool_name, file_path, category, error_code
+SELECT tool_name, ref_file, category, error_code
 FROM parse_duck_hunt_log('192.168.1.10 - - [12/Dec/2025:12:34:56 +0000] "POST /api/v1/login HTTP/2.0" 401 512 "-" "curl/7.68.0"', 'nginx_access');
 ----
 nginx_access	/api/v1/login	POST	401
 
 # Test 18: NGINX log with 401 status maps to warning
 query II
-SELECT severity, file_path
+SELECT severity, ref_file
 FROM parse_duck_hunt_log('10.0.0.1 - - [12/Dec/2025:10:15:42 +0000] "GET /protected HTTP/1.1" 401 0 "-" "Mozilla/5.0"', 'nginx_access');
 ----
 warning	/protected
 
 # Test 19: NGINX log with 503 status maps to error
 query II
-SELECT severity, file_path
+SELECT severity, ref_file
 FROM parse_duck_hunt_log('10.0.0.1 - - [12/Dec/2025:10:15:42 +0000] "GET /api HTTP/1.1" 503 0 "-" "Mozilla/5.0"', 'nginx_access');
 ----
 error	/api
@@ -162,7 +162,7 @@ FROM parse_duck_hunt_log(E'192.168.1.1 - - [12/Dec/2025:10:00:00 +0000] "GET /a 
 
 # Test 21: NGINX log stores raw output
 query I
-SELECT raw_output
+SELECT log_content
 FROM parse_duck_hunt_log('192.168.1.10 - - [12/Dec/2025:12:34:56 +0000] "GET /test HTTP/1.1" 200 100 "-" "Mozilla/5.0"', 'nginx_access');
 ----
 192.168.1.10 - - [12/Dec/2025:12:34:56 +0000] "GET /test HTTP/1.1" 200 100 "-" "Mozilla/5.0"

@@ -45,9 +45,9 @@ std::vector<ValidationEvent> PythonBuildParser::parse(const std::string& content
             event.category = "package_build";
             event.severity = "error";
             event.message = line;
-            event.line_number = -1;
-            event.column_number = -1;
-            event.raw_output = content;
+            event.ref_line = -1;
+            event.ref_column = -1;
+            event.log_content = content;
             event.structured_data = "python_build";
 
             // Extract package name
@@ -71,15 +71,15 @@ std::vector<ValidationEvent> PythonBuildParser::parse(const std::string& content
             event.category = "compilation";
             event.severity = "error";
             event.message = line;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "python_build";
 
             // Extract file and line info from C compilation errors
             std::smatch c_match;
             if (std::regex_search(line, c_match, c_error_pattern)) {
-                event.file_path = c_match[1].str();
-                event.line_number = std::stoi(c_match[2].str());
-                event.column_number = c_match[3].str().empty() ? -1 : std::stoi(c_match[3].str());
+                event.ref_file = c_match[1].str();
+                event.ref_line = std::stoi(c_match[2].str());
+                event.ref_column = c_match[3].str().empty() ? -1 : std::stoi(c_match[3].str());
                 event.message = c_match[4].str();
             }
             event.log_line_start = current_line_num;
@@ -97,7 +97,7 @@ std::vector<ValidationEvent> PythonBuildParser::parse(const std::string& content
             event.category = "test";
             event.severity = "error";
             event.message = line;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "python_build";
 
             // Extract test name
@@ -107,7 +107,7 @@ std::vector<ValidationEvent> PythonBuildParser::parse(const std::string& content
                 // Extract file path
                 size_t sep_pos = event.test_name.find("::");
                 if (sep_pos != std::string::npos) {
-                    event.file_path = event.test_name.substr(0, sep_pos);
+                    event.ref_file = event.test_name.substr(0, sep_pos);
                 }
             }
             event.log_line_start = current_line_num;
@@ -125,7 +125,7 @@ std::vector<ValidationEvent> PythonBuildParser::parse(const std::string& content
             event.category = "test";
             event.severity = "error";
             event.message = line;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "python_build";
 
             // Extract test name
@@ -135,7 +135,7 @@ std::vector<ValidationEvent> PythonBuildParser::parse(const std::string& content
                 // Extract file path
                 size_t sep_pos = event.test_name.find("::");
                 if (sep_pos != std::string::npos) {
-                    event.file_path = event.test_name.substr(0, sep_pos);
+                    event.ref_file = event.test_name.substr(0, sep_pos);
                 }
             }
             event.log_line_start = current_line_num;
@@ -153,7 +153,7 @@ std::vector<ValidationEvent> PythonBuildParser::parse(const std::string& content
             event.category = "assertion";
             event.severity = "error";
             event.message = line;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "python_build";
 
             // These are usually part of a test failure context
@@ -176,11 +176,11 @@ std::vector<ValidationEvent> PythonBuildParser::parse(const std::string& content
                 event.status = ValidationEventStatus::INFO;
                 event.category = "traceback";
                 event.severity = "info";
-                event.file_path = loc_match[1].str();
-                event.line_number = std::stoi(loc_match[2].str());
+                event.ref_file = loc_match[1].str();
+                event.ref_line = std::stoi(loc_match[2].str());
                 event.function_name = loc_match[3].str();
                 event.message = line;
-                event.raw_output = content;
+                event.log_content = content;
                 event.structured_data = "python_build";
                 event.log_line_start = current_line_num;
                 event.log_line_end = current_line_num;
@@ -198,9 +198,9 @@ std::vector<ValidationEvent> PythonBuildParser::parse(const std::string& content
             event.category = "build_command";
             event.severity = "error";
             event.message = line;
-            event.line_number = -1;
-            event.column_number = -1;
-            event.raw_output = content;
+            event.ref_line = -1;
+            event.ref_column = -1;
+            event.log_content = content;
             event.structured_data = "python_build";
 
             // Extract command name
@@ -224,15 +224,15 @@ std::vector<ValidationEvent> PythonBuildParser::parse(const std::string& content
             event.category = "compilation";
             event.severity = "warning";
             event.message = line;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "python_build";
 
             // Extract file and line info
             std::smatch c_match;
             if (std::regex_search(line, c_match, c_warn_pattern)) {
-                event.file_path = c_match[1].str();
-                event.line_number = std::stoi(c_match[2].str());
-                event.column_number = c_match[3].str().empty() ? -1 : std::stoi(c_match[3].str());
+                event.ref_file = c_match[1].str();
+                event.ref_line = std::stoi(c_match[2].str());
+                event.ref_column = c_match[3].str().empty() ? -1 : std::stoi(c_match[3].str());
                 event.message = c_match[4].str();
             }
             event.log_line_start = current_line_num;

@@ -69,7 +69,7 @@ std::vector<WorkflowEvent> ParseDuckHuntWorkflowLogFromString(const std::string&
         error_event.base_event.event_id = 1;
         error_event.base_event.tool_name = "parse_duck_hunt_workflow_log";
         error_event.base_event.message = std::string("Parse error: ") + e.what();
-        error_event.base_event.raw_output = content.substr(0, std::min(size_t(200), content.length()));
+        error_event.base_event.log_content = content.substr(0, std::min(size_t(200), content.length()));
         error_event.base_event.event_type = ValidationEventType::SUMMARY;
         error_event.base_event.status = ValidationEventStatus::ERROR;
         error_event.base_event.severity = "error";
@@ -177,11 +177,11 @@ unique_ptr<FunctionData> ParseDuckHuntWorkflowLogBind(ClientContext &context, Ta
         // Core identification
         "event_id", "tool_name", "event_type",
         // Code location
-        "file_path", "line_number", "column_number", "function_name",
+        "ref_file", "ref_line", "ref_column", "function_name",
         // Classification
         "status", "severity", "category", "error_code",
         // Content
-        "message", "suggestion", "raw_output", "structured_data",
+        "message", "suggestion", "log_content", "structured_data",
         // Log tracking
         "log_line_start", "log_line_end",
         // Test-specific
@@ -226,9 +226,9 @@ void ParseDuckHuntWorkflowLogFunction(ClientContext &context, TableFunctionInput
         output.SetValue(1, count, Value(base.tool_name));
         output.SetValue(2, count, Value(ValidationEventTypeToString(base.event_type)));
         // Code location
-        output.SetValue(3, count, Value(base.file_path));
-        output.SetValue(4, count, base.line_number == -1 ? Value() : Value::INTEGER(base.line_number));
-        output.SetValue(5, count, base.column_number == -1 ? Value() : Value::INTEGER(base.column_number));
+        output.SetValue(3, count, Value(base.ref_file));
+        output.SetValue(4, count, base.ref_line == -1 ? Value() : Value::INTEGER(base.ref_line));
+        output.SetValue(5, count, base.ref_column == -1 ? Value() : Value::INTEGER(base.ref_column));
         output.SetValue(6, count, Value(base.function_name));
         // Classification
         output.SetValue(7, count, Value(ValidationEventStatusToString(base.status)));
@@ -238,7 +238,7 @@ void ParseDuckHuntWorkflowLogFunction(ClientContext &context, TableFunctionInput
         // Content
         output.SetValue(11, count, Value(base.message));
         output.SetValue(12, count, Value(base.suggestion));
-        output.SetValue(13, count, Value(base.raw_output));
+        output.SetValue(13, count, Value(base.log_content));
         output.SetValue(14, count, Value(base.structured_data));
         // Log tracking
         output.SetValue(15, count, base.log_line_start == -1 ? Value() : Value::INTEGER(base.log_line_start));

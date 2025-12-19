@@ -1,0 +1,34 @@
+-- The C compiler identification is GNU 11.4.0
+-- The CXX compiler identification is GNU 11.4.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+CMake Warning at CMakeLists.txt:15:
+  Policy CMP0074 is not set: find_package uses PackageName_ROOT variables.
+
+CMake Warning (dev) at cmake/FindCustomLib.cmake:10:
+  Manually-specified variables were not used by the project:
+
+    CUSTOM_LIB_DIR
+
+CMake Error at CMakeLists.txt:23 (find_package):
+  Could not find a package configuration file provided by "MissingDep" with
+  any of the following names:
+
+    MissingDepConfig.cmake
+    missingdep-config.cmake
+
+  Add the installation prefix of "MissingDep" to CMAKE_PREFIX_PATH or set
+  "MissingDep_DIR" to a directory containing one of the above files.
+
+CMake Error at src/CMakeLists.txt:8 (target_link_libraries):
+  Target "myapp" links to target "MissingDep::core" but the target was not
+  found.
+
+CMake Deprecation Warning at CMakeLists.txt:5:
+  Compatibility with CMake < 3.5 will be removed from a future version of
+  CMake.
+
+-- Configuring incomplete, errors occurred!

@@ -38,9 +38,9 @@ std::vector<ValidationEvent> CMakeParser::parse(const std::string& content) cons
             event.event_id = event_id++;
             event.tool_name = "cmake";
             event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = match[1].str();
-            event.line_number = std::stoi(match[2].str());
-            event.column_number = match[3].str().empty() ? -1 : std::stoi(match[3].str());
+            event.ref_file = match[1].str();
+            event.ref_line = std::stoi(match[2].str());
+            event.ref_column = match[3].str().empty() ? -1 : std::stoi(match[3].str());
             event.function_name = "";
             event.message = match[5].str();
             event.execution_time = 0.0;
@@ -64,7 +64,7 @@ std::vector<ValidationEvent> CMakeParser::parse(const std::string& content) cons
                 event.severity = "info";
             }
 
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "cmake_build";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -80,18 +80,18 @@ std::vector<ValidationEvent> CMakeParser::parse(const std::string& content) cons
             event.status = ValidationEventStatus::ERROR;
             event.category = "configuration";
             event.severity = "error";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_line = -1;
+            event.ref_column = -1;
 
             std::smatch cmake_match;
             if (std::regex_search(line, cmake_match, cmake_error_pattern)) {
-                event.file_path = cmake_match[1].str();
-                event.line_number = std::stoi(cmake_match[2].str());
+                event.ref_file = cmake_match[1].str();
+                event.ref_line = std::stoi(cmake_match[2].str());
             }
 
             event.message = content;
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "cmake_build";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -107,18 +107,18 @@ std::vector<ValidationEvent> CMakeParser::parse(const std::string& content) cons
             event.status = ValidationEventStatus::WARNING;
             event.category = "configuration";
             event.severity = "warning";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_line = -1;
+            event.ref_column = -1;
 
             std::smatch cmake_match;
             if (std::regex_search(line, cmake_match, cmake_warning_pattern)) {
-                event.file_path = cmake_match[1].str();
-                event.line_number = std::stoi(cmake_match[2].str());
+                event.ref_file = cmake_match[1].str();
+                event.ref_line = std::stoi(cmake_match[2].str());
             }
 
             event.message = line;
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "cmake_build";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -134,8 +134,8 @@ std::vector<ValidationEvent> CMakeParser::parse(const std::string& content) cons
             event.status = ValidationEventStatus::ERROR;
             event.category = "linking";
             event.severity = "error";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_line = -1;
+            event.ref_column = -1;
 
             std::smatch linker_match;
             if (std::regex_search(line, linker_match, linker_pattern)) {
@@ -145,7 +145,7 @@ std::vector<ValidationEvent> CMakeParser::parse(const std::string& content) cons
 
             event.message = line;
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "cmake_build";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -161,11 +161,11 @@ std::vector<ValidationEvent> CMakeParser::parse(const std::string& content) cons
             event.status = ValidationEventStatus::ERROR;
             event.category = "linking";
             event.severity = "error";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.message = line;
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "cmake_build";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -182,10 +182,10 @@ std::vector<ValidationEvent> CMakeParser::parse(const std::string& content) cons
             event.category = "build_failure";
             event.severity = "error";
             event.message = line;
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "cmake_build";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -202,10 +202,10 @@ std::vector<ValidationEvent> CMakeParser::parse(const std::string& content) cons
             event.category = "configuration";
             event.severity = "error";
             event.message = line;
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "cmake_build";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;

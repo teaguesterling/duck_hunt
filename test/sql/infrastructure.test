@@ -266,7 +266,7 @@ ORDER BY event_id;
 
 # Test 25: Klog file/line extraction
 query III
-SELECT event_id, file_path, line_number
+SELECT event_id, ref_file, ref_line
 FROM parse_duck_hunt_log('
 I0115 10:30:45.123456    1234 controller.go:456] Message
 ', 'kubernetes')

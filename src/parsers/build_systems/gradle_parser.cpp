@@ -51,7 +51,7 @@ std::vector<ValidationEvent> GradleParser::parse(const std::string& content) con
                 event.severity = "error";
                 event.category = "task_failure";
                 event.message = "Task " + task_name + " failed";
-                event.raw_output = content;
+                event.log_content = content;
                 event.structured_data = "gradle_build";
                 event.log_line_start = current_line_num;
                 event.log_line_end = current_line_num;
@@ -63,15 +63,15 @@ std::vector<ValidationEvent> GradleParser::parse(const std::string& content) con
             event.event_id = event_id++;
             event.tool_name = "gradle-javac";
             event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = match[1].str();
-            event.line_number = std::stoi(match[2].str());
-            event.column_number = -1;
+            event.ref_file = match[1].str();
+            event.ref_line = std::stoi(match[2].str());
+            event.ref_column = -1;
             event.function_name = current_task;
             event.status = ValidationEventStatus::ERROR;
             event.severity = "error";
             event.category = "compilation";
             event.message = match[3].str();
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "gradle_build";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -106,7 +106,7 @@ std::vector<ValidationEvent> GradleParser::parse(const std::string& content) con
                 event.message = "Test skipped";
             }
 
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "gradle_build";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -127,7 +127,7 @@ std::vector<ValidationEvent> GradleParser::parse(const std::string& content) con
             event.message = "Tests: " + std::to_string(total_tests) +
                            " completed, " + std::to_string(failed_tests) + " failed, " +
                            std::to_string(skipped_tests) + " skipped";
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "gradle_build";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -138,16 +138,16 @@ std::vector<ValidationEvent> GradleParser::parse(const std::string& content) con
             event.event_id = event_id++;
             event.tool_name = "gradle-checkstyle";
             event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = match[1].str();
-            event.line_number = std::stoi(match[2].str());
-            event.column_number = -1;
+            event.ref_file = match[1].str();
+            event.ref_line = std::stoi(match[2].str());
+            event.ref_column = -1;
             event.function_name = current_task;
             event.status = ValidationEventStatus::WARNING;
             event.severity = "warning";
             event.category = "style";
             event.message = match[3].str();
             event.error_code = match[4].str();
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "gradle_build";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -165,7 +165,7 @@ std::vector<ValidationEvent> GradleParser::parse(const std::string& content) con
             event.category = "static_analysis";
             event.message = match[2].str();
             event.error_code = match[3].str();
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "gradle_build";
 
             if (event.error_code.find("SQL") != std::string::npos) {
@@ -183,9 +183,9 @@ std::vector<ValidationEvent> GradleParser::parse(const std::string& content) con
             event.event_id = event_id++;
             event.tool_name = "gradle-android-lint";
             event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = match[1].str();
-            event.line_number = std::stoi(match[2].str());
-            event.column_number = -1;
+            event.ref_file = match[1].str();
+            event.ref_line = std::stoi(match[2].str());
+            event.ref_column = -1;
             event.function_name = current_task;
 
             std::string level = match[3].str();
@@ -200,7 +200,7 @@ std::vector<ValidationEvent> GradleParser::parse(const std::string& content) con
             event.category = "android_lint";
             event.message = match[4].str();
             event.error_code = match[5].str();
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "gradle_build";
 
             if (event.error_code.find("Security") != std::string::npos ||
@@ -227,7 +227,7 @@ std::vector<ValidationEvent> GradleParser::parse(const std::string& content) con
             event.category = "build_result";
             event.message = "Build " + result;
             event.execution_time = static_cast<double>(duration);
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "gradle_build";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -243,7 +243,7 @@ std::vector<ValidationEvent> GradleParser::parse(const std::string& content) con
             event.severity = "error";
             event.category = "execution_failure";
             event.message = "Execution failed for task '" + match[1].str() + "'";
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "gradle_build";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;

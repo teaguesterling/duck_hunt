@@ -1,0 +1,28 @@
+Microsoft (R) Build Engine version 17.4.0+18d5aef85 for .NET
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  MyApp -> /home/user/project/bin/Debug/net7.0/MyApp.dll
+  MyApp.Tests -> /home/user/project/tests/bin/Debug/net7.0/MyApp.Tests.dll
+
+Test run for /home/user/project/tests/bin/Debug/net7.0/MyApp.Tests.dll (.NETCoreApp,Version=v7.0)
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.4.5+1caef2f33e (64-bit .NET 7.0.0)
+[xUnit.net 00:00:00.23] Discovering: MyApp.Tests
+[xUnit.net 00:00:00.28] Discovered:  MyApp.Tests
+[xUnit.net 00:00:00.28] Starting:    MyApp.Tests
+[xUnit.net 00:00:00.45] MyApp.Tests.UserServiceTests.CreateUser_ValidInput_ReturnsUser [PASS]
+[xUnit.net 00:00:00.46] MyApp.Tests.UserServiceTests.CreateUser_InvalidEmail_ThrowsException [PASS]
+[xUnit.net 00:00:00.52] MyApp.Tests.UserServiceTests.DeleteUser_NonExistent_ReturnsFalse [FAIL]
+    Expected: True
+    Actual:   False
+    Stack Trace:
+       at MyApp.Tests.UserServiceTests.DeleteUser_NonExistent_ReturnsFalse() in /home/user/project/tests/UserServiceTests.cs:line 45
+[xUnit.net 00:00:00.58] MyApp.Tests.AuthServiceTests.Login_ValidCredentials_ReturnsToken [PASS]
+[xUnit.net 00:00:00.59] MyApp.Tests.AuthServiceTests.Login_InvalidPassword_ThrowsException [SKIP]
+    Skipped: Test requires database connection
+[xUnit.net 00:00:00.62] Finished:    MyApp.Tests
+
+Failed!  - Failed:     1, Passed:     3, Skipped:     1, Total:     5, Duration: 620 ms
+
+Time Elapsed 00:00:03.12

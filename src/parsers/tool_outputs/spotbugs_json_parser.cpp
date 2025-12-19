@@ -153,23 +153,23 @@ std::vector<ValidationEvent> SpotBugsJSONParser::parse(const std::string& conten
                 // Get source path
                 yyjson_val *sourcepath = yyjson_obj_get(source_line, "sourcepath");
                 if (sourcepath && yyjson_is_str(sourcepath)) {
-                    event.file_path = yyjson_get_str(sourcepath);
+                    event.ref_file = yyjson_get_str(sourcepath);
                 }
                 
                 // Get line number (use start line)
                 yyjson_val *start_line = yyjson_obj_get(source_line, "start");
                 if (start_line && yyjson_is_str(start_line)) {
                     try {
-                        event.line_number = std::stoll(yyjson_get_str(start_line));
+                        event.ref_line = std::stoll(yyjson_get_str(start_line));
                     } catch (...) {
-                        event.line_number = -1;
+                        event.ref_line = -1;
                     }
                 } else {
-                    event.line_number = -1;
+                    event.ref_line = -1;
                 }
                 
                 // SpotBugs doesn't provide column information
-                event.column_number = -1;
+                event.ref_column = -1;
             }
         }
         
@@ -188,7 +188,7 @@ std::vector<ValidationEvent> SpotBugsJSONParser::parse(const std::string& conten
         }
         
         // Set raw output and structured data
-        event.raw_output = content;
+        event.log_content = content;
         event.structured_data = "{\"tool\": \"spotbugs\", \"type\": \"" + event.error_code + "\", \"priority\": \"" + event.severity + "\", \"category\": \"" + event.category + "\"}";
         
         events.push_back(event);

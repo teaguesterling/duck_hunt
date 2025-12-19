@@ -1,0 +1,46 @@
+[INFO] Scanning for projects...
+[INFO]
+[INFO] -------------------< com.example:my-application >--------------------
+[INFO] Building my-application 1.0.0-SNAPSHOT
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- maven-compiler-plugin:3.10.1:compile (default-compile) @ my-application ---
+[INFO] Changes detected - recompiling the module!
+[ERROR] /home/user/project/src/main/java/com/example/UserService.java:[23,15] cannot find symbol
+  symbol:   class MissingDependency
+  location: class com.example.UserService
+[ERROR] /home/user/project/src/main/java/com/example/AuthService.java:[45,10] incompatible types: java.lang.String cannot be converted to int
+[WARNING] /home/user/project/src/main/java/com/example/Utils.java:[12,5] [deprecation] OldClass in com.example has been deprecated
+[INFO]
+[INFO] --- maven-surefire-plugin:3.0.0:test (default-test) @ my-application ---
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.example.UserServiceTest
+[ERROR] Tests run: 3, Failures: 1, Errors: 1, Skipped: 0, Time elapsed: 0.345 s <<< FAILURE! - in com.example.UserServiceTest
+[ERROR] testDeleteUser(com.example.UserServiceTest)  Time elapsed: 0.045 s  <<< FAILURE!
+org.opentest4j.AssertionFailedError: expected: <true> but was: <false>
+	at com.example.UserServiceTest.testDeleteUser(UserServiceTest.java:45)
+
+[ERROR] testUpdateUser(com.example.UserServiceTest)  Time elapsed: 0.012 s  <<< ERROR!
+java.lang.NullPointerException: Cannot invoke method on null reference
+	at com.example.UserServiceTest.testUpdateUser(UserServiceTest.java:67)
+
+[INFO]
+[INFO] Results:
+[INFO]
+[ERROR] Failures:
+[ERROR]   UserServiceTest.testDeleteUser:45 expected: <true> but was: <false>
+[ERROR] Errors:
+[ERROR]   UserServiceTest.testUpdateUser:67 » NullPointer
+[INFO]
+[ERROR] Tests run: 5, Failures: 1, Errors: 1, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  6.234 s
+[INFO] Finished at: 2024-01-15T10:35:22-05:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.0.0:test (default-test) on project my-application: There are test failures.

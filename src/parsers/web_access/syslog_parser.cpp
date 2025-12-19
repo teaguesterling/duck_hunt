@@ -49,8 +49,8 @@ static bool ParseBSDSyslog(const std::string& line, ValidationEvent& event, int6
     event.log_line_start = line_number;
     event.log_line_end = line_number;
     event.execution_time = 0.0;
-    event.line_number = -1;
-    event.column_number = -1;
+    event.ref_line = -1;
+    event.ref_column = -1;
 
     // Extract fields
     std::string timestamp = match[1].str() + " " + match[2].str() + " " + match[3].str();
@@ -78,7 +78,7 @@ static bool ParseBSDSyslog(const std::string& line, ValidationEvent& event, int6
     json += "}";
     event.structured_data = json;
 
-    event.raw_output = line;
+    event.log_content = line;
     return true;
 }
 
@@ -101,8 +101,8 @@ static bool ParseRFC5424Syslog(const std::string& line, ValidationEvent& event, 
     event.log_line_start = line_number;
     event.log_line_end = line_number;
     event.execution_time = 0.0;
-    event.line_number = -1;
-    event.column_number = -1;
+    event.ref_line = -1;
+    event.ref_column = -1;
 
     // Extract fields
     std::string priority_str = match[1].str();
@@ -148,7 +148,7 @@ static bool ParseRFC5424Syslog(const std::string& line, ValidationEvent& event, 
     json += "}";
     event.structured_data = json;
 
-    event.raw_output = line;
+    event.log_content = line;
     return true;
 }
 
@@ -171,8 +171,8 @@ static bool ParseSimpleSyslog(const std::string& line, ValidationEvent& event, i
     event.log_line_start = line_number;
     event.log_line_end = line_number;
     event.execution_time = 0.0;
-    event.line_number = -1;
-    event.column_number = -1;
+    event.ref_line = -1;
+    event.ref_column = -1;
 
     event.started_at = match[1].str();         // Timestamp (proper column)
     event.message = match[2].str();
@@ -181,7 +181,7 @@ static bool ParseSimpleSyslog(const std::string& line, ValidationEvent& event, i
     event.status = ValidationEventStatus::INFO;
     // origin: not available in simple format
 
-    event.raw_output = line;
+    event.log_content = line;
     return true;
 }
 

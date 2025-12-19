@@ -71,7 +71,7 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string& content) cons
                            std::to_string(configured) + " targets configured)";
             event.tool_name = "bazel";
             event.category = "analysis";
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"targets\": " + std::to_string(targets) +
                                    ", \"packages\": " + std::to_string(packages) +
                                    ", \"configured\": " + std::to_string(configured) + "}";
@@ -90,7 +90,7 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string& content) cons
             event.message = "Build completed successfully with " + std::to_string(actions) + " total actions";
             event.tool_name = "bazel";
             event.category = "build_success";
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"total_actions\": " + std::to_string(actions) + "}";
 
             events.push_back(event);
@@ -109,7 +109,7 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string& content) cons
             event.tool_name = "bazel";
             event.category = "performance";
             event.execution_time = elapsed;
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"elapsed_time\": " + match[1].str() +
                                    ", \"critical_path_time\": " + match[2].str() + "}";
 
@@ -130,7 +130,7 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string& content) cons
             event.tool_name = "bazel";
             event.category = "test_result";
             event.execution_time = duration;
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"target\": \"" + target + "\", \"duration\": " + match[2].str() + "}";
 
             events.push_back(event);
@@ -152,7 +152,7 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string& content) cons
             event.tool_name = "bazel";
             event.category = "test_result";
             event.execution_time = duration;
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"target\": \"" + target + "\", \"duration\": " + match[2].str() +
                                    ", \"current_attempt\": " + std::to_string(current_attempt) +
                                    ", \"total_attempts\": " + std::to_string(total_attempts) + "}";
@@ -174,7 +174,7 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string& content) cons
             event.tool_name = "bazel";
             event.category = "test_timeout";
             event.execution_time = duration;
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"target\": \"" + target + "\", \"duration\": " + match[2].str() + ", \"reason\": \"timeout\"}";
 
             events.push_back(event);
@@ -194,7 +194,7 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string& content) cons
             event.test_name = target;
             event.tool_name = "bazel";
             event.category = "test_flaky";
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"target\": \"" + target + "\", \"passed_attempts\": " + std::to_string(passed_attempts) +
                                    ", \"total_attempts\": " + std::to_string(total_attempts) + "}";
 
@@ -213,7 +213,7 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string& content) cons
             event.test_name = target;
             event.tool_name = "bazel";
             event.category = "test_result";
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"target\": \"" + target + "\", \"reason\": \"skipped\"}";
 
             events.push_back(event);
@@ -233,13 +233,13 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string& content) cons
             event.severity = "error";
             event.status = ValidationEventStatus::ERROR;
             event.message = rule_name + " failed: " + error_msg;
-            event.file_path = file_path;
-            event.line_number = line_num;
-            event.column_number = col_num;
+            event.ref_file = file_path;
+            event.ref_line = line_num;
+            event.ref_column = col_num;
             event.error_code = "exit_" + std::to_string(exit_code);
             event.tool_name = "bazel";
             event.category = "compilation_error";
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"rule\": \"" + rule_name + "\", \"exit_code\": " + std::to_string(exit_code) +
                                    ", \"error\": \"" + error_msg + "\"}";
 
@@ -260,13 +260,13 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string& content) cons
             event.severity = "error";
             event.status = ValidationEventStatus::ERROR;
             event.message = "Linking failed for " + rule_name + ": " + error_msg;
-            event.file_path = file_path;
-            event.line_number = line_num;
-            event.column_number = col_num;
+            event.ref_file = file_path;
+            event.ref_line = line_num;
+            event.ref_column = col_num;
             event.error_code = "link_exit_" + std::to_string(exit_code);
             event.tool_name = "bazel";
             event.category = "linking_error";
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"rule\": \"" + rule_name + "\", \"exit_code\": " + std::to_string(exit_code) +
                                    ", \"error\": \"" + error_msg + "\"}";
 
@@ -285,12 +285,12 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string& content) cons
             event.severity = "error";
             event.status = ValidationEventStatus::ERROR;
             event.message = error_msg;
-            event.file_path = file_path;
-            event.line_number = line_num;
-            event.column_number = col_num;
+            event.ref_file = file_path;
+            event.ref_line = line_num;
+            event.ref_column = col_num;
             event.tool_name = "bazel";
             event.category = "build_error";
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"error\": \"" + error_msg + "\"}";
 
             events.push_back(event);
@@ -307,7 +307,7 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string& content) cons
             event.message = warning_msg;
             event.tool_name = "bazel";
             event.category = "build_warning";
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"warning\": \"" + warning_msg + "\"}";
 
             events.push_back(event);
@@ -324,11 +324,11 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string& content) cons
             event.severity = "error";
             event.status = ValidationEventStatus::FAIL;
             event.message = failure_msg;
-            event.file_path = file_path;
-            event.line_number = line_num;
+            event.ref_file = file_path;
+            event.ref_line = line_num;
             event.tool_name = "bazel";
             event.category = "test_failure";
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"failure_message\": \"" + failure_msg + "\"}";
 
             events.push_back(event);
@@ -345,7 +345,7 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string& content) cons
             event.message = "Loading packages: " + std::to_string(packages) + " loaded";
             event.tool_name = "bazel";
             event.category = "loading";
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"packages_loaded\": " + std::to_string(packages) + "}";
 
             events.push_back(event);
@@ -366,7 +366,7 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string& content) cons
                            std::to_string(configured) + " targets configured)";
             event.tool_name = "bazel";
             event.category = "analyzing";
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"targets\": " + std::to_string(targets) +
                                    ", \"packages\": " + std::to_string(packages) +
                                    ", \"configured\": " + std::to_string(configured) + "}";
@@ -394,7 +394,7 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string& content) cons
                            (skipped > 0 ? ", " + std::to_string(skipped) + " skipped" : "");
             event.tool_name = "bazel";
             event.category = "test_summary";
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"total\": " + std::to_string(total) +
                                    ", \"passed\": " + std::to_string(passed) +
                                    ", \"failed\": " + std::to_string(failed) +

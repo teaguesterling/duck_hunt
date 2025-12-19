@@ -1,0 +1,52 @@
+Running with gitlab-runner 16.6.0 (bef5fcef)
+  on runner-abc123-project-456-concurrent-0 abc123XY
+Resolving secrets
+Preparing the "docker" executor
+Using Docker executor with image ruby:3.2.2 ...
+Pulling docker image ruby:3.2.2 ...
+Using docker image sha256:abc123def456 for ruby:3.2.2 with digest ruby@sha256:abc123...
+Preparing environment
+Running on runner-abc123-project-456-concurrent-0 via runner-host...
+Getting source from Git repository
+Fetching changes with git depth set to 20...
+Reinitialized existing Git repository in /builds/myorg/myproject/.git/
+Checking out e1234567 as detached HEAD (ref is main)...
+Skipping Git submodules setup
+Executing "step_script" stage of the job script
+Using docker image sha256:abc123def456 for ruby:3.2.2 with digest ruby@sha256:abc123...
+$ bundle install --jobs 4 --retry 3
+Fetching gem metadata from https://rubygems.org/..........
+Installing rake 13.1.0
+Installing rspec 3.12.0
+Bundle complete! 45 Gemfile dependencies, 89 gems now installed.
+$ bundle exec rspec spec/
+.......F..E....
+
+Failures:
+
+  1) UserController#create creates a new user
+     Failure/Error: expect(response).to have_http_status(:created)
+       expected the response to have status code :created (201) but it was :unprocessable_entity (422)
+     # ./spec/controllers/users_controller_spec.rb:45:in `block (3 levels) in <top (required)>'
+
+Errors:
+
+  2) DatabaseService#connect raises error on timeout
+     Errno::ECONNREFUSED:
+       Connection refused - connect(2) for "localhost" port 5432
+     # ./spec/services/database_service_spec.rb:23:in `block (3 levels) in <top (required)>'
+
+Finished in 12.34 seconds (files took 1.23 seconds to load)
+15 examples, 1 failure, 1 error
+
+Failed examples:
+
+rspec ./spec/controllers/users_controller_spec.rb:40 # UserController#create creates a new user
+
+ERROR: Job failed: exit code 1
+Uploading artifacts for failed job
+Uploading artifacts...
+coverage/: found 25 matching files and directories
+spec/reports/: found 3 matching files and directories
+Uploading artifacts as "archive" to coordinator... 201 Created  id=123456 responseStatus=201 Created token=abc123XY
+Cleaning up project directory and file based variables

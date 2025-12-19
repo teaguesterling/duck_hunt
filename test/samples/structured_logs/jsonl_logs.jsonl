@@ -1,0 +1,11 @@
+{"timestamp":"2024-01-15T10:00:00.000Z","level":"info","message":"Application started","service":"web-api","version":"1.2.3","pid":12345}
+{"timestamp":"2024-01-15T10:00:01.123Z","level":"debug","message":"Database connection established","service":"web-api","host":"db.internal","port":5432,"pool_size":10}
+{"timestamp":"2024-01-15T10:00:05.456Z","level":"info","message":"HTTP server listening","service":"web-api","port":8080,"address":"0.0.0.0"}
+{"timestamp":"2024-01-15T10:01:00.000Z","level":"info","message":"Request received","service":"web-api","method":"GET","path":"/api/users","request_id":"abc123","client_ip":"192.168.1.100"}
+{"timestamp":"2024-01-15T10:01:00.045Z","level":"debug","message":"Query executed","service":"web-api","query":"SELECT * FROM users LIMIT 100","duration_ms":42,"rows_returned":50}
+{"timestamp":"2024-01-15T10:01:00.050Z","level":"info","message":"Response sent","service":"web-api","status":200,"duration_ms":50,"request_id":"abc123"}
+{"timestamp":"2024-01-15T10:02:00.000Z","level":"warn","message":"Rate limit approaching","service":"web-api","client_ip":"203.0.113.50","current_rate":95,"limit":100}
+{"timestamp":"2024-01-15T10:02:30.000Z","level":"error","message":"Database query failed","service":"web-api","error":"connection timeout","query":"SELECT * FROM large_table","duration_ms":30000,"request_id":"def456"}
+{"timestamp":"2024-01-15T10:02:30.001Z","level":"error","message":"Request failed","service":"web-api","status":500,"error":"Internal Server Error","request_id":"def456","stack":"Error: connection timeout\n    at Database.query (/app/db.js:45:12)\n    at async UserService.getAll (/app/services/user.js:23:10)"}
+{"timestamp":"2024-01-15T10:03:00.000Z","level":"info","message":"Health check passed","service":"web-api","checks":{"database":"healthy","cache":"healthy","memory_mb":256}}
+{"timestamp":"2024-01-15T10:05:00.000Z","level":"fatal","message":"Unhandled exception","service":"web-api","error":"ENOMEM: not enough memory","stack":"Error: ENOMEM\n    at process.nextTick (/app/index.js:10:5)"}

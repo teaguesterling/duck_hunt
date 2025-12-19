@@ -1,0 +1,15 @@
+===== Build started at 2024-01-15 10:00:00 =====
+{"level":"info","message":"Compiling source files...","timestamp":"2024-01-15T10:00:01Z"}
+make[1]: Entering directory '/home/user/project/src'
+src/main.cpp:23:5: warning: unused variable 'x' [-Wunused-variable]
+    int x = 5;
+        ^
+{"level":"warn","message":"Deprecated API usage detected","file":"src/api.cpp","line":45}
+PASS tests/unit/test_parser.cpp
+FAIL tests/unit/test_validator.cpp
+  Expected: 42
+  Actual: 0
+ts=2024-01-15T10:00:30Z level=error msg="Test suite failed" failures=1 total=25
+make[1]: Leaving directory '/home/user/project/src'
+make: *** [Makefile:15: test] Error 1
+{"level":"fatal","message":"Build failed","exit_code":1,"timestamp":"2024-01-15T10:00:35Z"}

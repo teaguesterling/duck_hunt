@@ -1,0 +1,127 @@
+{
+  "metadata": {
+    "rubocop_version": "1.57.2",
+    "ruby_engine": "ruby",
+    "ruby_version": "3.2.2",
+    "ruby_patchlevel": "53",
+    "ruby_platform": "x86_64-linux"
+  },
+  "files": [
+    {
+      "path": "app/models/user.rb",
+      "offenses": [
+        {
+          "severity": "convention",
+          "message": "Missing top-level documentation comment for `class User`.",
+          "cop_name": "Style/Documentation",
+          "corrected": false,
+          "correctable": false,
+          "location": {
+            "start_line": 1,
+            "start_column": 1,
+            "last_line": 1,
+            "last_column": 10,
+            "length": 10,
+            "line": 1,
+            "column": 1
+          }
+        },
+        {
+          "severity": "warning",
+          "message": "Useless assignment to variable - `temp`.",
+          "cop_name": "Lint/UselessAssignment",
+          "corrected": false,
+          "correctable": false,
+          "location": {
+            "start_line": 15,
+            "start_column": 5,
+            "last_line": 15,
+            "last_column": 8,
+            "length": 4,
+            "line": 15,
+            "column": 5
+          }
+        }
+      ]
+    },
+    {
+      "path": "app/controllers/users_controller.rb",
+      "offenses": [
+        {
+          "severity": "convention",
+          "message": "Line is too long. [125/100]",
+          "cop_name": "Layout/LineLength",
+          "corrected": false,
+          "correctable": true,
+          "location": {
+            "start_line": 23,
+            "start_column": 101,
+            "last_line": 23,
+            "last_column": 125,
+            "length": 25,
+            "line": 23,
+            "column": 101
+          }
+        },
+        {
+          "severity": "error",
+          "message": "Lint/Syntax: unexpected token tRCURLY",
+          "cop_name": "Lint/Syntax",
+          "corrected": false,
+          "correctable": false,
+          "location": {
+            "start_line": 45,
+            "start_column": 10,
+            "last_line": 45,
+            "last_column": 10,
+            "length": 1,
+            "line": 45,
+            "column": 10
+          }
+        },
+        {
+          "severity": "convention",
+          "message": "Prefer `each` over `for`.",
+          "cop_name": "Style/For",
+          "corrected": false,
+          "correctable": true,
+          "location": {
+            "start_line": 56,
+            "start_column": 5,
+            "last_line": 56,
+            "last_column": 7,
+            "length": 3,
+            "line": 56,
+            "column": 5
+          }
+        }
+      ]
+    },
+    {
+      "path": "app/services/auth_service.rb",
+      "offenses": [
+        {
+          "severity": "warning",
+          "message": "Method `authenticate` is defined at both line 12 and line 34.",
+          "cop_name": "Lint/DuplicateMethods",
+          "corrected": false,
+          "correctable": false,
+          "location": {
+            "start_line": 34,
+            "start_column": 3,
+            "last_line": 34,
+            "last_column": 24,
+            "length": 22,
+            "line": 34,
+            "column": 3
+          }
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "offense_count": 6,
+    "target_file_count": 3,
+    "inspected_file_count": 15
+  }
+}

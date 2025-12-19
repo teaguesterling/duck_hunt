@@ -1,0 +1,17 @@
+<134>Jan 15 10:00:00 webserver01 nginx[12345]: 192.168.1.100 - - [15/Jan/2024:10:00:00 +0000] "GET / HTTP/1.1" 200 4523
+<134>Jan 15 10:00:01 webserver01 nginx[12345]: 192.168.1.100 - - [15/Jan/2024:10:00:01 +0000] "GET /css/style.css HTTP/1.1" 200 1234
+<131>Jan 15 10:01:00 dbserver01 postgresql[23456]: LOG:  checkpoint starting: time
+<131>Jan 15 10:01:30 dbserver01 postgresql[23456]: LOG:  checkpoint complete: wrote 156 buffers (1.0%)
+<132>Jan 15 10:02:00 appserver01 myapp[34567]: WARNING: Connection pool exhausted, waiting for available connection
+<131>Jan 15 10:02:01 appserver01 myapp[34567]: ERROR: Database query timeout after 30000ms
+<128>Jan 15 10:02:02 appserver01 myapp[34567]: CRITICAL: Unhandled exception in request handler
+<133>Jan 15 10:03:00 webserver01 sshd[45678]: Accepted publickey for admin from 10.0.1.100 port 54321 ssh2
+<132>Jan 15 10:03:30 webserver01 sshd[45679]: Failed password for invalid user root from 203.0.113.50 port 12345 ssh2
+<132>Jan 15 10:03:31 webserver01 sshd[45680]: Failed password for invalid user admin from 203.0.113.50 port 12346 ssh2
+<132>Jan 15 10:03:32 webserver01 sshd[45681]: Failed password for invalid user test from 203.0.113.50 port 12347 ssh2
+<134>Jan 15 10:04:00 loadbalancer haproxy[56789]: Connect from 192.168.1.50:43210 to 10.0.1.100:80 (www/HTTP)
+<130>Jan 15 10:04:30 loadbalancer haproxy[56789]: Server backend/server2 is DOWN, reason: Layer4 connection problem
+<133>Jan 15 10:05:00 appserver01 cron[67890]: (root) CMD (/usr/local/bin/backup.sh)
+<134>Jan 15 10:05:30 appserver01 systemd[1]: Started Daily apt download activities.
+<131>Jan 15 10:06:00 appserver01 kernel: [12345.678901] Out of memory: Killed process 34567 (myapp) total-vm:2048000kB
+<128>Jan 15 10:06:01 appserver01 kernel: [12345.679000] oom_reaper: reaped process 34567 (myapp), now anon-rss:0kB

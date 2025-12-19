@@ -4,11 +4,20 @@
 namespace duckdb {
 
 bool MakeParser::canParse(const std::string& content) const {
-    // Look for make-specific patterns
+    // Only match when there are actual make-specific markers.
+    // Generic ": error:" / ": warning:" should be handled by generic_lint.
+    // Make-specific patterns:
+    // - "make: ***" (make error message)
+    // - "undefined reference" with make context
+    // - "make[N]:" (submake output)
     if (content.find("make: ***") != std::string::npos ||
-        content.find("undefined reference") != std::string::npos ||
-        content.find(": error:") != std::string::npos ||
-        content.find(": warning:") != std::string::npos) {
+        content.find("make[") != std::string::npos) {
+        return isValidMakeError(content);
+    }
+    // For "undefined reference", require make markers too
+    if (content.find("undefined reference") != std::string::npos &&
+        (content.find("make") != std::string::npos ||
+         content.find("collect2") != std::string::npos)) {
         return isValidMakeError(content);
     }
     return false;
@@ -50,13 +59,13 @@ std::vector<ValidationEvent> MakeParser::parse(const std::string& content) const
             event.event_id = event_id++;
             event.tool_name = "make";
             event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = match[1].str();
-            event.line_number = std::stoi(match[2].str());
-            event.column_number = match[3].str().empty() ? -1 : std::stoi(match[3].str());
+            event.ref_file = match[1].str();
+            event.ref_line = std::stoi(match[2].str());
+            event.ref_column = match[3].str().empty() ? -1 : std::stoi(match[3].str());
             event.function_name = current_function;
             event.message = match[5].str();
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "make_build";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -92,10 +101,10 @@ std::vector<ValidationEvent> MakeParser::parse(const std::string& content) const
             event.category = "build_failure";
             event.severity = "error";
             event.message = line;
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "make_build";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -105,7 +114,7 @@ std::vector<ValidationEvent> MakeParser::parse(const std::string& content) const
             std::regex target_pattern(R"(\[([^:]+):(\d+):\s*([^\]]+)\])");
             std::smatch target_match;
             if (std::regex_search(line, target_match, target_pattern)) {
-                event.file_path = target_match[1].str();  // Makefile
+                event.ref_file = target_match[1].str();  // Makefile
                 // Don't extract line_number for make build failures - keep it as -1 (NULL)
                 event.test_name = target_match[3].str();  // Target name (e.g., "build/main")
             }
@@ -122,10 +131,10 @@ std::vector<ValidationEvent> MakeParser::parse(const std::string& content) const
             event.category = "linking";
             event.severity = "error";
             event.message = line;
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.execution_time = 0.0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "make_build";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;

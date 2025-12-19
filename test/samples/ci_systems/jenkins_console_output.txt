@@ -1,0 +1,68 @@
+Started by user admin
+Running as SYSTEM
+Building in workspace /var/jenkins_home/workspace/my-pipeline
+[Pipeline] Start of Pipeline
+[Pipeline] node
+Running on Jenkins in /var/jenkins_home/workspace/my-pipeline
+[Pipeline] {
+[Pipeline] stage
+[Pipeline] { (Checkout)
+[Pipeline] checkout
+Selected Git installation does not exist. Using Default
+The recommended git tool is: NONE
+using credential github-credentials
+Cloning the remote Git repository
+Cloning repository https://github.com/myorg/myrepo.git
+ > git init /var/jenkins_home/workspace/my-pipeline # timeout=10
+Fetching upstream changes from https://github.com/myorg/myrepo.git
+ > git --version # timeout=10
+ > git --version # 'git version 2.39.2'
+ > git fetch --tags --force --progress -- https://github.com/myorg/myrepo.git +refs/heads/*:refs/remotes/origin/* # timeout=10
+ > git config remote.origin.url https://github.com/myorg/myrepo.git # timeout=10
+ > git config --add remote.origin.fetch +refs/heads/*:refs/remotes/origin/* # timeout=10
+ > git rev-parse refs/remotes/origin/main^{commit} # timeout=10
+Checking out Revision abc123def456789 (refs/remotes/origin/main)
+ > git checkout -f abc123def456789 # timeout=10
+Commit message: "Add new feature"
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Build)
+[Pipeline] sh
++ mvn clean compile
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ----------------------< com.myorg:myapp >-----------------------
+[INFO] Building myapp 1.0.0-SNAPSHOT
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- maven-clean-plugin:3.2.0:clean (default-clean) @ myapp ---
+[INFO] Deleting /var/jenkins_home/workspace/my-pipeline/target
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:compile (default-compile) @ myapp ---
+[INFO] Changes detected - recompiling the module!
+[INFO] Compiling 45 source files to /var/jenkins_home/workspace/my-pipeline/target/classes
+[WARNING] /var/jenkins_home/workspace/my-pipeline/src/main/java/com/myorg/service/UserService.java:[34,12] deprecated method used
+[ERROR] /var/jenkins_home/workspace/my-pipeline/src/main/java/com/myorg/controller/ApiController.java:[56,20] error: cannot find symbol
+[ERROR]   symbol:   class MissingDependency
+[ERROR]   location: class ApiController
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  12.345 s
+[INFO] Finished at: 2024-01-15T10:30:45Z
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.11.0:compile (default-compile) on project myapp: Compilation failure
+[ERROR] /var/jenkins_home/workspace/my-pipeline/src/main/java/com/myorg/controller/ApiController.java:[56,20] error: cannot find symbol
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Test)
+Stage "Test" skipped due to earlier failure(s)
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] }
+[Pipeline] // node
+[Pipeline] End of Pipeline
+ERROR: script returned exit code 1
+Finished: FAILURE

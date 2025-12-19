@@ -80,13 +80,13 @@ static bool ParseKubernetesLine(const std::string& line, ValidationEvent& event,
 
         // Parse line number
         try {
-            event.line_number = std::stoi(line_num_str);
+            event.ref_line = std::stoi(line_num_str);
         } catch (...) {
-            event.line_number = -1;
+            event.ref_line = -1;
         }
-        event.column_number = -1;
+        event.ref_column = -1;
 
-        event.file_path = file;
+        event.ref_file = file;
         event.message = message;
         event.started_at = time_part;
         event.category = file;
@@ -100,7 +100,7 @@ static bool ParseKubernetesLine(const std::string& line, ValidationEvent& event,
         json += "}";
         event.structured_data = json;
 
-        event.raw_output = line;
+        event.log_content = line;
         return true;
     }
 
@@ -112,8 +112,8 @@ static bool ParseKubernetesLine(const std::string& line, ValidationEvent& event,
         event.log_line_start = line_number;
         event.log_line_end = line_number;
         event.execution_time = 0.0;
-        event.line_number = -1;
-        event.column_number = -1;
+        event.ref_line = -1;
+        event.ref_column = -1;
 
         std::string timestamp = match[1].str();
         std::string stream = match[2].str();
@@ -140,7 +140,7 @@ static bool ParseKubernetesLine(const std::string& line, ValidationEvent& event,
         json += "}";
         event.structured_data = json;
 
-        event.raw_output = line;
+        event.log_content = line;
         return true;
     }
 
@@ -152,8 +152,8 @@ static bool ParseKubernetesLine(const std::string& line, ValidationEvent& event,
         event.log_line_start = line_number;
         event.log_line_end = line_number;
         event.execution_time = 0.0;
-        event.line_number = -1;
-        event.column_number = -1;
+        event.ref_line = -1;
+        event.ref_column = -1;
 
         std::string last_seen = match[1].str();
         std::string event_type = match[2].str();
@@ -185,7 +185,7 @@ static bool ParseKubernetesLine(const std::string& line, ValidationEvent& event,
         json += "}";
         event.structured_data = json;
 
-        event.raw_output = line;
+        event.log_content = line;
         return true;
     }
 

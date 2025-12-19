@@ -1,0 +1,56 @@
+<?xml version="1.0" ?>
+<coverage version="7.3.2" timestamp="1705320000000" lines-valid="1500" lines-covered="1200" line-rate="0.8" branches-valid="300" branches-covered="240" branch-rate="0.8" complexity="0">
+    <packages>
+        <package name="myapp" line-rate="0.85" branch-rate="0.82" complexity="0">
+            <classes>
+                <class name="user_service.py" filename="myapp/services/user_service.py" line-rate="0.92" branch-rate="0.88" complexity="0">
+                    <methods/>
+                    <lines>
+                        <line number="1" hits="1"/>
+                        <line number="5" hits="1"/>
+                        <line number="10" hits="1"/>
+                        <line number="15" hits="1"/>
+                        <line number="20" hits="1"/>
+                        <line number="25" hits="0" branch="true" condition-coverage="50% (1/2)"/>
+                        <line number="30" hits="1"/>
+                        <line number="35" hits="0"/>
+                    </lines>
+                </class>
+                <class name="api_handler.py" filename="myapp/handlers/api_handler.py" line-rate="0.75" branch-rate="0.70" complexity="0">
+                    <methods/>
+                    <lines>
+                        <line number="1" hits="1"/>
+                        <line number="10" hits="1"/>
+                        <line number="20" hits="0"/>
+                        <line number="30" hits="0"/>
+                        <line number="40" hits="1"/>
+                        <line number="50" hits="1" branch="true" condition-coverage="100% (2/2)"/>
+                    </lines>
+                </class>
+                <class name="database.py" filename="myapp/db/database.py" line-rate="0.95" branch-rate="0.90" complexity="0">
+                    <methods/>
+                    <lines>
+                        <line number="1" hits="1"/>
+                        <line number="15" hits="1"/>
+                        <line number="30" hits="1"/>
+                        <line number="45" hits="1"/>
+                        <line number="60" hits="0"/>
+                    </lines>
+                </class>
+            </classes>
+        </package>
+        <package name="myapp.utils" line-rate="0.78" branch-rate="0.75" complexity="0">
+            <classes>
+                <class name="helpers.py" filename="myapp/utils/helpers.py" line-rate="0.78" branch-rate="0.75" complexity="0">
+                    <methods/>
+                    <lines>
+                        <line number="1" hits="1"/>
+                        <line number="10" hits="1"/>
+                        <line number="20" hits="0"/>
+                        <line number="30" hits="1"/>
+                    </lines>
+                </class>
+            </classes>
+        </package>
+    </packages>
+</coverage>

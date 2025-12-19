@@ -138,7 +138,7 @@ std::vector<ValidationEvent> TflintJSONParser::parse(const std::string& content)
             // Get filename
             yyjson_val *filename = yyjson_obj_get(range, "filename");
             if (filename && yyjson_is_str(filename)) {
-                event.file_path = yyjson_get_str(filename);
+                event.ref_file = yyjson_get_str(filename);
             }
 
             // Get start position
@@ -146,16 +146,16 @@ std::vector<ValidationEvent> TflintJSONParser::parse(const std::string& content)
             if (start && yyjson_is_obj(start)) {
                 yyjson_val *line = yyjson_obj_get(start, "line");
                 if (line && yyjson_is_int(line)) {
-                    event.line_number = yyjson_get_int(line);
+                    event.ref_line = yyjson_get_int(line);
                 } else {
-                    event.line_number = -1;
+                    event.ref_line = -1;
                 }
 
                 yyjson_val *column = yyjson_obj_get(start, "column");
                 if (column && yyjson_is_int(column)) {
-                    event.column_number = yyjson_get_int(column);
+                    event.ref_column = yyjson_get_int(column);
                 } else {
-                    event.column_number = -1;
+                    event.ref_column = -1;
                 }
             }
         }
@@ -165,7 +165,7 @@ std::vector<ValidationEvent> TflintJSONParser::parse(const std::string& content)
             event.suggestion = "Rule: " + event.function_name;
         }
 
-        event.raw_output = content;
+        event.log_content = content;
         event.structured_data = "tflint_json";
 
         events.push_back(event);

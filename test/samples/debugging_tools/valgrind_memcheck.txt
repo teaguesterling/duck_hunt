@@ -1,0 +1,64 @@
+==12345== Memcheck, a memory error detector
+==12345== Copyright (C) 2002-2022, and GNU GPL'd, by Julian Seward et al.
+==12345== Using Valgrind-3.19.0 and LibVEX; rerun with -h for copyright info
+==12345== Command: ./myapp --test
+==12345==
+Application starting...
+==12345== Invalid read of size 8
+==12345==    at 0x109234: process_item (processor.cpp:45)
+==12345==    by 0x109567: handle_batch (handler.cpp:123)
+==12345==    by 0x109890: main (main.cpp:78)
+==12345==  Address 0x4a5c040 is 0 bytes after a block of size 64 alloc'd
+==12345==    at 0x484180F: malloc (vg_replace_malloc.c:381)
+==12345==    by 0x109012: create_buffer (memory.cpp:34)
+==12345==    by 0x109123: initialize (init.cpp:56)
+==12345==    by 0x109800: main (main.cpp:67)
+==12345==
+==12345== Invalid write of size 4
+==12345==    at 0x109345: update_counter (counter.cpp:23)
+==12345==    by 0x109456: process_item (processor.cpp:67)
+==12345==    by 0x109567: handle_batch (handler.cpp:123)
+==12345==    by 0x109890: main (main.cpp:78)
+==12345==  Address 0x0 is not stack'd, malloc'd or (recently) free'd
+==12345==
+==12345== Conditional jump or move depends on uninitialised value(s)
+==12345==    at 0x109678: validate_input (validator.cpp:34)
+==12345==    by 0x109789: process_request (processor.cpp:89)
+==12345==    by 0x109890: main (main.cpp:78)
+==12345==  Uninitialised value was created by a stack allocation
+==12345==    at 0x109600: validate_input (validator.cpp:12)
+==12345==
+Application finished
+==12345==
+==12345== HEAP SUMMARY:
+==12345==     in use at exit: 1,234 bytes in 12 blocks
+==12345==   total heap usage: 456 allocs, 444 frees, 123,456 bytes allocated
+==12345==
+==12345== 256 bytes in 4 blocks are definitely lost in loss record 1 of 3
+==12345==    at 0x484180F: malloc (vg_replace_malloc.c:381)
+==12345==    by 0x109ABC: allocate_item (memory.cpp:78)
+==12345==    by 0x109BCD: create_items (factory.cpp:45)
+==12345==    by 0x109CDE: initialize (init.cpp:89)
+==12345==    by 0x109800: main (main.cpp:67)
+==12345==
+==12345== 512 bytes in 2 blocks are indirectly lost in loss record 2 of 3
+==12345==    at 0x4842F48: operator new(unsigned long) (vg_replace_malloc.c:422)
+==12345==    by 0x109DEF: Container::add (container.cpp:34)
+==12345==    by 0x109EF0: populate_data (data.cpp:56)
+==12345==    by 0x109890: main (main.cpp:78)
+==12345==
+==12345== 466 (256 direct, 210 indirect) bytes in 8 blocks are possibly lost in loss record 3 of 3
+==12345==    at 0x4842F48: operator new(unsigned long) (vg_replace_malloc.c:422)
+==12345==    by 0x10A012: std::__cxx11::basic_string (basic_string.h:520)
+==12345==    by 0x10A123: parse_config (config.cpp:78)
+==12345==    by 0x109800: main (main.cpp:67)
+==12345==
+==12345== LEAK SUMMARY:
+==12345==    definitely lost: 256 bytes in 4 blocks
+==12345==    indirectly lost: 512 bytes in 2 blocks
+==12345==      possibly lost: 466 bytes in 8 blocks
+==12345==    still reachable: 0 bytes in 0 blocks
+==12345==         suppressed: 0 bytes in 0 blocks
+==12345==
+==12345== For lists of detected and suppressed errors, rerun with: -s
+==12345== ERROR SUMMARY: 5 errors from 5 contexts (suppressed: 0 from 0)

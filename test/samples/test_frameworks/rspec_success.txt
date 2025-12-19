@@ -1,0 +1,32 @@
+User
+  validations
+    is valid with valid attributes
+    is not valid without an email
+    is not valid with a duplicate email
+  associations
+    has many posts
+    has many comments through posts
+
+Post
+  validations
+    is valid with valid attributes
+    is not valid without a title
+    requires content to be at least 10 characters
+  scopes
+    .published returns only published posts
+    .recent returns posts from last 7 days
+
+Authentication
+  #login
+    with valid credentials
+      returns a valid token
+      sets the session
+    with invalid credentials
+      raises AuthenticationError
+      does not set the session
+  #logout
+    clears the session
+    invalidates the token
+
+Finished in 1.23 seconds (files took 0.45 seconds to load)
+18 examples, 0 failures

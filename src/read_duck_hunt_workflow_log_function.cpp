@@ -173,11 +173,11 @@ unique_ptr<FunctionData> ReadDuckHuntWorkflowLogBind(ClientContext &context, Tab
         // Core identification
         "event_id", "tool_name", "event_type",
         // Code location
-        "file_path", "line_number", "column_number", "function_name",
+        "ref_file", "ref_line", "ref_column", "function_name",
         // Classification
         "status", "severity", "category", "error_code",
         // Content
-        "message", "suggestion", "raw_output", "structured_data",
+        "message", "suggestion", "log_content", "structured_data",
         // Log tracking
         "log_line_start", "log_line_end",
         // Test-specific
@@ -295,9 +295,9 @@ void ReadDuckHuntWorkflowLogFunction(ClientContext &context, TableFunctionInput 
         output.SetValue(1, i, Value(base.tool_name));
         output.SetValue(2, i, Value(ValidationEventTypeToString(base.event_type)));
         // Code location
-        output.SetValue(3, i, Value(base.file_path));
-        output.SetValue(4, i, base.line_number == -1 ? Value() : Value::INTEGER(base.line_number));
-        output.SetValue(5, i, base.column_number == -1 ? Value() : Value::INTEGER(base.column_number));
+        output.SetValue(3, i, Value(base.ref_file));
+        output.SetValue(4, i, base.ref_line == -1 ? Value() : Value::INTEGER(base.ref_line));
+        output.SetValue(5, i, base.ref_column == -1 ? Value() : Value::INTEGER(base.ref_column));
         output.SetValue(6, i, Value(base.function_name));
         // Classification
         output.SetValue(7, i, Value(ValidationEventStatusToString(base.status)));
@@ -307,7 +307,7 @@ void ReadDuckHuntWorkflowLogFunction(ClientContext &context, TableFunctionInput 
         // Content
         output.SetValue(11, i, Value(base.message));
         output.SetValue(12, i, Value(base.suggestion));
-        output.SetValue(13, i, Value(base.raw_output));
+        output.SetValue(13, i, Value(base.log_content));
         output.SetValue(14, i, Value(base.structured_data));
         // Log tracking
         output.SetValue(15, i, base.log_line_start == -1 ? Value() : Value::INTEGER(base.log_line_start));

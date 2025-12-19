@@ -167,11 +167,11 @@ void ValgrindParser::ParseValgrind(const std::string& content, std::vector<duckd
                 event.severity = "error";
                 event.category = current_error_type;
                 event.message = current_message;
-                event.file_path = current_file;
-                event.line_number = current_line;
+                event.ref_file = current_file;
+                event.ref_line = current_line;
                 event.function_name = current_location;
                 event.execution_time = 0;
-                event.raw_output = content;
+                event.log_content = content;
                 event.structured_data = "valgrind";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -194,7 +194,7 @@ void ValgrindParser::ParseValgrind(const std::string& content, std::vector<duckd
                 event.message = current_message;
                 event.function_name = current_location;
                 event.execution_time = 0;
-                event.raw_output = content;
+                event.log_content = content;
                 event.structured_data = "valgrind";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -219,7 +219,7 @@ void ValgrindParser::ParseValgrind(const std::string& content, std::vector<duckd
             event.category = "heap_summary";
             event.message = "In use at exit: " + match[1].str() + " bytes in " + match[2].str() + " blocks";
             event.execution_time = 0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "valgrind";
             
             events.push_back(event);
@@ -233,7 +233,7 @@ void ValgrindParser::ParseValgrind(const std::string& content, std::vector<duckd
             event.category = "heap_summary";
             event.message = "Total heap usage: " + match[1].str() + " allocs, " + match[2].str() + " frees, " + match[3].str() + " bytes allocated";
             event.execution_time = 0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "valgrind";
             
             events.push_back(event);
@@ -247,7 +247,7 @@ void ValgrindParser::ParseValgrind(const std::string& content, std::vector<duckd
             event.category = "leak_summary";
             event.message = "Definitely lost: " + match[1].str() + " bytes in " + match[2].str() + " blocks";
             event.execution_time = 0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "valgrind";
             
             events.push_back(event);
@@ -261,7 +261,7 @@ void ValgrindParser::ParseValgrind(const std::string& content, std::vector<duckd
             event.category = "leak_summary";
             event.message = "Possibly lost: " + match[1].str() + " bytes in " + match[2].str() + " blocks";
             event.execution_time = 0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "valgrind";
             
             events.push_back(event);
@@ -275,7 +275,7 @@ void ValgrindParser::ParseValgrind(const std::string& content, std::vector<duckd
             event.category = "process_termination";
             event.message = "Process terminating with signal " + match[1].str() + " (" + match[2].str() + ")";
             event.execution_time = 0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "valgrind";
             
             events.push_back(event);
@@ -289,7 +289,7 @@ void ValgrindParser::ParseValgrind(const std::string& content, std::vector<duckd
             event.category = "error_summary";
             event.message = "Error summary: " + match[1].str() + " errors from " + match[2].str() + " contexts";
             event.execution_time = 0;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "valgrind";
             
             events.push_back(event);

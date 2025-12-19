@@ -50,8 +50,8 @@ void RegexpParser::ParseWithRegexp(const std::string& content, const std::string
         error_event.severity = "error";
         error_event.category = "parse_error";
         error_event.message = std::string("Invalid regex pattern: ") + e.what();
-        error_event.line_number = -1;
-        error_event.column_number = -1;
+        error_event.ref_line = -1;
+        error_event.ref_column = -1;
         events.push_back(error_event);
         return;
     }
@@ -125,31 +125,31 @@ void RegexpParser::ParseWithRegexp(const std::string& content, const std::string
             // File path
             std::string file_path = getGroupValue(match, {"file", "file_path", "path", "filename"});
             if (!file_path.empty()) {
-                event.file_path = file_path;
+                event.ref_file = file_path;
             }
 
             // Line number
             std::string line_str = getGroupValue(match, {"line", "line_number", "lineno", "line_num"});
             if (!line_str.empty()) {
                 try {
-                    event.line_number = std::stoi(line_str);
+                    event.ref_line = std::stoi(line_str);
                 } catch (...) {
-                    event.line_number = line_num;  // Fall back to input line number
+                    event.ref_line = line_num;  // Fall back to input line number
                 }
             } else {
-                event.line_number = line_num;
+                event.ref_line = line_num;
             }
 
             // Column number
-            std::string col_str = getGroupValue(match, {"column", "col", "column_number", "colno"});
+            std::string col_str = getGroupValue(match, {"column", "col", "ref_column", "colno"});
             if (!col_str.empty()) {
                 try {
-                    event.column_number = std::stoi(col_str);
+                    event.ref_column = std::stoi(col_str);
                 } catch (...) {
-                    event.column_number = -1;
+                    event.ref_column = -1;
                 }
             } else {
-                event.column_number = -1;
+                event.ref_column = -1;
             }
 
             // Error code
@@ -184,7 +184,7 @@ void RegexpParser::ParseWithRegexp(const std::string& content, const std::string
                 event.tool_name = tool;
             }
 
-            event.raw_output = line;
+            event.log_content = line;
             event.execution_time = 0.0;
 
             events.push_back(event);
@@ -201,8 +201,8 @@ void RegexpParser::ParseWithRegexp(const std::string& content, const std::string
         summary_event.severity = "info";
         summary_event.category = "regexp_summary";
         summary_event.message = "No matches found for the provided pattern";
-        summary_event.line_number = -1;
-        summary_event.column_number = -1;
+        summary_event.ref_line = -1;
+        summary_event.ref_column = -1;
         summary_event.execution_time = 0.0;
         events.push_back(summary_event);
     }

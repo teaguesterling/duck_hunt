@@ -1,0 +1,108 @@
+{
+  "errors": [],
+  "generated_at": "2024-01-15T10:30:45Z",
+  "metrics": {
+    "_totals": {
+      "CONFIDENCE.HIGH": 5,
+      "CONFIDENCE.LOW": 2,
+      "CONFIDENCE.MEDIUM": 3,
+      "SEVERITY.HIGH": 3,
+      "SEVERITY.LOW": 3,
+      "SEVERITY.MEDIUM": 4,
+      "loc": 1234,
+      "nosec": 1
+    }
+  },
+  "results": [
+    {
+      "code": "15     password = request.args.get('password')\n16     query = f\"SELECT * FROM users WHERE password = '{password}'\"\n17     cursor.execute(query)\n",
+      "col_offset": 12,
+      "end_col_offset": 72,
+      "filename": "myapp/api/auth.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 89,
+        "link": "https://cwe.mitre.org/data/definitions/89.html"
+      },
+      "issue_severity": "HIGH",
+      "issue_text": "Possible SQL injection vector through string-based query construction.",
+      "line_number": 16,
+      "line_range": [16],
+      "more_info": "https://bandit.readthedocs.io/en/latest/plugins/b608_hardcoded_sql_expressions.html",
+      "test_id": "B608",
+      "test_name": "hardcoded_sql_expressions"
+    },
+    {
+      "code": "23     subprocess.call(user_input, shell=True)\n",
+      "col_offset": 4,
+      "end_col_offset": 45,
+      "filename": "myapp/utils/helpers.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "HIGH",
+      "issue_text": "subprocess call with shell=True identified, security issue.",
+      "line_number": 23,
+      "line_range": [23],
+      "more_info": "https://bandit.readthedocs.io/en/latest/plugins/b602_subprocess_popen_with_shell_equals_true.html",
+      "test_id": "B602",
+      "test_name": "subprocess_popen_with_shell_equals_true"
+    },
+    {
+      "code": "34     SECRET_KEY = 'hardcoded-secret-key-12345'\n",
+      "col_offset": 4,
+      "end_col_offset": 50,
+      "filename": "myapp/config.py",
+      "issue_confidence": "MEDIUM",
+      "issue_cwe": {
+        "id": 259,
+        "link": "https://cwe.mitre.org/data/definitions/259.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Possible hardcoded password: 'hardcoded-secret-key-12345'",
+      "line_number": 34,
+      "line_range": [34],
+      "more_info": "https://bandit.readthedocs.io/en/latest/plugins/b105_hardcoded_password_string.html",
+      "test_id": "B105",
+      "test_name": "hardcoded_password_string"
+    },
+    {
+      "code": "45     eval(user_data)\n",
+      "col_offset": 4,
+      "end_col_offset": 20,
+      "filename": "myapp/services/processor.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 94,
+        "link": "https://cwe.mitre.org/data/definitions/94.html"
+      },
+      "issue_severity": "HIGH",
+      "issue_text": "Use of eval detected.",
+      "line_number": 45,
+      "line_range": [45],
+      "more_info": "https://bandit.readthedocs.io/en/latest/plugins/b307_eval.html",
+      "test_id": "B307",
+      "test_name": "eval"
+    },
+    {
+      "code": "56     pickle.loads(untrusted_data)\n",
+      "col_offset": 4,
+      "end_col_offset": 34,
+      "filename": "myapp/services/cache.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 502,
+        "link": "https://cwe.mitre.org/data/definitions/502.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Pickle library appears to be in use, possible security issue.",
+      "line_number": 56,
+      "line_range": [56],
+      "more_info": "https://bandit.readthedocs.io/en/latest/plugins/b301_pickle.html",
+      "test_id": "B301",
+      "test_name": "pickle"
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "created": 1705329145.456,
+  "duration": 5.678,
+  "exitcode": 1,
+  "root": "/home/user/project",
+  "environment": {
+    "Python": "3.11.6",
+    "Platform": "Linux-5.15.0-x86_64",
+    "pytest": "7.4.3"
+  },
+  "summary": {
+    "passed": 5,
+    "failed": 2,
+    "error": 1,
+    "skipped": 1,
+    "total": 9
+  },
+  "tests": [
+    {
+      "nodeid": "tests/test_user.py::test_create_user",
+      "outcome": "passed",
+      "duration": 0.123
+    },
+    {
+      "nodeid": "tests/test_user.py::test_update_user",
+      "outcome": "failed",
+      "duration": 0.234,
+      "call": {
+        "outcome": "failed",
+        "duration": 0.231,
+        "longrepr": "def test_update_user():\n        user = create_user(\"test@example.com\")\n        user.name = \"Updated Name\"\n>       assert user.save() == True\nE       AssertionError: assert False == True\n\ntests/test_user.py:45: AssertionError",
+        "crash": {
+          "path": "tests/test_user.py",
+          "lineno": 45,
+          "message": "AssertionError: assert False == True"
+        }
+      }
+    },
+    {
+      "nodeid": "tests/test_user.py::test_delete_user",
+      "outcome": "passed",
+      "duration": 0.156
+    },
+    {
+      "nodeid": "tests/test_auth.py::test_login",
+      "outcome": "passed",
+      "duration": 0.345
+    },
+    {
+      "nodeid": "tests/test_auth.py::test_logout",
+      "outcome": "failed",
+      "duration": 0.089,
+      "call": {
+        "outcome": "failed",
+        "duration": 0.087,
+        "longrepr": "def test_logout():\n        session = login(\"user@example.com\", \"password\")\n>       session.logout()\nE       AttributeError: 'NoneType' object has no attribute 'logout'\n\ntests/test_auth.py:32: AttributeError",
+        "crash": {
+          "path": "tests/test_auth.py",
+          "lineno": 32,
+          "message": "AttributeError: 'NoneType' object has no attribute 'logout'"
+        }
+      }
+    },
+    {
+      "nodeid": "tests/test_api.py::test_get_users",
+      "outcome": "passed",
+      "duration": 0.567
+    },
+    {
+      "nodeid": "tests/test_api.py::test_get_user_by_id",
+      "outcome": "error",
+      "duration": 0.012,
+      "setup": {
+        "outcome": "error",
+        "duration": 0.010,
+        "longrepr": "@pytest.fixture\ndef db_connection():\n>       conn = database.connect()\nE       ConnectionRefusedError: [Errno 111] Connection refused\n\ntests/conftest.py:15: ConnectionRefusedError",
+        "crash": {
+          "path": "tests/conftest.py",
+          "lineno": 15,
+          "message": "ConnectionRefusedError"
+        }
+      }
+    },
+    {
+      "nodeid": "tests/test_api.py::test_create_user_api",
+      "outcome": "passed",
+      "duration": 0.432
+    },
+    {
+      "nodeid": "tests/test_api.py::test_update_user_api",
+      "outcome": "skipped",
+      "duration": 0.001,
+      "call": {
+        "outcome": "skipped",
+        "longrepr": "('tests/test_api.py', 78, 'Skipped: requires database connection')"
+      }
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+   Compiling my-project v0.1.0 (/home/user/project)
+    Finished test [unoptimized + debuginfo] target(s) in 0.89s
+     Running unittests src/lib.rs (target/debug/deps/my_project-abc123)
+
+running 8 tests
+test tests::test_parse_valid ... ok
+test tests::test_parse_empty ... ok
+test tests::test_parse_invalid ... FAILED
+test tests::test_serialize ... ok
+test tests::test_deserialize ... FAILED
+test tests::test_roundtrip ... ok
+test integration::test_full_flow ... ok
+test integration::test_error_handling ... FAILED
+
+failures:
+
+---- tests::test_parse_invalid stdout ----
+thread 'tests::test_parse_invalid' panicked at 'assertion failed: `(left == right)`
+  left: `Err(ParseError("invalid input"))`,
+ right: `Err(ParseError("bad format"))`', src/lib.rs:145:9
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- tests::test_deserialize stdout ----
+thread 'tests::test_deserialize' panicked at 'called `Result::unwrap()` on an `Err` value: Error("missing field `id`", line: 1, column: 2)', src/lib.rs:189:45
+
+---- integration::test_error_handling stdout ----
+thread 'integration::test_error_handling' panicked at 'assertion failed: result.is_err()', tests/integration.rs:67:5
+
+
+failures:
+    integration::test_error_handling
+    tests::test_deserialize
+    tests::test_parse_invalid
+
+test result: FAILED. 5 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+error: test failed, to rerun pass `--lib`

@@ -1,0 +1,36 @@
+--- myapp/services/user_service.py	2024-01-15 10:00:00.000000 +0000
++++ myapp/services/user_service.py	2024-01-15 10:00:01.000000 +0000
+@@ -10,7 +10,7 @@
+ class UserService:
+     def __init__(self, db: Database):
+-        self.db=db
++        self.db = db
+         self.cache = {}
+
+@@ -25,8 +25,10 @@
+-    def get_user(self,id:int)->Optional[User]:
+-        if id in self.cache: return self.cache[id]
++    def get_user(self, id: int) -> Optional[User]:
++        if id in self.cache:
++            return self.cache[id]
+         user = self.db.query(User).filter(User.id == id).first()
+-        if user: self.cache[id] = user
++        if user:
++            self.cache[id] = user
+         return user
+
+would reformat myapp/services/user_service.py
+--- myapp/handlers/api_handler.py	2024-01-15 10:00:00.000000 +0000
++++ myapp/handlers/api_handler.py	2024-01-15 10:00:01.000000 +0000
+@@ -15,4 +15,6 @@
+-    def handle_request(self,request:Request)->Response:
+-        data = self.service.get_data(request.params['id'])
+-        return Response(status=200,body=json.dumps(data))
++    def handle_request(self, request: Request) -> Response:
++        data = self.service.get_data(request.params["id"])
++        return Response(status=200, body=json.dumps(data))
+
+would reformat myapp/handlers/api_handler.py
+
+Oh no! 💥 💔 💥
+2 files would be reformatted, 15 files would be left unchanged.

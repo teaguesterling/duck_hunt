@@ -90,8 +90,8 @@ static bool ParsePythonLogLine(const std::string& line, ValidationEvent& event, 
     event.log_line_start = line_number;
     event.log_line_end = line_number;
     event.execution_time = 0.0;
-    event.line_number = -1;
-    event.column_number = -1;
+    event.ref_line = -1;
+    event.ref_column = -1;
 
     // Field mappings
     event.started_at = timestamp;
@@ -107,7 +107,7 @@ static bool ParsePythonLogLine(const std::string& line, ValidationEvent& event, 
     json += "}";
     event.structured_data = json;
 
-    event.raw_output = line;
+    event.log_content = line;
     return true;
 }
 
@@ -205,7 +205,7 @@ std::vector<ValidationEvent> PythonLoggingParser::parse(const std::string& conte
         // Check if this is a traceback continuation
         if (IsTracebackLine(line)) {
             if (current_event != nullptr) {
-                current_event->raw_output += "\n" + line;
+                current_event->log_content += "\n" + line;
                 current_event->log_line_end = line_number;
 
                 // Try to extract file/line info from traceback
@@ -215,9 +215,9 @@ std::vector<ValidationEvent> PythonLoggingParser::parse(const std::string& conte
                 );
                 std::smatch match;
                 if (std::regex_search(line, match, file_line_pattern)) {
-                    current_event->file_path = match[1].str();
+                    current_event->ref_file = match[1].str();
                     try {
-                        current_event->line_number = std::stoi(match[2].str());
+                        current_event->ref_line = std::stoi(match[2].str());
                     } catch (...) {}
                     if (match[3].matched) {
                         current_event->function_name = match[3].str();
@@ -246,7 +246,7 @@ std::vector<ValidationEvent> PythonLoggingParser::parse(const std::string& conte
             in_traceback = false;
         } else if (current_event != nullptr && !in_traceback) {
             // Continuation of previous message
-            current_event->raw_output += "\n" + line;
+            current_event->log_content += "\n" + line;
             current_event->message += " " + line;
             current_event->log_line_end = line_number;
         }

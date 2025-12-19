@@ -1,0 +1,4 @@
+/home/user/projects/my-very-long-project-name-that-goes-on-forever/src/main/java/com/example/mycompany/myproduct/feature/subfeature/implementation/details/handlers/requests/validators/UserInputValidatorFactoryProviderImpl.java:1234:56: error: cannot find symbol
+/tmp/build-12345678901234567890/cache/modules/node_modules/@organization/package-name-that-is-way-too-long-for-practical-purposes/dist/lib/internal/utils/helpers/formatters/index.js:9999:100: warning: 'formatValue' is defined but never used
+../../../../../../relative/path/that/goes/up/many/levels/and/then/back/down/into/a/deep/nested/structure/file.cpp:1:1: note: in included file
+C:\\Users\\Developer\\Documents\\Projects\\WindowsPath\\With\\Many\\Levels\\Of\\Nesting\\And\\A\\Really\\Long\\Final\\Component\\That\\Just\\Keeps\\Going\\source.cs:500:25: error CS0103: The name 'variable' does not exist in the current context

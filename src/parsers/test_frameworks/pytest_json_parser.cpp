@@ -83,8 +83,8 @@ std::vector<ValidationEvent> PytestJSONParser::parse(const std::string& content)
         event.event_id = event_id++;
         event.tool_name = "pytest";
         event.event_type = ValidationEventType::TEST_RESULT;
-        event.line_number = -1;
-        event.column_number = -1;
+        event.ref_line = -1;
+        event.ref_column = -1;
         event.execution_time = 0.0;
         
         // Extract nodeid (test name with file path)
@@ -95,7 +95,7 @@ std::vector<ValidationEvent> PytestJSONParser::parse(const std::string& content)
             // Parse nodeid format: "file.py::test_function"
             size_t separator = nodeid_str.find("::");
             if (separator != std::string::npos) {
-                event.file_path = nodeid_str.substr(0, separator);
+                event.ref_file = nodeid_str.substr(0, separator);
                 event.test_name = nodeid_str.substr(separator + 2);
                 event.function_name = event.test_name;
             } else {

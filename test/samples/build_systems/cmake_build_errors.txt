@@ -1,0 +1,24 @@
+[ 10%] Building CXX object src/CMakeFiles/mylib.dir/parser.cpp.o
+/home/user/project/src/parser.cpp:45:10: error: no matching function for call to 'parse'
+    parse(input, options);
+    ^~~~~
+/home/user/project/include/parser.h:12:6: note: candidate function not viable: requires 1 argument, but 2 were provided
+void parse(const std::string& input);
+     ^
+[ 20%] Building CXX object src/CMakeFiles/mylib.dir/utils.cpp.o
+/home/user/project/src/utils.cpp:23:15: warning: 'auto_ptr' is deprecated [-Wdeprecated-declarations]
+    std::auto_ptr<Data> ptr(new Data());
+              ^
+/home/user/project/src/utils.cpp:67:5: error: use of undeclared identifier 'resultado'
+    resultado = compute();
+    ^
+[ 30%] Building CXX object src/CMakeFiles/mylib.dir/main.cpp.o
+/home/user/project/src/main.cpp:102:20: error: cannot initialize a variable of type 'int *' with an rvalue of type 'const char *'
+    int* ptr = "hello";
+               ^~~~~~~
+make[2]: *** [src/CMakeFiles/mylib.dir/build.make:76: src/CMakeFiles/mylib.dir/parser.cpp.o] Error 1
+make[2]: *** Waiting for unfinished jobs....
+make[2]: *** [src/CMakeFiles/mylib.dir/build.make:90: src/CMakeFiles/mylib.dir/utils.cpp.o] Error 1
+make[2]: *** [src/CMakeFiles/mylib.dir/build.make:104: src/CMakeFiles/mylib.dir/main.cpp.o] Error 1
+make[1]: *** [CMakeFiles/Makefile2:83: src/CMakeFiles/mylib.dir/all] Error 2
+make: *** [Makefile:91: all] Error 2

@@ -1,0 +1,133 @@
+{
+  "value": [
+    {
+      "authorization": {
+        "action": "Microsoft.Compute/virtualMachines/write",
+        "scope": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/my-rg/providers/Microsoft.Compute/virtualMachines/my-vm"
+      },
+      "caller": "user@example.com",
+      "channels": "Operation",
+      "claims": {
+        "aud": "https://management.core.windows.net/",
+        "iss": "https://sts.windows.net/tenant-id/",
+        "name": "Alice User",
+        "upn": "user@example.com"
+      },
+      "correlationId": "12345678-abcd-1234-abcd-123456789012",
+      "description": "Create or update virtual machine",
+      "eventDataId": "event-data-id-1",
+      "eventName": {
+        "value": "EndRequest",
+        "localizedValue": "End request"
+      },
+      "category": {
+        "value": "Administrative",
+        "localizedValue": "Administrative"
+      },
+      "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/my-rg/providers/Microsoft.Compute/virtualMachines/my-vm/events/event-1",
+      "level": "Informational",
+      "operationId": "operation-id-1",
+      "operationName": {
+        "value": "Microsoft.Compute/virtualMachines/write",
+        "localizedValue": "Create or Update Virtual Machine"
+      },
+      "resourceGroupName": "my-rg",
+      "resourceProviderName": {
+        "value": "Microsoft.Compute",
+        "localizedValue": "Microsoft Compute"
+      },
+      "resourceType": {
+        "value": "Microsoft.Compute/virtualMachines",
+        "localizedValue": "Virtual Machines"
+      },
+      "resourceId": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/my-rg/providers/Microsoft.Compute/virtualMachines/my-vm",
+      "status": {
+        "value": "Succeeded",
+        "localizedValue": "Succeeded"
+      },
+      "subStatus": {
+        "value": "Created",
+        "localizedValue": "Created"
+      },
+      "eventTimestamp": "2024-01-15T10:30:00Z",
+      "submissionTimestamp": "2024-01-15T10:30:15Z",
+      "subscriptionId": "12345678-1234-1234-1234-123456789012",
+      "tenantId": "tenant-id-12345"
+    },
+    {
+      "authorization": {
+        "action": "Microsoft.Storage/storageAccounts/delete",
+        "scope": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/prod-rg/providers/Microsoft.Storage/storageAccounts/criticaldata"
+      },
+      "caller": "admin@example.com",
+      "channels": "Operation",
+      "claims": {
+        "name": "Admin User",
+        "upn": "admin@example.com"
+      },
+      "correlationId": "delete-correlation-id",
+      "description": "Delete storage account",
+      "eventDataId": "event-data-id-2",
+      "eventName": {
+        "value": "EndRequest",
+        "localizedValue": "End request"
+      },
+      "category": {
+        "value": "Administrative",
+        "localizedValue": "Administrative"
+      },
+      "level": "Warning",
+      "operationName": {
+        "value": "Microsoft.Storage/storageAccounts/delete",
+        "localizedValue": "Delete Storage Account"
+      },
+      "resourceGroupName": "prod-rg",
+      "resourceProviderName": {
+        "value": "Microsoft.Storage",
+        "localizedValue": "Microsoft Storage"
+      },
+      "status": {
+        "value": "Succeeded",
+        "localizedValue": "Succeeded"
+      },
+      "eventTimestamp": "2024-01-15T11:45:30Z",
+      "submissionTimestamp": "2024-01-15T11:45:45Z",
+      "subscriptionId": "12345678-1234-1234-1234-123456789012"
+    },
+    {
+      "authorization": {
+        "action": "Microsoft.KeyVault/vaults/secrets/read",
+        "scope": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/security-rg/providers/Microsoft.KeyVault/vaults/prod-keyvault"
+      },
+      "caller": "unknown@external.com",
+      "correlationId": "unauthorized-correlation",
+      "description": "Read secret from key vault",
+      "eventDataId": "event-data-id-3",
+      "category": {
+        "value": "Administrative",
+        "localizedValue": "Administrative"
+      },
+      "level": "Error",
+      "operationName": {
+        "value": "Microsoft.KeyVault/vaults/secrets/read",
+        "localizedValue": "Read Secret"
+      },
+      "resourceGroupName": "security-rg",
+      "status": {
+        "value": "Failed",
+        "localizedValue": "Failed"
+      },
+      "subStatus": {
+        "value": "Forbidden",
+        "localizedValue": "Forbidden (403)"
+      },
+      "properties": {
+        "statusCode": "Forbidden",
+        "statusMessage": "The user does not have permission to perform this operation."
+      },
+      "eventTimestamp": "2024-01-15T14:20:00Z",
+      "submissionTimestamp": "2024-01-15T14:20:05Z",
+      "subscriptionId": "12345678-1234-1234-1234-123456789012"
+    }
+  ]
+}

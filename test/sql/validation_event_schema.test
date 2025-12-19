@@ -16,9 +16,9 @@ SELECT COUNT(*) FROM (
     event_id::BIGINT,
     tool_name::VARCHAR,
     event_type::VARCHAR,
-    file_path::VARCHAR,
-    line_number::INTEGER,
-    column_number::INTEGER,
+    ref_file::VARCHAR,
+    ref_line::INTEGER,
+    ref_column::INTEGER,
     function_name::VARCHAR,
     status::VARCHAR,
     severity::VARCHAR,
@@ -28,7 +28,7 @@ SELECT COUNT(*) FROM (
     error_code::VARCHAR,
     test_name::VARCHAR,
     execution_time::DOUBLE,
-    raw_output::VARCHAR,
+    log_content::VARCHAR,
     structured_data::VARCHAR
   FROM schema_test
 );
@@ -76,7 +76,7 @@ test_result
 
 # Test 5: Verify numerical field handling
 query IIII
-SELECT event_id, line_number, column_number, execution_time
+SELECT event_id, ref_line, ref_column, execution_time
 FROM parse_duck_hunt_log('{"Action":"run","Package":"github.com/test","Test":"TestExample"}
 {"Action":"pass","Package":"github.com/test","Test":"TestExample","Elapsed":0.123}', 'gotest_json');
 ----
@@ -84,7 +84,7 @@ FROM parse_duck_hunt_log('{"Action":"run","Package":"github.com/test","Test":"Te
 
 # Test 6: Verify string field handling with special characters
 query II
-SELECT file_path, message
+SELECT ref_file, message
 FROM parse_duck_hunt_log('[{"filePath":"/src/special-chars@#$.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"Variable with special chars: @#$%","line":1,"column":8}]}]', 'eslint_json');
 ----
 /src/special-chars@#$.js	Variable with special chars: @#$%
@@ -132,9 +132,9 @@ SELECT DISTINCT category FROM parse_duck_hunt_log('[{"filePath":"/test.js","mess
 ----
 lint_error
 
-# Test 11: Verify raw_output field contains original content
+# Test 11: Verify log_content field contains original content
 query I
-SELECT LENGTH(raw_output) > 0 as has_raw_output FROM parse_duck_hunt_log('src/main.c:15:5: error: test error', 'generic_lint');
+SELECT LENGTH(log_content) > 0 as has_log_content FROM parse_duck_hunt_log('src/main.c:15:5: error: test error', 'generic_lint');
 ----
 false
 
@@ -144,9 +144,9 @@ SELECT structured_data IS NOT NULL as has_structured_data FROM parse_duck_hunt_l
 ----
 true
 
-# Test 13: Verify line_number and column_number default values
+# Test 13: Verify ref_line and ref_column default values
 query II
-SELECT line_number, column_number FROM parse_duck_hunt_log('make: *** [Makefile:23: build/main] Error 1', 'make_error');
+SELECT ref_line, ref_column FROM parse_duck_hunt_log('make: *** [Makefile:23: build/main] Error 1', 'make_error');
 ----
 NULL	NULL
 
