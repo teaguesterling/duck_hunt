@@ -1,0 +1,308 @@
+[
+  {
+    "object_name": "web-app",
+    "type_meta": {
+      "kind": "Deployment",
+      "apiVersion": "apps/v1"
+    },
+    "file_name": "deployments/web-app.yaml",
+    "file_row": 1,
+    "checks": [
+      {
+        "check": {
+          "id": "container-security-context-user-group-id",
+          "name": "Container Security Context User Group ID"
+        },
+        "grade": "CRITICAL",
+        "comments": [
+          {
+            "path": "spec.template.spec.containers[0]",
+            "summary": "Container is running with a root user ID",
+            "description": "Running as root may give unnecessary privileges. Consider setting runAsNonRoot: true or specifying a non-root user ID."
+          }
+        ]
+      },
+      {
+        "check": {
+          "id": "container-resources",
+          "name": "Container Resources"
+        },
+        "grade": "CRITICAL",
+        "comments": [
+          {
+            "path": "spec.template.spec.containers[0].resources",
+            "summary": "Container has no resource limits",
+            "description": "Without resource limits, the container can consume all available resources on the node."
+          }
+        ]
+      },
+      {
+        "check": {
+          "id": "container-image-tag",
+          "name": "Container Image Tag"
+        },
+        "grade": "WARNING",
+        "comments": [
+          {
+            "path": "spec.template.spec.containers[0].image",
+            "summary": "Container image uses 'latest' tag",
+            "description": "Using the 'latest' tag makes it difficult to track which version of the image is running."
+          }
+        ]
+      },
+      {
+        "check": {
+          "id": "pod-probes",
+          "name": "Pod Probes"
+        },
+        "grade": "WARNING",
+        "comments": [
+          {
+            "path": "spec.template.spec.containers[0]",
+            "summary": "Container is missing a readinessProbe",
+            "description": "Without a readinessProbe, Kubernetes cannot determine when the container is ready to accept traffic."
+          }
+        ]
+      },
+      {
+        "check": {
+          "id": "deployment-has-poddisruptionbudget",
+          "name": "Deployment Has PodDisruptionBudget"
+        },
+        "grade": "OK",
+        "comments": []
+      }
+    ]
+  },
+  {
+    "object_name": "api-server",
+    "type_meta": {
+      "kind": "Deployment",
+      "apiVersion": "apps/v1"
+    },
+    "file_name": "deployments/api-server.yaml",
+    "file_row": 1,
+    "checks": [
+      {
+        "check": {
+          "id": "container-ephemeral-storage-request-and-limit",
+          "name": "Container Ephemeral Storage Request And Limit"
+        },
+        "grade": "WARNING",
+        "comments": [
+          {
+            "path": "spec.template.spec.containers[0].resources",
+            "summary": "Ephemeral storage limit not set",
+            "description": "Without ephemeral storage limits, the container may use excessive disk space."
+          }
+        ]
+      },
+      {
+        "check": {
+          "id": "container-security-context-readonlyrootfilesystem",
+          "name": "Container Security Context ReadOnlyRootFilesystem"
+        },
+        "grade": "WARNING",
+        "comments": [
+          {
+            "path": "spec.template.spec.containers[0].securityContext",
+            "summary": "Container filesystem is not read-only",
+            "description": "Consider setting readOnlyRootFilesystem: true to prevent container from writing to the filesystem."
+          }
+        ]
+      },
+      {
+        "check": {
+          "id": "horizontal-pod-autoscaler",
+          "name": "Horizontal Pod Autoscaler"
+        },
+        "grade": "OK",
+        "comments": []
+      }
+    ]
+  },
+  {
+    "object_name": "redis-cache",
+    "type_meta": {
+      "kind": "StatefulSet",
+      "apiVersion": "apps/v1"
+    },
+    "file_name": "statefulsets/redis.yaml",
+    "file_row": 1,
+    "checks": [
+      {
+        "check": {
+          "id": "statefulset-has-servicename",
+          "name": "StatefulSet Has ServiceName"
+        },
+        "grade": "OK",
+        "comments": []
+      },
+      {
+        "check": {
+          "id": "container-security-context-privileged",
+          "name": "Container Security Context Privileged"
+        },
+        "grade": "OK",
+        "comments": []
+      },
+      {
+        "check": {
+          "id": "container-resources",
+          "name": "Container Resources"
+        },
+        "grade": "CRITICAL",
+        "comments": [
+          {
+            "path": "spec.template.spec.containers[0].resources.limits",
+            "summary": "Container has no memory limit",
+            "description": "Without a memory limit, the container can consume all available memory on the node."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "object_name": "frontend-service",
+    "type_meta": {
+      "kind": "Service",
+      "apiVersion": "v1"
+    },
+    "file_name": "services/frontend.yaml",
+    "file_row": 1,
+    "checks": [
+      {
+        "check": {
+          "id": "service-type",
+          "name": "Service Type"
+        },
+        "grade": "WARNING",
+        "comments": [
+          {
+            "path": "spec.type",
+            "summary": "Service uses NodePort type",
+            "description": "NodePort services expose ports on all nodes. Consider using LoadBalancer or Ingress instead."
+          }
+        ]
+      },
+      {
+        "check": {
+          "id": "service-targets-pod",
+          "name": "Service Targets Pod"
+        },
+        "grade": "OK",
+        "comments": []
+      }
+    ]
+  },
+  {
+    "object_name": "worker-job",
+    "type_meta": {
+      "kind": "CronJob",
+      "apiVersion": "batch/v1"
+    },
+    "file_name": "jobs/worker-cronjob.yaml",
+    "file_row": 1,
+    "checks": [
+      {
+        "check": {
+          "id": "cronjob-has-deadline",
+          "name": "CronJob Has Deadline"
+        },
+        "grade": "WARNING",
+        "comments": [
+          {
+            "path": "spec",
+            "summary": "CronJob has no startingDeadlineSeconds",
+            "description": "Without a deadline, missed jobs may accumulate if the controller is down."
+          }
+        ]
+      },
+      {
+        "check": {
+          "id": "container-security-context-user-group-id",
+          "name": "Container Security Context User Group ID"
+        },
+        "grade": "CRITICAL",
+        "comments": [
+          {
+            "path": "spec.jobTemplate.spec.template.spec.containers[0]",
+            "summary": "Container runs as root",
+            "description": "Running containers as root is a security risk."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "object_name": "app-config",
+    "type_meta": {
+      "kind": "ConfigMap",
+      "apiVersion": "v1"
+    },
+    "file_name": "config/app-config.yaml",
+    "file_row": 1,
+    "checks": [
+      {
+        "check": {
+          "id": "configmap-not-empty",
+          "name": "ConfigMap Not Empty"
+        },
+        "grade": "OK",
+        "comments": []
+      }
+    ]
+  },
+  {
+    "object_name": "database-secrets",
+    "type_meta": {
+      "kind": "Secret",
+      "apiVersion": "v1"
+    },
+    "file_name": "secrets/database.yaml",
+    "file_row": 1,
+    "checks": [
+      {
+        "check": {
+          "id": "secret-not-empty",
+          "name": "Secret Not Empty"
+        },
+        "grade": "OK",
+        "comments": []
+      }
+    ]
+  },
+  {
+    "object_name": "ingress-rules",
+    "type_meta": {
+      "kind": "Ingress",
+      "apiVersion": "networking.k8s.io/v1"
+    },
+    "file_name": "networking/ingress.yaml",
+    "file_row": 1,
+    "checks": [
+      {
+        "check": {
+          "id": "ingress-targets-service",
+          "name": "Ingress Targets Service"
+        },
+        "grade": "OK",
+        "comments": []
+      },
+      {
+        "check": {
+          "id": "ingress-has-tls",
+          "name": "Ingress Has TLS"
+        },
+        "grade": "WARNING",
+        "comments": [
+          {
+            "path": "spec",
+            "summary": "Ingress does not have TLS configured",
+            "description": "Traffic to this ingress is not encrypted. Configure TLS for secure communication."
+          }
+        ]
+      }
+    ]
+  }
+]
