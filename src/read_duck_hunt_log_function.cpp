@@ -1202,6 +1202,7 @@ unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFuncti
         // Log tracking
         LogicalType::INTEGER,  // log_line_start
         LogicalType::INTEGER,  // log_line_end
+        LogicalType::VARCHAR,  // log_file
         // Test-specific
         LogicalType::VARCHAR,  // test_name
         LogicalType::DOUBLE,   // execution_time
@@ -1242,7 +1243,7 @@ unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFuncti
         // Content
         "message", "suggestion", "log_content", "structured_data",
         // Log tracking
-        "log_line_start", "log_line_end",
+        "log_line_start", "log_line_end", "log_file",
         // Test-specific
         "test_name", "execution_time",
         // Identity & Network
@@ -1337,6 +1338,16 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &co
             }
         }
 
+        // Set log_file on each event to track source file (single file mode)
+        // Only set if source looks like a file path (contains / or \)
+        if (bind_data.source.find('/') != std::string::npos ||
+            bind_data.source.find('\\') != std::string::npos) {
+            for (auto& event : global_state->events) {
+                if (event.log_file.empty()) {
+                    event.log_file = bind_data.source;
+                }
+            }
+        }
     }
 
     // Phase 3B: Process error patterns for intelligent categorization
@@ -1399,6 +1410,7 @@ void PopulateDataChunkFromEvents(DataChunk &output, const std::vector<Validation
         // Log tracking
         output.SetValue(col++, i, event.log_line_start == -1 ? Value() : Value::INTEGER(event.log_line_start));
         output.SetValue(col++, i, event.log_line_end == -1 ? Value() : Value::INTEGER(event.log_line_end));
+        output.SetValue(col++, i, event.log_file.empty() ? Value() : Value(event.log_file));
         // Test-specific
         output.SetValue(col++, i, Value(event.test_name));
         output.SetValue(col++, i, Value::DOUBLE(event.execution_time));
@@ -1496,6 +1508,7 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
         // Log tracking
         LogicalType::INTEGER,  // log_line_start
         LogicalType::INTEGER,  // log_line_end
+        LogicalType::VARCHAR,  // log_file
         // Test-specific
         LogicalType::VARCHAR,  // test_name
         LogicalType::DOUBLE,   // execution_time
@@ -1536,7 +1549,7 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
         // Content
         "message", "suggestion", "log_content", "structured_data",
         // Log tracking
-        "log_line_start", "log_line_end",
+        "log_line_start", "log_line_end", "log_file",
         // Test-specific
         "test_name", "execution_time",
         // Identity & Network
@@ -1796,6 +1809,11 @@ void ProcessMultipleFiles(ClientContext& context, const std::vector<std::string>
             if (!TryNewParserRegistry(context, detected_format, content, file_events)) {
                 // No parser found for this format, skip file
                 continue;
+            }
+
+            // Set log_file on each event to track source file
+            for (auto& event : file_events) {
+                event.log_file = file_path;
             }
 
             // Add events to main collection

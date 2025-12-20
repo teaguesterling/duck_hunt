@@ -166,3 +166,15 @@ query I
 SELECT COUNT(*) >= 1 FROM duck_hunt_diagnose_parse('{"level":"info","msg":"test"}', 'valid');
 ----
 true
+
+# Test 21: Verify log_file column is populated for file input
+query I
+SELECT DISTINCT log_file FROM read_duck_hunt_log('test/samples/linting_tools/eslint_output.json', 'eslint_json');
+----
+test/samples/linting_tools/eslint_output.json
+
+# Test 22: Verify log_file is NULL for string input (parse)
+query I
+SELECT log_file IS NULL FROM parse_duck_hunt_log('[{"filePath":"t.js","messages":[{"ruleId":"r","severity":1,"message":"m","line":1,"column":1}]}]', 'eslint_json') LIMIT 1;
+----
+true
