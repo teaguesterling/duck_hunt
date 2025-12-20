@@ -301,11 +301,11 @@ query II
 SELECT severity, COUNT(*) as cnt
 FROM read_duck_hunt_log('test/samples/app_logging/logrus_output.txt', 'logrus')
 GROUP BY severity
-ORDER BY cnt DESC;
+ORDER BY cnt DESC, severity;
 ----
 info	29
-warning	6
 error	6
+warning	6
 
 # Test 38: Logrus sample file - verify tool_name
 query I
@@ -353,11 +353,11 @@ query II
 SELECT severity, COUNT(*) as cnt
 FROM read_duck_hunt_log('test/samples/app_logging/python_logging_output.txt', 'python_logging')
 GROUP BY severity
-ORDER BY cnt DESC;
+ORDER BY cnt DESC, severity;
 ----
 info	39
-warning	7
 error	7
+warning	7
 
 # Test 44: Python logging sample file - verify tool_name
 query I

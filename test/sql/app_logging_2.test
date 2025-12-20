@@ -558,7 +558,7 @@ query II
 SELECT severity, COUNT(*) as cnt
 FROM read_duck_hunt_log('test/samples/app_logging/serilog_output.txt', 'serilog')
 GROUP BY severity
-ORDER BY cnt DESC;
+ORDER BY cnt DESC, severity;
 ----
 info	31
 error	7
