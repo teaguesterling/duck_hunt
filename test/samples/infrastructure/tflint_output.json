@@ -1,0 +1,269 @@
+{
+  "issues": [
+    {
+      "rule": {
+        "name": "aws_instance_invalid_type",
+        "severity": "error",
+        "link": "https://github.com/terraform-linters/tflint-ruleset-aws/blob/master/docs/rules/aws_instance_invalid_type.md"
+      },
+      "message": "\"t2.microo\" is an invalid value as instance_type",
+      "range": {
+        "filename": "modules/compute/main.tf",
+        "start": {
+          "line": 15,
+          "column": 19,
+          "byte": 342
+        },
+        "end": {
+          "line": 15,
+          "column": 31,
+          "byte": 354
+        }
+      },
+      "callers": []
+    },
+    {
+      "rule": {
+        "name": "aws_instance_invalid_ami",
+        "severity": "error",
+        "link": "https://github.com/terraform-linters/tflint-ruleset-aws/blob/master/docs/rules/aws_instance_invalid_ami.md"
+      },
+      "message": "\"ami-12345678\" is invalid AMI ID",
+      "range": {
+        "filename": "modules/compute/main.tf",
+        "start": {
+          "line": 12,
+          "column": 9,
+          "byte": 280
+        },
+        "end": {
+          "line": 12,
+          "column": 25,
+          "byte": 296
+        }
+      },
+      "callers": []
+    },
+    {
+      "rule": {
+        "name": "terraform_deprecated_interpolation",
+        "severity": "warning",
+        "link": "https://github.com/terraform-linters/tflint/blob/master/docs/rules/terraform_deprecated_interpolation.md"
+      },
+      "message": "Interpolation-only expressions are deprecated in Terraform v0.12.14",
+      "range": {
+        "filename": "modules/compute/main.tf",
+        "start": {
+          "line": 20,
+          "column": 15,
+          "byte": 450
+        },
+        "end": {
+          "line": 20,
+          "column": 35,
+          "byte": 470
+        }
+      },
+      "callers": []
+    },
+    {
+      "rule": {
+        "name": "terraform_deprecated_interpolation",
+        "severity": "warning",
+        "link": "https://github.com/terraform-linters/tflint/blob/master/docs/rules/terraform_deprecated_interpolation.md"
+      },
+      "message": "Interpolation-only expressions are deprecated in Terraform v0.12.14",
+      "range": {
+        "filename": "modules/network/main.tf",
+        "start": {
+          "line": 8,
+          "column": 12,
+          "byte": 180
+        },
+        "end": {
+          "line": 8,
+          "column": 28,
+          "byte": 196
+        }
+      },
+      "callers": []
+    },
+    {
+      "rule": {
+        "name": "aws_security_group_invalid_protocol",
+        "severity": "error",
+        "link": "https://github.com/terraform-linters/tflint-ruleset-aws/blob/master/docs/rules/aws_security_group_invalid_protocol.md"
+      },
+      "message": "\"tcpp\" is an invalid value as protocol",
+      "range": {
+        "filename": "modules/network/security.tf",
+        "start": {
+          "line": 25,
+          "column": 16,
+          "byte": 580
+        },
+        "end": {
+          "line": 25,
+          "column": 22,
+          "byte": 586
+        }
+      },
+      "callers": []
+    },
+    {
+      "rule": {
+        "name": "terraform_naming_convention",
+        "severity": "warning",
+        "link": "https://github.com/terraform-linters/tflint/blob/master/docs/rules/terraform_naming_convention.md"
+      },
+      "message": "resource name `myDB` must match the following format: snake_case",
+      "range": {
+        "filename": "modules/database/main.tf",
+        "start": {
+          "line": 1,
+          "column": 1,
+          "byte": 0
+        },
+        "end": {
+          "line": 1,
+          "column": 25,
+          "byte": 24
+        }
+      },
+      "callers": []
+    },
+    {
+      "rule": {
+        "name": "terraform_required_providers",
+        "severity": "warning",
+        "link": "https://github.com/terraform-linters/tflint/blob/master/docs/rules/terraform_required_providers.md"
+      },
+      "message": "Missing version constraint for provider \"aws\" in required_providers",
+      "range": {
+        "filename": "versions.tf",
+        "start": {
+          "line": 2,
+          "column": 3,
+          "byte": 25
+        },
+        "end": {
+          "line": 2,
+          "column": 20,
+          "byte": 42
+        }
+      },
+      "callers": []
+    },
+    {
+      "rule": {
+        "name": "terraform_required_version",
+        "severity": "warning",
+        "link": "https://github.com/terraform-linters/tflint/blob/master/docs/rules/terraform_required_version.md"
+      },
+      "message": "terraform.required_version is not set",
+      "range": {
+        "filename": "versions.tf",
+        "start": {
+          "line": 1,
+          "column": 1,
+          "byte": 0
+        },
+        "end": {
+          "line": 1,
+          "column": 10,
+          "byte": 9
+        }
+      },
+      "callers": []
+    },
+    {
+      "rule": {
+        "name": "aws_db_instance_invalid_type",
+        "severity": "error",
+        "link": "https://github.com/terraform-linters/tflint-ruleset-aws/blob/master/docs/rules/aws_db_instance_invalid_type.md"
+      },
+      "message": "\"db.t2.microo\" is an invalid value as instance_class",
+      "range": {
+        "filename": "modules/database/main.tf",
+        "start": {
+          "line": 10,
+          "column": 20,
+          "byte": 220
+        },
+        "end": {
+          "line": 10,
+          "column": 34,
+          "byte": 234
+        }
+      },
+      "callers": []
+    },
+    {
+      "rule": {
+        "name": "terraform_unused_declarations",
+        "severity": "warning",
+        "link": "https://github.com/terraform-linters/tflint/blob/master/docs/rules/terraform_unused_declarations.md"
+      },
+      "message": "variable \"unused_var\" is declared but not used",
+      "range": {
+        "filename": "variables.tf",
+        "start": {
+          "line": 45,
+          "column": 1,
+          "byte": 980
+        },
+        "end": {
+          "line": 45,
+          "column": 24,
+          "byte": 1003
+        }
+      },
+      "callers": []
+    },
+    {
+      "rule": {
+        "name": "terraform_documented_variables",
+        "severity": "notice",
+        "link": "https://github.com/terraform-linters/tflint/blob/master/docs/rules/terraform_documented_variables.md"
+      },
+      "message": "variable \"region\" has no description",
+      "range": {
+        "filename": "variables.tf",
+        "start": {
+          "line": 1,
+          "column": 1,
+          "byte": 0
+        },
+        "end": {
+          "line": 1,
+          "column": 18,
+          "byte": 17
+        }
+      },
+      "callers": []
+    },
+    {
+      "rule": {
+        "name": "terraform_documented_variables",
+        "severity": "notice",
+        "link": "https://github.com/terraform-linters/tflint/blob/master/docs/rules/terraform_documented_variables.md"
+      },
+      "message": "variable \"environment\" has no description",
+      "range": {
+        "filename": "variables.tf",
+        "start": {
+          "line": 5,
+          "column": 1,
+          "byte": 45
+        },
+        "end": {
+          "line": 5,
+          "column": 23,
+          "byte": 67
+        }
+      },
+      "callers": []
+    }
+  ],
+  "errors": []
+}

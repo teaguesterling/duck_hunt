@@ -689,3 +689,62 @@ FROM read_duck_hunt_log('test/samples/infrastructure/kube_score_output.json', 'k
 WHERE error_code LIKE 'container-%';
 ----
 true
+
+# =============================================================================
+# FILE-BASED TESTS - TFLint Sample File
+# =============================================================================
+
+# Test 62: TFLint sample file - total issue count
+query I
+SELECT COUNT(*)
+FROM read_duck_hunt_log('test/samples/infrastructure/tflint_output.json', 'tflint_json');
+----
+12
+
+# Test 63: TFLint sample file - severity distribution
+query II
+SELECT severity, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/infrastructure/tflint_output.json', 'tflint_json')
+GROUP BY severity
+ORDER BY cnt DESC, severity;
+----
+warning	6
+error	4
+notice	2
+
+# Test 64: TFLint sample file - verify tool_name
+query I
+SELECT DISTINCT tool_name
+FROM read_duck_hunt_log('test/samples/infrastructure/tflint_output.json', 'tflint_json');
+----
+tflint
+
+# Test 65: TFLint sample file - verify category is infrastructure
+query I
+SELECT DISTINCT category
+FROM read_duck_hunt_log('test/samples/infrastructure/tflint_output.json', 'tflint_json');
+----
+infrastructure
+
+# Test 66: TFLint sample file - verify log_file tracking
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/infrastructure/tflint_output.json', 'tflint_json');
+----
+test/samples/infrastructure/tflint_output.json
+
+# Test 67: TFLint sample file - verify ref_file contains .tf files
+query I
+SELECT COUNT(DISTINCT ref_file)
+FROM read_duck_hunt_log('test/samples/infrastructure/tflint_output.json', 'tflint_json')
+WHERE ref_file LIKE '%.tf';
+----
+6
+
+# Test 68: TFLint sample file - verify error_code contains rule names
+query I
+SELECT COUNT(*) > 0
+FROM read_duck_hunt_log('test/samples/infrastructure/tflint_output.json', 'tflint_json')
+WHERE error_code LIKE 'aws_%' OR error_code LIKE 'terraform_%';
+----
+true
