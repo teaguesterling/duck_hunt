@@ -1,0 +1,54 @@
+# Serilog sample log file
+# Contains both CLEF (Compact Log Event Format) JSON and text formatter output
+# Various severity levels: Verbose, Debug, Information, Warning, Error, Fatal
+
+# === CLEF JSON Format (@t, @mt, @l fields) ===
+{"@t":"2025-01-15T10:30:00.000Z","@mt":"Application starting","@l":"Information","Environment":"Production","Version":"2.1.0"}
+{"@t":"2025-01-15T10:30:01.123Z","@mt":"Loading configuration from {ConfigPath}","ConfigPath":"/etc/app/config.json","@l":"Debug"}
+{"@t":"2025-01-15T10:30:02.456Z","@mt":"Database connection established","@l":"Information","Server":"sql.example.com","Database":"AppDb"}
+{"@t":"2025-01-15T10:30:03.789Z","@mt":"HTTP server listening on {Address}","Address":"https://0.0.0.0:5000","@l":"Information"}
+{"@t":"2025-01-15T10:30:10.000Z","@mt":"Request received","@l":"Debug","Method":"GET","Path":"/api/users","RequestId":"req-abc-123"}
+{"@t":"2025-01-15T10:30:10.500Z","@mt":"User {UserId} authenticated successfully","UserId":42,"@l":"Information","Username":"alice"}
+{"@t":"2025-01-15T10:30:11.000Z","@mt":"Request completed in {ElapsedMs}ms","ElapsedMs":45,"@l":"Information","StatusCode":200}
+{"@t":"2025-01-15T10:30:15.000Z","@mt":"Memory usage exceeded threshold","@l":"Warning","UsedMB":1850,"ThresholdMB":1500}
+{"@t":"2025-01-15T10:30:20.000Z","@mt":"Cache connection failed","@l":"Error","Host":"redis.example.com","Port":6379,"@x":"System.Net.Sockets.SocketException: Connection refused"}
+{"@t":"2025-01-15T10:30:21.000Z","@mt":"Retrying operation","@l":"Warning","Attempt":1,"MaxAttempts":3,"Operation":"CacheConnect"}
+{"@t":"2025-01-15T10:30:25.000Z","@mt":"Cache connection restored","@l":"Information","Host":"redis.example.com"}
+{"@t":"2025-01-15T10:30:30.000Z","@mt":"Processing batch job","@l":"Information","JobId":"job-xyz-789","ItemCount":150}
+{"@t":"2025-01-15T10:30:35.000Z","@mt":"Batch job completed","@l":"Information","JobId":"job-xyz-789","ProcessedCount":150,"Duration":"5.2s"}
+{"@t":"2025-01-15T10:30:40.000Z","@mt":"Entering verbose trace mode","@l":"Verbose","Component":"Scheduler"}
+{"@t":"2025-01-15T10:30:45.000Z","@mt":"Unhandled exception in request pipeline","@l":"Error","@x":"System.NullReferenceException: Object reference not set\n   at MyApp.Controllers.OrderController.Create()"}
+{"@t":"2025-01-15T10:30:50.000Z","@mt":"Critical system failure - shutting down","@l":"Fatal","Reason":"OutOfMemory","AvailableMemoryMB":12}
+
+# === Text Formatter - Compact style [HH:mm:ss LEVEL] ===
+[10:31:00 INF] Application initialized successfully
+[10:31:01 DBG] Loading plugin: Authentication
+[10:31:02 DBG] Loading plugin: Authorization
+[10:31:03 INF] All plugins loaded (count: 5)
+[10:31:05 INF] Starting background services
+[10:31:10 INF] Health check endpoint ready at /health
+[10:31:15 WRN] Slow database query detected (elapsed: 2500ms)
+[10:31:20 ERR] Failed to send notification email
+[10:31:25 INF] Scheduled task completed: CleanupExpiredSessions
+[10:31:30 WRN] Rate limit threshold approaching for client 192.168.1.100
+[10:31:35 INF] User logout: alice (session duration: 45m)
+[10:31:40 ERR] Payment processing failed for order ORD-12345
+[10:31:45 FTL] Unrecoverable error - initiating graceful shutdown
+
+# === Text Formatter - Full timestamp style [yyyy-MM-dd HH:mm:ss.fff +offset] [LEVEL] ===
+[2025-01-15 10:32:00.123 +00:00] [INF] Service mesh connection established
+[2025-01-15 10:32:01.456 +00:00] [DBG] Trace correlation ID: trace-123-abc
+[2025-01-15 10:32:02.789 +00:00] [INF] Metrics endpoint exposed at /metrics
+[2025-01-15 10:32:05.000 +00:00] [WRN] Certificate expiring in 7 days
+[2025-01-15 10:32:10.000 +00:00] [ERR] API rate limit exceeded for tenant: acme-corp
+[2025-01-15 10:32:15.000 +00:00] [INF] Graceful shutdown initiated
+[2025-01-15 10:32:16.000 +00:00] [INF] Draining active connections (remaining: 15)
+[2025-01-15 10:32:20.000 +00:00] [INF] All connections closed
+[2025-01-15 10:32:21.000 +00:00] [INF] Application shutdown complete
+
+# === Mixed with structured properties ===
+{"@t":"2025-01-15T10:33:00.000Z","@mt":"Order {OrderId} placed by user {UserId}","OrderId":"ORD-67890","UserId":1001,"@l":"Information","Total":299.99,"Currency":"USD"}
+{"@t":"2025-01-15T10:33:05.000Z","@mt":"Payment processed","@l":"Information","OrderId":"ORD-67890","PaymentMethod":"CreditCard","TransactionId":"txn-abc-123"}
+{"@t":"2025-01-15T10:33:10.000Z","@mt":"Inventory updated","@l":"Debug","ProductId":"PROD-555","QuantityChange":-2,"NewQuantity":48}
+{"@t":"2025-01-15T10:33:15.000Z","@mt":"Email notification queued","@l":"Information","Recipient":"customer@example.com","Template":"OrderConfirmation"}
+{"@t":"2025-01-15T10:33:20.000Z","@mt":"Background job scheduled","@l":"Debug","JobType":"ShipmentTracking","ScheduledFor":"2025-01-15T11:00:00Z"}

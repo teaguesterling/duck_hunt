@@ -542,3 +542,55 @@ FROM parse_duck_hunt_log('', 'rails_log');
 ----
 0
 
+# =============================================================================
+# File-Based Tests - Serilog Sample File
+# =============================================================================
+
+# Test 70: Serilog sample file - total event count
+query I
+SELECT COUNT(*)
+FROM read_duck_hunt_log('test/samples/app_logging/serilog_output.txt', 'serilog');
+----
+43
+
+# Test 71: Serilog sample file - severity distribution
+query II
+SELECT severity, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/app_logging/serilog_output.txt', 'serilog')
+GROUP BY severity
+ORDER BY cnt DESC;
+----
+info	31
+error	7
+warning	5
+
+# Test 72: Serilog sample file - verify tool_name
+query I
+SELECT DISTINCT tool_name
+FROM read_duck_hunt_log('test/samples/app_logging/serilog_output.txt', 'serilog');
+----
+serilog
+
+# Test 73: Serilog sample file - verify structured_data contains properties
+query I
+SELECT COUNT(*) > 0
+FROM read_duck_hunt_log('test/samples/app_logging/serilog_output.txt', 'serilog')
+WHERE structured_data LIKE '%UserId%';
+----
+true
+
+# Test 74: Serilog sample file - verify log_file tracking
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/app_logging/serilog_output.txt', 'serilog');
+----
+test/samples/app_logging/serilog_output.txt
+
+# Test 75: Serilog sample file - verify both JSON and text formats are parsed
+query I
+SELECT COUNT(*)
+FROM read_duck_hunt_log('test/samples/app_logging/serilog_output.txt', 'serilog')
+WHERE message LIKE 'Application%';
+----
+3
+
