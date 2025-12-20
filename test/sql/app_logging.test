@@ -284,3 +284,56 @@ FROM parse_duck_hunt_log('', 'logrus');
 ----
 0
 
+# =============================================================================
+# File-Based Tests - Logrus Sample File
+# =============================================================================
+
+# Test 36: Logrus sample file - total event count
+query I
+SELECT COUNT(*)
+FROM read_duck_hunt_log('test/samples/app_logging/logrus_output.txt', 'logrus');
+----
+41
+
+# Test 37: Logrus sample file - severity distribution
+# Note: debug/trace levels are normalized to info in the parser
+query II
+SELECT severity, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/app_logging/logrus_output.txt', 'logrus')
+GROUP BY severity
+ORDER BY cnt DESC;
+----
+info	29
+warning	6
+error	6
+
+# Test 38: Logrus sample file - verify tool_name
+query I
+SELECT DISTINCT tool_name
+FROM read_duck_hunt_log('test/samples/app_logging/logrus_output.txt', 'logrus');
+----
+logrus
+
+# Test 39: Logrus sample file - verify structured_data contains extra fields
+query I
+SELECT COUNT(*) > 0
+FROM read_duck_hunt_log('test/samples/app_logging/logrus_output.txt', 'logrus')
+WHERE structured_data LIKE '%"port"%';
+----
+true
+
+# Test 40: Logrus sample file - verify log_file tracking
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/app_logging/logrus_output.txt', 'logrus');
+----
+test/samples/app_logging/logrus_output.txt
+
+# Test 41: Logrus sample file - verify both text formatter and compact formatter are parsed
+query I
+SELECT COUNT(*)
+FROM read_duck_hunt_log('test/samples/app_logging/logrus_output.txt', 'logrus')
+WHERE message LIKE 'Application%';
+----
+3
+

@@ -1,0 +1,50 @@
+# Logrus sample log file
+# Contains both text formatter and compact formatter output
+# Various severity levels: trace, debug, info, warning, error, fatal, panic
+
+# === Text Formatter Output (key=value style) ===
+time="2025-01-15T10:30:00Z" level=info msg="Application starting" version="1.2.3" env="production"
+time="2025-01-15T10:30:01Z" level=debug msg="Loading configuration" config_path="/etc/myapp/config.yaml"
+time="2025-01-15T10:30:02Z" level=info msg="Database connection established" host="db.example.com" port=5432 pool_size=10
+time="2025-01-15T10:30:03Z" level=info msg="HTTP server listening" address="0.0.0.0:8080" tls=true
+time="2025-01-15T10:30:10Z" level=info msg="Received request" method="GET" path="/api/users" request_id="abc-123"
+time="2025-01-15T10:30:10Z" level=debug msg="Authenticating user" user_id=42 token_type="bearer"
+time="2025-01-15T10:30:11Z" level=info msg="Request completed" method="GET" path="/api/users" status=200 duration_ms=45
+time="2025-01-15T10:30:15Z" level=warning msg="High memory usage detected" used_mb=1850 total_mb=2048 percentage=90.3
+time="2025-01-15T10:30:20Z" level=warning msg="Slow query detected" query="SELECT * FROM large_table" duration_ms=2500
+time="2025-01-15T10:30:25Z" level=error msg="Failed to connect to cache" host="redis.example.com" port=6379 error="connection refused"
+time="2025-01-15T10:30:26Z" level=error msg="Request failed" method="POST" path="/api/orders" status=500 error="database timeout"
+time="2025-01-15T10:30:30Z" level=info msg="Retrying cache connection" attempt=1 max_attempts=3
+time="2025-01-15T10:30:31Z" level=info msg="Cache connection restored" host="redis.example.com" port=6379
+time="2025-01-15T10:30:45Z" level=warning msg="Rate limit approaching" client_ip="192.168.1.100" requests=95 limit=100
+time="2025-01-15T10:31:00Z" level=info msg="Scheduled job started" job_name="cleanup" schedule="*/5 * * * *"
+time="2025-01-15T10:31:05Z" level=info msg="Cleaned up expired sessions" count=127 duration_ms=320
+time="2025-01-15T10:31:10Z" level=trace msg="Detailed trace information" component="auth" step="token_validation"
+time="2025-01-15T10:32:00Z" level=fatal msg="Unrecoverable error" error="disk full" path="/var/log/myapp"
+time="2025-01-15T10:32:01Z" level=panic msg="Panic in goroutine" goroutine_id=47 stack="runtime/panic.go:1038"
+
+# === Compact Formatter Output (LEVEL[time] style) ===
+INFO[0000] Application initializing                      version=1.2.3
+INFO[0001] Loading plugins                               count=5
+DEBUG[0001] Plugin loaded successfully                   name=auth
+DEBUG[0001] Plugin loaded successfully                   name=cache
+DEBUG[0002] Plugin loaded successfully                   name=metrics
+INFO[0002] All plugins loaded                            total=5 failed=0
+INFO[0003] Starting HTTP server                          port=8080
+INFO[0005] Server ready to accept connections
+WARN[0010] Connection pool exhausted                     active=100 max=100
+WARN[0011] Falling back to synchronous processing
+ERROR[0015] Failed to process webhook                    webhook_id=xyz-789 error="invalid signature"
+INFO[0020] Graceful shutdown initiated
+INFO[0021] Waiting for active connections               count=15
+INFO[0025] All connections closed
+INFO[0026] Application shutdown complete
+
+# === Mixed with extra fields ===
+time="2025-01-15T10:35:00Z" level=info msg="User logged in" user_id=1001 username="alice" ip="10.0.0.50" user_agent="Mozilla/5.0"
+time="2025-01-15T10:35:01Z" level=info msg="User logged in" user_id=1002 username="bob" ip="10.0.0.51" user_agent="curl/7.68.0"
+time="2025-01-15T10:35:10Z" level=warning msg="Failed login attempt" username="admin" ip="192.168.1.200" attempts=3
+time="2025-01-15T10:35:15Z" level=error msg="Account locked" username="admin" reason="too many failed attempts" lock_duration="15m"
+time="2025-01-15T10:36:00Z" level=info msg="API request" endpoint="/v1/products" method="GET" response_time_ms=12 cache_hit=true
+time="2025-01-15T10:36:01Z" level=info msg="API request" endpoint="/v1/orders" method="POST" response_time_ms=89 cache_hit=false
+time="2025-01-15T10:36:02Z" level=debug msg="Cache stats" hits=1523 misses=47 hit_rate=0.97
