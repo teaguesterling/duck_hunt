@@ -90,23 +90,23 @@ std::vector<ValidationEvent> StylelintJSONParser::parse(const std::string& conte
             event.tool_name = "stylelint";
             event.event_type = ValidationEventType::LINT_ISSUE;
             event.category = "css_style";
-            event.file_path = file_path;
+            event.ref_file = file_path;
             event.execution_time = 0.0;
             
             // Get line number
             yyjson_val *line = yyjson_obj_get(warning, "line");
             if (line && yyjson_is_num(line)) {
-                event.line_number = yyjson_get_int(line);
+                event.ref_line = yyjson_get_int(line);
             } else {
-                event.line_number = -1;
+                event.ref_line = -1;
             }
             
             // Get column number
             yyjson_val *column = yyjson_obj_get(warning, "column");
             if (column && yyjson_is_num(column)) {
-                event.column_number = yyjson_get_int(column);
+                event.ref_column = yyjson_get_int(column);
             } else {
-                event.column_number = -1;
+                event.ref_column = -1;
             }
             
             // Get severity
@@ -148,7 +148,7 @@ std::vector<ValidationEvent> StylelintJSONParser::parse(const std::string& conte
             }
             
             // Set raw output and structured data
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "{\"tool\": \"stylelint\", \"rule\": \"" + event.error_code + "\", \"severity\": \"" + event.severity + "\"}";
             
             events.push_back(event);

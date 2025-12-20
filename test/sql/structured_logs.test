@@ -43,7 +43,7 @@ error	Processing
 
 # Test 5: JSONL with file path and line number
 query III
-SELECT file_path, line_number, message
+SELECT ref_file, ref_line, message
 FROM parse_duck_hunt_log('{"level":"error","message":"Syntax error","file":"app.py","line":42}', 'jsonl');
 ----
 app.py	42	Syntax error
@@ -60,7 +60,7 @@ warning	1
 
 # Test 7: JSONL stores raw output
 query I
-SELECT raw_output
+SELECT log_content
 FROM parse_duck_hunt_log('{"level":"info","message":"test"}', 'jsonl');
 ----
 {"level":"info","message":"test"}
@@ -111,7 +111,7 @@ error	Processing
 
 # Test 13: Logfmt with caller/source
 query II
-SELECT file_path, message
+SELECT ref_file, message
 FROM parse_duck_hunt_log('level=error msg="Failed" caller=main.go:42', 'logfmt');
 ----
 main.go:42	Failed

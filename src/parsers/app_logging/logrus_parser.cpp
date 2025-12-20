@@ -67,8 +67,8 @@ static bool ParseLogrusLine(const std::string& line, ValidationEvent& event, int
         event.log_line_start = line_number;
         event.log_line_end = line_number;
         event.execution_time = 0.0;
-        event.line_number = -1;
-        event.column_number = -1;
+        event.ref_line = -1;
+        event.ref_column = -1;
 
         // Extract standard fields
         std::string level = pairs.count("level") ? pairs["level"] : "info";
@@ -79,7 +79,7 @@ static bool ParseLogrusLine(const std::string& line, ValidationEvent& event, int
 
         // Extract caller info if present
         if (pairs.count("file")) {
-            event.file_path = pairs["file"];
+            event.ref_file = pairs["file"];
         }
         if (pairs.count("func")) {
             event.function_name = pairs["func"];
@@ -108,7 +108,7 @@ static bool ParseLogrusLine(const std::string& line, ValidationEvent& event, int
         json += "}";
         event.structured_data = json;
 
-        event.raw_output = line;
+        event.log_content = line;
         return true;
     }
 
@@ -127,8 +127,8 @@ static bool ParseLogrusLine(const std::string& line, ValidationEvent& event, int
         event.log_line_start = line_number;
         event.log_line_end = line_number;
         event.execution_time = 0.0;
-        event.line_number = -1;
-        event.column_number = -1;
+        event.ref_line = -1;
+        event.ref_column = -1;
 
         std::string level = match[1].str();
         // Normalize to lowercase
@@ -164,7 +164,7 @@ static bool ParseLogrusLine(const std::string& line, ValidationEvent& event, int
         json += "}";
         event.structured_data = json;
 
-        event.raw_output = line;
+        event.log_content = line;
         return true;
     }
 

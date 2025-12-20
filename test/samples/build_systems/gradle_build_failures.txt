@@ -1,0 +1,24 @@
+> Task :compileJava
+/home/user/project/src/main/java/com/example/UserService.java:45: error: cannot find symbol
+        UserRepository repo = new UserRepository();
+        ^
+  symbol:   class UserRepository
+  location: class UserService
+/home/user/project/src/main/java/com/example/AuthService.java:23: error: incompatible types: String cannot be converted to int
+        int userId = getUserId();
+                     ^
+2 errors
+
+> Task :compileJava FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':compileJava'.
+> Compilation failed; see the compiler error output for details.
+
+* Try:
+Run with --stacktrace option to get the stack trace. Run with --info or --debug option to get more log output.
+
+BUILD FAILED in 2s
+1 actionable task: 1 executed

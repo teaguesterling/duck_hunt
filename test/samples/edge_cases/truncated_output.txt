@@ -1,0 +1,20 @@
+Running tests...
+test_user_creation ... ok
+test_user_deletion ... ok
+test_authentication ... FAILED
+
+================================ FAILURES ================================
+____________________________ test_authentication ____________________________
+
+    def test_authentication():
+        user = create_user("test@example.com", "password123")
+>       assert authenticate(user.email, "wrong_password") == False
+E       AssertionError: assert True == False
+E         +  where True = authenticate('test@example.com', 'wrong_password')
+
+tests/test_auth.py:45: AssertionError
+----------------------------- Captured stdout -----------------------------
+Creating test user...
+User created with ID: 12345
+Attempting authentication...
+[Output truncated - exceeded maximum buffer size]

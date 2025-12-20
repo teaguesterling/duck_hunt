@@ -1,0 +1,47 @@
+   Compiling my-project v0.1.0 (/home/user/project)
+error[E0425]: cannot find value `undefined_var` in this scope
+ --> src/main.rs:15:5
+  |
+15 |     undefined_var
+  |     ^^^^^^^^^^^^^ not found in this scope
+
+error[E0308]: mismatched types
+  --> src/lib.rs:23:12
+   |
+23 |     return "hello";
+   |            ^^^^^^^ expected `i32`, found `&str`
+   |
+help: try using a conversion method
+   |
+23 |     return "hello".parse().unwrap();
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0382]: borrow of moved value: `data`
+  --> src/parser.rs:45:10
+   |
+42 |     let data = String::from("test");
+   |         ---- move occurs because `data` has type `String`
+43 |     process(data);
+   |             ---- value moved here
+44 |
+45 |     println!("{}", data);
+   |                    ^^^^ value borrowed here after move
+   |
+note: consider changing this parameter type to borrow instead
+  --> src/parser.rs:10:15
+   |
+10 | fn process(s: String) {
+   |               ^^^^^^ this parameter takes ownership of the value
+
+warning: unused variable: `result`
+ --> src/utils.rs:8:9
+  |
+8 |     let result = compute();
+  |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_result`
+  |
+  = note: `#[warn(unused_variables)]` on by default
+
+error: aborting due to 3 previous errors; 1 warning emitted
+
+For more information about this error, try `rustc --explain E0425`.
+error: could not compile `my-project` due to 3 previous errors

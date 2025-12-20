@@ -102,8 +102,8 @@ static bool ParseGCPLogEntry(const std::string& record, ValidationEvent& event, 
     event.log_line_start = line_number;
     event.log_line_end = line_number;
     event.execution_time = 0.0;
-    event.line_number = -1;
-    event.column_number = -1;
+    event.ref_line = -1;
+    event.ref_column = -1;
 
     // Field mappings - using new Phase 4 columns
     event.started_at = timestamp;                  // Timestamp (proper column)
@@ -180,7 +180,7 @@ static bool ParseGCPLogEntry(const std::string& record, ValidationEvent& event, 
     json += "}";
     event.structured_data = json;
 
-    event.raw_output = record;
+    event.log_content = record;
     return true;
 }
 

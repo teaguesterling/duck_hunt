@@ -1,0 +1,23 @@
+2024-01-15T10:00:00.000000000Z stdout P Starting application...
+2024-01-15T10:00:00.123456789Z stdout F Application version: 2.1.0
+2024-01-15T10:00:01.000000000Z stdout F Connecting to database at db.internal:5432
+2024-01-15T10:00:01.500000000Z stdout F Database connection established
+2024-01-15T10:00:02.000000000Z stdout F Loading configuration from /etc/app/config.yaml
+2024-01-15T10:00:02.100000000Z stdout F Configuration loaded successfully
+2024-01-15T10:00:02.500000000Z stdout F HTTP server listening on :8080
+2024-01-15T10:01:00.000000000Z stdout F [INFO] Request received: GET /api/users from 192.168.1.100
+2024-01-15T10:01:00.050000000Z stdout F [INFO] Response sent: 200 OK in 50ms
+2024-01-15T10:01:30.000000000Z stdout F [WARN] High memory usage detected: 85%
+2024-01-15T10:02:00.000000000Z stderr F [ERROR] Database query timeout: SELECT * FROM large_table
+2024-01-15T10:02:00.001000000Z stderr F [ERROR] Stack trace:
+2024-01-15T10:02:00.002000000Z stderr P     at Database.query (/app/lib/db.js:123:15)
+2024-01-15T10:02:00.003000000Z stderr P     at UserService.getAll (/app/services/user.js:45:20)
+2024-01-15T10:02:00.004000000Z stderr F     at RequestHandler.handle (/app/handlers/request.js:78:12)
+2024-01-15T10:02:30.000000000Z stdout F [INFO] Health check: OK
+2024-01-15T10:03:00.000000000Z stderr F [ERROR] Connection refused: redis.internal:6379
+2024-01-15T10:03:00.100000000Z stderr F [ERROR] Cache unavailable, falling back to database
+2024-01-15T10:04:00.000000000Z stdout F [INFO] Graceful shutdown initiated
+2024-01-15T10:04:00.500000000Z stdout F [INFO] Draining active connections: 5
+2024-01-15T10:04:01.000000000Z stdout F [INFO] All connections drained
+2024-01-15T10:04:01.100000000Z stdout F [INFO] Database connection closed
+2024-01-15T10:04:01.200000000Z stdout F [INFO] Application stopped

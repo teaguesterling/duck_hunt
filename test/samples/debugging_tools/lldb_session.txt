@@ -1,0 +1,50 @@
+(lldb) target create "./myapp"
+Current executable set to '/Users/developer/project/myapp' (arm64).
+(lldb) breakpoint set --name main
+Breakpoint 1: where = myapp`main + 24 at main.cpp:15:5, address = 0x0000000100003f58
+(lldb) run
+Process 12345 launched: '/Users/developer/project/myapp' (arm64)
+Process 12345 stopped
+* thread #1, queue = 'com.apple.main-thread', stop reason = breakpoint 1.1
+    frame #0: 0x0000000100003f58 myapp`main(argc=1, argv=0x000000016fdff4d8) at main.cpp:15:5
+   12
+   13  	int main(int argc, char* argv[]) {
+   14  	    Application app;
+-> 15  	    app.initialize();
+   16  	    return app.run();
+   17  	}
+(lldb) continue
+Process 12345 resuming
+Process 12345 stopped
+* thread #2, name = 'worker-1', stop reason = EXC_BAD_ACCESS (code=1, address=0x0)
+    frame #0: 0x0000000100004abc myapp`Worker::process(this=0x0000600000004000, item=<unavailable>) at worker.cpp:78
+   75  	void Worker::process(const WorkItem& item) {
+   76  	    // Process the work item
+   77  	    auto result = item.getData();
+-> 78  	    m_results.push_back(result);  // EXC_BAD_ACCESS here
+   79  	}
+(lldb) bt
+* thread #2, name = 'worker-1', stop reason = EXC_BAD_ACCESS (code=1, address=0x0)
+  * frame #0: 0x0000000100004abc myapp`Worker::process(this=0x0000600000004000, item=<unavailable>) at worker.cpp:78
+    frame #1: 0x0000000100004def myapp`Worker::run(this=0x0000600000004000) at worker.cpp:45
+    frame #2: 0x00000001000051f0 myapp`std::__1::__thread_proxy<std::__1::tuple<std::__1::unique_ptr<std::__1::__thread_struct, std::__1::default_delete<std::__1::__thread_struct>>, void (Worker::*)(), Worker*>>(void*) at thread:285
+(lldb) frame variable
+(Worker *) this = 0x0000600000004000
+(const WorkItem &) item = <unavailable>
+(lldb) expression m_results.size()
+(size_t) $0 = 0
+(lldb) memory read --size 8 --count 4 0x0000600000004000
+0x600000004000: 0x0000000100008a00 0x0000000000000000
+0x600000004010: 0x0000000000000000 0x0000000000000000
+(lldb) register read
+General Purpose Registers:
+        x0 = 0x0000600000004000
+        x1 = 0x000000016fdfec00
+       ...
+        pc = 0x0000000100004abc  myapp`Worker::process(WorkItem const&) + 76 at worker.cpp:78
+(lldb) thread list
+Process 12345 stopped
+* thread #1: tid = 0x1a2b3c, 0x00007fff2043a5c2 libsystem_kernel.dylib`__psynch_cvwait + 10, name = 'main'
+  thread #2: tid = 0x1a2b3d, 0x0000000100004abc myapp`Worker::process(WorkItem const&) at worker.cpp:78, name = 'worker-1', stop reason = EXC_BAD_ACCESS (code=1, address=0x0)
+  thread #3: tid = 0x1a2b3e, 0x00007fff2043a5c2 libsystem_kernel.dylib`__psynch_cvwait + 10, name = 'worker-2'
+(lldb) quit

@@ -1,0 +1,180 @@
+# name: test/sql/diagnose_functions.test
+# description: Test duck_hunt_diagnose_parse and duck_hunt_diagnose_read functions
+# group: [sql]
+
+require duck_hunt
+
+# Test 1: Basic diagnose_read with ESLint JSON file
+query IIIII
+SELECT format, priority, can_parse, events_produced > 0 as has_events, is_selected
+FROM duck_hunt_diagnose_read('test/samples/linting_tools/eslint_output.json')
+WHERE format = 'eslint_json';
+----
+eslint_json	100	true	true	true
+
+# Test 2: Verify auto-selection logic - only one parser should be selected
+query I
+SELECT COUNT(*) FROM duck_hunt_diagnose_read('test/samples/linting_tools/eslint_output.json')
+WHERE is_selected = true;
+----
+1
+
+# Test 3: Verify can_parse is false for most non-matching parsers
+query I
+SELECT COUNT(*) > 50 FROM duck_hunt_diagnose_read('test/samples/linting_tools/eslint_output.json')
+WHERE can_parse = false;
+----
+true
+
+# Test 4: Verify results are ordered by priority descending
+query I
+SELECT CASE
+    WHEN priority >= LAG(priority) OVER () OR LAG(priority) OVER () IS NULL
+    THEN 1 ELSE 0 END as is_ordered
+FROM duck_hunt_diagnose_read('test/samples/linting_tools/mypy_output.txt')
+LIMIT 5;
+----
+1
+1
+1
+1
+1
+
+# Test 5: Test diagnose_read with pytest text output - detected as pytest_text
+query III
+SELECT format, can_parse, is_selected
+FROM duck_hunt_diagnose_read('test/samples/test_frameworks/pytest_failures.txt')
+WHERE format = 'pytest_text';
+----
+pytest_text	true	true
+
+# Test 6: Verify all expected columns are present
+query I
+SELECT COUNT(*) FROM (
+  SELECT format, priority, can_parse, events_produced, is_selected
+  FROM duck_hunt_diagnose_read('test/samples/linting_tools/mypy_output.txt')
+  LIMIT 1
+);
+----
+1
+
+# Test 7: Test with make error output
+query III
+SELECT format, can_parse, events_produced > 0 as has_events
+FROM duck_hunt_diagnose_read('test/samples/build_systems/make_errors.txt')
+WHERE format = 'make_error';
+----
+make_error	true	true
+
+# Test 8: Test with JSONL logs
+query III
+SELECT format, can_parse, is_selected
+FROM duck_hunt_diagnose_read('test/samples/structured_logs/jsonl_logs.jsonl')
+WHERE format = 'jsonl';
+----
+jsonl	true	true
+
+# Test 9: Verify events_produced matches actual parse output
+statement ok
+CREATE TABLE eslint_events AS SELECT * FROM read_duck_hunt_log('test/samples/linting_tools/eslint_output.json', 'eslint_json');
+
+query I
+SELECT dr.events_produced = (SELECT COUNT(*) FROM eslint_events)
+FROM duck_hunt_diagnose_read('test/samples/linting_tools/eslint_output.json') dr
+WHERE dr.format = 'eslint_json';
+----
+true
+
+statement ok
+DROP TABLE eslint_events;
+
+# Test 10: Test with Go test JSON output
+query III
+SELECT format, can_parse, events_produced > 0 as has_events
+FROM duck_hunt_diagnose_read('test/samples/test_frameworks/gotest_failures.json')
+WHERE format = 'gotest_json';
+----
+gotest_json	true	true
+
+# Test 11: Test with mypy output (detected as mypy_text)
+query III
+SELECT format, can_parse, is_selected
+FROM duck_hunt_diagnose_read('test/samples/linting_tools/mypy_output.txt')
+WHERE format = 'mypy_text';
+----
+mypy_text	true	true
+
+# Test 12: Test with flake8 output (detected as flake8_text)
+query III
+SELECT format, can_parse, events_produced > 0 as has_events
+FROM duck_hunt_diagnose_read('test/samples/linting_tools/flake8_output.txt')
+WHERE format = 'flake8_text';
+----
+flake8_text	true	true
+
+# Test 13: Test make_error is selected (not just can_parse)
+query I
+SELECT is_selected FROM duck_hunt_diagnose_read('test/samples/build_systems/make_errors.txt')
+WHERE format = 'make_error';
+----
+true
+
+# Test 14: Test multiple parsers can match same content (JSON can match multiple)
+query I
+SELECT COUNT(*) >= 1 FROM duck_hunt_diagnose_read('test/samples/structured_logs/jsonl_logs.jsonl')
+WHERE can_parse = true;
+----
+true
+
+# Test 15: Test emit='valid' filter
+query I
+SELECT COUNT(*) FROM duck_hunt_diagnose_read('test/samples/linting_tools/eslint_output.json', 'valid');
+----
+1
+
+# Test 16: Test emit='invalid' filter
+query I
+SELECT COUNT(*) > 50 FROM duck_hunt_diagnose_read('test/samples/linting_tools/eslint_output.json', 'invalid');
+----
+true
+
+# Test 17: Verify emit filters sum correctly (valid + invalid = all)
+query I
+SELECT
+    (SELECT COUNT(*) FROM duck_hunt_diagnose_read('test/samples/linting_tools/eslint_output.json', 'valid')) +
+    (SELECT COUNT(*) FROM duck_hunt_diagnose_read('test/samples/linting_tools/eslint_output.json', 'invalid')) =
+    (SELECT COUNT(*) FROM duck_hunt_diagnose_read('test/samples/linting_tools/eslint_output.json', 'all'));
+----
+true
+
+# Test 18: Test emit='valid' shows only can_parse=true rows
+query I
+SELECT COUNT(*) FROM duck_hunt_diagnose_read('test/samples/linting_tools/eslint_output.json', 'valid')
+WHERE can_parse = false;
+----
+0
+
+# Test 19: Test emit='invalid' shows only can_parse=false rows
+query I
+SELECT COUNT(*) FROM duck_hunt_diagnose_read('test/samples/linting_tools/eslint_output.json', 'invalid')
+WHERE can_parse = true;
+----
+0
+
+# Test 20: Test emit parameter works with duck_hunt_diagnose_parse too
+query I
+SELECT COUNT(*) >= 1 FROM duck_hunt_diagnose_parse('{"level":"info","msg":"test"}', 'valid');
+----
+true
+
+# Test 21: Verify log_file column is populated for file input
+query I
+SELECT DISTINCT log_file FROM read_duck_hunt_log('test/samples/linting_tools/eslint_output.json', 'eslint_json');
+----
+test/samples/linting_tools/eslint_output.json
+
+# Test 22: Verify log_file is NULL for string input (parse)
+query I
+SELECT log_file IS NULL FROM parse_duck_hunt_log('[{"filePath":"t.js","messages":[{"ruleId":"r","severity":1,"message":"m","line":1,"column":1}]}]', 'eslint_json') LIMIT 1;
+----
+true

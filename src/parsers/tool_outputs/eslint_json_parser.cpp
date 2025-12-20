@@ -94,22 +94,22 @@ std::vector<ValidationEvent> ESLintJSONParser::parse(const std::string& content)
             event.event_id = event_id++;
             event.tool_name = "eslint";
             event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = file_path_str;
+            event.ref_file = file_path_str;
             event.execution_time = 0.0;
             
             // Extract line and column
             yyjson_val *line = yyjson_obj_get(message, "line");
             if (line && yyjson_is_num(line)) {
-                event.line_number = yyjson_get_int(line);
+                event.ref_line = yyjson_get_int(line);
             } else {
-                event.line_number = -1;
+                event.ref_line = -1;
             }
             
             yyjson_val *column = yyjson_obj_get(message, "column");
             if (column && yyjson_is_num(column)) {
-                event.column_number = yyjson_get_int(column);
+                event.ref_column = yyjson_get_int(column);
             } else {
-                event.column_number = -1;
+                event.ref_column = -1;
             }
             
             // Extract message

@@ -1,0 +1,28 @@
+2024-01-15T14:00:00.0000000Z ##[group]Run actions/checkout@v4
+2024-01-15T14:00:00.5000000Z ##[endgroup]
+2024-01-15T14:00:02.0000000Z Syncing repository: myorg/myrepo
+2024-01-15T14:00:05.0000000Z Checking out the ref
+2024-01-15T14:00:08.0000000Z ##[group]Run actions/setup-python@v5
+2024-01-15T14:00:08.1000000Z with:
+2024-01-15T14:00:08.2000000Z   python-version: '3.11'
+2024-01-15T14:00:08.3000000Z ##[endgroup]
+2024-01-15T14:00:10.0000000Z Successfully set up Python 3.11.7
+2024-01-15T14:00:12.0000000Z ##[group]Run pip install -r requirements.txt
+2024-01-15T14:00:12.1000000Z pip install -r requirements.txt
+2024-01-15T14:00:12.2000000Z shell: /usr/bin/bash -e {0}
+2024-01-15T14:00:12.3000000Z ##[endgroup]
+2024-01-15T14:00:25.0000000Z Successfully installed 45 packages
+2024-01-15T14:00:26.0000000Z ##[group]Run pytest --cov=myapp tests/
+2024-01-15T14:00:26.1000000Z pytest --cov=myapp tests/
+2024-01-15T14:00:26.2000000Z shell: /usr/bin/bash -e {0}
+2024-01-15T14:00:26.3000000Z ##[endgroup]
+2024-01-15T14:00:30.0000000Z ============================= test session starts ==============================
+2024-01-15T14:00:30.1000000Z platform linux -- Python 3.11.7, pytest-7.4.3, pluggy-1.3.0
+2024-01-15T14:00:35.0000000Z tests/test_api.py ....
+2024-01-15T14:00:40.0000000Z tests/test_models.py ......
+2024-01-15T14:00:45.0000000Z tests/test_utils.py ...
+2024-01-15T14:00:50.0000000Z ============================= 13 passed in 20.00s ==============================
+2024-01-15T14:00:51.0000000Z ##[group]Run actions/upload-artifact@v4
+2024-01-15T14:00:51.1000000Z ##[endgroup]
+2024-01-15T14:00:55.0000000Z Artifact coverage-report uploaded successfully
+2024-01-15T14:00:56.0000000Z ##[notice]All jobs completed successfully

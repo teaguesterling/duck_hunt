@@ -44,16 +44,16 @@ std::vector<ValidationEvent> MSBuildParser::parse(const std::string& content) co
             event.event_id = event_id++;
             event.tool_name = "msbuild-csc";
             event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = match[1].str();
-            event.line_number = std::stoi(match[2].str());
-            event.column_number = std::stoi(match[3].str());
+            event.ref_file = match[1].str();
+            event.ref_line = std::stoi(match[2].str());
+            event.ref_column = std::stoi(match[3].str());
             event.function_name = current_project;
             event.status = ValidationEventStatus::ERROR;
             event.severity = "error";
             event.category = "compilation";
             event.message = match[5].str();
             event.error_code = match[4].str();
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "msbuild";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -66,16 +66,16 @@ std::vector<ValidationEvent> MSBuildParser::parse(const std::string& content) co
             event.event_id = event_id++;
             event.tool_name = "msbuild-csc";
             event.event_type = ValidationEventType::BUILD_ERROR;
-            event.file_path = match[1].str();
-            event.line_number = std::stoi(match[2].str());
-            event.column_number = std::stoi(match[3].str());
+            event.ref_file = match[1].str();
+            event.ref_line = std::stoi(match[2].str());
+            event.ref_column = std::stoi(match[3].str());
             event.function_name = current_project;
             event.status = ValidationEventStatus::WARNING;
             event.severity = "warning";
             event.category = "compilation";
             event.message = match[5].str();
             event.error_code = match[4].str();
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "msbuild";
 
             // Map analyzer warnings to appropriate categories
@@ -117,7 +117,7 @@ std::vector<ValidationEvent> MSBuildParser::parse(const std::string& content) co
                            std::to_string(failed) + " failed, " +
                            std::to_string(skipped) + " skipped";
             event.execution_time = static_cast<double>(duration) / 1000.0; // Convert ms to seconds
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "msbuild";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -154,7 +154,7 @@ std::vector<ValidationEvent> MSBuildParser::parse(const std::string& content) co
                 event.message = "Test skipped";
             }
 
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "msbuild";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -174,7 +174,7 @@ std::vector<ValidationEvent> MSBuildParser::parse(const std::string& content) co
             event.severity = (result == "succeeded") ? "info" : "error";
             event.category = "build_result";
             event.message = "Build " + result;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "msbuild";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -204,7 +204,7 @@ std::vector<ValidationEvent> MSBuildParser::parse(const std::string& content) co
             event.category = "build_timing";
             event.message = "Build completed";
             event.execution_time = total_seconds;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "msbuild";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -225,7 +225,7 @@ std::vector<ValidationEvent> MSBuildParser::parse(const std::string& content) co
                 event.severity = "error";
                 event.category = "error_summary";
                 event.message = std::to_string(error_count) + " compilation error(s)";
-                event.raw_output = content;
+                event.log_content = content;
                 event.structured_data = "msbuild";
 
                 events.push_back(event);
@@ -244,7 +244,7 @@ std::vector<ValidationEvent> MSBuildParser::parse(const std::string& content) co
                 event.severity = "warning";
                 event.category = "warning_summary";
                 event.message = std::to_string(warning_count) + " compilation warning(s)";
-                event.raw_output = content;
+                event.log_content = content;
                 event.structured_data = "msbuild";
 
                 events.push_back(event);

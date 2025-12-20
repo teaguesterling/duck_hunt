@@ -1,0 +1,74 @@
+User
+  validations
+    is valid with valid attributes
+    is not valid without an email (FAILED - 1)
+    is not valid with a duplicate email
+  associations
+    has many posts
+    has many comments through posts (FAILED - 2)
+
+Post
+  validations
+    is valid with valid attributes
+    is not valid without a title
+    requires content to be at least 10 characters (PENDING: Not implemented yet)
+  scopes
+    .published returns only published posts
+    .recent returns posts from last 7 days (FAILED - 3)
+
+Authentication
+  #login
+    with valid credentials
+      returns a valid token
+      sets the session
+    with invalid credentials
+      raises AuthenticationError (FAILED - 4)
+      does not set the session
+
+Failures:
+
+  1) User validations is not valid without an email
+     Failure/Error: expect(user).not_to be_valid
+
+       expected #<User id: nil, email: nil, name: "Test User"> not to be valid
+     # ./spec/models/user_spec.rb:15:in `block (3 levels) in <top (required)>'
+
+  2) User associations has many comments through posts
+     Failure/Error: expect(user.comments).to include(comment)
+
+       expected #<ActiveRecord::Associations::CollectionProxy []> to include #<Comment id: 1, content: "Test comment">
+       Diff:
+       @@ -1 +1 @@
+       -[#<Comment id: 1, content: "Test comment">]
+       +[]
+     # ./spec/models/user_spec.rb:34:in `block (3 levels) in <top (required)>'
+
+  3) Post scopes .recent returns posts from last 7 days
+     Failure/Error: expect(Post.recent).to contain_exactly(recent_post)
+
+       expected collection contained:  [#<Post id: 1, title: "Recent">]
+       actual collection contained:    [#<Post id: 1, title: "Recent">, #<Post id: 2, title: "Old">]
+       the extra elements were:        [#<Post id: 2, title: "Old">]
+     # ./spec/models/post_spec.rb:56:in `block (3 levels) in <top (required)>'
+
+  4) Authentication #login with invalid credentials raises AuthenticationError
+     Failure/Error: expect { auth.login('bad@email.com', 'wrong') }.to raise_error(AuthenticationError)
+
+       expected AuthenticationError but nothing was raised
+     # ./spec/services/authentication_spec.rb:45:in `block (4 levels) in <top (required)>'
+
+Pending: (Failures listed here are expected and do not affect your suite's status)
+
+  1) Post validations requires content to be at least 10 characters
+     # Not implemented yet
+     # ./spec/models/post_spec.rb:23
+
+Finished in 2.34 seconds (files took 0.56 seconds to load)
+18 examples, 4 failures, 1 pending
+
+Failed examples:
+
+rspec ./spec/models/user_spec.rb:14 # User validations is not valid without an email
+rspec ./spec/models/user_spec.rb:32 # User associations has many comments through posts
+rspec ./spec/models/post_spec.rb:54 # Post scopes .recent returns posts from last 7 days
+rspec ./spec/services/authentication_spec.rb:43 # Authentication #login with invalid credentials raises AuthenticationError

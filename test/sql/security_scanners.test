@@ -74,7 +74,7 @@ true
 # =============================================================================
 
 query IIIII
-SELECT tool_name, error_code, severity, status, file_path
+SELECT tool_name, error_code, severity, status, ref_file
 FROM parse_duck_hunt_log('{"results":[{"rule_id":"aws-s3-enable-bucket-encryption","rule_description":"S3 should have encryption","severity":"HIGH","resource":"aws_s3_bucket.data","location":{"filename":"main.tf","start_line":15}}]}', 'tfsec_json');
 ----
 tfsec	aws-s3-enable-bucket-encryption	HIGH	ERROR	main.tf
@@ -105,7 +105,7 @@ aws-s3-versioning	INFO
 # =============================================================================
 
 query II
-SELECT line_number, file_path
+SELECT ref_line, ref_file
 FROM parse_duck_hunt_log('{"results":[{"rule_id":"test-rule","rule_description":"Test","severity":"HIGH","resource":"test","location":{"filename":"modules/storage/main.tf","start_line":45,"end_line":50}}]}', 'tfsec_json');
 ----
 45	modules/storage/main.tf

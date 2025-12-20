@@ -1,0 +1,53 @@
+2024-01-15T10:00:00.0000000Z ##[group]Run actions/checkout@v4
+2024-01-15T10:00:00.1234567Z with:
+2024-01-15T10:00:00.1234567Z   repository: myorg/myrepo
+2024-01-15T10:00:00.1234567Z   ref: refs/pull/123/merge
+2024-01-15T10:00:00.1234567Z   token: ***
+2024-01-15T10:00:00.1234567Z   persist-credentials: true
+2024-01-15T10:00:01.0000000Z ##[endgroup]
+2024-01-15T10:00:01.1000000Z Syncing repository: myorg/myrepo
+2024-01-15T10:00:02.0000000Z Getting Git version info
+2024-01-15T10:00:02.5000000Z Temporarily overriding HOME='/home/runner/work/_temp/abc123' before invoking git
+2024-01-15T10:00:05.0000000Z Checking out the ref
+2024-01-15T10:00:08.0000000Z ##[group]Run actions/setup-node@v4
+2024-01-15T10:00:08.1000000Z with:
+2024-01-15T10:00:08.1000000Z   node-version: '20'
+2024-01-15T10:00:08.1000000Z   cache: 'npm'
+2024-01-15T10:00:08.5000000Z ##[endgroup]
+2024-01-15T10:00:09.0000000Z Found in cache @ /opt/hostedtoolcache/node/20.10.0/x64
+2024-01-15T10:00:10.0000000Z ##[group]Run npm ci
+2024-01-15T10:00:10.1000000Z npm ci
+2024-01-15T10:00:10.2000000Z shell: /usr/bin/bash -e {0}
+2024-01-15T10:00:10.3000000Z ##[endgroup]
+2024-01-15T10:00:15.0000000Z npm WARN deprecated some-old-package@1.0.0: This package is deprecated
+2024-01-15T10:00:30.0000000Z added 1234 packages in 20s
+2024-01-15T10:00:31.0000000Z ##[group]Run npm run lint
+2024-01-15T10:00:31.1000000Z npm run lint
+2024-01-15T10:00:31.2000000Z shell: /usr/bin/bash -e {0}
+2024-01-15T10:00:31.3000000Z ##[endgroup]
+2024-01-15T10:00:35.0000000Z > myapp@1.0.0 lint
+2024-01-15T10:00:35.1000000Z > eslint src/
+2024-01-15T10:00:40.0000000Z ✓ All files pass linting
+2024-01-15T10:00:41.0000000Z ##[group]Run npm test
+2024-01-15T10:00:41.1000000Z npm test
+2024-01-15T10:00:41.2000000Z shell: /usr/bin/bash -e {0}
+2024-01-15T10:00:41.3000000Z ##[endgroup]
+2024-01-15T10:00:45.0000000Z > myapp@1.0.0 test
+2024-01-15T10:00:45.1000000Z > jest --coverage
+2024-01-15T10:01:00.0000000Z PASS src/utils.test.js
+2024-01-15T10:01:05.0000000Z PASS src/api.test.js
+2024-01-15T10:01:10.0000000Z FAIL src/auth.test.js
+2024-01-15T10:01:10.1000000Z   ● Authentication › should validate JWT token
+2024-01-15T10:01:10.2000000Z     expect(received).toBe(expected)
+2024-01-15T10:01:10.3000000Z     Expected: true
+2024-01-15T10:01:10.4000000Z     Received: false
+2024-01-15T10:01:10.5000000Z       at Object.<anonymous> (src/auth.test.js:45:25)
+2024-01-15T10:01:15.0000000Z Test Suites: 1 failed, 2 passed, 3 total
+2024-01-15T10:01:15.1000000Z Tests:       1 failed, 15 passed, 16 total
+2024-01-15T10:01:15.2000000Z ##[error]Process completed with exit code 1.
+2024-01-15T10:01:16.0000000Z ##[group]Annotations
+2024-01-15T10:01:16.1000000Z ##[error]src/auth.test.js#L45: Test failed: Authentication › should validate JWT token
+2024-01-15T10:01:16.2000000Z ##[warning]Consider increasing test coverage in auth module
+2024-01-15T10:01:16.3000000Z ##[endgroup]
+2024-01-15T10:01:17.0000000Z Post job cleanup.
+2024-01-15T10:01:18.0000000Z Post cache saved with key: npm-cache-Linux-abc123def456

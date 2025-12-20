@@ -74,26 +74,26 @@ std::vector<ValidationEvent> SwiftLintJSONParser::parse(const std::string& conte
         event.event_id = event_id++;
         event.tool_name = "swiftlint";
         event.event_type = ValidationEventType::LINT_ISSUE;
-        event.line_number = -1;
-        event.column_number = -1;
+        event.ref_line = -1;
+        event.ref_column = -1;
         event.execution_time = 0.0;
         event.category = "code_quality";
         
         // Get file path
         yyjson_val *file = yyjson_obj_get(violation, "file");
         if (file && yyjson_is_str(file)) {
-            event.file_path = yyjson_get_str(file);
+            event.ref_file = yyjson_get_str(file);
         }
         
         // Get line and column
         yyjson_val *line = yyjson_obj_get(violation, "line");
         if (line && yyjson_is_num(line)) {
-            event.line_number = yyjson_get_int(line);
+            event.ref_line = yyjson_get_int(line);
         }
         
         yyjson_val *column = yyjson_obj_get(violation, "column");
         if (column && yyjson_is_num(column)) {
-            event.column_number = yyjson_get_int(column);
+            event.ref_column = yyjson_get_int(column);
         }
         
         // Get severity
@@ -131,7 +131,7 @@ std::vector<ValidationEvent> SwiftLintJSONParser::parse(const std::string& conte
         }
         
         // Set raw output and structured data
-        event.raw_output = content;
+        event.log_content = content;
         event.structured_data = "{\"tool\": \"swiftlint\", \"rule_id\": \"" + event.error_code + "\", \"type\": \"" + event.suggestion + "\"}";
         
         events.push_back(event);

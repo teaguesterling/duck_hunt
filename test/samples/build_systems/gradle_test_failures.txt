@@ -1,0 +1,33 @@
+> Task :compileJava UP-TO-DATE
+> Task :processResources UP-TO-DATE
+> Task :classes UP-TO-DATE
+> Task :compileTestJava UP-TO-DATE
+> Task :processTestResources NO-SOURCE
+> Task :testClasses UP-TO-DATE
+> Task :test
+
+com.example.UserServiceTest > testCreateUser PASSED
+com.example.UserServiceTest > testDeleteUser FAILED
+    org.opentest4j.AssertionFailedError: expected: <true> but was: <false>
+        at org.junit.jupiter.api.AssertionUtils.fail(AssertionUtils.java:55)
+        at com.example.UserServiceTest.testDeleteUser(UserServiceTest.java:45)
+com.example.UserServiceTest > testUpdateUser PASSED
+com.example.AuthServiceTest > testLogin PASSED
+com.example.AuthServiceTest > testLogout FAILED
+    java.lang.NullPointerException: Cannot invoke method on null object
+        at com.example.AuthService.logout(AuthService.java:67)
+        at com.example.AuthServiceTest.testLogout(AuthServiceTest.java:32)
+com.example.AuthServiceTest > testTokenRefresh SKIPPED
+
+6 tests completed, 2 failed, 1 skipped
+
+> Task :test FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':test'.
+> There were failing tests. See the report at: file:///home/user/project/build/reports/tests/test/index.html
+
+BUILD FAILED in 5s
+5 actionable tasks: 1 executed, 4 up-to-date

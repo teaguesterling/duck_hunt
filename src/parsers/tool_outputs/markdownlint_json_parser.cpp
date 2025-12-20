@@ -80,15 +80,15 @@ std::vector<ValidationEvent> MarkdownlintJSONParser::parse(const std::string& co
         // Get file name
         yyjson_val *file_name = yyjson_obj_get(issue, "fileName");
         if (file_name && yyjson_is_str(file_name)) {
-            event.file_path = yyjson_get_str(file_name);
+            event.ref_file = yyjson_get_str(file_name);
         }
         
         // Get line number
         yyjson_val *line_number = yyjson_obj_get(issue, "lineNumber");
         if (line_number && yyjson_is_num(line_number)) {
-            event.line_number = yyjson_get_int(line_number);
+            event.ref_line = yyjson_get_int(line_number);
         } else {
-            event.line_number = -1;
+            event.ref_line = -1;
         }
         
         // Markdownlint doesn't provide column in the same way - use errorRange if available
@@ -96,12 +96,12 @@ std::vector<ValidationEvent> MarkdownlintJSONParser::parse(const std::string& co
         if (error_range && yyjson_is_arr(error_range)) {
             yyjson_val *first_elem = yyjson_arr_get_first(error_range);
             if (first_elem && yyjson_is_num(first_elem)) {
-                event.column_number = yyjson_get_int(first_elem);
+                event.ref_column = yyjson_get_int(first_elem);
             } else {
-                event.column_number = -1;
+                event.ref_column = -1;
             }
         } else {
-            event.column_number = -1;
+            event.ref_column = -1;
         }
         
         // Markdownlint issues are typically warnings (unless they're really severe)
@@ -130,7 +130,7 @@ std::vector<ValidationEvent> MarkdownlintJSONParser::parse(const std::string& co
         }
         
         // Set raw output and structured data
-        event.raw_output = content;
+        event.log_content = content;
         event.structured_data = "{\"tool\": \"markdownlint\", \"rule\": \"" + event.error_code + "\"}";
         
         events.push_back(event);

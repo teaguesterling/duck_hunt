@@ -1,0 +1,20 @@
+INFO: Analyzed target //src:myapp (45 packages loaded, 1234 targets configured).
+ERROR: /home/user/project/src/BUILD:15:11: Compiling src/parser.cc failed: (Exit 1): gcc failed: error executing command
+src/parser.cc:23:10: error: 'unknown_type' was not declared in this scope
+   23 |   return unknown_type();
+      |          ^~~~~~~~~~~~
+src/parser.cc:45:15: error: no matching function for call to 'process(std::string&, int)'
+   45 |   auto result = process(input, 42);
+      |                 ^~~~~~~
+src/utils.h:12:6: note: candidate: 'void process(const std::string&)'
+   12 | void process(const std::string& s);
+      |      ^~~~~~~
+ERROR: /home/user/project/src/BUILD:15:11: Compiling src/main.cc failed: (Exit 1): gcc failed: error executing command
+src/main.cc:8:2: error: #error "Unsupported platform"
+    8 | #error "Unsupported platform"
+      |  ^~~~~
+Target //src:myapp failed to build
+Use --verbose_failures to see the command lines of failed build steps.
+INFO: Elapsed time: 5.678s, Critical Path: 3.45s
+INFO: 12 processes: 8 internal, 4 linux-sandbox.
+FAILED: Build did NOT complete successfully

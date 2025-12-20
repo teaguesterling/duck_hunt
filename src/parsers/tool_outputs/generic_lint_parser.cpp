@@ -38,9 +38,9 @@ void GenericLintParser::ParseGenericLint(const std::string& content, std::vector
             event.event_id = event_id++;
             event.tool_name = "lint";
             event.event_type = duckdb::ValidationEventType::LINT_ISSUE;
-            event.file_path = match[1].str();
-            event.line_number = std::stoi(match[2].str());
-            event.column_number = match[3].str().empty() ? -1 : std::stoi(match[3].str());
+            event.ref_file = match[1].str();
+            event.ref_line = std::stoi(match[2].str());
+            event.ref_column = match[3].str().empty() ? -1 : std::stoi(match[3].str());
             event.function_name = "";
             event.message = match[5].str();
             event.execution_time = 0.0;
@@ -73,8 +73,8 @@ void GenericLintParser::ParseGenericLint(const std::string& content, std::vector
         summary_event.status = duckdb::ValidationEventStatus::INFO;
         summary_event.category = "lint_summary";
         summary_event.message = "Generic lint output parsed (no issues found)";
-        summary_event.line_number = -1;
-        summary_event.column_number = -1;
+        summary_event.ref_line = -1;
+        summary_event.ref_column = -1;
         summary_event.execution_time = 0.0;
 
         events.push_back(summary_event);

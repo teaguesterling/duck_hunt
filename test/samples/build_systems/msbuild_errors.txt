@@ -1,0 +1,20 @@
+Microsoft (R) Build Engine version 17.4.0+18d5aef85 for .NET
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+Controllers/UserController.cs(23,15): error CS0246: The type or namespace name 'MissingType' could not be found (are you missing a using directive or an assembly reference?) [/home/user/project/MyApp.csproj]
+Controllers/UserController.cs(45,10): error CS1061: 'User' does not contain a definition for 'GetName' and no accessible extension method 'GetName' accepting a first argument of type 'User' could be found [/home/user/project/MyApp.csproj]
+Services/AuthService.cs(67,22): warning CS0618: 'OldMethod()' is obsolete: 'Use NewMethod() instead' [/home/user/project/MyApp.csproj]
+Services/AuthService.cs(89,5): error CS0029: Cannot implicitly convert type 'string' to 'int' [/home/user/project/MyApp.csproj]
+Models/User.cs(12,9): warning CA1822: Member 'ValidateName' does not access instance data and can be marked as static [/home/user/project/MyApp.csproj]
+
+Build FAILED.
+
+Controllers/UserController.cs(23,15): error CS0246: The type or namespace name 'MissingType' could not be found (are you missing a using directive or an assembly reference?) [/home/user/project/MyApp.csproj]
+Controllers/UserController.cs(45,10): error CS1061: 'User' does not contain a definition for 'GetName' and no accessible extension method 'GetName' accepting a first argument of type 'User' could be found [/home/user/project/MyApp.csproj]
+Services/AuthService.cs(89,5): error CS0029: Cannot implicitly convert type 'string' to 'int' [/home/user/project/MyApp.csproj]
+    2 Warning(s)
+    3 Error(s)
+
+Time Elapsed 00:00:01.23

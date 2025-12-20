@@ -1,0 +1,94 @@
+{
+  "Issues": [
+    {
+      "FromLinter": "errcheck",
+      "Text": "Error return value of `file.Close` is not checked",
+      "Severity": "warning",
+      "SourceLines": [
+        "\tfile.Close()"
+      ],
+      "Replacement": null,
+      "Pos": {
+        "Filename": "internal/service/handler.go",
+        "Offset": 1234,
+        "Line": 45,
+        "Column": 2
+      },
+      "ExpectNoLint": false,
+      "ExpectedNoLintLinter": ""
+    },
+    {
+      "FromLinter": "staticcheck",
+      "Text": "SA1019: package github.com/pkg/errors is deprecated: use errors package instead",
+      "Severity": "warning",
+      "SourceLines": [
+        "\t\"github.com/pkg/errors\""
+      ],
+      "Pos": {
+        "Filename": "internal/utils/errors.go",
+        "Line": 5,
+        "Column": 2
+      }
+    },
+    {
+      "FromLinter": "gosec",
+      "Text": "G104: Errors unhandled.",
+      "Severity": "warning",
+      "SourceLines": [
+        "\tio.Copy(dst, src)"
+      ],
+      "Pos": {
+        "Filename": "internal/io/copy.go",
+        "Line": 23,
+        "Column": 2
+      }
+    },
+    {
+      "FromLinter": "govet",
+      "Text": "printf: fmt.Sprintf format %d has arg s of wrong type string",
+      "Severity": "error",
+      "SourceLines": [
+        "\tfmt.Sprintf(\"Count: %d\", s)"
+      ],
+      "Pos": {
+        "Filename": "cmd/main.go",
+        "Line": 67,
+        "Column": 15
+      }
+    },
+    {
+      "FromLinter": "ineffassign",
+      "Text": "ineffectual assignment to err",
+      "Severity": "warning",
+      "SourceLines": [
+        "\terr = nil"
+      ],
+      "Pos": {
+        "Filename": "internal/api/client.go",
+        "Line": 89,
+        "Column": 2
+      }
+    },
+    {
+      "FromLinter": "gosimple",
+      "Text": "S1000: should use for range instead of for { select {} }",
+      "Severity": "warning",
+      "SourceLines": [
+        "\tfor {"
+      ],
+      "Pos": {
+        "Filename": "internal/worker/pool.go",
+        "Line": 112,
+        "Column": 2
+      }
+    }
+  ],
+  "Report": {
+    "Linters": [
+      {"Name": "errcheck", "Enabled": true},
+      {"Name": "staticcheck", "Enabled": true},
+      {"Name": "gosec", "Enabled": true},
+      {"Name": "govet", "Enabled": true}
+    ]
+  }
+}

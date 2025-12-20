@@ -1,0 +1,110 @@
+[
+  {
+    "filePath": "/home/user/project/src/components/Button.js",
+    "messages": [
+      {
+        "ruleId": "no-unused-vars",
+        "severity": 2,
+        "message": "'unusedVar' is defined but never used.",
+        "line": 5,
+        "column": 7,
+        "nodeType": "Identifier",
+        "endLine": 5,
+        "endColumn": 16
+      },
+      {
+        "ruleId": "react/prop-types",
+        "severity": 1,
+        "message": "'onClick' is missing in props validation",
+        "line": 12,
+        "column": 15,
+        "nodeType": "Identifier"
+      }
+    ],
+    "errorCount": 1,
+    "warningCount": 1,
+    "fixableErrorCount": 0,
+    "fixableWarningCount": 0,
+    "source": "import React from 'react';\n..."
+  },
+  {
+    "filePath": "/home/user/project/src/utils/helpers.js",
+    "messages": [
+      {
+        "ruleId": "no-console",
+        "severity": 1,
+        "message": "Unexpected console statement.",
+        "line": 15,
+        "column": 3,
+        "nodeType": "MemberExpression",
+        "endLine": 15,
+        "endColumn": 14
+      },
+      {
+        "ruleId": "eqeqeq",
+        "severity": 2,
+        "message": "Expected '===' and instead saw '=='.",
+        "line": 23,
+        "column": 9,
+        "nodeType": "BinaryExpression",
+        "endLine": 23,
+        "endColumn": 22
+      },
+      {
+        "ruleId": "no-var",
+        "severity": 2,
+        "message": "Unexpected var, use let or const instead.",
+        "line": 34,
+        "column": 1,
+        "nodeType": "VariableDeclaration",
+        "endLine": 34,
+        "endColumn": 20,
+        "fix": {
+          "range": [567, 570],
+          "text": "let"
+        }
+      },
+      {
+        "ruleId": "prefer-const",
+        "severity": 1,
+        "message": "'data' is never reassigned. Use 'const' instead.",
+        "line": 45,
+        "column": 5,
+        "nodeType": "Identifier",
+        "fix": {
+          "range": [789, 792],
+          "text": "const"
+        }
+      }
+    ],
+    "errorCount": 2,
+    "warningCount": 2,
+    "fixableErrorCount": 1,
+    "fixableWarningCount": 1
+  },
+  {
+    "filePath": "/home/user/project/src/services/api.js",
+    "messages": [
+      {
+        "ruleId": "no-await-in-loop",
+        "severity": 2,
+        "message": "Unexpected `await` inside a loop.",
+        "line": 67,
+        "column": 18,
+        "nodeType": "AwaitExpression"
+      },
+      {
+        "ruleId": "no-throw-literal",
+        "severity": 2,
+        "message": "Expected an error object to be thrown.",
+        "line": 78,
+        "column": 9,
+        "nodeType": "ThrowStatement"
+      }
+    ],
+    "errorCount": 2,
+    "warningCount": 0,
+    "fixableErrorCount": 0,
+    "fixableWarningCount": 0
+  }
+]

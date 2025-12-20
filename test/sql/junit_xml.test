@@ -87,9 +87,9 @@ SELECT execution_time FROM parse_duck_hunt_log('<testsuite name="Suite">
 ----
 1.234
 
-# Test 10: Classname becomes file_path
+# Test 10: Classname becomes ref_file
 query I
-SELECT file_path FROM parse_duck_hunt_log('<testsuite name="Suite">
+SELECT ref_file FROM parse_duck_hunt_log('<testsuite name="Suite">
   <testcase name="test1" classname="com.example.MyTest"/>
 </testsuite>', 'junit_xml');
 ----

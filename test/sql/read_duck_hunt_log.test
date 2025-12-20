@@ -79,10 +79,10 @@ eslint	3
 # Test 8: Verify all 17 ValidationEvent fields are populated correctly
 query I
 SELECT COUNT(*) FROM (
-  SELECT event_id, tool_name, event_type, file_path, line_number, 
-         column_number, function_name, status, severity, category, 
+  SELECT event_id, tool_name, event_type, ref_file, ref_line, 
+         ref_column, function_name, status, severity, category, 
          message, suggestion, error_code, test_name, execution_time, 
-         raw_output, structured_data
+         log_content, structured_data
   FROM read_duck_hunt_log('workspace/eslint_sample.json', 'eslint_json')
   WHERE event_id IS NOT NULL 
     AND tool_name IS NOT NULL
@@ -99,9 +99,9 @@ FROM read_duck_hunt_log('workspace/eslint_sample.json', 'eslint_json');
 ----
 1	3	3
 
-# Test 10: Verify file_path extraction
+# Test 10: Verify ref_file extraction
 query I
-SELECT COUNT(DISTINCT file_path) as unique_files
+SELECT COUNT(DISTINCT ref_file) as unique_files
 FROM read_duck_hunt_log('workspace/eslint_sample.json', 'eslint_json');
 ----
 2

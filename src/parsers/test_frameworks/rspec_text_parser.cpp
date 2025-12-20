@@ -111,11 +111,11 @@ void RSpecTextParser::ParseRSpecText(const std::string& content, std::vector<duc
             event.status = duckdb::ValidationEventStatus::FAIL;
             event.severity = "error";
             event.category = "test_failure";
-            event.file_path = match[1].str();
-            event.line_number = std::stoi(match[2].str());
+            event.ref_file = match[1].str();
+            event.ref_line = std::stoi(match[2].str());
             event.test_name = match[3].str();
             event.message = "Test failed: " + match[3].str();
-            event.raw_output = line;
+            event.log_content = line;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
             events.push_back(event);
@@ -190,7 +190,7 @@ void RSpecTextParser::ParseRSpecText(const std::string& content, std::vector<duc
             event.test_name = test_name;
             event.message = (status == duckdb::ValidationEventStatus::PASS ? "Test passed: " :
                            status == duckdb::ValidationEventStatus::FAIL ? "Test failed: " : "Test pending: ") + test_name;
-            event.raw_output = line;
+            event.log_content = line;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
             events.push_back(event);
@@ -214,7 +214,7 @@ void RSpecTextParser::ParseRSpecText(const std::string& content, std::vector<duc
             event.function_name = full_context;
             event.test_name = match[1].str();
             event.message = "Test passed: " + match[1].str();
-            event.raw_output = line;
+            event.log_content = line;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
             events.push_back(event);
@@ -237,7 +237,7 @@ void RSpecTextParser::ParseRSpecText(const std::string& content, std::vector<duc
             }
             event.test_name = match[1].str();
             event.message = "Test failed: " + match[1].str();
-            event.raw_output = line;
+            event.log_content = line;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
             events.push_back(event);
@@ -260,7 +260,7 @@ void RSpecTextParser::ParseRSpecText(const std::string& content, std::vector<duc
             }
             event.test_name = match[1].str();
             event.message = "Test pending: " + match[2].str();
-            event.raw_output = line;
+            event.log_content = line;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
             events.push_back(event);
@@ -291,9 +291,9 @@ void RSpecTextParser::ParseRSpecText(const std::string& content, std::vector<duc
             // Update the most recent failed test event with file/line info
             for (auto it = events.rbegin(); it != events.rend(); ++it) {
                 if (it->tool_name == "RSpec" && it->status == duckdb::ValidationEventStatus::FAIL && 
-                    it->file_path.empty()) {
-                    it->file_path = current_failure_file;
-                    it->line_number = current_failure_line;
+                    it->ref_file.empty()) {
+                    it->ref_file = current_failure_file;
+                    it->ref_line = current_failure_line;
                     if (!current_failure_message.empty()) {
                         it->message = current_failure_message;
                     }
@@ -324,7 +324,7 @@ void RSpecTextParser::ParseRSpecText(const std::string& content, std::vector<duc
                           " examples, " + std::to_string(failures) + " failures, " + 
                           std::to_string(pending) + " pending";
             event.execution_time = std::stod(execution_time);
-            event.raw_output = line;
+            event.log_content = line;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
             events.push_back(event);

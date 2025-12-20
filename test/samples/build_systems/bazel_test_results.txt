@@ -1,0 +1,50 @@
+INFO: Analyzed 3 targets (0 packages loaded, 0 targets configured).
+INFO: Found 3 test targets...
+INFO: From Testing //src:parser_test:
+==================== Test output for //src:parser_test:
+Running main() from gmock_main.cc
+[==========] Running 5 tests from 2 test suites.
+[----------] Global test environment set-up.
+[----------] 3 tests from ParserTest
+[ RUN      ] ParserTest.ParseValidInput
+[       OK ] ParserTest.ParseValidInput (2 ms)
+[ RUN      ] ParserTest.ParseEmptyInput
+[       OK ] ParserTest.ParseEmptyInput (0 ms)
+[ RUN      ] ParserTest.ParseInvalidInput
+[  FAILED  ] ParserTest.ParseInvalidInput (1 ms)
+src/parser_test.cc:45: Failure
+Expected equality of these values:
+  result.error_code
+    Which is: 1
+  0
+[----------] 2 tests from UtilsTest
+[ RUN      ] UtilsTest.ProcessData
+[       OK ] UtilsTest.ProcessData (1 ms)
+[ RUN      ] UtilsTest.ValidateInput
+[       OK ] UtilsTest.ValidateInput (0 ms)
+[----------] Global test environment tear-down
+[==========] 5 tests from 2 test suites ran. (8 ms total)
+[  PASSED  ] 4 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] ParserTest.ParseInvalidInput
+
+ 1 FAILED TEST
+================================================================================
+INFO: From Testing //src:utils_test:
+==================== Test output for //src:utils_test:
+[==========] Running 3 tests from 1 test suite.
+[----------] 3 tests from UtilsTest
+[ RUN      ] UtilsTest.ComputeHash
+[       OK ] UtilsTest.ComputeHash (5 ms)
+[ RUN      ] UtilsTest.EncodeData
+[       OK ] UtilsTest.EncodeData (2 ms)
+[ RUN      ] UtilsTest.DecodeData
+[       OK ] UtilsTest.DecodeData (1 ms)
+[==========] 3 tests from 1 test suite ran. (12 ms total)
+[  PASSED  ] 3 tests.
+================================================================================
+//src:parser_test                                                        FAILED in 0.3s
+//src:utils_test                                                         PASSED in 0.2s
+//src:integration_test                                                   PASSED in 1.5s
+
+Executed 3 out of 3 tests: 2 tests pass and 1 fails locally.

@@ -1,0 +1,9 @@
+{"name":"payment-service","hostname":"payment-01","pid":12345,"level":30,"msg":"Service initialized","time":"2024-01-15T10:00:00.000Z","v":0}
+{"name":"payment-service","hostname":"payment-01","pid":12345,"level":30,"msg":"Connected to Stripe API","time":"2024-01-15T10:00:01.000Z","v":0,"stripe_version":"2023-10-16"}
+{"name":"payment-service","hostname":"payment-01","pid":12345,"level":20,"msg":"Processing payment request","time":"2024-01-15T10:01:00.000Z","v":0,"req_id":"req-001","amount":9999,"currency":"USD"}
+{"name":"payment-service","hostname":"payment-01","pid":12345,"level":30,"msg":"Payment processed successfully","time":"2024-01-15T10:01:00.500Z","v":0,"req_id":"req-001","transaction_id":"txn_abc123","amount":9999}
+{"name":"payment-service","hostname":"payment-01","pid":12345,"level":40,"msg":"Payment declined","time":"2024-01-15T10:02:00.000Z","v":0,"req_id":"req-002","reason":"insufficient_funds","card_last4":"4242"}
+{"name":"payment-service","hostname":"payment-01","pid":12345,"level":50,"msg":"Stripe API error","time":"2024-01-15T10:03:00.000Z","v":0,"req_id":"req-003","err":{"message":"Rate limit exceeded","code":"rate_limit","statusCode":429},"stack":"StripeRateLimitError: Rate limit exceeded\n    at StripeAPIError.generate (/app/node_modules/stripe/lib/Error.js:35:16)"}
+{"name":"payment-service","hostname":"payment-01","pid":12345,"level":60,"msg":"Critical: Payment system unavailable","time":"2024-01-15T10:04:00.000Z","v":0,"err":{"message":"ECONNREFUSED","code":"ECONNREFUSED"},"action":"circuit_breaker_opened"}
+{"name":"payment-service","hostname":"payment-01","pid":12345,"level":30,"msg":"Circuit breaker reset","time":"2024-01-15T10:05:00.000Z","v":0,"circuit":"stripe-api","state":"closed"}
+{"name":"payment-service","hostname":"payment-01","pid":12345,"level":10,"msg":"Detailed trace","time":"2024-01-15T10:05:30.000Z","v":0,"trace":{"parent_id":"span-001","span_id":"span-002"}}

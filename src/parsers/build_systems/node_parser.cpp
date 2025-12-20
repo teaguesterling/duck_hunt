@@ -46,9 +46,9 @@ std::vector<ValidationEvent> NodeParser::parse(const std::string& content) const
             event.category = "package_manager";
             event.severity = "error";
             event.message = line;
-            event.line_number = -1;
-            event.column_number = -1;
-            event.raw_output = content;
+            event.ref_line = -1;
+            event.ref_column = -1;
+            event.log_content = content;
             event.structured_data = "node_build";
 
             // Extract error codes
@@ -71,9 +71,9 @@ std::vector<ValidationEvent> NodeParser::parse(const std::string& content) const
             event.category = "package_manager";
             event.severity = "error";
             event.message = line;
-            event.line_number = -1;
-            event.column_number = -1;
-            event.raw_output = content;
+            event.ref_line = -1;
+            event.ref_column = -1;
+            event.log_content = content;
             event.structured_data = "node_build";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -90,14 +90,14 @@ std::vector<ValidationEvent> NodeParser::parse(const std::string& content) const
             event.category = "test";
             event.severity = "error";
             event.message = line;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "node_build";
 
             // Extract test file
             std::smatch test_match;
             if (std::regex_search(line, test_match, test_file_pattern)) {
-                event.file_path = test_match[1].str();
-                current_test_file = event.file_path;
+                event.ref_file = test_match[1].str();
+                current_test_file = event.ref_file;
             }
 
             events.push_back(event);
@@ -112,8 +112,8 @@ std::vector<ValidationEvent> NodeParser::parse(const std::string& content) const
             event.category = "test_suite";
             event.severity = "error";
             event.message = line;
-            event.file_path = current_test_file;
-            event.raw_output = content;
+            event.ref_file = current_test_file;
+            event.log_content = content;
             event.structured_data = "node_build";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -130,8 +130,8 @@ std::vector<ValidationEvent> NodeParser::parse(const std::string& content) const
             event.category = "test_case";
             event.severity = "error";
             event.message = line;
-            event.file_path = current_test_file;
-            event.raw_output = content;
+            event.ref_file = current_test_file;
+            event.log_content = content;
             event.structured_data = "node_build";
 
             // Extract test name
@@ -148,14 +148,14 @@ std::vector<ValidationEvent> NodeParser::parse(const std::string& content) const
             event.event_id = event_id++;
             event.tool_name = "eslint";
             event.event_type = ValidationEventType::LINT_ISSUE;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "node_build";
 
             // Parse ESLint format: "  15:5   error    'console' is not defined    no-undef"
             std::smatch eslint_match;
             if (std::regex_search(line, eslint_match, eslint_pattern)) {
-                event.line_number = std::stoi(eslint_match[1].str());
-                event.column_number = std::stoi(eslint_match[2].str());
+                event.ref_line = std::stoi(eslint_match[1].str());
+                event.ref_column = std::stoi(eslint_match[2].str());
                 std::string severity = eslint_match[3].str();
                 event.message = eslint_match[4].str();
                 event.error_code = eslint_match[5].str();
@@ -183,16 +183,16 @@ std::vector<ValidationEvent> NodeParser::parse(const std::string& content) const
             event.category = "bundling";
             event.severity = "error";
             event.message = line;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "node_build";
 
             // Extract file and line info: "ERROR in ./src/components/Header.js"
             std::smatch webpack_match;
             if (std::regex_search(line, webpack_match, webpack_error_pattern)) {
-                event.file_path = webpack_match[1].str();
+                event.ref_file = webpack_match[1].str();
                 if (webpack_match[2].matched) {
-                    event.line_number = std::stoi(webpack_match[2].str());
-                    event.column_number = std::stoi(webpack_match[3].str());
+                    event.ref_line = std::stoi(webpack_match[2].str());
+                    event.ref_column = std::stoi(webpack_match[3].str());
                 }
             }
 
@@ -208,13 +208,13 @@ std::vector<ValidationEvent> NodeParser::parse(const std::string& content) const
             event.category = "bundling";
             event.severity = "warning";
             event.message = line;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "node_build";
 
             // Extract file info
             std::smatch webpack_match;
             if (std::regex_search(line, webpack_match, webpack_warn_pattern)) {
-                event.file_path = webpack_match[1].str();
+                event.ref_file = webpack_match[1].str();
             }
 
             events.push_back(event);
@@ -229,7 +229,7 @@ std::vector<ValidationEvent> NodeParser::parse(const std::string& content) const
             event.category = "syntax";
             event.severity = "error";
             event.message = line;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "node_build";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -246,15 +246,15 @@ std::vector<ValidationEvent> NodeParser::parse(const std::string& content) const
             event.category = "runtime";
             event.severity = "error";
             event.message = line;
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "node_build";
 
             // Extract file and line info: "at Object.<anonymous> (src/index.test.js:5:23)"
             std::smatch runtime_match;
             if (std::regex_search(line, runtime_match, runtime_pattern)) {
-                event.file_path = runtime_match[1].str();
-                event.line_number = std::stoi(runtime_match[2].str());
-                event.column_number = std::stoi(runtime_match[3].str());
+                event.ref_file = runtime_match[1].str();
+                event.ref_line = std::stoi(runtime_match[2].str());
+                event.ref_column = std::stoi(runtime_match[3].str());
             }
 
             events.push_back(event);
@@ -270,9 +270,9 @@ std::vector<ValidationEvent> NodeParser::parse(const std::string& content) const
             event.category = "dependency";
             event.severity = "error";
             event.message = line;
-            event.line_number = -1;
-            event.column_number = -1;
-            event.raw_output = content;
+            event.ref_line = -1;
+            event.ref_column = -1;
+            event.log_content = content;
             event.structured_data = "node_build";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;

@@ -173,7 +173,7 @@ void StraceParser::ParseStrace(const std::string& content, std::vector<duckdb::V
             event.function_name = signal_name;
             event.message = "Signal " + signal_name + ": " + signal_info;
             event.error_code = signal_name;
-            event.raw_output = line;
+            event.log_content = line;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
 
@@ -209,7 +209,7 @@ void StraceParser::ParseStrace(const std::string& content, std::vector<duckdb::V
             event.status = (exit_code == 0) ? duckdb::ValidationEventStatus::PASS
                                             : duckdb::ValidationEventStatus::FAIL;
             event.message = "Process exited with code " + match[1].str();
-            event.raw_output = line;
+            event.log_content = line;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
 
@@ -234,7 +234,7 @@ void StraceParser::ParseStrace(const std::string& content, std::vector<duckdb::V
                 event.message += " (core dumped)";
             }
 
-            event.raw_output = line;
+            event.log_content = line;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
 
@@ -248,7 +248,7 @@ void StraceParser::ParseStrace(const std::string& content, std::vector<duckdb::V
             event.event_id = event_id++;
             event.tool_name = "strace";
             event.event_type = duckdb::ValidationEventType::DEBUG_EVENT;
-            event.raw_output = line;
+            event.log_content = line;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
 

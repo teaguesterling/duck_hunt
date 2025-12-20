@@ -17,7 +17,7 @@ GROUP BY tool_name;
 
 # Test 2: mypy field validation
 query IIII
-SELECT file_path, line_number, error_code, status
+SELECT ref_file, ref_line, error_code, status
 FROM read_duck_hunt_log('test/samples/mypy.txt', 'mypy_text')
 ORDER BY event_id
 LIMIT 3;
@@ -54,7 +54,7 @@ make
 
 # Test 6: large_build.out field validation
 query IIII
-SELECT file_path, line_number, column_number, status
+SELECT ref_file, ref_line, ref_column, status
 FROM read_duck_hunt_log('test/samples/large_build.out', 'generic_lint')
 WHERE status = 'ERROR'
 ORDER BY event_id
@@ -66,7 +66,7 @@ src/utils.c	8	9	ERROR
 
 # Test 7: large_build.out warning detection
 query III
-SELECT file_path, line_number, message LIKE '%unused variable%' as is_unused_var
+SELECT ref_file, ref_line, message LIKE '%unused variable%' as is_unused_var
 FROM read_duck_hunt_log('test/samples/large_build.out', 'generic_lint')
 WHERE status = 'WARNING'
 ORDER BY event_id
@@ -99,7 +99,7 @@ GROUP BY tool_name;
 # Test 10: pytest short summary format field validation
 # The "FAILED file.py::test - message" format should parse correctly
 query IIII
-SELECT file_path, test_name, status, message LIKE '%assert%' as has_assert_msg
+SELECT ref_file, test_name, status, message LIKE '%assert%' as has_assert_msg
 FROM read_duck_hunt_log('workspace/ci-logs/staging/pytest-results.txt', 'pytest_text')
 WHERE status = 'FAIL'
 ORDER BY event_id;
@@ -109,7 +109,7 @@ test_user_auth.py	test_invalid_login	FAIL	true
 
 # Test 11: pytest standard format parsing
 query III
-SELECT file_path, test_name, status
+SELECT ref_file, test_name, status
 FROM read_duck_hunt_log('workspace/ci-logs/staging/pytest-results.txt', 'pytest_text')
 WHERE status = 'PASS'
 ORDER BY event_id;

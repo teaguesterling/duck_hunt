@@ -1,0 +1,28 @@
+{"Time":"2024-01-15T10:30:45.123Z","Action":"run","Package":"github.com/example/myapp/pkg/parser","Test":"TestParseValidInput"}
+{"Time":"2024-01-15T10:30:45.125Z","Action":"output","Package":"github.com/example/myapp/pkg/parser","Test":"TestParseValidInput","Output":"=== RUN   TestParseValidInput\n"}
+{"Time":"2024-01-15T10:30:45.128Z","Action":"output","Package":"github.com/example/myapp/pkg/parser","Test":"TestParseValidInput","Output":"--- PASS: TestParseValidInput (0.00s)\n"}
+{"Time":"2024-01-15T10:30:45.128Z","Action":"pass","Package":"github.com/example/myapp/pkg/parser","Test":"TestParseValidInput","Elapsed":0.003}
+{"Time":"2024-01-15T10:30:45.128Z","Action":"run","Package":"github.com/example/myapp/pkg/parser","Test":"TestParseInvalidInput"}
+{"Time":"2024-01-15T10:30:45.129Z","Action":"output","Package":"github.com/example/myapp/pkg/parser","Test":"TestParseInvalidInput","Output":"=== RUN   TestParseInvalidInput\n"}
+{"Time":"2024-01-15T10:30:45.130Z","Action":"output","Package":"github.com/example/myapp/pkg/parser","Test":"TestParseInvalidInput","Output":"    parser_test.go:45: expected error code 0, got 1\n"}
+{"Time":"2024-01-15T10:30:45.130Z","Action":"output","Package":"github.com/example/myapp/pkg/parser","Test":"TestParseInvalidInput","Output":"--- FAIL: TestParseInvalidInput (0.00s)\n"}
+{"Time":"2024-01-15T10:30:45.130Z","Action":"fail","Package":"github.com/example/myapp/pkg/parser","Test":"TestParseInvalidInput","Elapsed":0.002}
+{"Time":"2024-01-15T10:30:45.130Z","Action":"run","Package":"github.com/example/myapp/pkg/utils","Test":"TestComputeHash"}
+{"Time":"2024-01-15T10:30:45.131Z","Action":"output","Package":"github.com/example/myapp/pkg/utils","Test":"TestComputeHash","Output":"=== RUN   TestComputeHash\n"}
+{"Time":"2024-01-15T10:30:45.145Z","Action":"output","Package":"github.com/example/myapp/pkg/utils","Test":"TestComputeHash","Output":"--- PASS: TestComputeHash (0.01s)\n"}
+{"Time":"2024-01-15T10:30:45.145Z","Action":"pass","Package":"github.com/example/myapp/pkg/utils","Test":"TestComputeHash","Elapsed":0.015}
+{"Time":"2024-01-15T10:30:45.145Z","Action":"run","Package":"github.com/example/myapp/pkg/utils","Test":"TestDecodeCorrupt"}
+{"Time":"2024-01-15T10:30:45.146Z","Action":"output","Package":"github.com/example/myapp/pkg/utils","Test":"TestDecodeCorrupt","Output":"=== RUN   TestDecodeCorrupt\n"}
+{"Time":"2024-01-15T10:30:45.147Z","Action":"output","Package":"github.com/example/myapp/pkg/utils","Test":"TestDecodeCorrupt","Output":"panic: runtime error: index out of range [5] with length 3\n"}
+{"Time":"2024-01-15T10:30:45.147Z","Action":"output","Package":"github.com/example/myapp/pkg/utils","Test":"TestDecodeCorrupt","Output":"\n"}
+{"Time":"2024-01-15T10:30:45.147Z","Action":"output","Package":"github.com/example/myapp/pkg/utils","Test":"TestDecodeCorrupt","Output":"goroutine 7 [running]:\n"}
+{"Time":"2024-01-15T10:30:45.147Z","Action":"output","Package":"github.com/example/myapp/pkg/utils","Test":"TestDecodeCorrupt","Output":"github.com/example/myapp/pkg/utils.Decode(0xc0000a6000, 0x3)\n"}
+{"Time":"2024-01-15T10:30:45.147Z","Action":"output","Package":"github.com/example/myapp/pkg/utils","Test":"TestDecodeCorrupt","Output":"\t/home/user/project/pkg/utils/encoding.go:45 +0x123\n"}
+{"Time":"2024-01-15T10:30:45.148Z","Action":"output","Package":"github.com/example/myapp/pkg/utils","Test":"TestDecodeCorrupt","Output":"--- FAIL: TestDecodeCorrupt (0.00s)\n"}
+{"Time":"2024-01-15T10:30:45.148Z","Action":"fail","Package":"github.com/example/myapp/pkg/utils","Test":"TestDecodeCorrupt","Elapsed":0.003}
+{"Time":"2024-01-15T10:30:45.150Z","Action":"output","Package":"github.com/example/myapp/pkg/parser","Output":"FAIL\n"}
+{"Time":"2024-01-15T10:30:45.150Z","Action":"output","Package":"github.com/example/myapp/pkg/parser","Output":"FAIL\tgithub.com/example/myapp/pkg/parser\t0.025s\n"}
+{"Time":"2024-01-15T10:30:45.150Z","Action":"fail","Package":"github.com/example/myapp/pkg/parser","Elapsed":0.025}
+{"Time":"2024-01-15T10:30:45.152Z","Action":"output","Package":"github.com/example/myapp/pkg/utils","Output":"FAIL\n"}
+{"Time":"2024-01-15T10:30:45.152Z","Action":"output","Package":"github.com/example/myapp/pkg/utils","Output":"FAIL\tgithub.com/example/myapp/pkg/utils\t0.020s\n"}
+{"Time":"2024-01-15T10:30:45.152Z","Action":"fail","Package":"github.com/example/myapp/pkg/utils","Elapsed":0.020}

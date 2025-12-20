@@ -55,15 +55,15 @@ std::vector<ValidationEvent> CargoParser::parse(const std::string& content) cons
                     event.event_id = event_id++;
                     event.tool_name = "rustc";
                     event.event_type = ValidationEventType::BUILD_ERROR;
-                    event.file_path = loc_match[1].str();
-                    event.line_number = std::stoi(loc_match[2].str());
-                    event.column_number = std::stoi(loc_match[3].str());
+                    event.ref_file = loc_match[1].str();
+                    event.ref_line = std::stoi(loc_match[2].str());
+                    event.ref_column = std::stoi(loc_match[3].str());
                     event.status = ValidationEventStatus::ERROR;
                     event.severity = "error";
                     event.category = "compilation";
                     event.message = message;
                     event.error_code = error_code;
-                    event.raw_output = content;
+                    event.log_content = content;
                     event.structured_data = "cargo_build";
                     event.log_line_start = start_line;
                     event.log_line_end = current_line_num;
@@ -91,14 +91,14 @@ std::vector<ValidationEvent> CargoParser::parse(const std::string& content) cons
                         event.event_id = event_id++;
                         event.tool_name = "rustc";
                         event.event_type = ValidationEventType::LINT_ISSUE;
-                        event.file_path = loc_match[1].str();
-                        event.line_number = std::stoi(loc_match[2].str());
-                        event.column_number = std::stoi(loc_match[3].str());
+                        event.ref_file = loc_match[1].str();
+                        event.ref_line = std::stoi(loc_match[2].str());
+                        event.ref_column = std::stoi(loc_match[3].str());
                         event.status = ValidationEventStatus::WARNING;
                         event.severity = "warning";
                         event.category = "compilation";
                         event.message = message;
-                        event.raw_output = content;
+                        event.log_content = content;
                         event.structured_data = "cargo_build";
                         event.log_line_start = start_line;
                         event.log_line_end = current_line_num;
@@ -123,9 +123,9 @@ std::vector<ValidationEvent> CargoParser::parse(const std::string& content) cons
                 event.severity = "error";
                 event.category = "test_failure";
                 event.message = "Test failed";
-                event.line_number = -1;
-                event.column_number = -1;
-                event.raw_output = content;
+                event.ref_line = -1;
+                event.ref_column = -1;
+                event.log_content = content;
                 event.structured_data = "cargo_build";
                 event.log_line_start = current_line_num;
                 event.log_line_end = current_line_num;
@@ -144,14 +144,14 @@ std::vector<ValidationEvent> CargoParser::parse(const std::string& content) cons
                 event.event_type = ValidationEventType::TEST_RESULT;
                 event.test_name = panic_match[1].str();
                 event.function_name = panic_match[1].str();
-                event.file_path = panic_match[3].str();
-                event.line_number = std::stoi(panic_match[4].str());
-                event.column_number = std::stoi(panic_match[5].str());
+                event.ref_file = panic_match[3].str();
+                event.ref_line = std::stoi(panic_match[4].str());
+                event.ref_column = std::stoi(panic_match[5].str());
                 event.status = ValidationEventStatus::ERROR;
                 event.severity = "error";
                 event.category = "test_panic";
                 event.message = panic_match[2].str();
-                event.raw_output = content;
+                event.log_content = content;
                 event.structured_data = "cargo_build";
                 event.log_line_start = current_line_num;
                 event.log_line_end = current_line_num;
@@ -169,9 +169,9 @@ std::vector<ValidationEvent> CargoParser::parse(const std::string& content) cons
                 event.event_id = event_id++;
                 event.tool_name = "clippy";
                 event.event_type = ValidationEventType::LINT_ISSUE;
-                event.file_path = clippy_match[1].str();
-                event.line_number = std::stoi(clippy_match[2].str());
-                event.column_number = std::stoi(clippy_match[3].str());
+                event.ref_file = clippy_match[1].str();
+                event.ref_line = std::stoi(clippy_match[2].str());
+                event.ref_column = std::stoi(clippy_match[3].str());
 
                 std::string severity = clippy_match[4].str();
                 if (severity == "error") {
@@ -185,7 +185,7 @@ std::vector<ValidationEvent> CargoParser::parse(const std::string& content) cons
                 }
 
                 event.message = clippy_match[5].str();
-                event.raw_output = content;
+                event.log_content = content;
                 event.structured_data = "cargo_build";
                 event.log_line_start = current_line_num;
                 event.log_line_end = current_line_num;
@@ -207,9 +207,9 @@ std::vector<ValidationEvent> CargoParser::parse(const std::string& content) cons
                 event.severity = "error";
                 event.category = "compilation";
                 event.message = "Could not compile package: " + compile_match[1].str();
-                event.line_number = -1;
-                event.column_number = -1;
-                event.raw_output = content;
+                event.ref_line = -1;
+                event.ref_column = -1;
+                event.log_content = content;
                 event.structured_data = "cargo_build";
                 event.log_line_start = current_line_num;
                 event.log_line_end = current_line_num;
@@ -231,9 +231,9 @@ std::vector<ValidationEvent> CargoParser::parse(const std::string& content) cons
                 event.category = "test_summary";
                 event.message = "Test suite failed: " + summary_match[2].str() + " failed, " +
                                summary_match[1].str() + " passed";
-                event.line_number = -1;
-                event.column_number = -1;
-                event.raw_output = content;
+                event.ref_line = -1;
+                event.ref_column = -1;
+                event.log_content = content;
                 event.structured_data = "cargo_build";
                 event.log_line_start = current_line_num;
                 event.log_line_end = current_line_num;
@@ -250,14 +250,14 @@ std::vector<ValidationEvent> CargoParser::parse(const std::string& content) cons
                 event.event_id = event_id++;
                 event.tool_name = "rustfmt";
                 event.event_type = ValidationEventType::LINT_ISSUE;
-                event.file_path = fmt_match[1].str();
-                event.line_number = std::stoi(fmt_match[2].str());
-                event.column_number = -1;
+                event.ref_file = fmt_match[1].str();
+                event.ref_line = std::stoi(fmt_match[2].str());
+                event.ref_column = -1;
                 event.status = ValidationEventStatus::WARNING;
                 event.severity = "warning";
                 event.category = "formatting";
                 event.message = "Code formatting difference detected";
-                event.raw_output = content;
+                event.log_content = content;
                 event.structured_data = "cargo_build";
                 event.log_line_start = current_line_num;
                 event.log_line_end = current_line_num;

@@ -1,0 +1,9 @@
+{"level":"info","message":"Normal log entry","timestamp":"2024-01-15T10:00:00Z"}
+{"level":"error","message":"Entry with missing closing brace"
+{"level":"warn","message":"Entry with extra field",,"extra":"data"}
+{"level":"info","message":"Entry with unescaped quote: He said "hello"","time":"2024-01-15T10:00:01Z"}
+{"level":"debug","message":"Valid entry after malformed ones","timestamp":"2024-01-15T10:00:02Z"}
+{"level"="error","message":"Wrong delimiter used"}
+{"level":"info","message":"Entry with control character: \x00\x01\x02","timestamp":"2024-01-15T10:00:03Z"}
+not json at all - just plain text
+{"level":"info","message":"Another valid entry","timestamp":"2024-01-15T10:00:04Z"}

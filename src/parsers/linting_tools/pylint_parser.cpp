@@ -113,13 +113,13 @@ std::vector<ValidationEvent> PylintParser::parse(const std::string& content) con
             }
 
             event.message = message + " (" + symbol + ")";
-            event.file_path = file_path;
-            event.line_number = line_number;
-            event.column_number = column_number;
+            event.ref_file = file_path;
+            event.ref_line = line_number;
+            event.ref_column = column_number;
             event.error_code = error_code;
             event.tool_name = "pylint";
             event.category = "code_quality";
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"error_code\": \"" + error_code + "\", \"symbol\": \"" + symbol + "\"}";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -162,13 +162,13 @@ std::vector<ValidationEvent> PylintParser::parse(const std::string& content) con
             }
 
             event.message = message;
-            event.file_path = file_path;
-            event.line_number = line_number;
-            event.column_number = column_number;
+            event.ref_file = file_path;
+            event.ref_line = line_number;
+            event.ref_column = column_number;
             event.error_code = error_code;
             event.tool_name = "pylint";
             event.category = "code_quality";
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"error_code\": \"" + error_code + "\"}";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -210,13 +210,13 @@ std::vector<ValidationEvent> PylintParser::parse(const std::string& content) con
             }
 
             event.message = message;
-            event.file_path = current_module.empty() ? "unknown" : current_module;
-            event.line_number = line_number;
-            event.column_number = column_number;
+            event.ref_file = current_module.empty() ? "unknown" : current_module;
+            event.ref_line = line_number;
+            event.ref_column = column_number;
             event.error_code = error_code;
             event.tool_name = "pylint";
             event.category = "code_quality";
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"severity_char\": \"" + severity_char + "\", \"error_code\": \"" + error_code + "\"}";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -257,12 +257,12 @@ std::vector<ValidationEvent> PylintParser::parse(const std::string& content) con
             }
 
             event.message = message;
-            event.file_path = current_module.empty() ? "unknown" : current_module;
-            event.line_number = line_number;
-            event.column_number = column_number;
+            event.ref_file = current_module.empty() ? "unknown" : current_module;
+            event.ref_line = line_number;
+            event.ref_column = column_number;
             event.tool_name = "pylint";
             event.category = "code_quality";
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"severity_char\": \"" + severity_char + "\"}";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -281,12 +281,12 @@ std::vector<ValidationEvent> PylintParser::parse(const std::string& content) con
             event.severity = "info";
             event.status = ValidationEventStatus::INFO;
             event.message = "Code quality rating: " + rating + "/10";
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.tool_name = "pylint";
             event.category = "code_quality";
             event.execution_time = 0.0;
-            event.raw_output = line;
+            event.log_content = line;
             event.structured_data = "{\"rating\": \"" + rating + "\"}";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;

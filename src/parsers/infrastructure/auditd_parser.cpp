@@ -50,8 +50,8 @@ static bool ParseAuditdLine(const std::string& line, ValidationEvent& event, int
         event.log_line_start = line_number;
         event.log_line_end = line_number;
         event.execution_time = 0.0;
-        event.line_number = -1;
-        event.column_number = -1;
+        event.ref_line = -1;
+        event.ref_column = -1;
 
         std::string audit_type = match[1].str();
         std::string timestamp = match[2].str();
@@ -104,9 +104,9 @@ static bool ParseAuditdLine(const std::string& line, ValidationEvent& event, int
 
         // Extract file path if present
         if (fields.count("exe")) {
-            event.file_path = fields["exe"];
+            event.ref_file = fields["exe"];
         } else if (fields.count("name")) {
-            event.file_path = fields["name"];
+            event.ref_file = fields["name"];
         }
 
         // Build structured_data JSON
@@ -126,7 +126,7 @@ static bool ParseAuditdLine(const std::string& line, ValidationEvent& event, int
         json += "}";
         event.structured_data = json;
 
-        event.raw_output = line;
+        event.log_content = line;
         return true;
     }
 
@@ -143,8 +143,8 @@ static bool ParseAuditdLine(const std::string& line, ValidationEvent& event, int
         event.log_line_start = line_number;
         event.log_line_end = line_number;
         event.execution_time = 0.0;
-        event.line_number = -1;
-        event.column_number = -1;
+        event.ref_line = -1;
+        event.ref_column = -1;
 
         std::string timestamp = match[1].str();
         std::string hostname = match[2].str();
@@ -195,7 +195,7 @@ static bool ParseAuditdLine(const std::string& line, ValidationEvent& event, int
         json += "}";
         event.structured_data = json;
 
-        event.raw_output = line;
+        event.log_content = line;
         return true;
     }
 

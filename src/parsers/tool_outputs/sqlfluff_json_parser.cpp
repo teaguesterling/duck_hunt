@@ -94,22 +94,22 @@ std::vector<ValidationEvent> SqlfluffJSONParser::parse(const std::string& conten
             event.tool_name = "sqlfluff";
             event.event_type = ValidationEventType::LINT_ISSUE;
             event.category = "sql_style";
-            event.file_path = file_path;
+            event.ref_file = file_path;
 
             // Get line number
             yyjson_val *line_no = yyjson_obj_get(violation, "line_no");
             if (line_no && yyjson_is_int(line_no)) {
-                event.line_number = yyjson_get_int(line_no);
+                event.ref_line = yyjson_get_int(line_no);
             } else {
-                event.line_number = -1;
+                event.ref_line = -1;
             }
 
             // Get column position
             yyjson_val *line_pos = yyjson_obj_get(violation, "line_pos");
             if (line_pos && yyjson_is_int(line_pos)) {
-                event.column_number = yyjson_get_int(line_pos);
+                event.ref_column = yyjson_get_int(line_pos);
             } else {
-                event.column_number = -1;
+                event.ref_column = -1;
             }
 
             // Get rule code as error_code
@@ -139,7 +139,7 @@ std::vector<ValidationEvent> SqlfluffJSONParser::parse(const std::string& conten
                 event.suggestion = "Rule: " + event.function_name;
             }
 
-            event.raw_output = content;
+            event.log_content = content;
             event.structured_data = "sqlfluff_json";
 
             events.push_back(event);

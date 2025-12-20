@@ -1,0 +1,23 @@
+************* Module myapp.services.user_service
+myapp/services/user_service.py:1:0: C0114: Missing module docstring (missing-module-docstring)
+myapp/services/user_service.py:5:0: C0115: Missing class docstring (missing-class-docstring)
+myapp/services/user_service.py:12:4: W0612: Unused variable 'result' (unused-variable)
+myapp/services/user_service.py:23:8: E1101: Instance of 'User' has no 'save_to_db' member (no-member)
+myapp/services/user_service.py:34:0: C0116: Missing function or method docstring (missing-function-docstring)
+myapp/services/user_service.py:45:12: W0611: Unused import os (unused-import)
+myapp/services/user_service.py:56:4: R1705: Unnecessary "else" after "return" (no-else-return)
+myapp/services/user_service.py:67:0: C0301: Line too long (125/100) (line-too-long)
+************* Module myapp.utils.helpers
+myapp/utils/helpers.py:8:0: E0401: Unable to import 'missing_module' (import-error)
+myapp/utils/helpers.py:15:4: W0703: Catching too general exception Exception (broad-except)
+myapp/utils/helpers.py:23:0: R0913: Too many arguments (7/5) (too-many-arguments)
+myapp/utils/helpers.py:45:8: W0612: Unused variable 'temp' (unused-variable)
+myapp/utils/helpers.py:56:0: C0103: Variable name "x" doesn't conform to snake_case naming style (invalid-name)
+myapp/utils/helpers.py:78:4: R1732: Consider using 'with' for resource-allocating operations (consider-using-with)
+************* Module myapp.api.endpoints
+myapp/api/endpoints.py:12:0: W0621: Redefining name 'app' from outer scope (line 3) (redefined-outer-name)
+myapp/api/endpoints.py:34:4: E1120: No value for argument 'user_id' in method call (no-value-for-parameter)
+myapp/api/endpoints.py:45:0: R0914: Too many local variables (23/15) (too-many-locals)
+
+------------------------------------------------------------------
+Your code has been rated at 6.45/10 (previous run: 7.23/10, -0.78)

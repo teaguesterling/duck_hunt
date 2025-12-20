@@ -1,0 +1,63 @@
+Running main() from gmock_main.cc
+[==========] Running 10 tests from 3 test suites.
+[----------] Global test environment set-up.
+[----------] 4 tests from ParserTest
+[ RUN      ] ParserTest.ParseValidInput
+[       OK ] ParserTest.ParseValidInput (2 ms)
+[ RUN      ] ParserTest.ParseEmptyInput
+[       OK ] ParserTest.ParseEmptyInput (0 ms)
+[ RUN      ] ParserTest.ParseInvalidInput
+src/parser_test.cc:45: Failure
+Expected equality of these values:
+  result.error_code
+    Which is: 1
+  0
+[  FAILED  ] ParserTest.ParseInvalidInput (1 ms)
+[ RUN      ] ParserTest.ParseMalformedInput
+src/parser_test.cc:67: Failure
+Value of: parser.parse(malformed_data)
+  Actual: false
+Expected: true
+src/parser_test.cc:68: Failure
+Expected: exception of type ParseException
+  Actual: it throws a different type.
+[  FAILED  ] ParserTest.ParseMalformedInput (3 ms)
+[----------] 4 tests from ParserTest (7 ms total)
+
+[----------] 3 tests from UtilsTest
+[ RUN      ] UtilsTest.ComputeHash
+[       OK ] UtilsTest.ComputeHash (3 ms)
+[ RUN      ] UtilsTest.EncodeData
+[       OK ] UtilsTest.EncodeData (1 ms)
+[ RUN      ] UtilsTest.DecodeCorruptData
+src/utils_test.cc:89: Failure
+Death test: decode(corrupt_data)
+    Result: died but not with expected error.
+  Expected: contains regular expression "Invalid checksum"
+Actual msg:
+[  DEATH   ] Segmentation fault
+[  FAILED  ] UtilsTest.DecodeCorruptData (234 ms)
+[----------] 3 tests from UtilsTest (239 ms total)
+
+[----------] 3 tests from IntegrationTest
+[ RUN      ] IntegrationTest.FullWorkflow
+[       OK ] IntegrationTest.FullWorkflow (45 ms)
+[ RUN      ] IntegrationTest.ErrorRecovery
+[       OK ] IntegrationTest.ErrorRecovery (23 ms)
+[ RUN      ] IntegrationTest.TimeoutHandling
+src/integration_test.cc:123: Failure
+Expected: (elapsed_time) < (1000), actual: 5234 vs 1000
+Test exceeded timeout
+[  FAILED  ] IntegrationTest.TimeoutHandling (5234 ms)
+[----------] 3 tests from IntegrationTest (5303 ms total)
+
+[----------] Global test environment tear-down
+[==========] 10 tests from 3 test suites ran. (5551 ms total)
+[  PASSED  ] 6 tests.
+[  FAILED  ] 4 tests, listed below:
+[  FAILED  ] ParserTest.ParseInvalidInput
+[  FAILED  ] ParserTest.ParseMalformedInput
+[  FAILED  ] UtilsTest.DecodeCorruptData
+[  FAILED  ] IntegrationTest.TimeoutHandling
+
+ 4 FAILED TESTS

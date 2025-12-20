@@ -1,0 +1,66 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.6, pytest-7.4.3, pluggy-1.3.0
+rootdir: /home/user/project
+configfile: pytest.ini
+plugins: cov-4.1.0, mock-3.12.0
+collected 12 items
+
+tests/test_user.py::test_create_user PASSED                              [  8%]
+tests/test_user.py::test_update_user FAILED                              [ 16%]
+tests/test_user.py::test_delete_user PASSED                              [ 25%]
+tests/test_auth.py::test_login PASSED                                    [ 33%]
+tests/test_auth.py::test_logout FAILED                                   [ 41%]
+tests/test_auth.py::test_refresh_token PASSED                            [ 50%]
+tests/test_api.py::test_get_users PASSED                                 [ 58%]
+tests/test_api.py::test_get_user_by_id ERROR                             [ 66%]
+tests/test_api.py::test_create_user_api PASSED                           [ 75%]
+tests/test_api.py::test_update_user_api SKIPPED (requires database)      [ 83%]
+tests/test_api.py::test_delete_user_api PASSED                           [ 91%]
+tests/test_integration.py::test_full_flow FAILED                         [100%]
+
+=================================== FAILURES ===================================
+________________________________ test_update_user ______________________________
+
+    def test_update_user():
+        user = create_user("test@example.com")
+        user.name = "Updated Name"
+>       assert user.save() == True
+E       AssertionError: assert False == True
+E        +  where False = <bound method User.save of <User object at 0x7f...>>()
+
+tests/test_user.py:45: AssertionError
+__________________________________ test_logout _________________________________
+
+    def test_logout():
+        session = login("user@example.com", "password")
+>       session.logout()
+E       AttributeError: 'NoneType' object has no attribute 'logout'
+
+tests/test_auth.py:32: AttributeError
+_______________________________ test_full_flow _________________________________
+
+    def test_full_flow():
+        # Create user
+        user = api.create_user({"email": "test@example.com"})
+        # Login
+        token = api.login(user.email, "password")
+        # Get profile
+>       profile = api.get_profile(token)
+E       requests.exceptions.HTTPError: 401 Client Error: Unauthorized
+
+tests/test_integration.py:67: HTTPError
+=================================== ERRORS ====================================
+________________________ ERROR at setup of test_get_user_by_id ________________
+
+    @pytest.fixture
+    def db_connection():
+>       conn = database.connect()
+E       ConnectionRefusedError: [Errno 111] Connection refused
+
+tests/conftest.py:15: ConnectionRefusedError
+=========================== short test summary info ============================
+FAILED tests/test_user.py::test_update_user - AssertionError: assert False == True
+FAILED tests/test_auth.py::test_logout - AttributeError: 'NoneType' object has no attribute 'logout'
+FAILED tests/test_integration.py::test_full_flow - requests.exceptions.HTTPError: 401 Client Error
+ERROR tests/test_api.py::test_get_user_by_id - ConnectionRefusedError: [Errno 111] Connection refused
+========================= 3 failed, 1 error, 1 skipped, 7 passed in 4.56s =====

@@ -91,9 +91,9 @@ std::vector<ValidationEvent> PHPStanJSONParser::parse(const std::string& content
             event.event_id = event_id++;
             event.tool_name = "phpstan";
             event.event_type = ValidationEventType::LINT_ISSUE;
-            event.file_path = file_path;
-            event.line_number = -1;
-            event.column_number = -1;
+            event.ref_file = file_path;
+            event.ref_line = -1;
+            event.ref_column = -1;
             event.execution_time = 0.0;
             event.category = "static_analysis";
             
@@ -106,7 +106,7 @@ std::vector<ValidationEvent> PHPStanJSONParser::parse(const std::string& content
             // Get line number
             yyjson_val *line = yyjson_obj_get(message, "line");
             if (line && yyjson_is_num(line)) {
-                event.line_number = yyjson_get_int(line);
+                event.ref_line = yyjson_get_int(line);
             }
             
             // Get ignorable status (use as severity indicator)
@@ -132,7 +132,7 @@ std::vector<ValidationEvent> PHPStanJSONParser::parse(const std::string& content
             }
             
             // Set raw output and structured data
-            event.raw_output = content;
+            event.log_content = content;
             std::string ignorable_str = (ignorable && yyjson_is_bool(ignorable) ? 
                                         (yyjson_get_bool(ignorable) ? "true" : "false") : "null");
             event.structured_data = "{\"tool\": \"phpstan\", \"ignorable\": " + ignorable_str + "}";

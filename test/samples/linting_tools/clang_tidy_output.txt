@@ -1,0 +1,36 @@
+/home/user/project/src/parser.cpp:23:5: warning: use nullptr [modernize-use-nullptr]
+    if (ptr == NULL) {
+        ^~~~
+        nullptr
+/home/user/project/src/parser.cpp:34:10: error: use of undeclared identifier 'unknown_function' [clang-diagnostic-error]
+    return unknown_function();
+           ^
+/home/user/project/src/parser.cpp:45:5: warning: variable 'result' is not initialized [cppcoreguidelines-init-variables]
+    int result;
+        ^
+             = 0
+/home/user/project/src/parser.cpp:56:12: warning: do not use 'else' after 'return' [readability-else-after-return]
+    } else {
+      ^~~~~~
+/home/user/project/src/utils.cpp:12:1: warning: function 'processData' is within a recursive call chain [misc-no-recursion]
+void processData(int depth) {
+^
+/home/user/project/src/utils.cpp:12:1: note: example recursive call chain, starting from function 'processData'
+/home/user/project/src/utils.cpp:15:5: note: Frame #1: function 'processData' calls function 'processData' here:
+    processData(depth - 1);
+    ^
+/home/user/project/src/utils.cpp:23:15: warning: prefer using 'std::make_unique' over 'new' [modernize-make-unique]
+    auto ptr = std::unique_ptr<Data>(new Data());
+               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+               std::make_unique<Data>()
+/home/user/project/src/main.cpp:8:3: error: no matching constructor for initialization of 'Config' [clang-diagnostic-error]
+  Config cfg("invalid", 42);
+  ^      ~~~~~~~~~~~~~~~~~~
+/home/user/project/include/config.h:15:5: note: candidate constructor not viable: requires 3 arguments, but 2 were provided
+    Config(std::string name, int value, bool enabled);
+    ^
+/home/user/project/src/main.cpp:15:10: warning: narrowing conversion from 'double' to 'int' [bugprone-narrowing-conversions]
+    int x = 3.14;
+            ^
+67 warnings and 2 errors generated.
+Error while processing /home/user/project/src/main.cpp.

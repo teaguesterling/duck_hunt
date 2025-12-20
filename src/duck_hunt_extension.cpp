@@ -14,6 +14,7 @@
 #include "include/validation_event_types.hpp"
 #include "include/status_badge_function.hpp"
 #include "include/duck_hunt_formats_function.hpp"
+#include "include/duck_hunt_diagnose_function.hpp"
 #include "core/parser_registry.hpp"  // Modular parser registry
 
 // Workflow engine interface for registry
@@ -46,6 +47,13 @@ static void LoadInternal(ExtensionLoader &loader) {
 	// Register format discovery function
 	auto duck_hunt_formats_function = GetDuckHuntFormatsFunction();
 	loader.RegisterFunction(duck_hunt_formats_function);
+
+	// Register diagnostic functions
+	auto duck_hunt_diagnose_parse_function = GetDuckHuntDiagnoseParseFunction();
+	loader.RegisterFunction(duck_hunt_diagnose_parse_function);
+
+	auto duck_hunt_diagnose_read_function = GetDuckHuntDiagnoseReadFunction();
+	loader.RegisterFunction(duck_hunt_diagnose_read_function);
 }
 
 void DuckHuntExtension::Load(ExtensionLoader &loader) {

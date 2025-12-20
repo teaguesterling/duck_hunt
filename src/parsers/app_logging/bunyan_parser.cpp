@@ -53,8 +53,8 @@ static bool ParseBunyanLine(const std::string& line, ValidationEvent& event, int
     event.log_line_start = line_number;
     event.log_line_end = line_number;
     event.execution_time = 0.0;
-    event.line_number = -1;
-    event.column_number = -1;
+    event.ref_line = -1;
+    event.ref_column = -1;
 
     int level = level_val && yyjson_is_int(level_val) ? yyjson_get_int(level_val) : 30;
     event.severity = MapBunyanLevel(level);
@@ -89,7 +89,7 @@ static bool ParseBunyanLine(const std::string& line, ValidationEvent& event, int
     }
 
     event.structured_data = line;
-    event.raw_output = line;
+    event.log_content = line;
 
     yyjson_doc_free(doc);
     return true;

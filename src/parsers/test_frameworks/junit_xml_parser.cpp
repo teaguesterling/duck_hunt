@@ -123,7 +123,7 @@ static void ParseTestCaseFromJson(yyjson_val *testcase, const std::string& suite
     // Extract classname as file_path
     yyjson_val *classname_val = yyjson_obj_get(testcase, "@classname");
     if (classname_val && yyjson_is_str(classname_val)) {
-        event.file_path = yyjson_get_str(classname_val);
+        event.ref_file = yyjson_get_str(classname_val);
     }
 
     // Extract time
@@ -150,7 +150,7 @@ static void ParseTestCaseFromJson(yyjson_val *testcase, const std::string& suite
             }
             yyjson_val *text = yyjson_obj_get(failure, "#text");
             if (text && yyjson_is_str(text)) {
-                event.raw_output = yyjson_get_str(text);
+                event.log_content = yyjson_get_str(text);
             }
         } else if (yyjson_is_str(failure)) {
             event.message = yyjson_get_str(failure);
@@ -175,7 +175,7 @@ static void ParseTestCaseFromJson(yyjson_val *testcase, const std::string& suite
                 }
                 yyjson_val *text = yyjson_obj_get(error, "#text");
                 if (text && yyjson_is_str(text)) {
-                    event.raw_output = yyjson_get_str(text);
+                    event.log_content = yyjson_get_str(text);
                 }
             } else if (yyjson_is_str(error)) {
                 event.message = yyjson_get_str(error);

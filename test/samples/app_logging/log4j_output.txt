@@ -1,0 +1,25 @@
+2024-01-15 10:00:00,000 INFO  [main] com.myapp.Application - Starting Application v2.1.0
+2024-01-15 10:00:00,500 INFO  [main] com.myapp.config.DatabaseConfig - Initializing database connection pool
+2024-01-15 10:00:01,000 DEBUG [main] com.myapp.config.DatabaseConfig - Pool configuration: maxSize=20, minIdle=5, timeout=30000
+2024-01-15 10:00:01,500 INFO  [main] com.myapp.config.DatabaseConfig - Database connection pool initialized successfully
+2024-01-15 10:00:02,000 INFO  [main] com.myapp.Application - Application started in 2000ms
+2024-01-15 10:01:00,000 INFO  [http-nio-8080-exec-1] com.myapp.controller.UserController - GET /api/users - Request received
+2024-01-15 10:01:00,045 DEBUG [http-nio-8080-exec-1] com.myapp.repository.UserRepository - Executing query: SELECT * FROM users LIMIT 100
+2024-01-15 10:01:00,050 INFO  [http-nio-8080-exec-1] com.myapp.controller.UserController - GET /api/users - Response sent in 50ms
+2024-01-15 10:02:00,000 WARN  [http-nio-8080-exec-2] com.myapp.service.PaymentService - Payment retry attempt 2 of 3
+2024-01-15 10:02:00,500 WARN  [http-nio-8080-exec-2] com.myapp.service.PaymentService - Payment retry attempt 3 of 3
+2024-01-15 10:02:01,000 ERROR [http-nio-8080-exec-2] com.myapp.service.PaymentService - Payment processing failed after 3 attempts
+java.net.ConnectException: Connection refused
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method)
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:672)
+	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:542)
+	at com.myapp.service.PaymentService.processPayment(PaymentService.java:78)
+	at com.myapp.controller.PaymentController.createPayment(PaymentController.java:45)
+2024-01-15 10:03:00,000 FATAL [main] com.myapp.Application - Out of memory error detected
+java.lang.OutOfMemoryError: Java heap space
+	at java.base/java.util.Arrays.copyOf(Arrays.java:3512)
+	at java.base/java.util.ArrayList.grow(ArrayList.java:237)
+	at com.myapp.service.DataProcessor.processLargeDataset(DataProcessor.java:123)
+2024-01-15 10:03:00,001 INFO  [shutdown-hook] com.myapp.Application - Initiating graceful shutdown
+2024-01-15 10:03:01,000 INFO  [shutdown-hook] com.myapp.config.DatabaseConfig - Closing database connections
+2024-01-15 10:03:02,000 INFO  [shutdown-hook] com.myapp.Application - Application shutdown complete

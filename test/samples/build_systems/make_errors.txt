@@ -1,0 +1,23 @@
+gcc -c -o src/main.o src/main.c
+src/main.c:15:5: error: 'unknown_function' was not declared in this scope
+   15 |     unknown_function();
+      |     ^~~~~~~~~~~~~~~~
+src/main.c:23:10: error: expected ';' before 'return'
+   23 |     return 0
+      |          ^
+      |          ;
+   24 | }
+src/main.c:45:1: warning: control reaches end of non-void function [-Wreturn-type]
+   45 | }
+      | ^
+src/utils.c:8:22: error: 'MAX_SIZE' undeclared (first use in this function)
+    8 |     char buffer[MAX_SIZE];
+      |                      ^~~~~~~~
+src/utils.c:8:22: note: each undeclared identifier is reported only once for each function it appears in
+src/parser.c: In function 'parse_input':
+src/parser.c:102:5: warning: implicit declaration of function 'legacy_parse' [-Wimplicit-function-declaration]
+  102 |     legacy_parse(input);
+      |     ^~~~~~~~~~~~
+make: *** [Makefile:15: src/main.o] Error 1
+make: *** Waiting for unfinished jobs....
+make: *** [Makefile:18: src/utils.o] Error 1

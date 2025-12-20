@@ -1,0 +1,34 @@
+  User Model
+    #create
+      ✓ should create a new user with valid attributes (45ms)
+      ✓ should hash the password before saving (23ms)
+      ✓ should set createdAt timestamp (12ms)
+    #update
+      ✓ should update user attributes (34ms)
+      ✓ should not allow changing email (15ms)
+    #delete
+      ✓ should soft delete the user (28ms)
+      ✓ should preserve associated data (67ms)
+
+  Auth Service
+    #login
+      ✓ should return token for valid credentials (89ms)
+      ✓ should reject invalid password (45ms)
+      ✓ should reject non-existent user (23ms)
+    #logout
+      ✓ should invalidate the token (34ms)
+      ✓ should clear session data (12ms)
+    #refreshToken
+      ✓ should issue new token (56ms)
+      ✓ should reject expired refresh token (34ms)
+
+  API Endpoints
+    GET /users
+      ✓ should return list of users (123ms)
+      ✓ should support pagination (89ms)
+      ✓ should filter by status (67ms)
+    POST /users
+      ✓ should create new user (156ms)
+      ✓ should validate required fields (45ms)
+
+  20 passing (1.2s)

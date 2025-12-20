@@ -1,0 +1,21 @@
+myapp/services/user_service.py:1:1: D100 Missing docstring in public module
+myapp/services/user_service.py:5:1: D101 Missing docstring in public class
+myapp/services/user_service.py:12:5: F841 local variable 'result' is assigned to but never used
+myapp/services/user_service.py:23:80: E501 line too long (125 > 79 characters)
+myapp/services/user_service.py:34:1: D102 Missing docstring in public method
+myapp/services/user_service.py:45:1: F401 'os' imported but unused
+myapp/services/user_service.py:56:9: E711 comparison to None should be 'if cond is None:'
+myapp/services/user_service.py:67:1: W293 blank line contains whitespace
+myapp/utils/helpers.py:8:1: F401 'missing_module' imported but unused
+myapp/utils/helpers.py:15:5: E722 do not use bare 'except'
+myapp/utils/helpers.py:23:1: C901 'process_data' is too complex (15)
+myapp/utils/helpers.py:34:5: E731 do not assign a lambda expression, use a def
+myapp/utils/helpers.py:45:1: W503 line break before binary operator
+myapp/utils/helpers.py:56:1: E302 expected 2 blank lines, found 1
+myapp/utils/helpers.py:67:12: W291 trailing whitespace
+myapp/utils/helpers.py:78:1: E265 block comment should start with '# '
+myapp/api/endpoints.py:12:1: E402 module level import not at top of file
+myapp/api/endpoints.py:23:9: E712 comparison to True should be 'if cond is True:' or 'if cond:'
+myapp/api/endpoints.py:34:1: W605 invalid escape sequence '\d'
+myapp/api/endpoints.py:45:80: E501 line too long (102 > 79 characters)
+myapp/api/endpoints.py:56:5: E741 ambiguous variable name 'l'

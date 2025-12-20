@@ -112,9 +112,9 @@ void DuckDBTestParser::ParseDuckDBTestOutput(const std::string& content, std::ve
             event.event_id = event_id++;
             event.tool_name = "duckdb_test";
             event.event_type = duckdb::ValidationEventType::TEST_RESULT;
-            event.file_path = current_test_file;
-            event.line_number = failure_line;
-            event.column_number = -1;
+            event.ref_file = current_test_file;
+            event.ref_line = failure_line;
+            event.ref_column = -1;
             event.function_name = failure_query.empty() ? "unknown" : failure_query.substr(0, 50);
             event.status = duckdb::ValidationEventStatus::FAIL;
             event.category = "test_failure";
@@ -132,7 +132,7 @@ void DuckDBTestParser::ParseDuckDBTestOutput(const std::string& content, std::ve
                 enhanced_output += "\n--- Expected ---\n" + expected_result;
                 enhanced_output += "\n--- Actual ---\n" + actual_result;
             }
-            event.raw_output = enhanced_output;
+            event.log_content = enhanced_output;
 
             // Use suggestion field for mismatch details
             event.suggestion = mismatch_details;
@@ -173,8 +173,8 @@ void DuckDBTestParser::ParseDuckDBTestOutput(const std::string& content, std::ve
                         summary_event.status = duckdb::ValidationEventStatus::INFO;
                         summary_event.category = "test_summary";
                         summary_event.message = "Test summary: " + std::to_string(passed_count) + " tests passed";
-                        summary_event.line_number = -1;
-                        summary_event.column_number = -1;
+                        summary_event.ref_line = -1;
+                        summary_event.ref_column = -1;
                         summary_event.execution_time = 0.0;
 
                         events.push_back(summary_event);
@@ -195,8 +195,8 @@ void DuckDBTestParser::ParseDuckDBTestOutput(const std::string& content, std::ve
         summary_event.status = duckdb::ValidationEventStatus::INFO;
         summary_event.category = "test_summary";
         summary_event.message = "DuckDB test output parsed (no specific test results found)";
-        summary_event.line_number = -1;
-        summary_event.column_number = -1;
+        summary_event.ref_line = -1;
+        summary_event.ref_column = -1;
         summary_event.execution_time = 0.0;
 
         events.push_back(summary_event);

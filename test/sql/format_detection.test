@@ -109,10 +109,10 @@ SELECT * FROM parse_duck_hunt_log('src/main.c:15:5: error: undeclared variable',
 # Verify both produce the same results
 query I
 SELECT COUNT(*) FROM (
-  SELECT tool_name, file_path, line_number, status, message
+  SELECT tool_name, ref_file, ref_line, status, message
   FROM explicit_format
   EXCEPT
-  SELECT tool_name, file_path, line_number, status, message
+  SELECT tool_name, ref_file, ref_line, status, message
   FROM auto_detected
 );
 ----

@@ -101,8 +101,8 @@ static bool ParseLog4jLine(const std::string& line, ValidationEvent& event, int6
     event.log_line_start = line_number;
     event.log_line_end = line_number;
     event.execution_time = 0.0;
-    event.line_number = -1;
-    event.column_number = -1;
+    event.ref_line = -1;
+    event.ref_column = -1;
 
     // Field mappings
     event.started_at = timestamp;
@@ -121,7 +121,7 @@ static bool ParseLog4jLine(const std::string& line, ValidationEvent& event, int6
     json += "}";
     event.structured_data = json;
 
-    event.raw_output = line;
+    event.log_content = line;
     return true;
 }
 
@@ -228,7 +228,7 @@ std::vector<ValidationEvent> Log4jParser::parse(const std::string& content) cons
         // Check if this is a stack trace continuation
         if (IsStackTraceLine(trimmed)) {
             if (current_event != nullptr) {
-                current_event->raw_output += "\n" + trimmed;
+                current_event->log_content += "\n" + trimmed;
                 current_event->log_line_end = line_number;
 
                 // Extract file/line from stack frame
@@ -240,10 +240,10 @@ std::vector<ValidationEvent> Log4jParser::parse(const std::string& content) cons
                 std::smatch match;
                 if (std::regex_search(trimmed, match, stack_frame_pattern)) {
                     // Only update if we don't have file info yet
-                    if (current_event->file_path.empty()) {
-                        current_event->file_path = match[3].str();
+                    if (current_event->ref_file.empty()) {
+                        current_event->ref_file = match[3].str();
                         try {
-                            current_event->line_number = std::stoi(match[4].str());
+                            current_event->ref_line = std::stoi(match[4].str());
                         } catch (...) {}
                         current_event->function_name = match[2].str();
                     }
@@ -255,7 +255,7 @@ std::vector<ValidationEvent> Log4jParser::parse(const std::string& content) cons
 
         // Check for exception line after a log entry
         if (IsExceptionLine(trimmed) && current_event != nullptr) {
-            current_event->raw_output += "\n" + trimmed;
+            current_event->log_content += "\n" + trimmed;
             current_event->log_line_end = line_number;
 
             // Extract exception type and message
@@ -283,7 +283,7 @@ std::vector<ValidationEvent> Log4jParser::parse(const std::string& content) cons
             in_stacktrace = false;
         } else if (current_event != nullptr && !in_stacktrace) {
             // Continuation of previous message (multiline log)
-            current_event->raw_output += "\n" + trimmed;
+            current_event->log_content += "\n" + trimmed;
             current_event->message += " " + trimmed;
             current_event->log_line_end = line_number;
         }

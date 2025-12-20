@@ -1,0 +1,12 @@
+   Compiling libc v0.2.150
+   Compiling cfg-if v1.0.0
+   Compiling proc-macro2 v1.0.69
+   Compiling unicode-ident v1.0.12
+   Compiling quote v1.0.33
+   Compiling syn v2.0.39
+   Compiling serde_derive v1.0.192
+   Compiling serde v1.0.192
+   Compiling serde_json v1.0.108
+   Compiling my-project v0.1.0 (/home/user/project)
+    Finished dev [unoptimized + debuginfo] target(s) in 12.34s
+     Running `target/debug/my-project`

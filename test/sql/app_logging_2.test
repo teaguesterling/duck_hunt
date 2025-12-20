@@ -332,9 +332,9 @@ FROM parse_duck_hunt_log(E'Started GET \"/users\" for 127.0.0.1 at 2025-01-15 10
 ----
 UsersController#index
 
-# Test 43: Rails extracts path to file_path
+# Test 43: Rails extracts path to ref_file
 query I
-SELECT file_path
+SELECT ref_file
 FROM parse_duck_hunt_log(E'Started GET \"/users\" for 127.0.0.1 at 2025-01-15 10:30:45 +0000\nProcessing by UsersController#index as HTML\nCompleted 200 OK in 45ms', 'rails_log');
 ----
 /users

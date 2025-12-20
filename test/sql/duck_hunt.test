@@ -40,7 +40,7 @@ go_test	PASS	TestWorking
 
 # Test generic lint parsing
 query IIII
-SELECT tool_name, file_path, line_number, status
+SELECT tool_name, ref_file, ref_line, status
 FROM parse_duck_hunt_log('src/main.c:15:5: error: undeclared variable
 src/utils.c:20:1: warning: unused function', 'generic_lint')
 ORDER BY event_id;
@@ -58,10 +58,10 @@ make: *** [Makefile:23: build/main] Error 1', 'make_error');
 # Test ValidationEvent schema completeness
 query I
 SELECT COUNT(*) FROM (
-  SELECT event_id, tool_name, event_type, file_path, line_number, 
-         column_number, function_name, status, severity, category, 
+  SELECT event_id, tool_name, event_type, ref_file, ref_line, 
+         ref_column, function_name, status, severity, category, 
          message, suggestion, error_code, test_name, execution_time, 
-         raw_output, structured_data
+         log_content, structured_data
   FROM parse_duck_hunt_log('src/test.c:1:1: error: test', 'generic_lint')
 );
 ----

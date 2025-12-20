@@ -1,0 +1,11 @@
+gcc -c -o src/main.o src/main.c
+gcc -c -o src/utils.o src/utils.c
+gcc -o myapp src/main.o src/utils.o -lmissing
+/usr/bin/ld: cannot find -lmissing: No such file or directory
+/usr/bin/ld: src/main.o: in function `main':
+main.c:(.text+0x15): undefined reference to `external_function'
+/usr/bin/ld: src/utils.o: in function `process_data':
+utils.c:(.text+0x42): undefined reference to `crypto_init'
+utils.c:(.text+0x58): undefined reference to `crypto_process'
+collect2: error: ld returned 1 exit status
+make: *** [Makefile:12: myapp] Error 1

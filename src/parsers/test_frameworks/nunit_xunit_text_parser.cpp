@@ -68,7 +68,7 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             event.message = "NUnit version " + match[1].str();
             event.tool_name = "nunit";
             event.category = "nunit_xunit_text";
-            event.raw_output = line;
+            event.log_content = line;
             event.execution_time = 0;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -86,7 +86,7 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             event.message = "xUnit.net VSTest Adapter version " + match[1].str();
             event.tool_name = "xunit";
             event.category = "nunit_xunit_text";
-            event.raw_output = line;
+            event.log_content = line;
             event.execution_time = 0;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -111,7 +111,7 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
                           std::to_string(skipped) + " skipped";
             event.tool_name = "nunit";
             event.category = "nunit_xunit_text";
-            event.raw_output = line;
+            event.log_content = line;
             event.execution_time = 0;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -130,7 +130,7 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             event.message = "Overall test result: " + result;
             event.tool_name = "nunit";
             event.category = "nunit_xunit_text";
-            event.raw_output = line;
+            event.log_content = line;
             event.execution_time = 0;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -151,7 +151,7 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             event.execution_time = duration_ms;
             event.tool_name = "nunit";
             event.category = "nunit_xunit_text";
-            event.raw_output = line;
+            event.log_content = line;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
 
@@ -169,7 +169,7 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             event.message = "Starting test suite: " + current_test_suite;
             event.tool_name = "xunit";
             event.category = "nunit_xunit_text";
-            event.raw_output = line;
+            event.log_content = line;
             event.execution_time = 0;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -188,7 +188,7 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             event.message = "Finished test suite: " + suite_name;
             event.tool_name = "xunit";
             event.category = "nunit_xunit_text";
-            event.raw_output = line;
+            event.log_content = line;
             event.execution_time = 0;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -208,7 +208,7 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             event.test_name = test_name;
             event.tool_name = "xunit";
             event.category = "nunit_xunit_text";
-            event.raw_output = line;
+            event.log_content = line;
             event.execution_time = 0;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -228,7 +228,7 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             event.test_name = test_name;
             event.tool_name = "xunit";
             event.category = "nunit_xunit_text";
-            event.raw_output = line;
+            event.log_content = line;
             event.execution_time = 0;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -248,7 +248,7 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             event.test_name = test_name;
             event.tool_name = "xunit";
             event.category = "nunit_xunit_text";
-            event.raw_output = line;
+            event.log_content = line;
             event.execution_time = 0;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -267,7 +267,7 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             event.message = "Total tests: " + std::to_string(total_tests);
             event.tool_name = "xunit";
             event.category = "nunit_xunit_text";
-            event.raw_output = line;
+            event.log_content = line;
             event.execution_time = 0;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
@@ -288,7 +288,7 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             event.execution_time = duration_ms;
             event.tool_name = "xunit";
             event.category = "nunit_xunit_text";
-            event.raw_output = line;
+            event.log_content = line;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
 
@@ -302,9 +302,9 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             // Update the most recent test event with file/line info
             if (!events.empty()) {
                 duckdb::ValidationEvent& last_event = events.back();
-                if (last_event.category == "nunit_xunit_text" && last_event.file_path.empty()) {
-                    last_event.file_path = file_path;
-                    last_event.line_number = line_number;
+                if (last_event.category == "nunit_xunit_text" && last_event.ref_file.empty()) {
+                    last_event.ref_file = file_path;
+                    last_event.ref_line = line_number;
                 }
             }
         }
@@ -316,9 +316,9 @@ void NUnitXUnitTextParser::ParseNUnitXUnit(const std::string& content, std::vect
             // Update the most recent test event with file/line info
             if (!events.empty()) {
                 duckdb::ValidationEvent& last_event = events.back();
-                if (last_event.category == "nunit_xunit_text" && last_event.file_path.empty()) {
-                    last_event.file_path = file_path;
-                    last_event.line_number = line_number;
+                if (last_event.category == "nunit_xunit_text" && last_event.ref_file.empty()) {
+                    last_event.ref_file = file_path;
+                    last_event.ref_line = line_number;
                 }
             }
         }

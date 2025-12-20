@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="12" result="Failed" total="12" passed="8" failed="3" skipped="1" start-time="2024-01-15T10:30:45.0000000Z" end-time="2024-01-15T10:30:48.5000000Z" duration="3.500">
+  <test-suite type="Assembly" id="0-1001" name="MyApp.Tests.dll" fullname="/home/user/project/tests/bin/Debug/net7.0/MyApp.Tests.dll" runstate="Runnable" testcasecount="12" result="Failed" site="Child" start-time="2024-01-15T10:30:45.1234567Z" end-time="2024-01-15T10:30:48.4567890Z" duration="3.333" total="12" passed="8" failed="3" skipped="1">
+    <test-suite type="TestFixture" id="0-1002" name="UserServiceTests" fullname="MyApp.Tests.UserServiceTests" classname="MyApp.Tests.UserServiceTests" runstate="Runnable" testcasecount="4" result="Failed" site="Child">
+      <test-case id="0-1003" name="CreateUser_ValidInput_ReturnsUser" fullname="MyApp.Tests.UserServiceTests.CreateUser_ValidInput_ReturnsUser" result="Passed" duration="0.123"/>
+      <test-case id="0-1004" name="UpdateUser_ValidInput_ReturnsTrue" fullname="MyApp.Tests.UserServiceTests.UpdateUser_ValidInput_ReturnsTrue" result="Failed" duration="0.234">
+        <failure>
+          <message><![CDATA[Expected: True
+  But was:  False]]></message>
+          <stack-trace><![CDATA[   at MyApp.Tests.UserServiceTests.UpdateUser_ValidInput_ReturnsTrue() in /home/user/project/tests/UserServiceTests.cs:line 45]]></stack-trace>
+        </failure>
+      </test-case>
+      <test-case id="0-1005" name="DeleteUser_NonExistent_ReturnsFalse" fullname="MyApp.Tests.UserServiceTests.DeleteUser_NonExistent_ReturnsFalse" result="Passed" duration="0.156"/>
+      <test-case id="0-1006" name="GetUser_ById_ReturnsUser" fullname="MyApp.Tests.UserServiceTests.GetUser_ById_ReturnsUser" result="Passed" duration="0.089"/>
+    </test-suite>
+    <test-suite type="TestFixture" id="0-1007" name="AuthServiceTests" fullname="MyApp.Tests.AuthServiceTests" classname="MyApp.Tests.AuthServiceTests" runstate="Runnable" testcasecount="4" result="Failed" site="Child">
+      <test-case id="0-1008" name="Login_ValidCredentials_ReturnsToken" fullname="MyApp.Tests.AuthServiceTests.Login_ValidCredentials_ReturnsToken" result="Passed" duration="0.345"/>
+      <test-case id="0-1009" name="Login_InvalidPassword_ThrowsException" fullname="MyApp.Tests.AuthServiceTests.Login_InvalidPassword_ThrowsException" result="Failed" duration="0.123">
+        <failure>
+          <message><![CDATA[Expected: <System.Security.AuthenticationException>
+  But was:  <System.ArgumentException>]]></message>
+          <stack-trace><![CDATA[   at MyApp.Tests.AuthServiceTests.Login_InvalidPassword_ThrowsException() in /home/user/project/tests/AuthServiceTests.cs:line 67]]></stack-trace>
+        </failure>
+      </test-case>
+      <test-case id="0-1010" name="Logout_ValidToken_InvalidatesSession" fullname="MyApp.Tests.AuthServiceTests.Logout_ValidToken_InvalidatesSession" result="Passed" duration="0.234"/>
+      <test-case id="0-1011" name="RefreshToken_ExpiredToken_ThrowsException" fullname="MyApp.Tests.AuthServiceTests.RefreshToken_ExpiredToken_ThrowsException" result="Skipped" duration="0.001">
+        <reason><message>Test requires external auth service</message></reason>
+      </test-case>
+    </test-suite>
+    <test-suite type="TestFixture" id="0-1012" name="IntegrationTests" fullname="MyApp.Tests.IntegrationTests" classname="MyApp.Tests.IntegrationTests" runstate="Runnable" testcasecount="4" result="Failed" site="Child">
+      <test-case id="0-1013" name="FullWorkflow_Success" fullname="MyApp.Tests.IntegrationTests.FullWorkflow_Success" result="Passed" duration="1.234"/>
+      <test-case id="0-1014" name="ErrorHandling_ReturnsProperResponse" fullname="MyApp.Tests.IntegrationTests.ErrorHandling_ReturnsProperResponse" result="Passed" duration="0.567"/>
+      <test-case id="0-1015" name="ConcurrentRequests_HandleCorrectly" fullname="MyApp.Tests.IntegrationTests.ConcurrentRequests_HandleCorrectly" result="Passed" duration="0.890"/>
+      <test-case id="0-1016" name="DatabaseConnection_Timeout_HandlesGracefully" fullname="MyApp.Tests.IntegrationTests.DatabaseConnection_Timeout_HandlesGracefully" result="Failed" duration="5.123">
+        <failure>
+          <message><![CDATA[System.TimeoutException : The operation has timed out.]]></message>
+          <stack-trace><![CDATA[   at System.Data.SqlClient.SqlConnection.Open()
+   at MyApp.Tests.IntegrationTests.DatabaseConnection_Timeout_HandlesGracefully() in /home/user/project/tests/IntegrationTests.cs:line 123]]></stack-trace>
+        </failure>
+      </test-case>
+    </test-suite>
+  </test-suite>
+</test-run>

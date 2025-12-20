@@ -82,7 +82,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
             event.category = "debugger_startup";
             event.message = "GDB version " + match[1].str() + " started";
             event.error_code = "DEBUGGER_START";
-            event.raw_output = line;
+            event.log_content = line;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
             events.push_back(event);
@@ -97,7 +97,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
             event.category = "debugger_startup";
             event.message = "LLDB version " + match[1].str() + " started";
             event.error_code = "DEBUGGER_START";
-            event.raw_output = line;
+            event.log_content = line;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
             events.push_back(event);
@@ -115,7 +115,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
             event.category = "program_start";
             event.message = "Started program: " + current_program;
             event.error_code = "PROGRAM_START";
-            event.raw_output = line;
+            event.log_content = line;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
             events.push_back(event);
@@ -130,7 +130,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
             event.category = "target_create";
             event.message = "Target created: " + current_program;
             event.error_code = "TARGET_CREATE";
-            event.raw_output = line;
+            event.log_content = line;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
             events.push_back(event);
@@ -147,7 +147,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
             event.category = "signal_crash";
             event.message = "Signal " + match[1].str() + ": " + match[2].str();
             event.error_code = match[1].str();
-            event.raw_output = line;
+            event.log_content = line;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
             events.push_back(event);
@@ -161,7 +161,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
             event.category = "memory_access";
             event.message = "EXC_BAD_ACCESS at address " + match[2].str();
             event.error_code = "EXC_BAD_ACCESS";
-            event.raw_output = line;
+            event.log_content = line;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
             events.push_back(event);
@@ -172,24 +172,24 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
             if (!events.empty() && events.back().event_type == duckdb::ValidationEventType::CRASH_SIGNAL) {
                 auto& last_event = events.back();
                 last_event.function_name = match[2].str();
-                last_event.file_path = match[3].str();
+                last_event.ref_file = match[3].str();
                 try {
-                    last_event.line_number = std::stoi(match[4].str());
+                    last_event.ref_line = std::stoi(match[4].str());
                 } catch (...) {
-                    last_event.line_number = -1;
+                    last_event.ref_line = -1;
                 }
             }
         } else if (std::regex_search(line, match, lldb_crash_frame)) {
             if (!events.empty() && events.back().event_type == duckdb::ValidationEventType::CRASH_SIGNAL) {
                 auto& last_event = events.back();
                 last_event.function_name = match[2].str();
-                last_event.file_path = match[3].str();
+                last_event.ref_file = match[3].str();
                 try {
-                    last_event.line_number = std::stoi(match[4].str());
-                    last_event.column_number = std::stoi(match[5].str());
+                    last_event.ref_line = std::stoi(match[4].str());
+                    last_event.ref_column = std::stoi(match[5].str());
                 } catch (...) {
-                    last_event.line_number = -1;
-                    last_event.column_number = -1;
+                    last_event.ref_line = -1;
+                    last_event.ref_column = -1;
                 }
             }
         }
@@ -204,13 +204,13 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
                 if (stack_trace.size() == 1 && !events.empty()) {
                     // First frame - update crash event with location details
                     auto& last_event = events.back();
-                    if (last_event.file_path.empty()) {
+                    if (last_event.ref_file.empty()) {
                         last_event.function_name = match[3].str();
-                        last_event.file_path = match[4].str();
+                        last_event.ref_file = match[4].str();
                         try {
-                            last_event.line_number = std::stoi(match[5].str());
+                            last_event.ref_line = std::stoi(match[5].str());
                         } catch (...) {
-                            last_event.line_number = -1;
+                            last_event.ref_line = -1;
                         }
                     }
                 }
@@ -224,15 +224,15 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
                 stack_trace.push_back(line);
                 if (stack_trace.size() == 1 && !events.empty()) {
                     auto& last_event = events.back();
-                    if (last_event.file_path.empty()) {
+                    if (last_event.ref_file.empty()) {
                         last_event.function_name = match[3].str();
-                        last_event.file_path = match[4].str();
+                        last_event.ref_file = match[4].str();
                         try {
-                            last_event.line_number = std::stoi(match[5].str());
-                            last_event.column_number = std::stoi(match[6].str());
+                            last_event.ref_line = std::stoi(match[5].str());
+                            last_event.ref_column = std::stoi(match[6].str());
                         } catch (...) {
-                            last_event.line_number = -1;
-                            last_event.column_number = -1;
+                            last_event.ref_line = -1;
+                            last_event.ref_column = -1;
                         }
                     }
                 }
@@ -253,15 +253,15 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
             event.severity = "info";
             event.category = "breakpoint_hit";
             event.function_name = match[2].str();
-            event.file_path = match[3].str();
+            event.ref_file = match[3].str();
             try {
-                event.line_number = std::stoi(match[4].str());
+                event.ref_line = std::stoi(match[4].str());
             } catch (...) {
-                event.line_number = -1;
+                event.ref_line = -1;
             }
             event.message = "Breakpoint " + match[1].str() + " hit at " + match[2].str();
             event.error_code = "BREAKPOINT_HIT";
-            event.raw_output = line;
+            event.log_content = line;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
             events.push_back(event);
@@ -275,7 +275,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
             event.category = "breakpoint_hit";
             event.message = "Breakpoint " + match[1].str() + "." + match[2].str() + " hit";
             event.error_code = "BREAKPOINT_HIT";
-            event.raw_output = line;
+            event.log_content = line;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
             events.push_back(event);
@@ -288,15 +288,15 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
             event.severity = "info";
             event.category = "breakpoint_set";
             event.function_name = match[2].str();
-            event.file_path = match[3].str();
+            event.ref_file = match[3].str();
             try {
-                event.line_number = std::stoi(match[4].str());
+                event.ref_line = std::stoi(match[4].str());
             } catch (...) {
-                event.line_number = -1;
+                event.ref_line = -1;
             }
             event.message = "Breakpoint " + match[1].str() + " set at " + match[2].str();
             event.error_code = "BREAKPOINT_SET";
-            event.raw_output = line;
+            event.log_content = line;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
             events.push_back(event);
@@ -313,7 +313,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
             event.category = "watchpoint_hit";
             event.message = "Watchpoint " + match[1].str() + " hit: " + match[2].str();
             event.error_code = "WATCHPOINT_HIT";
-            event.raw_output = line;
+            event.log_content = line;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
             events.push_back(event);
@@ -327,7 +327,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
             event.category = "watchpoint_set";
             event.message = "Watchpoint " + match[1].str() + " set at address " + match[2].str();
             event.error_code = "WATCHPOINT_SET";
-            event.raw_output = line;
+            event.log_content = line;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
             events.push_back(event);
@@ -344,7 +344,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
             event.category = "memory_access";
             event.message = "Cannot access memory at address " + match[1].str();
             event.error_code = "MEMORY_ACCESS_ERROR";
-            event.raw_output = line;
+            event.log_content = line;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
             events.push_back(event);
@@ -361,7 +361,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
             event.category = "thread_info";
             event.message = "Thread #" + match[1].str() + " (TID: " + match[2].str() + ")";
             event.error_code = "THREAD_INFO";
-            event.raw_output = line;
+            event.log_content = line;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
             events.push_back(event);
@@ -375,7 +375,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string& content, std::vector<duckdb:
             event.category = "thread_info";
             event.message = "Thread " + match[1].str() + " (LWP: " + match[3].str() + ")";
             event.error_code = "THREAD_INFO";
-            event.raw_output = line;
+            event.log_content = line;
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
             events.push_back(event);

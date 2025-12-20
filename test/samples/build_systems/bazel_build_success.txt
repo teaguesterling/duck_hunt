@@ -1,0 +1,9 @@
+INFO: Analyzed target //src:myapp (45 packages loaded, 1234 targets configured).
+INFO: Found 1 target...
+INFO: From Compiling src/main.cc:
+INFO: From Linking src/myapp:
+Target //src:myapp up-to-date:
+  bazel-bin/src/myapp
+INFO: Elapsed time: 12.345s, Critical Path: 8.23s
+INFO: 67 processes: 23 internal, 44 linux-sandbox.
+INFO: Build completed successfully, 67 total actions

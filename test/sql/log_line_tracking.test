@@ -6,7 +6,7 @@ require duck_hunt
 
 # Test 1: make_error parser should populate log line tracking fields
 query IIIT
-SELECT log_line_start, log_line_end, line_number, message
+SELECT log_line_start, log_line_end, ref_line, message
 FROM read_duck_hunt_log('test/samples/make.out', 'make_error')
 WHERE log_line_start IS NOT NULL
 ORDER BY log_line_start
@@ -42,11 +42,11 @@ WHERE log_line_start IS NOT NULL;
 ----
 2
 
-# Test 5: Verify log_line_start != line_number (they track different things)
-# line_number is the source code line, log_line_start is the log file line
+# Test 5: Verify log_line_start != ref_line (they track different things)
+# ref_line is the source code line, log_line_start is the log file line
 query III
-SELECT log_line_start, line_number,
-       CASE WHEN log_line_start != line_number OR line_number IS NULL THEN 1 ELSE 0 END as different
+SELECT log_line_start, ref_line,
+       CASE WHEN log_line_start != ref_line OR ref_line IS NULL THEN 1 ELSE 0 END as different
 FROM read_duck_hunt_log('test/samples/make.out', 'make_error')
 WHERE log_line_start IS NOT NULL
 ORDER BY log_line_start

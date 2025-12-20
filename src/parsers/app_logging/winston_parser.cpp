@@ -57,8 +57,8 @@ static bool ParseWinstonJSON(const std::string& line, ValidationEvent& event, in
     event.log_line_start = line_number;
     event.log_line_end = line_number;
     event.execution_time = 0.0;
-    event.line_number = -1;
-    event.column_number = -1;
+    event.ref_line = -1;
+    event.ref_column = -1;
 
     std::string level = level_val && yyjson_is_str(level_val) ? yyjson_get_str(level_val) : "info";
     event.severity = MapWinstonLevel(level);
@@ -80,7 +80,7 @@ static bool ParseWinstonJSON(const std::string& line, ValidationEvent& event, in
 
     // Store full JSON as structured data
     event.structured_data = line;
-    event.raw_output = line;
+    event.log_content = line;
 
     yyjson_doc_free(doc);
     return true;
@@ -106,8 +106,8 @@ static bool ParseWinstonText(const std::string& line, ValidationEvent& event, in
     event.log_line_start = line_number;
     event.log_line_end = line_number;
     event.execution_time = 0.0;
-    event.line_number = -1;
-    event.column_number = -1;
+    event.ref_line = -1;
+    event.ref_column = -1;
 
     event.started_at = match[1].str();
     event.category = match[2].str();
@@ -124,7 +124,7 @@ static bool ParseWinstonText(const std::string& line, ValidationEvent& event, in
     json += "}";
     event.structured_data = json;
 
-    event.raw_output = line;
+    event.log_content = line;
     return true;
 }
 

@@ -50,8 +50,8 @@ static bool ParsePinoLine(const std::string& line, ValidationEvent& event, int64
     event.log_line_start = line_number;
     event.log_line_end = line_number;
     event.execution_time = 0.0;
-    event.line_number = -1;
-    event.column_number = -1;
+    event.ref_line = -1;
+    event.ref_column = -1;
 
     int level = yyjson_get_int(level_val);
     event.severity = MapPinoLevel(level);
@@ -92,7 +92,7 @@ static bool ParsePinoLine(const std::string& line, ValidationEvent& event, int64
     }
 
     event.structured_data = line;
-    event.raw_output = line;
+    event.log_content = line;
 
     yyjson_doc_free(doc);
     return true;

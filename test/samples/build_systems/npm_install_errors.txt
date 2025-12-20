@@ -1,0 +1,21 @@
+npm WARN deprecated har-validator@5.1.5: this library is no longer supported
+npm WARN deprecated uuid@3.4.0: Please upgrade  to version 7 or higher
+npm ERR! code ERESOLVE
+npm ERR! ERESOLVE unable to resolve dependency tree
+npm ERR!
+npm ERR! While resolving: my-app@1.0.0
+npm ERR! Found: react@18.2.0
+npm ERR! node_modules/react
+npm ERR!   react@"^18.2.0" from the root project
+npm ERR!
+npm ERR! Could not resolve dependency:
+npm ERR! peer react@"^16.8.0 || ^17.0.0" from old-component@2.3.4
+npm ERR! node_modules/old-component
+npm ERR!   old-component@"^2.3.4" from the root project
+npm ERR!
+npm ERR! Fix the upstream dependency conflict, or retry
+npm ERR! this command with --force or --legacy-peer-deps
+npm ERR! to accept an incorrect (and potentially broken) dependency resolution.
+
+npm ERR! A complete log of this run can be found in:
+npm ERR!     /home/user/.npm/_logs/2024-01-15T15_30_45_123Z-debug-0.log

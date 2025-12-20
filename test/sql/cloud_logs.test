@@ -73,7 +73,7 @@ FROM parse_duck_hunt_log('{"Records":[{"eventTime":"2025-01-15T10:30:45Z","event
 
 # Test 10: CloudTrail stores raw output
 query I
-SELECT LENGTH(raw_output) > 50
+SELECT LENGTH(log_content) > 50
 FROM parse_duck_hunt_log('{"eventTime":"2025-01-15T10:30:45Z","eventName":"CreateUser","eventSource":"iam.amazonaws.com","awsRegion":"us-east-1"}', 'aws_cloudtrail');
 ----
 true

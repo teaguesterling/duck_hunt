@@ -1,0 +1,15 @@
+src/日本語/ファイル.cpp:15:3: error: 変数 '結果' が初期化されていません
+    int 結果;
+        ^
+src/émojis/🎉.js:42:10: warning: Unexpected emoji in identifier '🚀launch'
+    const 🚀launch = () => {};
+         ^^^^
+src/chinese/数据处理.py:128:1: error: SyntaxError: invalid character '中' (U+4E2D)
+    中文变量 = "测试"
+    ^
+src/arabic/معالجة.rs:55:8: error[E0425]: cannot find value `معرف` in this scope
+    let معرف = compute();
+        ^^^^
+tests/Ümläüts/tëst.cpp:33:5: warning: unused variable 'größe' [-Wunused-variable]
+    int größe = 100;
+        ^~~~~

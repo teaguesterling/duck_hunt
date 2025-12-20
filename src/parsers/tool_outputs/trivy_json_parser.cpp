@@ -114,9 +114,9 @@ std::vector<ValidationEvent> TrivyJSONParser::parse(const std::string& content) 
                 event.event_type = ValidationEventType::SECURITY_FINDING;
                 event.category = "vulnerability";
                 event.execution_time = 0.0;
-                event.file_path = target;
-                event.line_number = -1;
-                event.column_number = -1;
+                event.ref_file = target;
+                event.ref_line = -1;
+                event.ref_column = -1;
 
                 // Get vulnerability ID
                 yyjson_val *vuln_id = yyjson_obj_get(vuln, "VulnerabilityID");
@@ -181,7 +181,7 @@ std::vector<ValidationEvent> TrivyJSONParser::parse(const std::string& content) 
                     }
                 }
 
-                event.raw_output = content;
+                event.log_content = content;
                 event.structured_data = "{\"tool\": \"trivy\", \"vuln_id\": \"" + event.error_code +
                                        "\", \"severity\": \"" + event.severity +
                                        "\", \"package\": \"" + event.function_name + "\"" + cvss_info + "}";
@@ -205,9 +205,9 @@ std::vector<ValidationEvent> TrivyJSONParser::parse(const std::string& content) 
                 event.event_type = ValidationEventType::SECURITY_FINDING;
                 event.category = "misconfiguration";
                 event.execution_time = 0.0;
-                event.file_path = target;
-                event.line_number = -1;
-                event.column_number = -1;
+                event.ref_file = target;
+                event.ref_line = -1;
+                event.ref_column = -1;
 
                 // Get misconfiguration ID
                 yyjson_val *mc_id = yyjson_obj_get(misconfig, "ID");
@@ -259,7 +259,7 @@ std::vector<ValidationEvent> TrivyJSONParser::parse(const std::string& content) 
                     event.suggestion = yyjson_get_str(resolution);
                 }
 
-                event.raw_output = content;
+                event.log_content = content;
                 event.structured_data = "{\"tool\": \"trivy\", \"config_id\": \"" + event.error_code +
                                        "\", \"severity\": \"" + event.severity + "\"}";
 

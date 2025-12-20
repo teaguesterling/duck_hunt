@@ -734,10 +734,10 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
         (content.find("xUnit.net") != std::string::npos && content.find("[FAIL]") != std::string::npos)) {
         return TestResultFormat::MSBUILD;
     }
-    
-    if (content.find(": error:") != std::string::npos || content.find(": warning:") != std::string::npos) {
-        return TestResultFormat::GENERIC_LINT;
-    }
+
+    // Note: Removed overly broad ": error:" / ": warning:" catch-all that was
+    // incorrectly matching syslog and other log formats. Let the modular parser
+    // registry handle detection with proper priority ordering. (Issue #20)
 
     // Fallback: try modular parser registry auto-detection
     auto* parser = TryAutoDetectNewRegistry(content);
@@ -1202,6 +1202,7 @@ unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFuncti
         // Log tracking
         LogicalType::INTEGER,  // log_line_start
         LogicalType::INTEGER,  // log_line_end
+        LogicalType::VARCHAR,  // log_file
         // Test-specific
         LogicalType::VARCHAR,  // test_name
         LogicalType::DOUBLE,   // execution_time
@@ -1236,13 +1237,13 @@ unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFuncti
         // Core identification
         "event_id", "tool_name", "event_type",
         // Code location
-        "file_path", "line_number", "column_number", "function_name",
+        "ref_file", "ref_line", "ref_column", "function_name",
         // Classification
         "status", "severity", "category", "error_code",
         // Content
-        "message", "suggestion", "raw_output", "structured_data",
+        "message", "suggestion", "log_content", "structured_data",
         // Log tracking
-        "log_line_start", "log_line_end",
+        "log_line_start", "log_line_end", "log_file",
         // Test-specific
         "test_name", "execution_time",
         // Identity & Network
@@ -1337,6 +1338,16 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &co
             }
         }
 
+        // Set log_file on each event to track source file (single file mode)
+        // Only set if source looks like a file path (contains / or \)
+        if (bind_data.source.find('/') != std::string::npos ||
+            bind_data.source.find('\\') != std::string::npos) {
+            for (auto& event : global_state->events) {
+                if (event.log_file.empty()) {
+                    event.log_file = bind_data.source;
+                }
+            }
+        }
     }
 
     // Phase 3B: Process error patterns for intelligent categorization
@@ -1382,9 +1393,9 @@ void PopulateDataChunkFromEvents(DataChunk &output, const std::vector<Validation
         output.SetValue(col++, i, Value(event.tool_name));
         output.SetValue(col++, i, Value(ValidationEventTypeToString(event.event_type)));
         // Code location
-        output.SetValue(col++, i, Value(event.file_path));
-        output.SetValue(col++, i, event.line_number == -1 ? Value() : Value::INTEGER(event.line_number));
-        output.SetValue(col++, i, event.column_number == -1 ? Value() : Value::INTEGER(event.column_number));
+        output.SetValue(col++, i, Value(event.ref_file));
+        output.SetValue(col++, i, event.ref_line == -1 ? Value() : Value::INTEGER(event.ref_line));
+        output.SetValue(col++, i, event.ref_column == -1 ? Value() : Value::INTEGER(event.ref_column));
         output.SetValue(col++, i, Value(event.function_name));
         // Classification
         output.SetValue(col++, i, Value(ValidationEventStatusToString(event.status)));
@@ -1394,11 +1405,12 @@ void PopulateDataChunkFromEvents(DataChunk &output, const std::vector<Validation
         // Content
         output.SetValue(col++, i, Value(event.message));
         output.SetValue(col++, i, Value(event.suggestion));
-        output.SetValue(col++, i, Value(event.raw_output));
+        output.SetValue(col++, i, Value(event.log_content));
         output.SetValue(col++, i, Value(event.structured_data));
         // Log tracking
         output.SetValue(col++, i, event.log_line_start == -1 ? Value() : Value::INTEGER(event.log_line_start));
         output.SetValue(col++, i, event.log_line_end == -1 ? Value() : Value::INTEGER(event.log_line_end));
+        output.SetValue(col++, i, event.log_file.empty() ? Value() : Value(event.log_file));
         // Test-specific
         output.SetValue(col++, i, Value(event.test_name));
         output.SetValue(col++, i, Value::DOUBLE(event.execution_time));
@@ -1496,6 +1508,7 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
         // Log tracking
         LogicalType::INTEGER,  // log_line_start
         LogicalType::INTEGER,  // log_line_end
+        LogicalType::VARCHAR,  // log_file
         // Test-specific
         LogicalType::VARCHAR,  // test_name
         LogicalType::DOUBLE,   // execution_time
@@ -1530,13 +1543,13 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
         // Core identification
         "event_id", "tool_name", "event_type",
         // Code location
-        "file_path", "line_number", "column_number", "function_name",
+        "ref_file", "ref_line", "ref_column", "function_name",
         // Classification
         "status", "severity", "category", "error_code",
         // Content
-        "message", "suggestion", "raw_output", "structured_data",
+        "message", "suggestion", "log_content", "structured_data",
         // Log tracking
-        "log_line_start", "log_line_end",
+        "log_line_start", "log_line_end", "log_file",
         // Test-specific
         "test_name", "execution_time",
         // Identity & Network
@@ -1796,6 +1809,11 @@ void ProcessMultipleFiles(ClientContext& context, const std::vector<std::string>
             if (!TryNewParserRegistry(context, detected_format, content, file_events)) {
                 // No parser found for this format, skip file
                 continue;
+            }
+
+            // Set log_file on each event to track source file
+            for (auto& event : file_events) {
+                event.log_file = file_path;
             }
 
             // Add events to main collection
