@@ -594,3 +594,204 @@ WHERE message LIKE 'Application%';
 ----
 3
 
+# =============================================================================
+# File-Based Tests - NLog Sample File
+# =============================================================================
+
+# Test 76: NLog sample file - total event count
+query I
+SELECT COUNT(*)
+FROM read_duck_hunt_log('test/samples/app_logging/nlog_output.txt', 'nlog');
+----
+43
+
+# Test 77: NLog sample file - severity distribution
+query II
+SELECT severity, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/app_logging/nlog_output.txt', 'nlog')
+GROUP BY severity
+ORDER BY cnt DESC, severity;
+----
+info	28
+error	9
+warning	6
+
+# Test 78: NLog sample file - verify tool_name
+query I
+SELECT DISTINCT tool_name
+FROM read_duck_hunt_log('test/samples/app_logging/nlog_output.txt', 'nlog');
+----
+nlog
+
+# Test 79: NLog sample file - verify category contains logger name
+query I
+SELECT COUNT(*) > 0
+FROM read_duck_hunt_log('test/samples/app_logging/nlog_output.txt', 'nlog')
+WHERE category LIKE 'MyApp%';
+----
+true
+
+# Test 80: NLog sample file - verify log_file tracking
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/app_logging/nlog_output.txt', 'nlog');
+----
+test/samples/app_logging/nlog_output.txt
+
+# Test 81: NLog sample file - verify exception info is captured
+query I
+SELECT COUNT(*)
+FROM read_duck_hunt_log('test/samples/app_logging/nlog_output.txt', 'nlog')
+WHERE error_code IS NOT NULL AND error_code != '';
+----
+5
+
+# =============================================================================
+# File-Based Tests - Pino Sample File
+# =============================================================================
+
+# Test 82: Pino sample file - total event count
+query I
+SELECT COUNT(*)
+FROM read_duck_hunt_log('test/samples/app_logging/pino_output.jsonl', 'pino');
+----
+32
+
+# Test 83: Pino sample file - severity distribution
+query II
+SELECT severity, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/app_logging/pino_output.jsonl', 'pino')
+GROUP BY severity
+ORDER BY cnt DESC, severity;
+----
+info	22
+warning	6
+error	4
+
+# Test 84: Pino sample file - verify tool_name
+query I
+SELECT DISTINCT tool_name
+FROM read_duck_hunt_log('test/samples/app_logging/pino_output.jsonl', 'pino');
+----
+pino
+
+# Test 85: Pino sample file - verify hostname is captured in origin
+query I
+SELECT COUNT(DISTINCT origin)
+FROM read_duck_hunt_log('test/samples/app_logging/pino_output.jsonl', 'pino')
+WHERE origin IS NOT NULL;
+----
+2
+
+# Test 86: Pino sample file - verify log_file tracking
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/app_logging/pino_output.jsonl', 'pino');
+----
+test/samples/app_logging/pino_output.jsonl
+
+# Test 87: Pino sample file - verify name field is captured in category
+query I
+SELECT COUNT(*) > 0
+FROM read_duck_hunt_log('test/samples/app_logging/pino_output.jsonl', 'pino')
+WHERE category LIKE 'myapp%';
+----
+true
+
+# =============================================================================
+# File-Based Tests - Ruby Logger Sample File
+# =============================================================================
+
+# Test 88: Ruby Logger sample file - total event count
+query I
+SELECT COUNT(*)
+FROM read_duck_hunt_log('test/samples/app_logging/ruby_logger_output.txt', 'ruby_logger');
+----
+37
+
+# Test 89: Ruby Logger sample file - severity distribution
+query II
+SELECT severity, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/app_logging/ruby_logger_output.txt', 'ruby_logger')
+GROUP BY severity
+ORDER BY cnt DESC, severity;
+----
+info	26
+warning	6
+error	5
+
+# Test 90: Ruby Logger sample file - verify tool_name
+query I
+SELECT DISTINCT tool_name
+FROM read_duck_hunt_log('test/samples/app_logging/ruby_logger_output.txt', 'ruby_logger');
+----
+ruby_logger
+
+# Test 91: Ruby Logger sample file - verify category captures progname
+query I
+SELECT COUNT(*) > 0
+FROM read_duck_hunt_log('test/samples/app_logging/ruby_logger_output.txt', 'ruby_logger')
+WHERE category LIKE 'myapp%';
+----
+true
+
+# Test 92: Ruby Logger sample file - verify log_file tracking
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/app_logging/ruby_logger_output.txt', 'ruby_logger');
+----
+test/samples/app_logging/ruby_logger_output.txt
+
+# Test 93: Ruby Logger sample file - verify structured_data contains pid
+query I
+SELECT COUNT(*) > 0
+FROM read_duck_hunt_log('test/samples/app_logging/ruby_logger_output.txt', 'ruby_logger')
+WHERE structured_data LIKE '%"pid":%';
+----
+true
+
+# =============================================================================
+# File-Based Tests - Rails Log Sample File
+# =============================================================================
+# NOTE: The rails_log parser has a known limitation when reading from files:
+# Multi-line request grouping (Started + Processing + Completed) doesn't work
+# the same as with inline content. Status codes from Completed lines are not
+# associated with the request. This affects severity detection for 4xx/5xx.
+
+# Test 94: Rails log sample file - total request count
+query I
+SELECT COUNT(*)
+FROM read_duck_hunt_log('test/samples/app_logging/rails_log_output.txt', 'rails_log');
+----
+15
+
+# Test 95: Rails log sample file - verify tool_name
+query I
+SELECT DISTINCT tool_name
+FROM read_duck_hunt_log('test/samples/app_logging/rails_log_output.txt', 'rails_log');
+----
+rails_log
+
+# Test 96: Rails log sample file - verify category contains controller action
+query I
+SELECT COUNT(*) > 0
+FROM read_duck_hunt_log('test/samples/app_logging/rails_log_output.txt', 'rails_log')
+WHERE category LIKE '%Controller#%';
+----
+true
+
+# Test 97: Rails log sample file - verify log_file tracking
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/app_logging/rails_log_output.txt', 'rails_log');
+----
+test/samples/app_logging/rails_log_output.txt
+
+# Test 98: Rails log sample file - verify different HTTP methods are parsed
+query I
+SELECT COUNT(DISTINCT message)
+FROM read_duck_hunt_log('test/samples/app_logging/rails_log_output.txt', 'rails_log')
+WHERE message LIKE 'GET%' OR message LIKE 'POST%' OR message LIKE 'PUT%' OR message LIKE 'DELETE%';
+----
+15
+

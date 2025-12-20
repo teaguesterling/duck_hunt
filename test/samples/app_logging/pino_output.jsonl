@@ -1,0 +1,32 @@
+{"level":30,"time":1705313400000,"msg":"Application starting","pid":1234,"hostname":"server1","name":"myapp"}
+{"level":20,"time":1705313400100,"msg":"Loading configuration","pid":1234,"hostname":"server1","name":"myapp.config","configPath":"/etc/app/config.json"}
+{"level":30,"time":1705313400200,"msg":"Configuration loaded successfully","pid":1234,"hostname":"server1","name":"myapp.config"}
+{"level":30,"time":1705313401000,"msg":"Connecting to database","pid":1234,"hostname":"server1","name":"myapp.database","host":"db.example.com","port":5432}
+{"level":20,"time":1705313401500,"msg":"Connection parameters validated","pid":1234,"hostname":"server1","name":"myapp.database"}
+{"level":30,"time":1705313402000,"msg":"Database connection established","pid":1234,"hostname":"server1","name":"myapp.database","poolSize":10}
+{"level":30,"time":1705313403000,"msg":"Starting HTTP server","pid":1234,"hostname":"server1","name":"myapp.server","port":3000}
+{"level":30,"time":1705313403500,"msg":"Server ready to accept connections","pid":1234,"hostname":"server1","name":"myapp.server"}
+{"level":30,"time":1705313410000,"msg":"Request received","pid":1234,"hostname":"server1","name":"myapp.http","method":"GET","url":"/api/users","reqId":"abc-123"}
+{"level":20,"time":1705313410100,"msg":"Authenticating request","pid":1234,"hostname":"server1","name":"myapp.auth","reqId":"abc-123"}
+{"level":30,"time":1705313410200,"msg":"User authenticated","pid":1234,"hostname":"server1","name":"myapp.auth","userId":42,"reqId":"abc-123"}
+{"level":30,"time":1705313410500,"msg":"Request completed","pid":1234,"hostname":"server1","name":"myapp.http","method":"GET","url":"/api/users","statusCode":200,"responseTime":45,"reqId":"abc-123"}
+{"level":40,"time":1705313415000,"msg":"Cache miss","pid":1234,"hostname":"server1","name":"myapp.cache","key":"user_profile_42"}
+{"level":20,"time":1705313415100,"msg":"Fetching from database","pid":1234,"hostname":"server1","name":"myapp.cache","key":"user_profile_42"}
+{"level":40,"time":1705313420000,"msg":"Slow query detected","pid":1234,"hostname":"server1","name":"myapp.database","duration":2500,"query":"SELECT * FROM large_table"}
+{"level":50,"time":1705313425000,"msg":"Request failed","pid":1234,"hostname":"server1","name":"myapp.http","method":"POST","url":"/api/orders","statusCode":500,"err":{"message":"Database timeout","type":"TimeoutError"}}
+{"level":20,"time":1705313425100,"msg":"Rolling back transaction","pid":1234,"hostname":"server1","name":"myapp.database"}
+{"level":50,"time":1705313430000,"msg":"Failed to send email","pid":1234,"hostname":"server1","name":"myapp.email","recipient":"user@example.com","err":{"message":"SMTP connection refused","type":"SMTPError"}}
+{"level":30,"time":1705313435000,"msg":"Running scheduled task","pid":1234,"hostname":"server1","name":"myapp.scheduler","taskName":"cleanupSessions"}
+{"level":30,"time":1705313435500,"msg":"Task completed","pid":1234,"hostname":"server1","name":"myapp.scheduler","taskName":"cleanupSessions","sessionsRemoved":127}
+{"level":40,"time":1705313440000,"msg":"Failed login attempt","pid":1234,"hostname":"server1","name":"myapp.auth","username":"admin","ip":"192.168.1.200","attempts":3}
+{"level":40,"time":1705313445000,"msg":"Account locked","pid":1234,"hostname":"server1","name":"myapp.auth","username":"admin","lockDuration":"15m"}
+{"level":10,"time":1705313450000,"msg":"Detailed trace information","pid":1234,"hostname":"server1","name":"myapp.debug","component":"auth","step":"tokenValidation"}
+{"level":40,"time":1705313455000,"msg":"High memory usage","pid":1234,"hostname":"server1","name":"myapp.metrics","usedMB":1850,"totalMB":2048,"percentage":90.3}
+{"level":60,"time":1705313460000,"msg":"Unhandled exception","pid":1234,"hostname":"server1","name":"myapp","err":{"message":"Out of memory","type":"Error","stack":"Error: Out of memory\n    at process (app.js:142)"}}
+{"level":60,"time":1705313461000,"msg":"System shutting down","pid":1234,"hostname":"server1","name":"myapp","reason":"critical_error"}
+{"level":30,"time":1705313500000,"msg":"Processing order","pid":1234,"hostname":"server2","name":"myapp.orders","orderId":"ORD-67890","userId":1001,"total":299.99}
+{"level":20,"time":1705313500500,"msg":"Validating order items","pid":1234,"hostname":"server2","name":"myapp.orders","orderId":"ORD-67890","itemCount":3}
+{"level":30,"time":1705313501000,"msg":"Payment processed","pid":1234,"hostname":"server2","name":"myapp.payments","orderId":"ORD-67890","method":"credit_card","transactionId":"txn-abc-123"}
+{"level":30,"time":1705313501500,"msg":"Order confirmed","pid":1234,"hostname":"server2","name":"myapp.orders","orderId":"ORD-67890"}
+{"level":40,"time":1705313502000,"msg":"Low stock alert","pid":1234,"hostname":"server2","name":"myapp.inventory","productId":"SKU-555","remaining":5}
+{"level":30,"time":1705313502500,"msg":"Notification queued","pid":1234,"hostname":"server2","name":"myapp.notifications","type":"order_confirmation","recipient":"customer@example.com"}

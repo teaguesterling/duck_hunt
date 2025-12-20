@@ -1,0 +1,98 @@
+# Rails log sample file
+# Multi-line request format: Started, Processing, Completed
+
+Started GET "/" for 127.0.0.1 at 2025-01-15 10:30:00 +0000
+Processing by HomeController#index as HTML
+  Rendering home/index.html.erb
+  Rendered home/index.html.erb (Duration: 15.2ms | Allocations: 1250)
+Completed 200 OK in 25ms (Views: 20.5ms | ActiveRecord: 2.1ms | Allocations: 3500)
+
+Started GET "/users" for 127.0.0.1 at 2025-01-15 10:30:05 +0000
+Processing by UsersController#index as HTML
+  User Load (0.5ms)  SELECT "users".* FROM "users"
+  Rendering users/index.html.erb
+  Rendered users/index.html.erb (Duration: 12.3ms | Allocations: 2100)
+Completed 200 OK in 35ms (Views: 25.8ms | ActiveRecord: 5.2ms | Allocations: 5200)
+
+Started GET "/users/42" for 192.168.1.100 at 2025-01-15 10:30:10 +0000
+Processing by UsersController#show as HTML
+  Parameters: {"id"=>"42"}
+  User Load (0.3ms)  SELECT "users".* FROM "users" WHERE "users"."id" = 42
+  Rendering users/show.html.erb
+  Rendered users/show.html.erb (Duration: 8.5ms | Allocations: 980)
+Completed 200 OK in 20ms (Views: 15.2ms | ActiveRecord: 1.8ms | Allocations: 2800)
+
+Started POST "/users" for 127.0.0.1 at 2025-01-15 10:30:15 +0000
+Processing by UsersController#create as HTML
+  Parameters: {"user"=>{"name"=>"Alice", "email"=>"alice@example.com"}}
+  TRANSACTION (0.1ms)  BEGIN
+  User Create (0.8ms)  INSERT INTO "users" ("name", "email") VALUES ('Alice', 'alice@example.com')
+  TRANSACTION (1.2ms)  COMMIT
+Completed 201 Created in 45ms (Views: 0.0ms | ActiveRecord: 8.5ms | Allocations: 4100)
+
+Started GET "/api/users" for 10.0.0.50 at 2025-01-15 10:30:20 +0000
+Processing by Api::UsersController#index as JSON
+  User Load (1.2ms)  SELECT "users".* FROM "users"
+Completed 200 OK in 15ms (Views: 5.2ms | ActiveRecord: 3.5ms | Allocations: 1800)
+
+Started POST "/api/orders" for 10.0.0.50 at 2025-01-15 10:30:25 +0000
+Processing by Api::OrdersController#create as JSON
+  Parameters: {"order"=>{"product_id"=>"123", "quantity"=>"2"}}
+  TRANSACTION (0.1ms)  BEGIN
+  Order Create (0.5ms)  INSERT INTO "orders" ("product_id", "quantity") VALUES (123, 2)
+  TRANSACTION (0.8ms)  COMMIT
+Completed 201 Created in 30ms (Views: 0.0ms | ActiveRecord: 5.2ms | Allocations: 2200)
+
+Started GET "/admin" for 192.168.1.200 at 2025-01-15 10:30:30 +0000
+Processing by AdminController#index as HTML
+Filter chain halted as :authenticate_admin rendered or redirected
+Completed 401 Unauthorized in 5ms (Views: 1.2ms | ActiveRecord: 0.0ms | Allocations: 450)
+
+Started GET "/missing_page" for 127.0.0.1 at 2025-01-15 10:30:35 +0000
+Processing by ApplicationController#route_not_found as HTML
+Completed 404 Not Found in 3ms (Views: 1.5ms | ActiveRecord: 0.0ms | Allocations: 320)
+
+Started GET "/users/999" for 127.0.0.1 at 2025-01-15 10:30:40 +0000
+Processing by UsersController#show as HTML
+  Parameters: {"id"=>"999"}
+  User Load (0.2ms)  SELECT "users".* FROM "users" WHERE "users"."id" = 999
+Completed 404 Not Found in 8ms (Views: 2.1ms | ActiveRecord: 0.5ms | Allocations: 680)
+
+Started POST "/payments" for 10.0.0.50 at 2025-01-15 10:30:45 +0000
+Processing by PaymentsController#create as JSON
+  Parameters: {"payment"=>{"amount"=>"99.99", "card_token"=>"tok_xxx"}}
+  TRANSACTION (0.1ms)  BEGIN
+  TRANSACTION (0.1ms)  ROLLBACK
+Completed 500 Internal Server Error in 150ms (ActiveRecord: 2.5ms | Allocations: 8500)
+
+Started GET "/health" for 10.0.0.1 at 2025-01-15 10:30:50 +0000
+Processing by HealthController#check as JSON
+Completed 200 OK in 2ms (Views: 0.5ms | ActiveRecord: 0.0ms | Allocations: 120)
+
+Started DELETE "/users/42" for 127.0.0.1 at 2025-01-15 10:30:55 +0000
+Processing by UsersController#destroy as HTML
+  Parameters: {"id"=>"42"}
+  User Load (0.3ms)  SELECT "users".* FROM "users" WHERE "users"."id" = 42
+  TRANSACTION (0.1ms)  BEGIN
+  User Destroy (0.5ms)  DELETE FROM "users" WHERE "users"."id" = 42
+  TRANSACTION (0.8ms)  COMMIT
+Completed 200 OK in 25ms (Views: 8.2ms | ActiveRecord: 4.5ms | Allocations: 1950)
+
+Started PUT "/users/43" for 127.0.0.1 at 2025-01-15 10:31:00 +0000
+Processing by UsersController#update as HTML
+  Parameters: {"id"=>"43", "user"=>{"name"=>"Bob Updated"}}
+  User Load (0.2ms)  SELECT "users".* FROM "users" WHERE "users"."id" = 43
+  TRANSACTION (0.1ms)  BEGIN
+  User Update (0.4ms)  UPDATE "users" SET "name" = 'Bob Updated' WHERE "users"."id" = 43
+  TRANSACTION (0.7ms)  COMMIT
+Completed 200 OK in 22ms (Views: 10.5ms | ActiveRecord: 3.8ms | Allocations: 2100)
+
+Started GET "/reports/monthly" for 192.168.1.50 at 2025-01-15 10:31:05 +0000
+Processing by ReportsController#monthly as HTML
+  Report Generate (2500.5ms)  Complex aggregation query...
+Completed 200 OK in 2800ms (Views: 150.2ms | ActiveRecord: 2550.8ms | Allocations: 125000)
+
+Started POST "/uploads" for 127.0.0.1 at 2025-01-15 10:31:10 +0000
+Processing by UploadsController#create as HTML
+  Disk Storage (45.2ms)  Uploaded file.pdf
+Completed 201 Created in 85ms (Views: 5.2ms | ActiveRecord: 8.5ms | Allocations: 4500)

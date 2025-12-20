@@ -1,0 +1,53 @@
+# Ruby Logger sample log file
+# Format: L, [timestamp #pid] LEVEL -- progname: message
+# Levels: DEBUG, INFO, WARN, ERROR, FATAL (with D, I, W, E, F prefixes)
+
+# === Standard Ruby Logger format ===
+I, [2025-01-15T10:30:00.000000 #1234]  INFO -- myapp: Application starting
+D, [2025-01-15T10:30:00.100000 #1234] DEBUG -- myapp.config: Loading configuration file
+D, [2025-01-15T10:30:00.200000 #1234] DEBUG -- myapp.config: Configuration path: /etc/myapp/config.yml
+I, [2025-01-15T10:30:00.300000 #1234]  INFO -- myapp.config: Configuration loaded successfully
+I, [2025-01-15T10:30:01.000000 #1234]  INFO -- myapp.database: Initializing database connection
+D, [2025-01-15T10:30:01.500000 #1234] DEBUG -- myapp.database: Connection parameters validated
+I, [2025-01-15T10:30:02.000000 #1234]  INFO -- myapp.database: Database connection established
+I, [2025-01-15T10:30:03.000000 #1234]  INFO -- myapp.server: Starting HTTP server on port 3000
+I, [2025-01-15T10:30:03.500000 #1234]  INFO -- myapp.server: Server ready to accept connections
+I, [2025-01-15T10:30:10.000000 #1234]  INFO -- myapp.auth: User authentication attempt: alice
+D, [2025-01-15T10:30:10.100000 #1234] DEBUG -- myapp.auth: Validating credentials
+I, [2025-01-15T10:30:10.200000 #1234]  INFO -- myapp.auth: User authenticated successfully: alice
+I, [2025-01-15T10:30:15.000000 #1234]  INFO -- myapp.api: Request received: GET /api/users
+D, [2025-01-15T10:30:15.100000 #1234] DEBUG -- myapp.api: Processing request parameters
+I, [2025-01-15T10:30:15.200000 #1234]  INFO -- myapp.api: Request completed: 200 OK (45ms)
+W, [2025-01-15T10:30:20.000000 #1234]  WARN -- myapp.cache: Cache miss for key: user_profile_42
+D, [2025-01-15T10:30:20.100000 #1234] DEBUG -- myapp.cache: Fetching from database
+W, [2025-01-15T10:30:25.000000 #1234]  WARN -- myapp.database: Slow query detected: 2500ms
+E, [2025-01-15T10:30:30.000000 #1234] ERROR -- myapp.api: Request failed: POST /api/orders
+D, [2025-01-15T10:30:30.100000 #1234] DEBUG -- myapp.api: Rolling back transaction
+E, [2025-01-15T10:30:35.000000 #1234] ERROR -- myapp.email: Failed to send notification email
+I, [2025-01-15T10:30:40.000000 #1234]  INFO -- myapp.scheduler: Running scheduled task: cleanup_sessions
+I, [2025-01-15T10:30:40.500000 #1234]  INFO -- myapp.scheduler: Cleaned up 127 expired sessions
+W, [2025-01-15T10:30:45.000000 #1234]  WARN -- myapp.auth: Failed login attempt: admin from 192.168.1.200
+W, [2025-01-15T10:30:50.000000 #1234]  WARN -- myapp.auth: Account locked: admin
+D, [2025-01-15T10:30:55.000000 #1234] DEBUG -- myapp.metrics: Memory usage: 1.2GB / 2.0GB
+W, [2025-01-15T10:31:00.000000 #1234]  WARN -- myapp.metrics: High memory usage detected: 85%
+F, [2025-01-15T10:31:05.000000 #1234] FATAL -- myapp: Unhandled exception in main loop
+E, [2025-01-15T10:31:05.100000 #1234] ERROR -- myapp: Exception details: NoMethodError at line 142
+F, [2025-01-15T10:31:10.000000 #1234] FATAL -- myapp: System shutting down
+
+# === Different process IDs ===
+I, [2025-01-15T10:32:00.000000 #5678]  INFO -- worker.1: Worker process started
+I, [2025-01-15T10:32:01.000000 #5678]  INFO -- worker.1: Processing job: SendEmailJob
+I, [2025-01-15T10:32:02.000000 #5678]  INFO -- worker.1: Job completed successfully
+I, [2025-01-15T10:32:03.000000 #5679]  INFO -- worker.2: Worker process started
+I, [2025-01-15T10:32:04.000000 #5679]  INFO -- worker.2: Processing job: GenerateReportJob
+W, [2025-01-15T10:32:05.000000 #5679]  WARN -- worker.2: Job taking longer than expected
+I, [2025-01-15T10:32:06.000000 #5679]  INFO -- worker.2: Job completed successfully
+
+# === Rails-style logging with different program names ===
+I, [2025-01-15T10:33:00.000000 #1234]  INFO -- : Processing by UsersController#index
+D, [2025-01-15T10:33:00.100000 #1234] DEBUG -- : User Load (0.5ms) SELECT * FROM users
+I, [2025-01-15T10:33:00.200000 #1234]  INFO -- : Completed 200 OK in 45ms
+I, [2025-01-15T10:33:01.000000 #1234]  INFO -- : Processing by OrdersController#create
+D, [2025-01-15T10:33:01.100000 #1234] DEBUG -- : Order Create (1.2ms) INSERT INTO orders
+E, [2025-01-15T10:33:01.200000 #1234] ERROR -- : ActionController::ParameterMissing
+I, [2025-01-15T10:33:01.300000 #1234]  INFO -- : Completed 422 Unprocessable Entity in 30ms

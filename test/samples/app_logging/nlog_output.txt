@@ -1,0 +1,52 @@
+# NLog sample log file
+# Pipe-delimited format: timestamp|LEVEL|Logger|Message[|Exception]
+# Severity levels: TRACE, DEBUG, INFO, WARN, ERROR, FATAL
+
+# === Standard NLog format ===
+2025-01-15 10:30:00.0000|INFO|MyApp.Program|Application starting
+2025-01-15 10:30:00.1000|DEBUG|MyApp.Config|Loading configuration file
+2025-01-15 10:30:00.2000|DEBUG|MyApp.Config|Configuration path: C:\App\config.json
+2025-01-15 10:30:00.3000|INFO|MyApp.Config|Configuration loaded successfully
+2025-01-15 10:30:01.0000|INFO|MyApp.Database|Initializing database connection
+2025-01-15 10:30:01.5000|DEBUG|MyApp.Database|Connection string validated
+2025-01-15 10:30:02.0000|INFO|MyApp.Database|Database connection established
+2025-01-15 10:30:03.0000|INFO|MyApp.Server|Starting HTTP listener on port 8080
+2025-01-15 10:30:03.5000|INFO|MyApp.Server|Server ready to accept connections
+2025-01-15 10:30:10.0000|INFO|MyApp.Auth|User authentication attempt: alice
+2025-01-15 10:30:10.1000|DEBUG|MyApp.Auth|Validating credentials
+2025-01-15 10:30:10.2000|INFO|MyApp.Auth|User authenticated successfully: alice
+2025-01-15 10:30:15.0000|INFO|MyApp.Api|Request received: GET /api/users
+2025-01-15 10:30:15.1000|DEBUG|MyApp.Api|Processing request parameters
+2025-01-15 10:30:15.2000|INFO|MyApp.Api|Request completed: 200 OK (45ms)
+2025-01-15 10:30:20.0000|WARN|MyApp.Cache|Cache miss for key: user_profile_42
+2025-01-15 10:30:20.1000|DEBUG|MyApp.Cache|Fetching from database
+2025-01-15 10:30:25.0000|WARN|MyApp.Database|Slow query detected: 2500ms
+2025-01-15 10:30:30.0000|ERROR|MyApp.Api|Request failed: POST /api/orders
+2025-01-15 10:30:30.1000|DEBUG|MyApp.Api|Rolling back transaction
+2025-01-15 10:30:35.0000|ERROR|MyApp.Email|Failed to send notification email
+2025-01-15 10:30:40.0000|INFO|MyApp.Scheduler|Running scheduled task: CleanupSessions
+2025-01-15 10:30:40.5000|INFO|MyApp.Scheduler|Cleaned up 127 expired sessions
+2025-01-15 10:30:45.0000|WARN|MyApp.Auth|Failed login attempt: admin from 192.168.1.200
+2025-01-15 10:30:50.0000|WARN|MyApp.Auth|Account locked: admin
+2025-01-15 10:30:55.0000|TRACE|MyApp.Metrics|Memory usage: 1.2GB / 2.0GB
+2025-01-15 10:31:00.0000|WARN|MyApp.Metrics|High memory usage detected: 85%
+2025-01-15 10:31:05.0000|FATAL|MyApp.Program|Unhandled exception in main loop
+2025-01-15 10:31:10.0000|FATAL|MyApp.Program|System shutting down
+
+# === Format with exception information ===
+2025-01-15 10:32:00.0000|ERROR|MyApp.Database|Connection failed|System.Data.SqlClient.SqlException
+2025-01-15 10:32:01.0000|ERROR|MyApp.Api|Null reference error|System.NullReferenceException
+2025-01-15 10:32:02.0000|ERROR|MyApp.Payment|Payment timeout|System.TimeoutException
+2025-01-15 10:32:03.0000|FATAL|MyApp.Core|Out of memory|System.OutOfMemoryException
+2025-01-15 10:32:04.0000|ERROR|MyApp.IO|File not found|System.IO.FileNotFoundException
+
+# === Different logger hierarchies ===
+2025-01-15 10:33:00.0000|INFO|MyApp.Services.UserService|Creating new user
+2025-01-15 10:33:01.0000|DEBUG|MyApp.Services.UserService|Validating email format
+2025-01-15 10:33:02.0000|INFO|MyApp.Services.UserService|User created: id=1002
+2025-01-15 10:33:03.0000|INFO|MyApp.Services.OrderService|Processing order ORD-67890
+2025-01-15 10:33:04.0000|DEBUG|MyApp.Services.OrderService|Calculating total
+2025-01-15 10:33:05.0000|INFO|MyApp.Services.OrderService|Order confirmed
+2025-01-15 10:33:06.0000|WARN|MyApp.Services.InventoryService|Low stock: SKU-555
+2025-01-15 10:33:07.0000|INFO|MyApp.Services.NotificationService|Sending confirmation email
+2025-01-15 10:33:08.0000|DEBUG|MyApp.Services.NotificationService|Email queued
