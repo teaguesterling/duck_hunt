@@ -9,6 +9,13 @@ namespace duckdb {
 // Forward declaration from read_duck_hunt_log_function.cpp
 std::string ReadContentFromSource(ClientContext& context, const std::string& source);
 
+// Emit filter options
+enum class EmitFilter {
+    ALL,      // Show all parsers
+    VALID,    // Show only parsers where can_parse = true
+    INVALID   // Show only parsers where can_parse = false
+};
+
 // Diagnosis result for a single parser
 struct DiagnosisEntry {
     std::string format_name;
@@ -24,9 +31,23 @@ struct DuckHuntDiagnoseBindData : public TableFunctionData {
     std::string source_path;  // Only for diagnose_read
     std::vector<DiagnosisEntry> results;
     bool is_file_mode;
+    EmitFilter emit_filter;
 
-    DuckHuntDiagnoseBindData() : is_file_mode(false) {}
+    DuckHuntDiagnoseBindData() : is_file_mode(false), emit_filter(EmitFilter::ALL) {}
 };
+
+// Parse emit parameter string to EmitFilter enum
+static EmitFilter ParseEmitFilter(const std::string& emit_str) {
+    if (emit_str == "valid") {
+        return EmitFilter::VALID;
+    } else if (emit_str == "invalid") {
+        return EmitFilter::INVALID;
+    } else if (emit_str == "all" || emit_str.empty()) {
+        return EmitFilter::ALL;
+    } else {
+        throw BinderException("Invalid emit parameter: '%s'. Valid values are 'all', 'valid', or 'invalid'", emit_str.c_str());
+    }
+}
 
 // Global state for iteration
 struct DuckHuntDiagnoseGlobalState : public GlobalTableFunctionState {
@@ -36,7 +57,7 @@ struct DuckHuntDiagnoseGlobalState : public GlobalTableFunctionState {
 };
 
 // Run diagnosis on content against all registered parsers
-static void RunDiagnosis(const std::string& content, std::vector<DiagnosisEntry>& results) {
+static void RunDiagnosis(const std::string& content, std::vector<DiagnosisEntry>& results, EmitFilter emit_filter) {
     auto& registry = ParserRegistry::getInstance();
     auto all_formats = registry.getAllFormats();
 
@@ -72,7 +93,23 @@ static void RunDiagnosis(const std::string& content, std::vector<DiagnosisEntry>
             entry.events_produced = 0;
         }
 
-        results.push_back(entry);
+        // Apply emit filter
+        bool include = false;
+        switch (emit_filter) {
+            case EmitFilter::ALL:
+                include = true;
+                break;
+            case EmitFilter::VALID:
+                include = entry.can_parse;
+                break;
+            case EmitFilter::INVALID:
+                include = !entry.can_parse;
+                break;
+        }
+
+        if (include) {
+            results.push_back(entry);
+        }
     }
 
     // Sort by priority descending (same order as auto-detect)
@@ -112,8 +149,13 @@ static unique_ptr<FunctionData> DuckHuntDiagnoseParseBindFunc(ClientContext &con
     bind_data->content = input.inputs[0].ToString();
     bind_data->is_file_mode = false;
 
+    // Parse optional emit parameter (default: 'all')
+    if (input.inputs.size() > 1) {
+        bind_data->emit_filter = ParseEmitFilter(input.inputs[1].ToString());
+    }
+
     // Run diagnosis during bind
-    RunDiagnosis(bind_data->content, bind_data->results);
+    RunDiagnosis(bind_data->content, bind_data->results, bind_data->emit_filter);
 
     return std::move(bind_data);
 }
@@ -148,11 +190,16 @@ static unique_ptr<FunctionData> DuckHuntDiagnoseReadBindFunc(ClientContext &cont
     bind_data->source_path = input.inputs[0].ToString();
     bind_data->is_file_mode = true;
 
+    // Parse optional emit parameter (default: 'all')
+    if (input.inputs.size() > 1) {
+        bind_data->emit_filter = ParseEmitFilter(input.inputs[1].ToString());
+    }
+
     // Read file content
     bind_data->content = ReadContentFromSource(context, bind_data->source_path);
 
     // Run diagnosis
-    RunDiagnosis(bind_data->content, bind_data->results);
+    RunDiagnosis(bind_data->content, bind_data->results, bind_data->emit_filter);
 
     return std::move(bind_data);
 }
@@ -187,18 +234,40 @@ static void DuckHuntDiagnoseFunction(ClientContext &context, TableFunctionInput 
     output.SetCardinality(count);
 }
 
-TableFunction GetDuckHuntDiagnoseParseFunction() {
-    TableFunction func("duck_hunt_diagnose_parse", {LogicalType::VARCHAR},
-                       DuckHuntDiagnoseFunction, DuckHuntDiagnoseParseBindFunc,
-                       DuckHuntDiagnoseInitGlobal);
-    return func;
+TableFunctionSet GetDuckHuntDiagnoseParseFunction() {
+    TableFunctionSet set("duck_hunt_diagnose_parse");
+
+    // Single argument version: duck_hunt_diagnose_parse(content)
+    TableFunction single_arg("duck_hunt_diagnose_parse", {LogicalType::VARCHAR},
+                             DuckHuntDiagnoseFunction, DuckHuntDiagnoseParseBindFunc,
+                             DuckHuntDiagnoseInitGlobal);
+    set.AddFunction(single_arg);
+
+    // Two argument version: duck_hunt_diagnose_parse(content, emit)
+    TableFunction two_arg("duck_hunt_diagnose_parse", {LogicalType::VARCHAR, LogicalType::VARCHAR},
+                          DuckHuntDiagnoseFunction, DuckHuntDiagnoseParseBindFunc,
+                          DuckHuntDiagnoseInitGlobal);
+    set.AddFunction(two_arg);
+
+    return set;
 }
 
-TableFunction GetDuckHuntDiagnoseReadFunction() {
-    TableFunction func("duck_hunt_diagnose_read", {LogicalType::VARCHAR},
-                       DuckHuntDiagnoseFunction, DuckHuntDiagnoseReadBindFunc,
-                       DuckHuntDiagnoseInitGlobal);
-    return func;
+TableFunctionSet GetDuckHuntDiagnoseReadFunction() {
+    TableFunctionSet set("duck_hunt_diagnose_read");
+
+    // Single argument version: duck_hunt_diagnose_read(path)
+    TableFunction single_arg("duck_hunt_diagnose_read", {LogicalType::VARCHAR},
+                             DuckHuntDiagnoseFunction, DuckHuntDiagnoseReadBindFunc,
+                             DuckHuntDiagnoseInitGlobal);
+    set.AddFunction(single_arg);
+
+    // Two argument version: duck_hunt_diagnose_read(path, emit)
+    TableFunction two_arg("duck_hunt_diagnose_read", {LogicalType::VARCHAR, LogicalType::VARCHAR},
+                          DuckHuntDiagnoseFunction, DuckHuntDiagnoseReadBindFunc,
+                          DuckHuntDiagnoseInitGlobal);
+    set.AddFunction(two_arg);
+
+    return set;
 }
 
 } // namespace duckdb

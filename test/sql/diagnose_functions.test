@@ -125,3 +125,44 @@ SELECT COUNT(*) >= 1 FROM duck_hunt_diagnose_read('test/samples/structured_logs/
 WHERE can_parse = true;
 ----
 true
+
+# Test 15: Test emit='valid' filter
+query I
+SELECT COUNT(*) FROM duck_hunt_diagnose_read('test/samples/linting_tools/eslint_output.json', 'valid');
+----
+1
+
+# Test 16: Test emit='invalid' filter
+query I
+SELECT COUNT(*) > 50 FROM duck_hunt_diagnose_read('test/samples/linting_tools/eslint_output.json', 'invalid');
+----
+true
+
+# Test 17: Verify emit filters sum correctly (valid + invalid = all)
+query I
+SELECT
+    (SELECT COUNT(*) FROM duck_hunt_diagnose_read('test/samples/linting_tools/eslint_output.json', 'valid')) +
+    (SELECT COUNT(*) FROM duck_hunt_diagnose_read('test/samples/linting_tools/eslint_output.json', 'invalid')) =
+    (SELECT COUNT(*) FROM duck_hunt_diagnose_read('test/samples/linting_tools/eslint_output.json', 'all'));
+----
+true
+
+# Test 18: Test emit='valid' shows only can_parse=true rows
+query I
+SELECT COUNT(*) FROM duck_hunt_diagnose_read('test/samples/linting_tools/eslint_output.json', 'valid')
+WHERE can_parse = false;
+----
+0
+
+# Test 19: Test emit='invalid' shows only can_parse=false rows
+query I
+SELECT COUNT(*) FROM duck_hunt_diagnose_read('test/samples/linting_tools/eslint_output.json', 'invalid')
+WHERE can_parse = true;
+----
+0
+
+# Test 20: Test emit parameter works with duck_hunt_diagnose_parse too
+query I
+SELECT COUNT(*) >= 1 FROM duck_hunt_diagnose_parse('{"level":"info","msg":"test"}', 'valid');
+----
+true
