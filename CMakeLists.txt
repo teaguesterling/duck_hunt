@@ -147,6 +147,9 @@ set(EXTENSION_SOURCES
     # Format discovery function
     src/duck_hunt_formats_function.cpp
 
+    # Diagnostic functions
+    src/duck_hunt_diagnose_function.cpp
+
     # Cross-language structured log parsers
     src/parsers/structured_logs/jsonl_parser.cpp
     src/parsers/structured_logs/logfmt_parser.cpp
