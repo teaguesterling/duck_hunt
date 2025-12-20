@@ -337,3 +337,55 @@ WHERE message LIKE 'Application%';
 ----
 3
 
+# =============================================================================
+# File-Based Tests - Python Logging Sample File
+# =============================================================================
+
+# Test 42: Python logging sample file - total event count
+query I
+SELECT COUNT(*)
+FROM read_duck_hunt_log('test/samples/app_logging/python_logging_output.txt', 'python_logging');
+----
+53
+
+# Test 43: Python logging sample file - severity distribution
+query II
+SELECT severity, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/app_logging/python_logging_output.txt', 'python_logging')
+GROUP BY severity
+ORDER BY cnt DESC;
+----
+info	39
+warning	7
+error	7
+
+# Test 44: Python logging sample file - verify tool_name
+query I
+SELECT DISTINCT tool_name
+FROM read_duck_hunt_log('test/samples/app_logging/python_logging_output.txt', 'python_logging');
+----
+python_logging
+
+# Test 45: Python logging sample file - verify structured_data contains logger
+query I
+SELECT COUNT(*) > 0
+FROM read_duck_hunt_log('test/samples/app_logging/python_logging_output.txt', 'python_logging')
+WHERE structured_data LIKE '%"logger"%';
+----
+true
+
+# Test 46: Python logging sample file - verify log_file tracking
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/app_logging/python_logging_output.txt', 'python_logging');
+----
+test/samples/app_logging/python_logging_output.txt
+
+# Test 47: Python logging sample file - verify both standard and basic formats are parsed
+query I
+SELECT COUNT(*)
+FROM read_duck_hunt_log('test/samples/app_logging/python_logging_output.txt', 'python_logging')
+WHERE message LIKE 'Application%';
+----
+2
+

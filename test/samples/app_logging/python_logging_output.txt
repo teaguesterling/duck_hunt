@@ -1,0 +1,62 @@
+# Python logging sample file
+# Contains standard format and basic format output
+# Various severity levels: DEBUG, INFO, WARNING, ERROR, CRITICAL
+
+# === Standard Format (timestamp - logger - LEVEL - message) ===
+2025-01-15 10:30:00,000 - myapp - INFO - Application starting
+2025-01-15 10:30:00,100 - myapp.config - DEBUG - Loading configuration from /etc/myapp/config.yaml
+2025-01-15 10:30:00,200 - myapp.config - INFO - Configuration loaded successfully
+2025-01-15 10:30:01,000 - myapp.database - INFO - Connecting to database server
+2025-01-15 10:30:01,500 - myapp.database - DEBUG - Connection parameters: host=db.example.com, port=5432
+2025-01-15 10:30:02,000 - myapp.database - INFO - Database connection established
+2025-01-15 10:30:03,000 - myapp.server - INFO - Starting HTTP server on port 8080
+2025-01-15 10:30:03,500 - myapp.server - INFO - Server ready to accept connections
+2025-01-15 10:30:10,000 - myapp.auth - INFO - User alice authenticated successfully
+2025-01-15 10:30:10,100 - myapp.auth - DEBUG - Session created: session_id=abc123
+2025-01-15 10:30:15,000 - myapp.api - INFO - Request received: GET /api/users
+2025-01-15 10:30:15,050 - myapp.api - DEBUG - Processing request with params: limit=10, offset=0
+2025-01-15 10:30:15,200 - myapp.api - INFO - Request completed: 200 OK (150ms)
+2025-01-15 10:30:20,000 - myapp.cache - WARNING - Cache miss for key: user_profile_42
+2025-01-15 10:30:20,100 - myapp.cache - DEBUG - Fetching from database instead
+2025-01-15 10:30:25,000 - myapp.database - WARNING - Slow query detected (2500ms): SELECT * FROM large_table
+2025-01-15 10:30:30,000 - myapp.api - ERROR - Request failed: POST /api/orders - Database timeout
+2025-01-15 10:30:30,100 - myapp.api - DEBUG - Rolling back transaction
+2025-01-15 10:30:35,000 - myapp.email - ERROR - Failed to send notification email: SMTP connection refused
+2025-01-15 10:30:40,000 - myapp.scheduler - INFO - Running scheduled task: cleanup_expired_sessions
+2025-01-15 10:30:40,500 - myapp.scheduler - INFO - Cleaned up 127 expired sessions
+2025-01-15 10:30:45,000 - myapp.auth - WARNING - Failed login attempt for user admin from IP 192.168.1.200
+2025-01-15 10:30:50,000 - myapp.auth - WARNING - Account locked: admin (too many failed attempts)
+2025-01-15 10:30:55,000 - myapp.metrics - DEBUG - Memory usage: 1.2GB / 2.0GB (60%)
+2025-01-15 10:31:00,000 - myapp.metrics - WARNING - High memory usage detected: 85%
+2025-01-15 10:31:05,000 - myapp - CRITICAL - Unhandled exception in main loop
+2025-01-15 10:31:05,100 - myapp - ERROR - Exception details: NullPointerException at line 142
+2025-01-15 10:31:10,000 - myapp - CRITICAL - System shutting down due to critical error
+
+# === Basic Format (LEVEL:logger:message) ===
+DEBUG:myapp.startup:Initializing application components
+INFO:myapp.startup:Loading plugins
+DEBUG:myapp.plugins:Plugin loaded: authentication
+DEBUG:myapp.plugins:Plugin loaded: authorization
+DEBUG:myapp.plugins:Plugin loaded: caching
+INFO:myapp.startup:All plugins loaded successfully
+INFO:myapp.http:Binding to 0.0.0.0:8080
+WARNING:myapp.http:TLS certificate expires in 7 days
+ERROR:myapp.payment:Payment processing failed for order ORD-12345
+CRITICAL:myapp.payment:Payment gateway unreachable
+INFO:myapp.shutdown:Graceful shutdown initiated
+INFO:myapp.shutdown:Closing database connections
+INFO:myapp.shutdown:Application shutdown complete
+
+# === Mixed with different logger hierarchies ===
+2025-01-15 10:32:00,000 - root - INFO - Root logger message
+2025-01-15 10:32:01,000 - myapp.services.user - INFO - Creating new user: bob@example.com
+2025-01-15 10:32:02,000 - myapp.services.user - DEBUG - Validating email format
+2025-01-15 10:32:03,000 - myapp.services.user - DEBUG - Checking for duplicate email
+2025-01-15 10:32:04,000 - myapp.services.user - INFO - User created successfully: id=1002
+2025-01-15 10:32:05,000 - myapp.services.order - INFO - Processing order ORD-67890
+2025-01-15 10:32:06,000 - myapp.services.order - DEBUG - Validating order items
+2025-01-15 10:32:07,000 - myapp.services.order - DEBUG - Calculating total: $299.99
+2025-01-15 10:32:08,000 - myapp.services.order - INFO - Order confirmed: ORD-67890
+2025-01-15 10:32:09,000 - myapp.services.inventory - WARNING - Low stock alert: product SKU-555 (5 remaining)
+2025-01-15 10:32:10,000 - myapp.services.notification - INFO - Sending order confirmation email
+2025-01-15 10:32:11,000 - myapp.services.notification - DEBUG - Email queued for delivery
