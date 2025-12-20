@@ -1030,6 +1030,65 @@ GROUP BY ref_file ORDER BY ref_file;
 /home/main.cpp	1
 /home/utils.cpp	1
 
+# ============================================================================
+# File-based sqlfluff tests (Tests 126-131)
+# ============================================================================
+
+# Test 126: sqlfluff file-based parsing - total count
+query II
+SELECT COUNT(*), tool_name
+FROM read_duck_hunt_log('test/samples/linting_tools/sqlfluff_output.json', 'sqlfluff_json')
+GROUP BY tool_name;
+----
+22	sqlfluff
+
+# Test 127: sqlfluff file-based parsing - violations by file
+query II
+SELECT ref_file, COUNT(*) as violation_count
+FROM read_duck_hunt_log('test/samples/linting_tools/sqlfluff_output.json', 'sqlfluff_json')
+GROUP BY ref_file
+ORDER BY violation_count DESC, ref_file
+LIMIT 5;
+----
+dbt/models/marts/fct_sales.sql	3
+migrations/2024/001_create_users.sql	3
+queries/analytics/user_engagement.sql	3
+views/dashboard/monthly_summary.sql	3
+dbt/models/staging/stg_customers.sql	2
+
+# Test 128: sqlfluff file-based parsing - distinct file count
+query I
+SELECT COUNT(DISTINCT ref_file)
+FROM read_duck_hunt_log('test/samples/linting_tools/sqlfluff_output.json', 'sqlfluff_json');
+----
+10
+
+# Test 129: sqlfluff file-based parsing - rule extraction
+query II
+SELECT error_code, function_name
+FROM read_duck_hunt_log('test/samples/linting_tools/sqlfluff_output.json', 'sqlfluff_json')
+WHERE ref_file = 'queries/analytics/user_engagement.sql'
+ORDER BY ref_line;
+----
+L003	indentation
+L010	capitalisation.keywords
+L014	capitalisation.identifiers
+
+# Test 130: sqlfluff file-based parsing - all warnings status
+query I
+SELECT COUNT(*) = 22
+FROM read_duck_hunt_log('test/samples/linting_tools/sqlfluff_output.json', 'sqlfluff_json')
+WHERE status = 'WARNING';
+----
+true
+
+# Test 131: sqlfluff file-based parsing - log_file tracking
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/linting_tools/sqlfluff_output.json', 'sqlfluff_json');
+----
+test/samples/linting_tools/sqlfluff_output.json
+
 # Clean up
 statement ok
 DROP TABLE rubocop_results;

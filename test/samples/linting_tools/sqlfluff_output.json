@@ -1,0 +1,210 @@
+[
+  {
+    "filepath": "queries/analytics/user_engagement.sql",
+    "violations": [
+      {
+        "line_no": 3,
+        "line_pos": 1,
+        "code": "L003",
+        "description": "Expected 4 indentation spaces, found 2",
+        "rule": "indentation"
+      },
+      {
+        "line_no": 8,
+        "line_pos": 12,
+        "code": "L010",
+        "description": "Keywords must be consistently upper case",
+        "rule": "capitalisation.keywords"
+      },
+      {
+        "line_no": 15,
+        "line_pos": 25,
+        "code": "L014",
+        "description": "Unquoted identifiers must be consistently lower case",
+        "rule": "capitalisation.identifiers"
+      }
+    ]
+  },
+  {
+    "filepath": "queries/analytics/revenue_breakdown.sql",
+    "violations": [
+      {
+        "line_no": 5,
+        "line_pos": 1,
+        "code": "L001",
+        "description": "Unnecessary trailing whitespace",
+        "rule": "trailing_whitespace"
+      },
+      {
+        "line_no": 12,
+        "line_pos": 85,
+        "code": "L016",
+        "description": "Line is too long (98 > 80)",
+        "rule": "line_too_long"
+      }
+    ]
+  },
+  {
+    "filepath": "migrations/2024/001_create_users.sql",
+    "violations": [
+      {
+        "line_no": 1,
+        "line_pos": 1,
+        "code": "L009",
+        "description": "Files must end with a single trailing newline",
+        "rule": "trailing_newline"
+      },
+      {
+        "line_no": 7,
+        "line_pos": 5,
+        "code": "L019",
+        "description": "Leading commas should be used consistently",
+        "rule": "comma_style"
+      },
+      {
+        "line_no": 20,
+        "line_pos": 1,
+        "code": "L022",
+        "description": "Blank line expected after CTE closing bracket",
+        "rule": "blank_lines"
+      }
+    ]
+  },
+  {
+    "filepath": "migrations/2024/002_add_orders.sql",
+    "violations": [
+      {
+        "line_no": 8,
+        "line_pos": 30,
+        "code": "L025",
+        "description": "Tables should not be aliased if that alias is not used",
+        "rule": "aliasing.unused"
+      }
+    ]
+  },
+  {
+    "filepath": "views/dashboard/monthly_summary.sql",
+    "violations": [
+      {
+        "line_no": 4,
+        "line_pos": 8,
+        "code": "L027",
+        "description": "References should be qualified when selecting from more than one table",
+        "rule": "qualification.column_references"
+      },
+      {
+        "line_no": 10,
+        "line_pos": 15,
+        "code": "L031",
+        "description": "Avoid table aliases in from clauses and join conditions",
+        "rule": "aliasing.table"
+      },
+      {
+        "line_no": 18,
+        "line_pos": 20,
+        "code": "L036",
+        "description": "Select targets should be on a new line unless there is only one select target",
+        "rule": "select_targets"
+      }
+    ]
+  },
+  {
+    "filepath": "views/dashboard/weekly_trends.sql",
+    "violations": [
+      {
+        "line_no": 6,
+        "line_pos": 1,
+        "code": "L040",
+        "description": "Null comparison should use 'is' or 'is not'",
+        "rule": "null_comparison"
+      }
+    ]
+  },
+  {
+    "filepath": "dbt/models/staging/stg_customers.sql",
+    "violations": [
+      {
+        "line_no": 2,
+        "line_pos": 8,
+        "code": "L044",
+        "description": "Query produces an unknown number of result columns",
+        "rule": "select_star"
+      },
+      {
+        "line_no": 15,
+        "line_pos": 12,
+        "code": "L045",
+        "description": "Query defines CTE but does not use it",
+        "rule": "unused_cte"
+      }
+    ]
+  },
+  {
+    "filepath": "dbt/models/marts/fct_sales.sql",
+    "violations": [
+      {
+        "line_no": 8,
+        "line_pos": 15,
+        "code": "L046",
+        "description": "Jinja tags should have a single whitespace on either side",
+        "rule": "jinja_spacing"
+      },
+      {
+        "line_no": 22,
+        "line_pos": 5,
+        "code": "L048",
+        "description": "Quoted literals should be surrounded by a single whitespace",
+        "rule": "literal_spacing"
+      },
+      {
+        "line_no": 35,
+        "line_pos": 10,
+        "code": "L052",
+        "description": "Statements should not end with a semicolon when using Jinja templating",
+        "rule": "statement_terminator"
+      }
+    ]
+  },
+  {
+    "filepath": "stored_procedures/sp_process_orders.sql",
+    "violations": [
+      {
+        "line_no": 12,
+        "line_pos": 1,
+        "code": "L004",
+        "description": "Mixed spaces and tabs in indentation",
+        "rule": "indentation.mixed"
+      },
+      {
+        "line_no": 25,
+        "line_pos": 18,
+        "code": "L011",
+        "description": "Implicit/explicit aliasing of columns should be consistent",
+        "rule": "aliasing.implicit"
+      }
+    ]
+  },
+  {
+    "filepath": "tests/unit/test_user_queries.sql",
+    "violations": [
+      {
+        "line_no": 3,
+        "line_pos": 1,
+        "code": "L006",
+        "description": "Operators should be surrounded by a single whitespace",
+        "rule": "spacing.operators"
+      },
+      {
+        "line_no": 9,
+        "line_pos": 28,
+        "code": "L008",
+        "description": "Commas should be followed by a single whitespace unless followed by a newline",
+        "rule": "spacing.commas"
+      }
+    ]
+  },
+  {
+    "filepath": "clean_file.sql",
+    "violations": []
+  }
+]
