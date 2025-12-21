@@ -1330,6 +1330,173 @@ FROM read_duck_hunt_log('test/samples/test_frameworks/cargo_test_output.jsonl', 
 ----
 test_result
 
+# ============================================================================
+# File-based hadolint tests (Tests 156-161)
+# ============================================================================
+
+# Test 156: hadolint file-based parsing - total count and severity breakdown
+query IIII
+SELECT COUNT(*),
+       SUM(CASE WHEN status='ERROR' THEN 1 ELSE 0 END) as errors,
+       SUM(CASE WHEN status='WARNING' THEN 1 ELSE 0 END) as warnings,
+       SUM(CASE WHEN status='INFO' THEN 1 ELSE 0 END) as info
+FROM read_duck_hunt_log('test/samples/linting_tools/hadolint_output.json', 'hadolint_json');
+----
+8	1	5	2
+
+# Test 157: hadolint file-based parsing - rule codes
+query II
+SELECT error_code, severity
+FROM read_duck_hunt_log('test/samples/linting_tools/hadolint_output.json', 'hadolint_json')
+ORDER BY ref_line;
+----
+DL3006	warning
+DL3008	warning
+DL3009	info
+DL3020	error
+DL3025	warning
+DL4006	warning
+DL3002	warning
+SC2086	info
+
+# Test 158: hadolint file-based parsing - dockerfile reference
+query I
+SELECT DISTINCT ref_file
+FROM read_duck_hunt_log('test/samples/linting_tools/hadolint_output.json', 'hadolint_json');
+----
+Dockerfile
+
+# Test 159: hadolint file-based parsing - tool_name and category
+query II
+SELECT DISTINCT tool_name, category
+FROM read_duck_hunt_log('test/samples/linting_tools/hadolint_output.json', 'hadolint_json');
+----
+hadolint	dockerfile
+
+# Test 160: hadolint file-based parsing - shellcheck rules (SC codes)
+query I
+SELECT COUNT(*)
+FROM read_duck_hunt_log('test/samples/linting_tools/hadolint_output.json', 'hadolint_json')
+WHERE error_code LIKE 'SC%';
+----
+1
+
+# Test 161: hadolint file-based parsing - log_file tracking
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/linting_tools/hadolint_output.json', 'hadolint_json');
+----
+test/samples/linting_tools/hadolint_output.json
+
+# ============================================================================
+# File-based bandit tests (Tests 162-167)
+# ============================================================================
+
+# Test 162: bandit file-based parsing - total count and severity
+query III
+SELECT COUNT(*),
+       SUM(CASE WHEN severity = 'HIGH' THEN 1 ELSE 0 END) as high,
+       SUM(CASE WHEN severity = 'MEDIUM' THEN 1 ELSE 0 END) as medium
+FROM read_duck_hunt_log('test/samples/linting_tools/bandit_output.json', 'bandit_json');
+----
+5	3	2
+
+# Test 163: bandit file-based parsing - security findings by file
+query II
+SELECT ref_file, error_code
+FROM read_duck_hunt_log('test/samples/linting_tools/bandit_output.json', 'bandit_json')
+ORDER BY ref_file;
+----
+myapp/api/auth.py	B608
+myapp/config.py	B105
+myapp/services/cache.py	B301
+myapp/services/processor.py	B307
+myapp/utils/helpers.py	B602
+
+# Test 164: bandit file-based parsing - test_id in structured_data
+query I
+SELECT COUNT(*) > 0
+FROM read_duck_hunt_log('test/samples/linting_tools/bandit_output.json', 'bandit_json')
+WHERE structured_data LIKE '%test_id%';
+----
+true
+
+# Test 165: bandit file-based parsing - tool_name and category
+query II
+SELECT DISTINCT tool_name, category
+FROM read_duck_hunt_log('test/samples/linting_tools/bandit_output.json', 'bandit_json');
+----
+bandit	security
+
+# Test 166: bandit file-based parsing - event type for security
+query I
+SELECT DISTINCT event_type
+FROM read_duck_hunt_log('test/samples/linting_tools/bandit_output.json', 'bandit_json');
+----
+security_finding
+
+# Test 167: bandit file-based parsing - log_file tracking
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/linting_tools/bandit_output.json', 'bandit_json');
+----
+test/samples/linting_tools/bandit_output.json
+
+# ============================================================================
+# File-based shellcheck tests (Tests 168-173)
+# ============================================================================
+
+# Test 168: shellcheck file-based parsing - total count
+query II
+SELECT COUNT(*), COUNT(DISTINCT ref_file)
+FROM read_duck_hunt_log('test/samples/linting_tools/shellcheck_output.json', 'shellcheck_json');
+----
+7	2
+
+# Test 169: shellcheck file-based parsing - issues by file
+query II
+SELECT ref_file, COUNT(*) as issue_count
+FROM read_duck_hunt_log('test/samples/linting_tools/shellcheck_output.json', 'shellcheck_json')
+GROUP BY ref_file
+ORDER BY ref_file;
+----
+scripts/backup.sh	3
+scripts/deploy.sh	4
+
+# Test 170: shellcheck file-based parsing - severity levels
+query II
+SELECT severity, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/linting_tools/shellcheck_output.json', 'shellcheck_json')
+GROUP BY severity
+ORDER BY severity;
+----
+error	2
+info	1
+style	1
+warning	3
+
+# Test 171: shellcheck file-based parsing - tool_name and category
+query II
+SELECT DISTINCT tool_name, category
+FROM read_duck_hunt_log('test/samples/linting_tools/shellcheck_output.json', 'shellcheck_json');
+----
+shellcheck	shell_script
+
+# Test 172: shellcheck file-based parsing - fix suggestions available
+query I
+SELECT COUNT(*) > 0
+FROM read_duck_hunt_log('test/samples/linting_tools/shellcheck_output.json', 'shellcheck_json')
+WHERE suggestion IS NOT NULL AND suggestion != '';
+----
+true
+
+# Test 173: shellcheck file-based parsing - log_file tracking
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/linting_tools/shellcheck_output.json', 'shellcheck_json');
+----
+test/samples/linting_tools/shellcheck_output.json
+
 # Clean up
 statement ok
 DROP TABLE rubocop_results;
