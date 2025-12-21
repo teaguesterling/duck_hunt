@@ -1,0 +1,142 @@
+[
+  {
+    "character": null,
+    "file": "/Users/dev/MyApp/Sources/ViewModels/HomeViewModel.swift",
+    "line": 25,
+    "column": 1,
+    "reason": "Force unwrapping should be avoided.",
+    "rule_id": "force_unwrapping",
+    "severity": "error",
+    "type": "idiomatic"
+  },
+  {
+    "character": null,
+    "file": "/Users/dev/MyApp/Sources/ViewModels/HomeViewModel.swift",
+    "line": 42,
+    "column": 5,
+    "reason": "Line should be 120 characters or less; currently it has 145 characters",
+    "rule_id": "line_length",
+    "severity": "warning",
+    "type": "metrics"
+  },
+  {
+    "character": null,
+    "file": "/Users/dev/MyApp/Sources/ViewModels/UserViewModel.swift",
+    "line": 18,
+    "column": 1,
+    "reason": "Function body should span 40 lines or less excluding comments and whitespace: currently spans 52 lines",
+    "rule_id": "function_body_length",
+    "severity": "warning",
+    "type": "metrics"
+  },
+  {
+    "character": null,
+    "file": "/Users/dev/MyApp/Sources/ViewModels/UserViewModel.swift",
+    "line": 88,
+    "column": 9,
+    "reason": "Trailing whitespace violations should be avoided.",
+    "rule_id": "trailing_whitespace",
+    "severity": "warning",
+    "type": "style"
+  },
+  {
+    "character": null,
+    "file": "/Users/dev/MyApp/Sources/Views/ContentView.swift",
+    "line": 15,
+    "column": 12,
+    "reason": "Force cast violations should be avoided.",
+    "rule_id": "force_cast",
+    "severity": "error",
+    "type": "idiomatic"
+  },
+  {
+    "character": null,
+    "file": "/Users/dev/MyApp/Sources/Views/ContentView.swift",
+    "line": 33,
+    "column": 1,
+    "reason": "Type body should span 250 lines or less excluding comments and whitespace: currently spans 312 lines",
+    "rule_id": "type_body_length",
+    "severity": "warning",
+    "type": "metrics"
+  },
+  {
+    "character": null,
+    "file": "/Users/dev/MyApp/Sources/Views/SettingsView.swift",
+    "line": 8,
+    "column": 1,
+    "reason": "Files should have a single trailing newline.",
+    "rule_id": "trailing_newline",
+    "severity": "warning",
+    "type": "style"
+  },
+  {
+    "character": null,
+    "file": "/Users/dev/MyApp/Sources/Views/SettingsView.swift",
+    "line": 45,
+    "column": 15,
+    "reason": "Colon violations should be corrected. Colons should be next to the identifier when specifying a type and next to the key in dictionary literals.",
+    "rule_id": "colon",
+    "severity": "warning",
+    "type": "style"
+  },
+  {
+    "character": null,
+    "file": "/Users/dev/MyApp/Sources/Services/NetworkService.swift",
+    "line": 28,
+    "column": 1,
+    "reason": "Cyclomatic complexity should be 10 or less: currently complexity equals 15",
+    "rule_id": "cyclomatic_complexity",
+    "severity": "warning",
+    "type": "metrics"
+  },
+  {
+    "character": null,
+    "file": "/Users/dev/MyApp/Sources/Services/NetworkService.swift",
+    "line": 72,
+    "column": 5,
+    "reason": "TODOs should be resolved.",
+    "rule_id": "todo",
+    "severity": "warning",
+    "type": "lint"
+  },
+  {
+    "character": null,
+    "file": "/Users/dev/MyApp/Sources/Services/AuthService.swift",
+    "line": 35,
+    "column": 9,
+    "reason": "Force try violations should be avoided.",
+    "rule_id": "force_try",
+    "severity": "error",
+    "type": "idiomatic"
+  },
+  {
+    "character": null,
+    "file": "/Users/dev/MyApp/Sources/Services/AuthService.swift",
+    "line": 58,
+    "column": 1,
+    "reason": "Unused closure parameter violations should be corrected. Use _ instead of the parameter name.",
+    "rule_id": "unused_closure_parameter",
+    "severity": "warning",
+    "type": "lint"
+  },
+  {
+    "character": null,
+    "file": "/Users/dev/MyApp/Sources/Models/User.swift",
+    "line": 5,
+    "column": 1,
+    "reason": "Opening braces should be preceded by a single space and on the same line as the declaration.",
+    "rule_id": "opening_brace",
+    "severity": "warning",
+    "type": "style"
+  },
+  {
+    "character": null,
+    "file": "/Users/dev/MyApp/Tests/ViewModelTests.swift",
+    "line": 22,
+    "column": 1,
+    "reason": "Implicitly unwrapped optional should be avoided when possible.",
+    "rule_id": "implicitly_unwrapped_optional",
+    "severity": "warning",
+    "type": "idiomatic"
+  }
+]

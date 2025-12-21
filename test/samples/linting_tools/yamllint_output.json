@@ -1,0 +1,137 @@
+[
+  {
+    "file": ".github/workflows/ci.yml",
+    "line": 15,
+    "column": 1,
+    "rule": "indentation",
+    "level": "error",
+    "message": "wrong indentation: expected 4 but found 2",
+    "type": "syntax"
+  },
+  {
+    "file": ".github/workflows/ci.yml",
+    "line": 28,
+    "column": 81,
+    "rule": "line-length",
+    "level": "warning",
+    "message": "line too long (125 > 80 characters)",
+    "type": "style"
+  },
+  {
+    "file": ".github/workflows/ci.yml",
+    "line": 45,
+    "column": 12,
+    "rule": "truthy",
+    "level": "warning",
+    "message": "truthy value should be one of [false, true]",
+    "type": "syntax"
+  },
+  {
+    "file": "config/database.yml",
+    "line": 3,
+    "column": 1,
+    "rule": "document-start",
+    "level": "warning",
+    "message": "missing document start \"---\"",
+    "type": "style"
+  },
+  {
+    "file": "config/database.yml",
+    "line": 18,
+    "column": 25,
+    "rule": "empty-values",
+    "level": "warning",
+    "message": "empty value in block mapping",
+    "type": "syntax"
+  },
+  {
+    "file": "config/database.yml",
+    "line": 32,
+    "column": 1,
+    "rule": "key-duplicates",
+    "level": "error",
+    "message": "duplication of key \"password\" in mapping",
+    "type": "syntax"
+  },
+  {
+    "file": "docker-compose.yml",
+    "line": 8,
+    "column": 15,
+    "rule": "quoted-strings",
+    "level": "warning",
+    "message": "string value is not quoted",
+    "type": "style"
+  },
+  {
+    "file": "docker-compose.yml",
+    "line": 22,
+    "column": 1,
+    "rule": "comments",
+    "level": "warning",
+    "message": "too few spaces before comment",
+    "type": "style"
+  },
+  {
+    "file": "docker-compose.yml",
+    "line": 35,
+    "column": 10,
+    "rule": "colons",
+    "level": "error",
+    "message": "too many spaces after colon",
+    "type": "style"
+  },
+  {
+    "file": "kubernetes/deployment.yaml",
+    "line": 12,
+    "column": 1,
+    "rule": "trailing-spaces",
+    "level": "warning",
+    "message": "trailing spaces",
+    "type": "style"
+  },
+  {
+    "file": "kubernetes/deployment.yaml",
+    "line": 28,
+    "column": 1,
+    "rule": "new-line-at-end-of-file",
+    "level": "warning",
+    "message": "no new line character at the end of file",
+    "type": "style"
+  },
+  {
+    "file": "kubernetes/service.yaml",
+    "line": 5,
+    "column": 3,
+    "rule": "brackets",
+    "level": "warning",
+    "message": "too few spaces inside brackets",
+    "type": "style"
+  },
+  {
+    "file": "kubernetes/service.yaml",
+    "line": 15,
+    "column": 1,
+    "rule": "hyphens",
+    "level": "warning",
+    "message": "too many spaces after hyphen",
+    "type": "style"
+  },
+  {
+    "file": "ansible/playbook.yml",
+    "line": 1,
+    "column": 1,
+    "rule": "document-start",
+    "level": "warning",
+    "message": "missing document start \"---\"",
+    "type": "style"
+  },
+  {
+    "file": "ansible/playbook.yml",
+    "line": 45,
+    "column": 20,
+    "rule": "octal-values",
+    "level": "error",
+    "message": "forbidden implicit octal value \"0755\"",
+    "type": "syntax"
+  }
+]

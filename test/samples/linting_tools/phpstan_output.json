@@ -1,0 +1,119 @@
+{
+  "totals": {
+    "errors": 0,
+    "file_errors": 15
+  },
+  "files": {
+    "src/Controller/UserController.php": {
+      "errors": 3,
+      "messages": [
+        {
+          "message": "Method App\\Controller\\UserController::getUser() has no return type specified.",
+          "line": 25,
+          "ignorable": true,
+          "tip": "Add a return type hint"
+        },
+        {
+          "message": "Parameter $id of method App\\Controller\\UserController::getUser() has no type hint specified.",
+          "line": 25,
+          "ignorable": true
+        },
+        {
+          "message": "Call to an undefined method App\\Entity\\User::getFullName().",
+          "line": 42,
+          "ignorable": false
+        }
+      ]
+    },
+    "src/Service/PaymentService.php": {
+      "errors": 4,
+      "messages": [
+        {
+          "message": "Variable $amount might not be defined.",
+          "line": 55,
+          "ignorable": false
+        },
+        {
+          "message": "Method App\\Service\\PaymentService::processPayment() should return bool but returns void.",
+          "line": 68,
+          "ignorable": false
+        },
+        {
+          "message": "Property App\\Service\\PaymentService::$logger has no type specified.",
+          "line": 15,
+          "ignorable": true,
+          "tip": "Consider using typed properties (PHP 7.4+)"
+        },
+        {
+          "message": "Unsafe usage of new static().",
+          "line": 82,
+          "ignorable": true,
+          "tip": "Use new self() or make the class final"
+        }
+      ]
+    },
+    "src/Repository/ProductRepository.php": {
+      "errors": 2,
+      "messages": [
+        {
+          "message": "Call to function is_null() with string will always evaluate to false.",
+          "line": 33,
+          "ignorable": false
+        },
+        {
+          "message": "Strict comparison using === between int and string will always evaluate to false.",
+          "line": 48,
+          "ignorable": false
+        }
+      ]
+    },
+    "src/Entity/Order.php": {
+      "errors": 3,
+      "messages": [
+        {
+          "message": "Property App\\Entity\\Order::$items type has no value type specified in iterable type array.",
+          "line": 28,
+          "ignorable": true,
+          "tip": "Use array<Item> instead of array"
+        },
+        {
+          "message": "Method App\\Entity\\Order::getTotal() return type has no value type specified in iterable type array.",
+          "line": 45,
+          "ignorable": true
+        },
+        {
+          "message": "PHPDoc tag @return with type float is incompatible with native type string.",
+          "line": 62,
+          "ignorable": false
+        }
+      ]
+    },
+    "src/Validator/EmailValidator.php": {
+      "errors": 2,
+      "messages": [
+        {
+          "message": "Result of && is always true.",
+          "line": 20,
+          "ignorable": false
+        },
+        {
+          "message": "Dead catch - Exception is never thrown in the try block.",
+          "line": 35,
+          "ignorable": true,
+          "tip": "Remove the catch block or throw an exception in the try block"
+        }
+      ]
+    },
+    "tests/Unit/UserTest.php": {
+      "errors": 1,
+      "messages": [
+        {
+          "message": "Method Tests\\Unit\\UserTest::testValidation() should return void but returns bool.",
+          "line": 48,
+          "ignorable": false
+        }
+      ]
+    }
+  },
+  "errors": []
+}

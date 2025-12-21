@@ -1595,6 +1595,361 @@ test/samples/linting_tools/rubocop_output.json
 # ----
 # 2
 
+# ============================================================================
+# File-based stylelint tests (Tests 180-185)
+# ============================================================================
+
+# Test 180: stylelint file-based parsing - total count and severity
+query III
+SELECT COUNT(*),
+       SUM(CASE WHEN severity = 'error' THEN 1 ELSE 0 END) as errors,
+       SUM(CASE WHEN severity = 'warning' THEN 1 ELSE 0 END) as warnings
+FROM read_duck_hunt_log('test/samples/linting_tools/stylelint_output.json', 'stylelint_json');
+----
+15	7	8
+
+# Test 181: stylelint file-based parsing - issues by file
+query II
+SELECT ref_file, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/linting_tools/stylelint_output.json', 'stylelint_json')
+GROUP BY ref_file
+ORDER BY ref_file;
+----
+src/styles/components/button.css	3
+src/styles/components/card.scss	3
+src/styles/layout/grid.css	2
+src/styles/main.css	4
+src/styles/utilities/helpers.css	3
+
+# Test 182: stylelint file-based parsing - rule names (error_code)
+query II
+SELECT error_code, ref_line
+FROM read_duck_hunt_log('test/samples/linting_tools/stylelint_output.json', 'stylelint_json')
+WHERE ref_file = 'src/styles/main.css'
+ORDER BY ref_line;
+----
+color-hex-length	12
+declaration-block-no-duplicate-properties	25
+no-descending-specificity	38
+unit-no-unknown	52
+
+# Test 183: stylelint file-based parsing - tool_name and category
+query II
+SELECT DISTINCT tool_name, category
+FROM read_duck_hunt_log('test/samples/linting_tools/stylelint_output.json', 'stylelint_json');
+----
+stylelint	css_style
+
+# Test 184: stylelint file-based parsing - event_type verification
+query II
+SELECT event_type, COUNT(*)
+FROM read_duck_hunt_log('test/samples/linting_tools/stylelint_output.json', 'stylelint_json')
+GROUP BY event_type;
+----
+lint_issue	15
+
+# Test 185: stylelint file-based parsing - log_file tracking
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/linting_tools/stylelint_output.json', 'stylelint_json');
+----
+test/samples/linting_tools/stylelint_output.json
+
+# ============================================================================
+# File-based clippy tests (Tests 186-191)
+# ============================================================================
+
+# Test 186: clippy file-based parsing - total count and severity
+query III
+SELECT COUNT(*),
+       SUM(CASE WHEN severity = 'error' THEN 1 ELSE 0 END) as errors,
+       SUM(CASE WHEN severity = 'warn' THEN 1 ELSE 0 END) as warnings
+FROM read_duck_hunt_log('test/samples/linting_tools/clippy_output.jsonl', 'clippy_json');
+----
+12	3	9
+
+# Test 187: clippy file-based parsing - issues by file
+query II
+SELECT ref_file, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/linting_tools/clippy_output.jsonl', 'clippy_json')
+GROUP BY ref_file
+ORDER BY ref_file;
+----
+src/handlers.rs	2
+src/lib.rs	3
+src/main.rs	2
+src/parser.rs	2
+src/utils.rs	3
+
+# Test 188: clippy file-based parsing - error codes for lib.rs
+query II
+SELECT error_code, ref_line
+FROM read_duck_hunt_log('test/samples/linting_tools/clippy_output.jsonl', 'clippy_json')
+WHERE ref_file = 'src/lib.rs'
+ORDER BY ref_line;
+----
+unused_mut	12
+clippy::unwrap_used	30
+clippy::iter_count	62
+
+# Test 189: clippy file-based parsing - tool_name and category
+query II
+SELECT DISTINCT tool_name, category
+FROM read_duck_hunt_log('test/samples/linting_tools/clippy_output.jsonl', 'clippy_json');
+----
+clippy	code_quality
+
+# Test 190: clippy file-based parsing - event_type verification
+query II
+SELECT event_type, COUNT(*)
+FROM read_duck_hunt_log('test/samples/linting_tools/clippy_output.jsonl', 'clippy_json')
+GROUP BY event_type;
+----
+lint_issue	12
+
+# Test 191: clippy file-based parsing - log_file tracking
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/linting_tools/clippy_output.jsonl', 'clippy_json');
+----
+test/samples/linting_tools/clippy_output.jsonl
+
+# ============================================================================
+# File-based swiftlint tests (Tests 192-197)
+# ============================================================================
+
+# Test 192: swiftlint file-based parsing - total count and severity
+query III
+SELECT COUNT(*),
+       SUM(CASE WHEN severity = 'error' THEN 1 ELSE 0 END) as errors,
+       SUM(CASE WHEN severity = 'warning' THEN 1 ELSE 0 END) as warnings
+FROM read_duck_hunt_log('test/samples/linting_tools/swiftlint_output.json', 'swiftlint_json');
+----
+14	3	11
+
+# Test 193: swiftlint file-based parsing - issues by suggestion type (rule type)
+query II
+SELECT suggestion, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/linting_tools/swiftlint_output.json', 'swiftlint_json')
+GROUP BY suggestion
+ORDER BY cnt DESC, suggestion;
+----
+idiomatic	4
+metrics	4
+style	4
+lint	2
+
+# Test 194: swiftlint file-based parsing - error codes for AuthService
+query II
+SELECT error_code, ref_line
+FROM read_duck_hunt_log('test/samples/linting_tools/swiftlint_output.json', 'swiftlint_json')
+WHERE ref_file LIKE '%AuthService.swift'
+ORDER BY ref_line;
+----
+force_try	35
+unused_closure_parameter	58
+
+# Test 195: swiftlint file-based parsing - tool_name and category
+query II
+SELECT DISTINCT tool_name, category
+FROM read_duck_hunt_log('test/samples/linting_tools/swiftlint_output.json', 'swiftlint_json');
+----
+swiftlint	code_quality
+
+# Test 196: swiftlint file-based parsing - event_type verification
+query II
+SELECT event_type, COUNT(*)
+FROM read_duck_hunt_log('test/samples/linting_tools/swiftlint_output.json', 'swiftlint_json')
+GROUP BY event_type;
+----
+lint_issue	14
+
+# Test 197: swiftlint file-based parsing - log_file tracking
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/linting_tools/swiftlint_output.json', 'swiftlint_json');
+----
+test/samples/linting_tools/swiftlint_output.json
+
+# ============================================================================
+# File-based phpstan tests (Tests 198-203)
+# ============================================================================
+
+# Test 198: phpstan file-based parsing - total count and severity
+query III
+SELECT COUNT(*),
+       SUM(CASE WHEN severity = 'error' THEN 1 ELSE 0 END) as errors,
+       SUM(CASE WHEN severity = 'warning' THEN 1 ELSE 0 END) as warnings
+FROM read_duck_hunt_log('test/samples/linting_tools/phpstan_output.json', 'phpstan_json');
+----
+15	8	7
+
+# Test 199: phpstan file-based parsing - issues by file
+query II
+SELECT ref_file, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/linting_tools/phpstan_output.json', 'phpstan_json')
+GROUP BY ref_file
+ORDER BY ref_file;
+----
+src/Controller/UserController.php	3
+src/Entity/Order.php	3
+src/Repository/ProductRepository.php	2
+src/Service/PaymentService.php	4
+src/Validator/EmailValidator.php	2
+tests/Unit/UserTest.php	1
+
+# Test 200: phpstan file-based parsing - issues with tips (suggestions)
+query II
+SELECT ref_file, ref_line
+FROM read_duck_hunt_log('test/samples/linting_tools/phpstan_output.json', 'phpstan_json')
+WHERE suggestion IS NOT NULL AND suggestion != ''
+ORDER BY ref_file, ref_line;
+----
+src/Controller/UserController.php	25
+src/Entity/Order.php	28
+src/Service/PaymentService.php	15
+src/Service/PaymentService.php	82
+src/Validator/EmailValidator.php	35
+
+# Test 201: phpstan file-based parsing - tool_name and category
+query II
+SELECT DISTINCT tool_name, category
+FROM read_duck_hunt_log('test/samples/linting_tools/phpstan_output.json', 'phpstan_json');
+----
+phpstan	static_analysis
+
+# Test 202: phpstan file-based parsing - event_type verification
+query II
+SELECT event_type, COUNT(*)
+FROM read_duck_hunt_log('test/samples/linting_tools/phpstan_output.json', 'phpstan_json')
+GROUP BY event_type;
+----
+lint_issue	15
+
+# Test 203: phpstan file-based parsing - log_file tracking
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/linting_tools/phpstan_output.json', 'phpstan_json');
+----
+test/samples/linting_tools/phpstan_output.json
+
+# ============================================================================
+# File-based markdownlint tests (Tests 204-209)
+# ============================================================================
+
+# Test 204: markdownlint file-based parsing - total count
+query I
+SELECT COUNT(*)
+FROM read_duck_hunt_log('test/samples/linting_tools/markdownlint_output.json', 'markdownlint_json');
+----
+12
+
+# Test 205: markdownlint file-based parsing - issues by file
+query II
+SELECT ref_file, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/linting_tools/markdownlint_output.json', 'markdownlint_json')
+GROUP BY ref_file
+ORDER BY ref_file;
+----
+CHANGELOG.md	1
+CONTRIBUTING.md	2
+README.md	3
+docs/api.md	3
+docs/installation.md	3
+
+# Test 206: markdownlint file-based parsing - error codes for README
+query II
+SELECT error_code, ref_line
+FROM read_duck_hunt_log('test/samples/linting_tools/markdownlint_output.json', 'markdownlint_json')
+WHERE ref_file = 'README.md'
+ORDER BY ref_line;
+----
+MD041	1
+MD013	15
+MD032	28
+
+# Test 207: markdownlint file-based parsing - tool_name and category
+query II
+SELECT DISTINCT tool_name, category
+FROM read_duck_hunt_log('test/samples/linting_tools/markdownlint_output.json', 'markdownlint_json');
+----
+markdownlint	documentation
+
+# Test 208: markdownlint file-based parsing - event_type verification
+query II
+SELECT event_type, COUNT(*)
+FROM read_duck_hunt_log('test/samples/linting_tools/markdownlint_output.json', 'markdownlint_json')
+GROUP BY event_type;
+----
+lint_issue	12
+
+# Test 209: markdownlint file-based parsing - log_file tracking
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/linting_tools/markdownlint_output.json', 'markdownlint_json');
+----
+test/samples/linting_tools/markdownlint_output.json
+
+# ============================================================================
+# File-based yamllint tests (Tests 210-215)
+# ============================================================================
+
+# Test 210: yamllint file-based parsing - total count and severity
+query III
+SELECT COUNT(*),
+       SUM(CASE WHEN severity = 'error' THEN 1 ELSE 0 END) as errors,
+       SUM(CASE WHEN severity = 'warning' THEN 1 ELSE 0 END) as warnings
+FROM read_duck_hunt_log('test/samples/linting_tools/yamllint_output.json', 'yamllint_json');
+----
+15	4	11
+
+# Test 211: yamllint file-based parsing - issues by file
+query II
+SELECT ref_file, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/linting_tools/yamllint_output.json', 'yamllint_json')
+GROUP BY ref_file
+ORDER BY ref_file;
+----
+.github/workflows/ci.yml	3
+ansible/playbook.yml	2
+config/database.yml	3
+docker-compose.yml	3
+kubernetes/deployment.yaml	2
+kubernetes/service.yaml	2
+
+# Test 212: yamllint file-based parsing - error codes for ci.yml
+query II
+SELECT error_code, ref_line
+FROM read_duck_hunt_log('test/samples/linting_tools/yamllint_output.json', 'yamllint_json')
+WHERE ref_file = '.github/workflows/ci.yml'
+ORDER BY ref_line;
+----
+indentation	15
+line-length	28
+truthy	45
+
+# Test 213: yamllint file-based parsing - tool_name and category
+query II
+SELECT DISTINCT tool_name, category
+FROM read_duck_hunt_log('test/samples/linting_tools/yamllint_output.json', 'yamllint_json');
+----
+yamllint	configuration
+
+# Test 214: yamllint file-based parsing - event_type verification
+query II
+SELECT event_type, COUNT(*)
+FROM read_duck_hunt_log('test/samples/linting_tools/yamllint_output.json', 'yamllint_json')
+GROUP BY event_type;
+----
+lint_issue	15
+
+# Test 215: yamllint file-based parsing - log_file tracking
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/linting_tools/yamllint_output.json', 'yamllint_json');
+----
+test/samples/linting_tools/yamllint_output.json
+
 # Clean up
 statement ok
 DROP TABLE rubocop_results;

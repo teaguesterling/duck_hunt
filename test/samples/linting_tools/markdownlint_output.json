@@ -1,0 +1,157 @@
+[
+  {
+    "fileName": "README.md",
+    "lineNumber": 1,
+    "ruleNames": ["MD041", "first-line-heading", "first-line-h1"],
+    "ruleDescription": "First line in file should be a top-level heading",
+    "ruleInformation": "https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md#md041",
+    "errorDetail": "Expected: # or ---",
+    "errorContext": "This is a README file",
+    "errorRange": null,
+    "fixInfo": null
+  },
+  {
+    "fileName": "README.md",
+    "lineNumber": 15,
+    "ruleNames": ["MD013", "line-length"],
+    "ruleDescription": "Line length",
+    "ruleInformation": "https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md#md013",
+    "errorDetail": "Expected: 80; Actual: 142",
+    "errorContext": null,
+    "errorRange": [81, 62],
+    "fixInfo": null
+  },
+  {
+    "fileName": "README.md",
+    "lineNumber": 28,
+    "ruleNames": ["MD032", "blanks-around-lists"],
+    "ruleDescription": "Lists should be surrounded by blank lines",
+    "ruleInformation": "https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md#md032",
+    "errorDetail": null,
+    "errorContext": "- First item",
+    "errorRange": null,
+    "fixInfo": {
+      "insertText": "\n",
+      "lineNumber": 28
+    }
+  },
+  {
+    "fileName": "docs/installation.md",
+    "lineNumber": 5,
+    "ruleNames": ["MD022", "blanks-around-headings", "blanks-around-headers"],
+    "ruleDescription": "Headings should be surrounded by blank lines",
+    "ruleInformation": "https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md#md022",
+    "errorDetail": "Expected: 1; Actual: 0; Below",
+    "errorContext": "## Prerequisites",
+    "errorRange": null,
+    "fixInfo": {
+      "insertText": "\n",
+      "lineNumber": 6
+    }
+  },
+  {
+    "fileName": "docs/installation.md",
+    "lineNumber": 18,
+    "ruleNames": ["MD012", "no-multiple-blanks"],
+    "ruleDescription": "Multiple consecutive blank lines",
+    "ruleInformation": "https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md#md012",
+    "errorDetail": "Expected: 1; Actual: 3",
+    "errorContext": null,
+    "errorRange": null,
+    "fixInfo": {
+      "deleteCount": 2,
+      "lineNumber": 18
+    }
+  },
+  {
+    "fileName": "docs/installation.md",
+    "lineNumber": 35,
+    "ruleNames": ["MD033", "no-inline-html"],
+    "ruleDescription": "Inline HTML",
+    "ruleInformation": "https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md#md033",
+    "errorDetail": "Element: div",
+    "errorContext": "<div class=\"note\">",
+    "errorRange": [1, 18],
+    "fixInfo": null
+  },
+  {
+    "fileName": "docs/api.md",
+    "lineNumber": 10,
+    "ruleNames": ["MD009", "no-trailing-spaces"],
+    "ruleDescription": "Trailing spaces",
+    "ruleInformation": "https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md#md009",
+    "errorDetail": "Expected: 0 or 2; Actual: 4",
+    "errorContext": null,
+    "errorRange": [45, 4],
+    "fixInfo": {
+      "deleteCount": 4,
+      "editColumn": 45
+    }
+  },
+  {
+    "fileName": "docs/api.md",
+    "lineNumber": 22,
+    "ruleNames": ["MD040", "fenced-code-language"],
+    "ruleDescription": "Fenced code blocks should have a language specified",
+    "ruleInformation": "https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md#md040",
+    "errorDetail": null,
+    "errorContext": "```",
+    "errorRange": [1, 3],
+    "fixInfo": null
+  },
+  {
+    "fileName": "docs/api.md",
+    "lineNumber": 45,
+    "ruleNames": ["MD024", "no-duplicate-heading", "no-duplicate-header"],
+    "ruleDescription": "Multiple headings with the same content",
+    "ruleInformation": "https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md#md024",
+    "errorDetail": null,
+    "errorContext": "### Examples",
+    "errorRange": null,
+    "fixInfo": null
+  },
+  {
+    "fileName": "CONTRIBUTING.md",
+    "lineNumber": 8,
+    "ruleNames": ["MD004", "ul-style"],
+    "ruleDescription": "Unordered list style",
+    "ruleInformation": "https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md#md004",
+    "errorDetail": "Expected: asterisk; Actual: dash",
+    "errorContext": "- Fork the repo",
+    "errorRange": [1, 1],
+    "fixInfo": {
+      "editColumn": 1,
+      "deleteCount": 1,
+      "insertText": "*"
+    }
+  },
+  {
+    "fileName": "CONTRIBUTING.md",
+    "lineNumber": 25,
+    "ruleNames": ["MD007", "ul-indent"],
+    "ruleDescription": "Unordered list indentation",
+    "ruleInformation": "https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md#md007",
+    "errorDetail": "Expected: 2; Actual: 4",
+    "errorContext": "    - Sub-item",
+    "errorRange": [1, 4],
+    "fixInfo": {
+      "editColumn": 1,
+      "deleteCount": 2
+    }
+  },
+  {
+    "fileName": "CHANGELOG.md",
+    "lineNumber": 55,
+    "ruleNames": ["MD034", "no-bare-urls"],
+    "ruleDescription": "Bare URL used",
+    "ruleInformation": "https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md#md034",
+    "errorDetail": null,
+    "errorContext": "https://example.com/issues/123",
+    "errorRange": [10, 30],
+    "fixInfo": {
+      "editColumn": 10,
+      "deleteCount": 30,
+      "insertText": "<https://example.com/issues/123>"
+    }
+  }
+]

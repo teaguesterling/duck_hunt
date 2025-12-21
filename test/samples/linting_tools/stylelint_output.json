@@ -1,0 +1,164 @@
+[
+  {
+    "source": "src/styles/main.css",
+    "deprecations": [],
+    "invalidOptionWarnings": [],
+    "parseErrors": [],
+    "errored": true,
+    "warnings": [
+      {
+        "line": 12,
+        "column": 3,
+        "endLine": 12,
+        "endColumn": 15,
+        "rule": "color-hex-length",
+        "severity": "error",
+        "text": "Expected \"#ffffff\" to be \"#fff\" (color-hex-length)"
+      },
+      {
+        "line": 25,
+        "column": 5,
+        "rule": "declaration-block-no-duplicate-properties",
+        "severity": "error",
+        "text": "Unexpected duplicate \"margin\" (declaration-block-no-duplicate-properties)"
+      },
+      {
+        "line": 38,
+        "column": 1,
+        "rule": "no-descending-specificity",
+        "severity": "warning",
+        "text": "Expected selector \".nav a\" to come before selector \".nav a:hover\" (no-descending-specificity)"
+      },
+      {
+        "line": 52,
+        "column": 15,
+        "rule": "unit-no-unknown",
+        "severity": "error",
+        "text": "Unexpected unknown unit \"pixels\" (unit-no-unknown)"
+      }
+    ]
+  },
+  {
+    "source": "src/styles/components/button.css",
+    "deprecations": [],
+    "invalidOptionWarnings": [],
+    "parseErrors": [],
+    "errored": true,
+    "warnings": [
+      {
+        "line": 8,
+        "column": 3,
+        "rule": "property-no-vendor-prefix",
+        "severity": "warning",
+        "text": "Unexpected vendor-prefix \"-webkit-transform\" (property-no-vendor-prefix)"
+      },
+      {
+        "line": 15,
+        "column": 10,
+        "endLine": 15,
+        "endColumn": 18,
+        "rule": "function-no-unknown",
+        "severity": "error",
+        "text": "Unexpected unknown function \"darken\" (function-no-unknown)"
+      },
+      {
+        "line": 22,
+        "column": 1,
+        "rule": "selector-class-pattern",
+        "severity": "warning",
+        "text": "Expected class selector \".btnPrimary\" to match pattern \"^[a-z][a-z0-9]*(-[a-z0-9]+)*$\" (selector-class-pattern)"
+      }
+    ]
+  },
+  {
+    "source": "src/styles/components/card.scss",
+    "deprecations": [],
+    "invalidOptionWarnings": [],
+    "parseErrors": [],
+    "errored": true,
+    "warnings": [
+      {
+        "line": 5,
+        "column": 8,
+        "rule": "max-nesting-depth",
+        "severity": "warning",
+        "text": "Expected nesting depth to be no more than 3 (max-nesting-depth)"
+      },
+      {
+        "line": 18,
+        "column": 1,
+        "rule": "no-duplicate-selectors",
+        "severity": "error",
+        "text": "Unexpected duplicate selector \".card-header\", first used at line 3 (no-duplicate-selectors)"
+      },
+      {
+        "line": 30,
+        "column": 12,
+        "rule": "declaration-block-no-shorthand-property-overrides",
+        "severity": "error",
+        "text": "Unexpected shorthand \"padding\" after \"padding-left\" (declaration-block-no-shorthand-property-overrides)"
+      }
+    ]
+  },
+  {
+    "source": "src/styles/layout/grid.css",
+    "deprecations": [],
+    "invalidOptionWarnings": [],
+    "parseErrors": [],
+    "errored": false,
+    "warnings": [
+      {
+        "line": 10,
+        "column": 5,
+        "rule": "length-zero-no-unit",
+        "severity": "warning",
+        "text": "Unexpected unit (length-zero-no-unit)"
+      },
+      {
+        "line": 45,
+        "column": 3,
+        "rule": "font-family-no-missing-generic-family-keyword",
+        "severity": "warning",
+        "text": "Unexpected missing generic font family (font-family-no-missing-generic-family-keyword)"
+      }
+    ]
+  },
+  {
+    "source": "src/styles/utilities/helpers.css",
+    "deprecations": [],
+    "invalidOptionWarnings": [],
+    "parseErrors": [],
+    "errored": true,
+    "warnings": [
+      {
+        "line": 3,
+        "column": 20,
+        "rule": "declaration-no-important",
+        "severity": "error",
+        "text": "Unexpected !important (declaration-no-important)"
+      },
+      {
+        "line": 15,
+        "column": 1,
+        "rule": "block-no-empty",
+        "severity": "warning",
+        "text": "Unexpected empty block (block-no-empty)"
+      },
+      {
+        "line": 28,
+        "column": 8,
+        "rule": "value-keyword-case",
+        "severity": "warning",
+        "text": "Expected \"Inherit\" to be \"inherit\" (value-keyword-case)"
+      }
+    ]
+  },
+  {
+    "source": "src/styles/pages/home.css",
+    "deprecations": [],
+    "invalidOptionWarnings": [],
+    "parseErrors": [],
+    "errored": false,
+    "warnings": []
+  }
+]
