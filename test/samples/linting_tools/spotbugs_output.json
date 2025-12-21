@@ -1,0 +1,251 @@
+{
+  "BugCollection": {
+    "BugInstance": [
+      {
+        "type": "SQL_INJECTION_JDBC",
+        "priority": "1",
+        "category": "SECURITY",
+        "ShortMessage": "SQL injection vulnerability",
+        "LongMessage": "SQL injection vulnerability in method executeQuery with user-provided input",
+        "SourceLine": {
+          "sourcepath": "com/example/dao/UserDao.java",
+          "start": "45",
+          "end": "45",
+          "primary": true
+        },
+        "Method": {
+          "classname": "com.example.dao.UserDao",
+          "name": "findByUsername",
+          "primary": true
+        }
+      },
+      {
+        "type": "XSS_SERVLET",
+        "priority": "1",
+        "category": "SECURITY",
+        "ShortMessage": "XSS vulnerability in servlet response",
+        "LongMessage": "Potential cross-site scripting vulnerability in HttpServletResponse.getWriter()",
+        "SourceLine": {
+          "sourcepath": "com/example/web/UserServlet.java",
+          "start": "78",
+          "end": "80",
+          "primary": true
+        },
+        "Method": {
+          "classname": "com.example.web.UserServlet",
+          "name": "doGet",
+          "primary": true
+        }
+      },
+      {
+        "type": "NP_NULL_ON_SOME_PATH",
+        "priority": "2",
+        "category": "CORRECTNESS",
+        "ShortMessage": "Possible null pointer dereference",
+        "LongMessage": "Possible null pointer dereference of user in processOrder method",
+        "SourceLine": {
+          "sourcepath": "com/example/service/OrderService.java",
+          "start": "125",
+          "end": "125",
+          "primary": true
+        },
+        "Method": {
+          "classname": "com.example.service.OrderService",
+          "name": "processOrder",
+          "primary": true
+        }
+      },
+      {
+        "type": "DM_BOXED_PRIMITIVE_FOR_PARSING",
+        "priority": "2",
+        "category": "PERFORMANCE",
+        "ShortMessage": "Boxed primitive for parsing",
+        "LongMessage": "Boxing/unboxing to parse a primitive Integer.valueOf(String).intValue()",
+        "SourceLine": {
+          "sourcepath": "com/example/util/Parser.java",
+          "start": "33",
+          "end": "33",
+          "primary": true
+        },
+        "Method": {
+          "classname": "com.example.util.Parser",
+          "name": "parseId",
+          "primary": true
+        }
+      },
+      {
+        "type": "DM_STRING_CTOR",
+        "priority": "2",
+        "category": "PERFORMANCE",
+        "ShortMessage": "Method invokes inefficient String constructor",
+        "LongMessage": "new String(String) is inefficient, use String.valueOf() instead",
+        "SourceLine": {
+          "sourcepath": "com/example/util/StringUtils.java",
+          "start": "15",
+          "end": "15",
+          "primary": true
+        }
+      },
+      {
+        "type": "EQ_COMPARETO_USE_OBJECT_EQUALS",
+        "priority": "2",
+        "category": "BAD_PRACTICE",
+        "ShortMessage": "Class defines compareTo but not equals",
+        "LongMessage": "com.example.model.Product defines compareTo(Product) but not equals(Object)",
+        "SourceLine": {
+          "sourcepath": "com/example/model/Product.java",
+          "start": "1",
+          "end": "50",
+          "primary": true
+        }
+      },
+      {
+        "type": "SE_BAD_FIELD",
+        "priority": "2",
+        "category": "BAD_PRACTICE",
+        "ShortMessage": "Non-transient non-serializable field",
+        "LongMessage": "Non-transient non-serializable instance field connection in serializable class",
+        "SourceLine": {
+          "sourcepath": "com/example/dao/BaseDao.java",
+          "start": "22",
+          "end": "22",
+          "primary": true
+        }
+      },
+      {
+        "type": "RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE",
+        "priority": "3",
+        "category": "BAD_PRACTICE",
+        "ShortMessage": "Redundant nullcheck of value known to be non-null",
+        "LongMessage": "Redundant nullcheck of result, which is known to be non-null in validateInput()",
+        "SourceLine": {
+          "sourcepath": "com/example/validation/InputValidator.java",
+          "start": "67",
+          "end": "67",
+          "primary": true
+        },
+        "Method": {
+          "classname": "com.example.validation.InputValidator",
+          "name": "validateInput",
+          "primary": true
+        }
+      },
+      {
+        "type": "URF_UNREAD_FIELD",
+        "priority": "3",
+        "category": "CORRECTNESS",
+        "ShortMessage": "Unread field",
+        "LongMessage": "Unread field: com.example.config.AppConfig.debugMode",
+        "SourceLine": {
+          "sourcepath": "com/example/config/AppConfig.java",
+          "start": "18",
+          "end": "18",
+          "primary": true
+        }
+      },
+      {
+        "type": "DLS_DEAD_LOCAL_STORE",
+        "priority": "3",
+        "category": "CORRECTNESS",
+        "ShortMessage": "Dead store to local variable",
+        "LongMessage": "Dead store to count in calculateTotal()",
+        "SourceLine": {
+          "sourcepath": "com/example/service/CalculationService.java",
+          "start": "92",
+          "end": "92",
+          "primary": true
+        },
+        "Method": {
+          "classname": "com.example.service.CalculationService",
+          "name": "calculateTotal",
+          "primary": true
+        }
+      },
+      {
+        "type": "PATH_TRAVERSAL_IN",
+        "priority": "1",
+        "category": "SECURITY",
+        "ShortMessage": "Path traversal vulnerability",
+        "LongMessage": "Potential path traversal vulnerability in file handling with user input",
+        "SourceLine": {
+          "sourcepath": "com/example/io/FileHandler.java",
+          "start": "55",
+          "end": "58",
+          "primary": true
+        },
+        "Method": {
+          "classname": "com.example.io.FileHandler",
+          "name": "readFile",
+          "primary": true
+        }
+      },
+      {
+        "type": "WMI_WRONG_MAP_ITERATOR",
+        "priority": "2",
+        "category": "PERFORMANCE",
+        "ShortMessage": "Inefficient Map iterator",
+        "LongMessage": "Inefficient use of keySet iterator instead of entrySet iterator",
+        "SourceLine": {
+          "sourcepath": "com/example/cache/CacheManager.java",
+          "start": "88",
+          "end": "95",
+          "primary": true
+        },
+        "Method": {
+          "classname": "com.example.cache.CacheManager",
+          "name": "processEntries",
+          "primary": true
+        }
+      },
+      {
+        "type": "BC_UNCONFIRMED_CAST",
+        "priority": "2",
+        "category": "CORRECTNESS",
+        "ShortMessage": "Unchecked/unconfirmed cast",
+        "LongMessage": "Unchecked cast from Object to User in processRequest()",
+        "SourceLine": {
+          "sourcepath": "com/example/controller/RequestHandler.java",
+          "start": "42",
+          "end": "42",
+          "primary": true
+        },
+        "Method": {
+          "classname": "com.example.controller.RequestHandler",
+          "name": "processRequest",
+          "primary": true
+        }
+      },
+      {
+        "type": "RV_RETURN_VALUE_IGNORED_BAD_PRACTICE",
+        "priority": "3",
+        "category": "BAD_PRACTICE",
+        "ShortMessage": "Return value ignored",
+        "LongMessage": "Return value of File.delete() ignored in cleanup()",
+        "SourceLine": {
+          "sourcepath": "com/example/io/TempFileManager.java",
+          "start": "35",
+          "end": "35",
+          "primary": true
+        },
+        "Method": {
+          "classname": "com.example.io.TempFileManager",
+          "name": "cleanup",
+          "primary": true
+        }
+      },
+      {
+        "type": "STCAL_INVOKE_ON_STATIC_DATE_FORMAT_INSTANCE",
+        "priority": "2",
+        "category": "CORRECTNESS",
+        "ShortMessage": "Static DateFormat is not thread-safe",
+        "LongMessage": "Call to method of static java.text.DateFormat is not thread-safe",
+        "SourceLine": {
+          "sourcepath": "com/example/util/DateUtils.java",
+          "start": "28",
+          "end": "28",
+          "primary": true
+        }
+      }
+    ]
+  }
+}
