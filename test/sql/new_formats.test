@@ -1089,6 +1089,67 @@ FROM read_duck_hunt_log('test/samples/linting_tools/sqlfluff_output.json', 'sqlf
 ----
 test/samples/linting_tools/sqlfluff_output.json
 
+# ============================================================================
+# File-based lintr tests (Tests 132-137)
+# ============================================================================
+
+# Test 132: lintr file-based parsing - total count and severity breakdown
+query III
+SELECT COUNT(*),
+       SUM(CASE WHEN status='ERROR' THEN 1 ELSE 0 END) as errors,
+       SUM(CASE WHEN status='WARNING' THEN 1 ELSE 0 END) as warnings
+FROM read_duck_hunt_log('test/samples/linting_tools/lintr_output.json', 'lintr_json');
+----
+20	2	18
+
+# Test 133: lintr file-based parsing - issues by file
+query II
+SELECT ref_file, COUNT(*) as issue_count
+FROM read_duck_hunt_log('test/samples/linting_tools/lintr_output.json', 'lintr_json')
+GROUP BY ref_file
+ORDER BY issue_count DESC, ref_file
+LIMIT 5;
+----
+models/regression_analysis.R	4
+R/package_functions.R	3
+analysis/data_processing.R	3
+scripts/etl_pipeline.R	3
+tests/test_models.R	3
+
+# Test 134: lintr file-based parsing - distinct file count
+query I
+SELECT COUNT(DISTINCT ref_file)
+FROM read_duck_hunt_log('test/samples/linting_tools/lintr_output.json', 'lintr_json');
+----
+7
+
+# Test 135: lintr file-based parsing - linter extraction
+query II
+SELECT error_code, severity
+FROM read_duck_hunt_log('test/samples/linting_tools/lintr_output.json', 'lintr_json')
+WHERE ref_file = 'models/regression_analysis.R'
+ORDER BY ref_line;
+----
+namespace_linter	error
+infix_spaces_linter	style
+trailing_whitespace_linter	style
+sapply_linter	warning
+
+# Test 136: lintr file-based parsing - line content as suggestion
+query I
+SELECT COUNT(*) > 0
+FROM read_duck_hunt_log('test/samples/linting_tools/lintr_output.json', 'lintr_json')
+WHERE suggestion LIKE 'Code:%';
+----
+true
+
+# Test 137: lintr file-based parsing - tool_name and category
+query II
+SELECT DISTINCT tool_name, category
+FROM read_duck_hunt_log('test/samples/linting_tools/lintr_output.json', 'lintr_json');
+----
+lintr	r_code_style
+
 # Clean up
 statement ok
 DROP TABLE rubocop_results;
