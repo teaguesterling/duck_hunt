@@ -1497,6 +1497,61 @@ FROM read_duck_hunt_log('test/samples/linting_tools/shellcheck_output.json', 'sh
 ----
 test/samples/linting_tools/shellcheck_output.json
 
+# ============================================================================
+# File-based rubocop tests (Tests 174-179)
+# ============================================================================
+
+# Test 174: rubocop file-based parsing - total count and severity
+query III
+SELECT COUNT(*),
+       SUM(CASE WHEN status='ERROR' THEN 1 ELSE 0 END) as errors,
+       SUM(CASE WHEN status='WARNING' THEN 1 ELSE 0 END) as warnings
+FROM read_duck_hunt_log('test/samples/linting_tools/rubocop_output.json', 'rubocop_json');
+----
+6	1	5
+
+# Test 175: rubocop file-based parsing - offenses by file
+query II
+SELECT ref_file, COUNT(*) as offense_count
+FROM read_duck_hunt_log('test/samples/linting_tools/rubocop_output.json', 'rubocop_json')
+GROUP BY ref_file
+ORDER BY offense_count DESC, ref_file;
+----
+app/controllers/users_controller.rb	3
+app/models/user.rb	2
+app/services/auth_service.rb	1
+
+# Test 176: rubocop file-based parsing - cop names
+query II
+SELECT error_code, severity
+FROM read_duck_hunt_log('test/samples/linting_tools/rubocop_output.json', 'rubocop_json')
+WHERE ref_file = 'app/models/user.rb'
+ORDER BY ref_line;
+----
+Style/Documentation	convention
+Lint/UselessAssignment	warning
+
+# Test 177: rubocop file-based parsing - tool_name and category
+query II
+SELECT DISTINCT tool_name, category
+FROM read_duck_hunt_log('test/samples/linting_tools/rubocop_output.json', 'rubocop_json');
+----
+rubocop	code_quality
+
+# Test 178: rubocop file-based parsing - event_type verification
+query I
+SELECT DISTINCT event_type
+FROM read_duck_hunt_log('test/samples/linting_tools/rubocop_output.json', 'rubocop_json');
+----
+lint_issue
+
+# Test 179: rubocop file-based parsing - log_file tracking
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/linting_tools/rubocop_output.json', 'rubocop_json');
+----
+test/samples/linting_tools/rubocop_output.json
+
 # Clean up
 statement ok
 DROP TABLE rubocop_results;
