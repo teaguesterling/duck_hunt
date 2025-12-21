@@ -1443,6 +1443,19 @@ FROM read_duck_hunt_log('test/samples/linting_tools/bandit_output.json', 'bandit
 test/samples/linting_tools/bandit_output.json
 
 # ============================================================================
+# BLOCKED: bandit CWE extraction (Issue #25)
+# The parser doesn't extract issue_cwe info into structured_data.
+# Uncomment when bandit_json_parser.cpp is fixed.
+# ============================================================================
+# Test BLOCKED-3: bandit CWE IDs should be in structured_data
+# query I
+# SELECT COUNT(*)
+# FROM read_duck_hunt_log('test/samples/linting_tools/bandit_output.json', 'bandit_json')
+# WHERE structured_data LIKE '%cwe%';
+# ----
+# 5
+
+# ============================================================================
 # File-based shellcheck tests (Tests 168-173)
 # ============================================================================
 
@@ -1498,6 +1511,23 @@ FROM read_duck_hunt_log('test/samples/linting_tools/shellcheck_output.json', 'sh
 test/samples/linting_tools/shellcheck_output.json
 
 # ============================================================================
+# BLOCKED: shellcheck error_code parsing (Issue #25)
+# The parser doesn't handle integer code fields - expects strings.
+# Uncomment when shellcheck_json_parser.cpp is fixed to handle integer codes.
+# ============================================================================
+# Test BLOCKED-1: shellcheck SC codes should be extracted
+# query II
+# SELECT error_code, severity
+# FROM read_duck_hunt_log('test/samples/linting_tools/shellcheck_output.json', 'shellcheck_json')
+# WHERE ref_file = 'scripts/deploy.sh'
+# ORDER BY ref_line;
+# ----
+# SC2086	warning
+# SC2154	error
+# SC2034	warning
+# SC2103	info
+
+# ============================================================================
 # File-based rubocop tests (Tests 174-179)
 # ============================================================================
 
@@ -1551,6 +1581,19 @@ SELECT DISTINCT log_file
 FROM read_duck_hunt_log('test/samples/linting_tools/rubocop_output.json', 'rubocop_json');
 ----
 test/samples/linting_tools/rubocop_output.json
+
+# ============================================================================
+# BLOCKED: rubocop correctable field extraction (Issue #25)
+# The parser doesn't extract the correctable boolean into suggestion field.
+# Uncomment when rubocop_json_parser.cpp is fixed.
+# ============================================================================
+# Test BLOCKED-2: rubocop correctable info should be in suggestion
+# query I
+# SELECT COUNT(*)
+# FROM read_duck_hunt_log('test/samples/linting_tools/rubocop_output.json', 'rubocop_json')
+# WHERE suggestion LIKE '%correctable%';
+# ----
+# 2
 
 # Clean up
 statement ok
