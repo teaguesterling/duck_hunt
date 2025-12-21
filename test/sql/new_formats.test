@@ -1214,6 +1214,65 @@ WHERE category = 'security';
 ----
 spotbugs	security_finding
 
+# ============================================================================
+# File-based ktlint tests (Tests 144-149)
+# ============================================================================
+
+# Test 144: ktlint file-based parsing - total count and severity breakdown
+query III
+SELECT COUNT(*),
+       SUM(CASE WHEN status='ERROR' THEN 1 ELSE 0 END) as errors,
+       SUM(CASE WHEN status='WARNING' THEN 1 ELSE 0 END) as warnings
+FROM read_duck_hunt_log('test/samples/linting_tools/ktlint_output.json', 'ktlint_json');
+----
+18	4	14
+
+# Test 145: ktlint file-based parsing - errors by file
+query II
+SELECT ref_file, COUNT(*) as error_count
+FROM read_duck_hunt_log('test/samples/linting_tools/ktlint_output.json', 'ktlint_json')
+GROUP BY ref_file
+ORDER BY error_count DESC, ref_file
+LIMIT 5;
+----
+src/main/kotlin/com/example/app/MainActivity.kt	3
+src/main/kotlin/com/example/app/UserService.kt	3
+src/main/kotlin/com/example/app/ui/HomeFragment.kt	3
+src/test/kotlin/com/example/app/UserServiceTest.kt	3
+src/main/kotlin/com/example/app/data/Repository.kt	2
+
+# Test 146: ktlint file-based parsing - distinct file count
+query I
+SELECT COUNT(DISTINCT ref_file)
+FROM read_duck_hunt_log('test/samples/linting_tools/ktlint_output.json', 'ktlint_json');
+----
+7
+
+# Test 147: ktlint file-based parsing - rule extraction
+query II
+SELECT error_code, status
+FROM read_duck_hunt_log('test/samples/linting_tools/ktlint_output.json', 'ktlint_json')
+WHERE ref_file = 'src/main/kotlin/com/example/app/MainActivity.kt'
+ORDER BY ref_line;
+----
+final-newline	ERROR
+no-wildcard-imports	WARNING
+indent	ERROR
+
+# Test 148: ktlint file-based parsing - tool_name and category
+query II
+SELECT DISTINCT tool_name, category
+FROM read_duck_hunt_log('test/samples/linting_tools/ktlint_output.json', 'ktlint_json');
+----
+ktlint	code_style
+
+# Test 149: ktlint file-based parsing - log_file tracking
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/linting_tools/ktlint_output.json', 'ktlint_json');
+----
+test/samples/linting_tools/ktlint_output.json
+
 # Clean up
 statement ok
 DROP TABLE rubocop_results;

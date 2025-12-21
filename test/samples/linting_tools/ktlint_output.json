@@ -1,0 +1,149 @@
+[
+  {
+    "file": "src/main/kotlin/com/example/app/MainActivity.kt",
+    "errors": [
+      {
+        "line": 1,
+        "column": 1,
+        "message": "Missing newline at the end of file",
+        "rule": "final-newline"
+      },
+      {
+        "line": 5,
+        "column": 1,
+        "message": "Wildcard import",
+        "rule": "no-wildcard-imports"
+      },
+      {
+        "line": 15,
+        "column": 9,
+        "message": "Unexpected indentation (8) (should be 4)",
+        "rule": "indent"
+      }
+    ]
+  },
+  {
+    "file": "src/main/kotlin/com/example/app/UserService.kt",
+    "errors": [
+      {
+        "line": 22,
+        "column": 121,
+        "message": "Line exceeds maximum line length of 120",
+        "rule": "max-line-length"
+      },
+      {
+        "line": 35,
+        "column": 28,
+        "message": "Unnecessary semicolon",
+        "rule": "no-semi"
+      },
+      {
+        "line": 42,
+        "column": 1,
+        "message": "Multiple blank lines",
+        "rule": "no-multi-spaces"
+      }
+    ]
+  },
+  {
+    "file": "src/main/kotlin/com/example/app/data/Repository.kt",
+    "errors": [
+      {
+        "line": 8,
+        "column": 12,
+        "message": "Unused import",
+        "rule": "no-unused-imports"
+      },
+      {
+        "line": 18,
+        "column": 5,
+        "message": "Unexpected blank line(s) before '}'",
+        "rule": "no-blank-line-before-rbrace"
+      }
+    ]
+  },
+  {
+    "file": "src/main/kotlin/com/example/app/ui/HomeFragment.kt",
+    "errors": [
+      {
+        "line": 3,
+        "column": 1,
+        "message": "Imports must be ordered in lexicographic order without any empty lines in-between",
+        "rule": "import-ordering"
+      },
+      {
+        "line": 28,
+        "column": 45,
+        "message": "Missing spacing around ':'",
+        "rule": "colon-spacing"
+      },
+      {
+        "line": 55,
+        "column": 1,
+        "message": "Unexpected indentation (expected 8, actual 12)",
+        "rule": "indent"
+      }
+    ]
+  },
+  {
+    "file": "src/main/kotlin/com/example/app/util/Extensions.kt",
+    "errors": [
+      {
+        "line": 12,
+        "column": 35,
+        "message": "Missing spacing before '{'",
+        "rule": "curly-spacing"
+      },
+      {
+        "line": 25,
+        "column": 1,
+        "message": "File must end with a newline (\\n)",
+        "rule": "final-newline"
+      }
+    ]
+  },
+  {
+    "file": "src/test/kotlin/com/example/app/UserServiceTest.kt",
+    "errors": [
+      {
+        "line": 15,
+        "column": 5,
+        "message": "Unexpected spacing after '('",
+        "rule": "paren-spacing"
+      },
+      {
+        "line": 32,
+        "column": 1,
+        "message": "Wildcard import",
+        "rule": "no-wildcard-imports"
+      },
+      {
+        "line": 48,
+        "column": 130,
+        "message": "Line exceeds maximum line length of 120",
+        "rule": "max-line-length"
+      }
+    ]
+  },
+  {
+    "file": "src/main/kotlin/com/example/app/network/ApiClient.kt",
+    "errors": [
+      {
+        "line": 7,
+        "column": 1,
+        "message": "Unexpected blank line(s) in import list",
+        "rule": "no-empty-first-line-in-method-block"
+      },
+      {
+        "line": 42,
+        "column": 20,
+        "message": "Missing spacing after ','",
+        "rule": "comma-spacing"
+      }
+    ]
+  },
+  {
+    "file": "src/main/kotlin/com/example/app/model/User.kt",
+    "errors": []
+  }
+]
