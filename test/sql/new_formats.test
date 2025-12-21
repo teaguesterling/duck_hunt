@@ -1273,6 +1273,63 @@ FROM read_duck_hunt_log('test/samples/linting_tools/ktlint_output.json', 'ktlint
 ----
 test/samples/linting_tools/ktlint_output.json
 
+# ============================================================================
+# File-based cargo_test tests (Tests 150-155)
+# ============================================================================
+
+# Test 150: cargo_test file-based parsing - total count and result breakdown
+query IIII
+SELECT COUNT(*),
+       SUM(CASE WHEN status='PASS' THEN 1 ELSE 0 END) as passed,
+       SUM(CASE WHEN status='FAIL' THEN 1 ELSE 0 END) as failed,
+       SUM(CASE WHEN status='SKIP' THEN 1 ELSE 0 END) as ignored
+FROM read_duck_hunt_log('test/samples/test_frameworks/cargo_test_output.jsonl', 'cargo_test_json');
+----
+14	10	2	2
+
+# Test 151: cargo_test file-based parsing - tests by module
+query II
+SELECT split_part(test_name, '::', 1) as module, COUNT(*) as test_count
+FROM read_duck_hunt_log('test/samples/test_frameworks/cargo_test_output.jsonl', 'cargo_test_json')
+GROUP BY module
+ORDER BY test_count DESC, module;
+----
+db	4
+api	3
+auth	3
+core	3
+integration	1
+
+# Test 152: cargo_test file-based parsing - failed tests count
+query I
+SELECT COUNT(*)
+FROM read_duck_hunt_log('test/samples/test_frameworks/cargo_test_output.jsonl', 'cargo_test_json')
+WHERE status = 'FAIL';
+----
+2
+
+# Test 153: cargo_test file-based parsing - execution time
+query I
+SELECT COUNT(*) > 0
+FROM read_duck_hunt_log('test/samples/test_frameworks/cargo_test_output.jsonl', 'cargo_test_json')
+WHERE execution_time > 0;
+----
+true
+
+# Test 154: cargo_test file-based parsing - tool_name and category
+query II
+SELECT DISTINCT tool_name, category
+FROM read_duck_hunt_log('test/samples/test_frameworks/cargo_test_output.jsonl', 'cargo_test_json');
+----
+cargo_test	test
+
+# Test 155: cargo_test file-based parsing - event_type verification
+query I
+SELECT DISTINCT event_type
+FROM read_duck_hunt_log('test/samples/test_frameworks/cargo_test_output.jsonl', 'cargo_test_json');
+----
+test_result
+
 # Clean up
 statement ok
 DROP TABLE rubocop_results;

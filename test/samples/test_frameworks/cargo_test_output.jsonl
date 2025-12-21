@@ -1,0 +1,30 @@
+{"type":"suite","event":"started","test_count":15}
+{"type":"test","event":"started","name":"core::utils::test_parse_config"}
+{"type":"test","event":"ok","name":"core::utils::test_parse_config","exec_time":0.002}
+{"type":"test","event":"started","name":"core::utils::test_validate_input"}
+{"type":"test","event":"ok","name":"core::utils::test_validate_input","exec_time":0.001}
+{"type":"test","event":"started","name":"core::utils::test_format_output"}
+{"type":"test","event":"failed","name":"core::utils::test_format_output","exec_time":0.005,"stdout":"thread 'core::utils::test_format_output' panicked at 'assertion failed: `(left == right)`\n  left: `\"Hello World\"`,\n right: `\"hello world\"`', src/core/utils.rs:125:5"}
+{"type":"test","event":"started","name":"api::handlers::test_get_user"}
+{"type":"test","event":"ok","name":"api::handlers::test_get_user","exec_time":0.015}
+{"type":"test","event":"started","name":"api::handlers::test_create_user"}
+{"type":"test","event":"ok","name":"api::handlers::test_create_user","exec_time":0.023}
+{"type":"test","event":"started","name":"api::handlers::test_delete_user"}
+{"type":"test","event":"failed","name":"api::handlers::test_delete_user","exec_time":0.018,"stdout":"thread 'api::handlers::test_delete_user' panicked at 'called `Result::unwrap()` on an `Err` value: NotFound', src/api/handlers.rs:89:10"}
+{"type":"test","event":"started","name":"db::repository::test_insert"}
+{"type":"test","event":"ok","name":"db::repository::test_insert","exec_time":0.045}
+{"type":"test","event":"started","name":"db::repository::test_update"}
+{"type":"test","event":"ok","name":"db::repository::test_update","exec_time":0.038}
+{"type":"test","event":"started","name":"db::repository::test_delete"}
+{"type":"test","event":"ok","name":"db::repository::test_delete","exec_time":0.032}
+{"type":"test","event":"started","name":"db::repository::test_query_all"}
+{"type":"test","event":"ok","name":"db::repository::test_query_all","exec_time":0.055}
+{"type":"test","event":"started","name":"auth::jwt::test_create_token"}
+{"type":"test","event":"ok","name":"auth::jwt::test_create_token","exec_time":0.008}
+{"type":"test","event":"started","name":"auth::jwt::test_verify_token"}
+{"type":"test","event":"ok","name":"auth::jwt::test_verify_token","exec_time":0.006}
+{"type":"test","event":"started","name":"auth::jwt::test_expired_token"}
+{"type":"test","event":"ignored","name":"auth::jwt::test_expired_token","exec_time":0.001}
+{"type":"test","event":"started","name":"integration::test_full_workflow"}
+{"type":"test","event":"ignored","name":"integration::test_full_workflow","exec_time":0.001}
+{"type":"suite","event":"ok","passed":11,"failed":2,"ignored":2,"measured":0,"filtered_out":0,"exec_time":0.250}
