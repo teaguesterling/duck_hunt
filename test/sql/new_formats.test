@@ -2063,3 +2063,1028 @@ DROP TABLE kube_score_results;
 
 statement ok
 DROP TABLE cmake_results;
+# =============================================================================
+# BUILD SYSTEM FORMAT TESTS - Experimental Formats
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Test 222: bazel_build - count and severity breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT status, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/build_systems/bazel_build_errors.txt', 'bazel_build')
+GROUP BY status
+ORDER BY cnt DESC, status;
+----
+ERROR	2
+INFO	1
+
+# -----------------------------------------------------------------------------
+# Test 223: bazel_build - tool_name and category
+# -----------------------------------------------------------------------------
+query III
+SELECT tool_name, category, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/build_systems/bazel_build_errors.txt', 'bazel_build')
+GROUP BY tool_name, category
+ORDER BY cnt DESC, tool_name;
+----
+bazel	build_analysis	1
+gcc	compilation	1
+gcc	failed_target	1
+
+# -----------------------------------------------------------------------------
+# Test 224: bazel_build - event_type breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT event_type, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/build_systems/bazel_build_errors.txt', 'bazel_build')
+GROUP BY event_type
+ORDER BY cnt DESC, event_type;
+----
+build_error	2
+build_info	1
+
+# -----------------------------------------------------------------------------
+# Test 225: bazel_build - log_file tracking
+# -----------------------------------------------------------------------------
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/build_systems/bazel_build_errors.txt', 'bazel_build');
+----
+test/samples/build_systems/bazel_build_errors.txt
+
+# -----------------------------------------------------------------------------
+# Test 226: cargo_build - count and severity breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT status, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/build_systems/cargo_build_errors.txt', 'cargo_build')
+GROUP BY status
+ORDER BY cnt DESC, status;
+----
+ERROR	4
+WARNING	1
+
+# -----------------------------------------------------------------------------
+# Test 227: cargo_build - tool_name and category
+# -----------------------------------------------------------------------------
+query III
+SELECT tool_name, category, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/build_systems/cargo_build_errors.txt', 'cargo_build')
+GROUP BY tool_name, category
+ORDER BY cnt DESC, tool_name;
+----
+rustc	compilation	4
+cargo	compilation	1
+
+# -----------------------------------------------------------------------------
+# Test 228: cargo_build - error codes
+# -----------------------------------------------------------------------------
+query II
+SELECT error_code, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/build_systems/cargo_build_errors.txt', 'cargo_build')
+WHERE error_code IS NOT NULL AND error_code != ''
+GROUP BY error_code
+ORDER BY cnt DESC, error_code;
+----
+E0308	1
+E0382	1
+E0425	1
+
+# -----------------------------------------------------------------------------
+# Test 229: cargo_build - event_type breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT event_type, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/build_systems/cargo_build_errors.txt', 'cargo_build')
+GROUP BY event_type
+ORDER BY cnt DESC, event_type;
+----
+build_error	4
+lint_issue	1
+
+# -----------------------------------------------------------------------------
+# Test 230: cargo_build - log_file tracking
+# -----------------------------------------------------------------------------
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/build_systems/cargo_build_errors.txt', 'cargo_build');
+----
+test/samples/build_systems/cargo_build_errors.txt
+
+# -----------------------------------------------------------------------------
+# Test 231: gradle_build - count and severity breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT status, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/build_systems/gradle_build_failures.txt', 'gradle_build')
+GROUP BY status
+ORDER BY cnt DESC, status;
+----
+ERROR	5
+
+# -----------------------------------------------------------------------------
+# Test 232: gradle_build - tool_name and category
+# -----------------------------------------------------------------------------
+query III
+SELECT tool_name, category, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/build_systems/gradle_build_failures.txt', 'gradle_build')
+GROUP BY tool_name, category
+ORDER BY cnt DESC, tool_name, category;
+----
+gradle	build_result	2
+javac	compilation	2
+gradle	task_status	1
+
+# -----------------------------------------------------------------------------
+# Test 233: gradle_build - event_type breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT event_type, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/build_systems/gradle_build_failures.txt', 'gradle_build')
+GROUP BY event_type
+ORDER BY cnt DESC, event_type;
+----
+build_error	5
+
+# -----------------------------------------------------------------------------
+# Test 234: gradle_build - log_file tracking
+# -----------------------------------------------------------------------------
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/build_systems/gradle_build_failures.txt', 'gradle_build');
+----
+test/samples/build_systems/gradle_build_failures.txt
+
+# -----------------------------------------------------------------------------
+# Test 235: maven_build - count and severity breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT status, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/build_systems/maven_build_failures.txt', 'maven_build')
+GROUP BY status
+ORDER BY cnt DESC, status;
+----
+ERROR	4
+FAIL	3
+WARNING	1
+
+# -----------------------------------------------------------------------------
+# Test 236: maven_build - tool_name and category
+# -----------------------------------------------------------------------------
+query III
+SELECT tool_name, category, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/build_systems/maven_build_failures.txt', 'maven_build')
+GROUP BY tool_name, category
+ORDER BY cnt DESC, tool_name, category;
+----
+maven	test_result	3
+maven	compilation	2
+maven-surefire	test_result	2
+maven	build_result	1
+
+# -----------------------------------------------------------------------------
+# Test 237: maven_build - event_type breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT event_type, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/build_systems/maven_build_failures.txt', 'maven_build')
+GROUP BY event_type
+ORDER BY cnt DESC, event_type;
+----
+test_result	5
+build_error	3
+
+# -----------------------------------------------------------------------------
+# Test 238: maven_build - log_file tracking
+# -----------------------------------------------------------------------------
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/build_systems/maven_build_failures.txt', 'maven_build');
+----
+test/samples/build_systems/maven_build_failures.txt
+
+# -----------------------------------------------------------------------------
+# Test 239: msbuild - count and severity breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT status, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/build_systems/msbuild_errors.txt', 'msbuild')
+GROUP BY status
+ORDER BY cnt DESC, status;
+----
+ERROR	8
+WARNING	3
+INFO	1
+
+# -----------------------------------------------------------------------------
+# Test 240: msbuild - tool_name and category
+# -----------------------------------------------------------------------------
+query III
+SELECT tool_name, category, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/build_systems/msbuild_errors.txt', 'msbuild')
+GROUP BY tool_name, category
+ORDER BY cnt DESC, tool_name, category;
+----
+msbuild-csc	compilation	7
+msbuild	build_result	1
+msbuild	build_timing	1
+msbuild	error_summary	1
+msbuild	warning_summary	1
+msbuild-analyzer	code_analysis	1
+
+# -----------------------------------------------------------------------------
+# Test 241: msbuild - error codes
+# -----------------------------------------------------------------------------
+query II
+SELECT error_code, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/build_systems/msbuild_errors.txt', 'msbuild')
+WHERE error_code IS NOT NULL AND error_code != ''
+GROUP BY error_code
+ORDER BY cnt DESC, error_code;
+----
+CS0246	2
+CS0029	1
+CS0618	1
+CS1061	2
+CA1822	1
+
+# -----------------------------------------------------------------------------
+# Test 242: msbuild - log_file tracking
+# -----------------------------------------------------------------------------
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/build_systems/msbuild_errors.txt', 'msbuild');
+----
+test/samples/build_systems/msbuild_errors.txt
+
+# -----------------------------------------------------------------------------
+# Test 243: node_build - count and severity breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT status, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/build_systems/npm_build_errors.txt', 'node_build')
+GROUP BY status
+ORDER BY cnt DESC, status;
+----
+ERROR	7
+WARNING	2
+
+# -----------------------------------------------------------------------------
+# Test 244: node_build - tool_name and category
+# -----------------------------------------------------------------------------
+query III
+SELECT tool_name, category, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/build_systems/npm_build_errors.txt', 'node_build')
+GROUP BY tool_name, category
+ORDER BY cnt DESC, tool_name, category;
+----
+webpack	bundling	5
+npm	lifecycle	4
+
+# -----------------------------------------------------------------------------
+# Test 245: node_build - event_type breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT event_type, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/build_systems/npm_build_errors.txt', 'node_build')
+GROUP BY event_type
+ORDER BY cnt DESC, event_type;
+----
+build_error	9
+
+# -----------------------------------------------------------------------------
+# Test 246: node_build - log_file tracking
+# -----------------------------------------------------------------------------
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/build_systems/npm_build_errors.txt', 'node_build');
+----
+test/samples/build_systems/npm_build_errors.txt
+
+# -----------------------------------------------------------------------------
+# Test 247: python_build - count and severity breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT status, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/build_systems/pip_install_errors.txt', 'python_build')
+GROUP BY status
+ORDER BY cnt DESC, status;
+----
+ERROR	1
+
+# -----------------------------------------------------------------------------
+# Test 248: python_build - tool_name and category
+# -----------------------------------------------------------------------------
+query II
+SELECT tool_name, category
+FROM read_duck_hunt_log('test/samples/build_systems/pip_install_errors.txt', 'python_build');
+----
+pip	dependency
+
+# -----------------------------------------------------------------------------
+# Test 249: python_build - log_file tracking
+# -----------------------------------------------------------------------------
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/build_systems/pip_install_errors.txt', 'python_build');
+----
+test/samples/build_systems/pip_install_errors.txt
+
+
+# =============================================================================
+# TEST FRAMEWORK FORMAT TESTS - Experimental Formats
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Test 250: gtest_text - count and severity breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT status, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/test_frameworks/gtest_failures.txt', 'gtest_text')
+GROUP BY status
+ORDER BY cnt DESC, status;
+----
+PASS	7
+FAIL	5
+INFO	1
+
+# -----------------------------------------------------------------------------
+# Test 251: gtest_text - tool_name and category
+# -----------------------------------------------------------------------------
+query III
+SELECT tool_name, category, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/test_frameworks/gtest_failures.txt', 'gtest_text')
+GROUP BY tool_name, category
+ORDER BY cnt DESC, tool_name, category;
+----
+gtest	gtest_text	12
+gtest	gtest_text	1
+
+# -----------------------------------------------------------------------------
+# Test 252: gtest_text - failed tests
+# -----------------------------------------------------------------------------
+query I
+SELECT test_name
+FROM read_duck_hunt_log('test/samples/test_frameworks/gtest_failures.txt', 'gtest_text')
+WHERE status = 'FAIL' AND test_name IS NOT NULL AND test_name != ''
+ORDER BY test_name;
+----
+IntegrationTest.TimeoutHandling
+ParserTest.ParseInvalidInput
+ParserTest.ParseMalformedInput
+UtilsTest.DecodeCorruptData
+
+# -----------------------------------------------------------------------------
+# Test 253: gtest_text - log_file tracking
+# -----------------------------------------------------------------------------
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/test_frameworks/gtest_failures.txt', 'gtest_text');
+----
+test/samples/test_frameworks/gtest_failures.txt
+
+# -----------------------------------------------------------------------------
+# Test 254: mocha_chai_text - count and severity breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT status, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/test_frameworks/mocha_failures.txt', 'mocha_chai_text')
+GROUP BY status
+ORDER BY cnt DESC, status;
+----
+PASS	13
+FAIL	11
+INFO	1
+WARNING	1
+
+# -----------------------------------------------------------------------------
+# Test 255: mocha_chai_text - tool_name and category
+# -----------------------------------------------------------------------------
+query II
+SELECT tool_name, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/test_frameworks/mocha_failures.txt', 'mocha_chai_text')
+GROUP BY tool_name
+ORDER BY cnt DESC, tool_name;
+----
+mocha	26
+
+# -----------------------------------------------------------------------------
+# Test 256: mocha_chai_text - event_type breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT event_type, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/test_frameworks/mocha_failures.txt', 'mocha_chai_text')
+GROUP BY event_type
+ORDER BY cnt DESC, event_type;
+----
+test_result	25
+summary	1
+
+# -----------------------------------------------------------------------------
+# Test 257: mocha_chai_text - log_file tracking
+# -----------------------------------------------------------------------------
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/test_frameworks/mocha_failures.txt', 'mocha_chai_text');
+----
+test/samples/test_frameworks/mocha_failures.txt
+
+# -----------------------------------------------------------------------------
+# Test 258: rspec_text - count and severity breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT status, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/test_frameworks/rspec_failures.txt', 'rspec_text')
+GROUP BY status
+ORDER BY cnt DESC, status;
+----
+PASS	11
+FAIL	8
+SKIP	1
+
+# -----------------------------------------------------------------------------
+# Test 259: rspec_text - category breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT category, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/test_frameworks/rspec_failures.txt', 'rspec_text')
+GROUP BY category
+ORDER BY cnt DESC, category;
+----
+test_success	11
+test_failure	8
+test_pending	1
+
+# -----------------------------------------------------------------------------
+# Test 260: rspec_text - tool_name
+# -----------------------------------------------------------------------------
+query II
+SELECT tool_name, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/test_frameworks/rspec_failures.txt', 'rspec_text')
+GROUP BY tool_name
+ORDER BY tool_name;
+----
+RSpec	20
+
+# -----------------------------------------------------------------------------
+# Test 261: rspec_text - log_file tracking
+# -----------------------------------------------------------------------------
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/test_frameworks/rspec_failures.txt', 'rspec_text');
+----
+test/samples/test_frameworks/rspec_failures.txt
+
+
+# =============================================================================
+# DEBUGGING TOOL FORMAT TESTS - Experimental Formats
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Test 262: valgrind - count and severity breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT status, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/debugging_tools/valgrind_memcheck.txt', 'valgrind')
+GROUP BY status
+ORDER BY cnt DESC, status;
+----
+FAIL	5
+INFO	2
+WARNING	1
+
+# -----------------------------------------------------------------------------
+# Test 263: valgrind - tool_name and category
+# -----------------------------------------------------------------------------
+query III
+SELECT tool_name, category, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/debugging_tools/valgrind_memcheck.txt', 'valgrind')
+GROUP BY tool_name, category
+ORDER BY cnt DESC, tool_name, category;
+----
+Memcheck	Memory leak	3
+Memcheck	Invalid read	1
+Memcheck	Invalid write	1
+Memcheck	error_summary	1
+Memcheck	heap_summary	1
+Memcheck	leak_summary	1
+
+# -----------------------------------------------------------------------------
+# Test 264: valgrind - event_type breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT event_type, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/debugging_tools/valgrind_memcheck.txt', 'valgrind')
+GROUP BY event_type
+ORDER BY cnt DESC, event_type;
+----
+memory_error	5
+summary	3
+
+# -----------------------------------------------------------------------------
+# Test 265: valgrind - log_file tracking
+# -----------------------------------------------------------------------------
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/debugging_tools/valgrind_memcheck.txt', 'valgrind');
+----
+test/samples/debugging_tools/valgrind_memcheck.txt
+
+# -----------------------------------------------------------------------------
+# Test 266: gdb_lldb - count and severity breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT status, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/debugging_tools/gdb_session.txt', 'gdb_lldb')
+GROUP BY status
+ORDER BY cnt DESC, status;
+----
+INFO	3
+ERROR	1
+
+# -----------------------------------------------------------------------------
+# Test 267: gdb_lldb - tool_name and category
+# -----------------------------------------------------------------------------
+query III
+SELECT tool_name, category, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/debugging_tools/gdb_session.txt', 'gdb_lldb')
+GROUP BY tool_name, category
+ORDER BY cnt DESC, tool_name, category;
+----
+GDB	debugger_startup	1
+GDB	program_start	1
+GDB	signal_crash	1
+GDB	watchpoint_hit	1
+
+# -----------------------------------------------------------------------------
+# Test 268: gdb_lldb - event_type breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT event_type, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/debugging_tools/gdb_session.txt', 'gdb_lldb')
+GROUP BY event_type
+ORDER BY cnt DESC, event_type;
+----
+debug_event	2
+debug_info	1
+crash_signal	1
+
+# -----------------------------------------------------------------------------
+# Test 269: gdb_lldb - log_file tracking
+# -----------------------------------------------------------------------------
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/debugging_tools/gdb_session.txt', 'gdb_lldb');
+----
+test/samples/debugging_tools/gdb_session.txt
+
+
+# =============================================================================
+# LINTING TOOL TEXT FORMAT TESTS - Experimental Formats
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Test 270: clang_tidy_text - count and severity breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT status, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/linting_tools/clang_tidy_output.txt', 'clang_tidy_text')
+GROUP BY status
+ORDER BY cnt DESC, status;
+----
+WARNING	6
+ERROR	3
+
+# -----------------------------------------------------------------------------
+# Test 271: clang_tidy_text - tool_name and category
+# -----------------------------------------------------------------------------
+query II
+SELECT tool_name, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/linting_tools/clang_tidy_output.txt', 'clang_tidy_text')
+GROUP BY tool_name
+ORDER BY tool_name;
+----
+clang-tidy	9
+
+# -----------------------------------------------------------------------------
+# Test 272: clang_tidy_text - error codes
+# -----------------------------------------------------------------------------
+query II
+SELECT error_code, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/linting_tools/clang_tidy_output.txt', 'clang_tidy_text')
+WHERE error_code IS NOT NULL AND error_code != ''
+GROUP BY error_code
+ORDER BY cnt DESC, error_code
+LIMIT 5;
+----
+bugprone-narrowing-conversions	1
+clang-diagnostic-error	1
+cppcoreguidelines-init-variables	1
+misc-no-recursion	1
+modernize-make-unique	1
+
+# -----------------------------------------------------------------------------
+# Test 273: clang_tidy_text - log_file tracking
+# -----------------------------------------------------------------------------
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/linting_tools/clang_tidy_output.txt', 'clang_tidy_text');
+----
+test/samples/linting_tools/clang_tidy_output.txt
+
+# -----------------------------------------------------------------------------
+# Test 274: black_text - count and severity breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT status, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/python_tools/black_output.txt', 'black_text')
+GROUP BY status
+ORDER BY cnt DESC, status;
+----
+INFO	2
+WARNING	1
+
+# -----------------------------------------------------------------------------
+# Test 275: black_text - tool_name and category
+# -----------------------------------------------------------------------------
+query II
+SELECT tool_name, category
+FROM read_duck_hunt_log('test/samples/python_tools/black_output.txt', 'black_text')
+GROUP BY tool_name, category
+ORDER BY tool_name;
+----
+black	code_formatting
+
+# -----------------------------------------------------------------------------
+# Test 276: black_text - event_type breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT event_type, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/python_tools/black_output.txt', 'black_text')
+GROUP BY event_type
+ORDER BY cnt DESC, event_type;
+----
+lint_issue	2
+build_error	1
+
+# -----------------------------------------------------------------------------
+# Test 277: black_text - log_file tracking
+# -----------------------------------------------------------------------------
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/python_tools/black_output.txt', 'black_text');
+----
+test/samples/python_tools/black_output.txt
+
+# -----------------------------------------------------------------------------
+# Test 278: flake8_text - count and severity breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT status, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/linting_tools/flake8_output.txt', 'flake8_text')
+GROUP BY status
+ORDER BY cnt DESC, status;
+----
+ERROR	13
+WARNING	5
+
+# -----------------------------------------------------------------------------
+# Test 279: flake8_text - tool_name and category
+# -----------------------------------------------------------------------------
+query II
+SELECT tool_name, category
+FROM read_duck_hunt_log('test/samples/linting_tools/flake8_output.txt', 'flake8_text')
+GROUP BY tool_name, category
+ORDER BY tool_name;
+----
+flake8	style_guide
+
+# -----------------------------------------------------------------------------
+# Test 280: flake8_text - error codes sample
+# -----------------------------------------------------------------------------
+query II
+SELECT error_code, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/linting_tools/flake8_output.txt', 'flake8_text')
+WHERE error_code IS NOT NULL AND error_code != ''
+GROUP BY error_code
+ORDER BY cnt DESC, error_code
+LIMIT 5;
+----
+E501	3
+E302	2
+F401	2
+C901	1
+E265	1
+
+# -----------------------------------------------------------------------------
+# Test 281: flake8_text - log_file tracking
+# -----------------------------------------------------------------------------
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/linting_tools/flake8_output.txt', 'flake8_text');
+----
+test/samples/linting_tools/flake8_output.txt
+
+# -----------------------------------------------------------------------------
+# Test 282: pylint_text - count and severity breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT status, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/linting_tools/pylint_output.txt', 'pylint_text')
+GROUP BY status
+ORDER BY cnt DESC, status;
+----
+INFO	10
+WARNING	5
+ERROR	3
+
+# -----------------------------------------------------------------------------
+# Test 283: pylint_text - tool_name and category
+# -----------------------------------------------------------------------------
+query II
+SELECT tool_name, category
+FROM read_duck_hunt_log('test/samples/linting_tools/pylint_output.txt', 'pylint_text')
+GROUP BY tool_name, category
+ORDER BY tool_name;
+----
+pylint	code_quality
+
+# -----------------------------------------------------------------------------
+# Test 284: pylint_text - error codes sample
+# -----------------------------------------------------------------------------
+query II
+SELECT error_code, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/linting_tools/pylint_output.txt', 'pylint_text')
+WHERE error_code IS NOT NULL AND error_code != ''
+GROUP BY error_code
+ORDER BY cnt DESC, error_code
+LIMIT 5;
+----
+C0116	3
+C0114	2
+C0103	1
+C0115	1
+C0301	1
+
+# -----------------------------------------------------------------------------
+# Test 285: pylint_text - log_file tracking
+# -----------------------------------------------------------------------------
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/linting_tools/pylint_output.txt', 'pylint_text');
+----
+test/samples/linting_tools/pylint_output.txt
+
+
+# =============================================================================
+# CI SYSTEM FORMAT TESTS - Experimental Formats
+# Note: CI formats use read_duck_hunt_workflow_log, not read_duck_hunt_log
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Test 286: github_actions - count and severity breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT status, COUNT(*) as cnt
+FROM read_duck_hunt_workflow_log('test/samples/ci_systems/github_actions_workflow.txt', 'github_actions')
+GROUP BY status
+ORDER BY cnt DESC, status;
+----
+INFO	48
+PASS	3
+ERROR	1
+WARNING	1
+
+# -----------------------------------------------------------------------------
+# Test 287: github_actions - tool_name and category
+# -----------------------------------------------------------------------------
+query II
+SELECT tool_name, category
+FROM read_duck_hunt_workflow_log('test/samples/ci_systems/github_actions_workflow.txt', 'github_actions')
+GROUP BY tool_name, category
+ORDER BY tool_name;
+----
+github_actions	workflow
+
+# -----------------------------------------------------------------------------
+# Test 288: github_actions - workflow structure (steps)
+# -----------------------------------------------------------------------------
+query II
+SELECT unit, COUNT(*) as cnt
+FROM read_duck_hunt_workflow_log('test/samples/ci_systems/github_actions_workflow.txt', 'github_actions')
+WHERE unit IS NOT NULL AND unit != ''
+GROUP BY unit
+ORDER BY cnt DESC
+LIMIT 5;
+----
+Run npm test	17
+Run actions/checkout@v4	11
+Run npm run lint	7
+Annotations	6
+Run actions/setup-node@v4	6
+
+# -----------------------------------------------------------------------------
+# Test 289: github_actions - log_file tracking
+# -----------------------------------------------------------------------------
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_workflow_log('test/samples/ci_systems/github_actions_workflow.txt', 'github_actions');
+----
+test/samples/ci_systems/github_actions_workflow.txt
+
+# -----------------------------------------------------------------------------
+# Test 290: gitlab_ci - count and severity breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT status, COUNT(*) as cnt
+FROM read_duck_hunt_workflow_log('test/samples/ci_systems/gitlab_ci_output.txt', 'gitlab_ci')
+GROUP BY status
+ORDER BY cnt DESC, status;
+----
+INFO	52
+
+# -----------------------------------------------------------------------------
+# Test 291: gitlab_ci - tool_name
+# -----------------------------------------------------------------------------
+query II
+SELECT tool_name, COUNT(*) as cnt
+FROM read_duck_hunt_workflow_log('test/samples/ci_systems/gitlab_ci_output.txt', 'gitlab_ci')
+GROUP BY tool_name
+ORDER BY tool_name;
+----
+gitlab_ci	52
+
+# -----------------------------------------------------------------------------
+# Test 292: gitlab_ci - log_file tracking
+# -----------------------------------------------------------------------------
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_workflow_log('test/samples/ci_systems/gitlab_ci_output.txt', 'gitlab_ci');
+----
+test/samples/ci_systems/gitlab_ci_output.txt
+
+# -----------------------------------------------------------------------------
+# Test 293: jenkins - count and severity breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT status, COUNT(*) as cnt
+FROM read_duck_hunt_workflow_log('test/samples/ci_systems/jenkins_console_output.txt', 'jenkins')
+GROUP BY status
+ORDER BY cnt DESC, status;
+----
+INFO	68
+
+# -----------------------------------------------------------------------------
+# Test 294: jenkins - tool_name
+# -----------------------------------------------------------------------------
+query II
+SELECT tool_name, COUNT(*) as cnt
+FROM read_duck_hunt_workflow_log('test/samples/ci_systems/jenkins_console_output.txt', 'jenkins')
+GROUP BY tool_name
+ORDER BY tool_name;
+----
+jenkins	68
+
+# -----------------------------------------------------------------------------
+# Test 295: jenkins - log_file tracking
+# -----------------------------------------------------------------------------
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_workflow_log('test/samples/ci_systems/jenkins_console_output.txt', 'jenkins');
+----
+test/samples/ci_systems/jenkins_console_output.txt
+
+
+# =============================================================================
+# SECURITY SCANNER FORMAT TESTS - Experimental Formats
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Test 296: trivy_json - count and severity breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT status, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/security_tools/trivy_scan.json', 'trivy_json')
+GROUP BY status
+ORDER BY cnt DESC, status;
+----
+ERROR	4
+WARNING	1
+
+# -----------------------------------------------------------------------------
+# Test 297: trivy_json - tool_name and category
+# -----------------------------------------------------------------------------
+query III
+SELECT tool_name, category, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/security_tools/trivy_scan.json', 'trivy_json')
+GROUP BY tool_name, category
+ORDER BY cnt DESC, tool_name, category;
+----
+trivy	vulnerability	4
+trivy	misconfiguration	1
+
+# -----------------------------------------------------------------------------
+# Test 298: trivy_json - severity breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT severity, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/security_tools/trivy_scan.json', 'trivy_json')
+GROUP BY severity
+ORDER BY cnt DESC, severity;
+----
+HIGH	2
+CRITICAL	2
+MEDIUM	1
+
+# -----------------------------------------------------------------------------
+# Test 299: trivy_json - log_file tracking
+# -----------------------------------------------------------------------------
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/security_tools/trivy_scan.json', 'trivy_json');
+----
+test/samples/security_tools/trivy_scan.json
+
+# -----------------------------------------------------------------------------
+# Test 300: tfsec_json - count and severity breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT status, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/security_tools/tfsec_scan.json', 'tfsec_json')
+GROUP BY status
+ORDER BY cnt DESC, status;
+----
+ERROR	3
+WARNING	1
+
+# -----------------------------------------------------------------------------
+# Test 301: tfsec_json - tool_name and category
+# -----------------------------------------------------------------------------
+query II
+SELECT tool_name, category
+FROM read_duck_hunt_log('test/samples/security_tools/tfsec_scan.json', 'tfsec_json')
+GROUP BY tool_name, category
+ORDER BY tool_name;
+----
+tfsec	infrastructure_security
+
+# -----------------------------------------------------------------------------
+# Test 302: tfsec_json - severity breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT severity, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/security_tools/tfsec_scan.json', 'tfsec_json')
+GROUP BY severity
+ORDER BY cnt DESC, severity;
+----
+CRITICAL	1
+HIGH	2
+MEDIUM	1
+
+# -----------------------------------------------------------------------------
+# Test 303: tfsec_json - log_file tracking
+# -----------------------------------------------------------------------------
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/security_tools/tfsec_scan.json', 'tfsec_json');
+----
+test/samples/security_tools/tfsec_scan.json
+
+# =============================================================================
+# INFRASTRUCTURE FORMAT TESTS - Additional Experimental Formats
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Test 304: s3_access - count and severity breakdown
+# -----------------------------------------------------------------------------
+query II
+SELECT status, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/infrastructure/s3_access_logs.txt', 's3_access')
+GROUP BY status
+ORDER BY cnt DESC, status;
+----
+INFO	6
+WARNING	2
+ERROR	1
+
+# -----------------------------------------------------------------------------
+# Test 305: s3_access - tool_name
+# -----------------------------------------------------------------------------
+query II
+SELECT tool_name, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/infrastructure/s3_access_logs.txt', 's3_access')
+GROUP BY tool_name
+ORDER BY tool_name;
+----
+s3_access	9
+
+# -----------------------------------------------------------------------------
+# Test 306: s3_access - log_file tracking
+# -----------------------------------------------------------------------------
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/infrastructure/s3_access_logs.txt', 's3_access');
+----
+test/samples/infrastructure/s3_access_logs.txt
+
