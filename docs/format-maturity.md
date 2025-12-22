@@ -1,6 +1,8 @@
 # Format Maturity Levels
 
-This document describes the maturity levels for each supported format in Duck Hunt. Maturity is determined by test coverage and the presence of sample files.
+This document describes the maturity levels for formats used with `read_duck_hunt_log()` and `parse_duck_hunt_log()`. Maturity is determined by test coverage and the presence of sample files.
+
+> **Note:** CI/CD workflow formats (`github_actions`, `gitlab_ci`, `jenkins`, `docker_build`) use a separate function `read_duck_hunt_workflow_log()` with hierarchical parsing. See [Field Mappings - CI/CD Workflows](field_mappings.md#cicd-workflows) for workflow format documentation.
 
 ## Maturity Ratings
 
@@ -17,12 +19,12 @@ This document describes the maturity levels for each supported format in Duck Hu
 | Maturity | Count | Percentage |
 |----------|-------|------------|
 | Production ⭐⭐⭐⭐⭐ | 7 | 8% |
-| Stable ⭐⭐⭐⭐ | 27 | 31% |
-| Beta ⭐⭐⭐ | 11 | 13% |
-| Alpha ⭐⭐ | 7 | 8% |
-| Experimental ⭐ | 35 | 40% |
+| Stable ⭐⭐⭐⭐ | 27 | 33% |
+| Beta ⭐⭐⭐ | 28 | 34% |
+| Alpha ⭐⭐ | 9 | 11% |
+| Experimental ⭐ | 12 | 14% |
 
-**Total: 87 formats**
+**Total: 83 log formats** (plus 4 workflow formats)
 
 ---
 
@@ -82,13 +84,30 @@ These formats have moderate test coverage and work for common scenarios.
 |--------|-------|--------|-------------|
 | `apache_access` | 10 | - | Apache access logs |
 | `auditd` | 7 | - | Linux auditd logs |
+| `bazel_build` | 4 | ✓ | Bazel build output |
+| `black_text` | 4 | ✓ | Black Python formatter |
+| `cargo_build` | 5 | ✓ | Cargo build (Rust) |
 | `cisco_asa` | 4 | - | Cisco ASA firewall logs |
+| `clang_tidy_text` | 4 | ✓ | clang-tidy C++ linter |
+| `flake8_text` | 4 | ✓ | Flake8 Python linter |
+| `gdb_lldb` | 4 | ✓ | GDB/LLDB debugger |
 | `generic_lint` | 15 | - | Generic lint format |
+| `gradle_build` | 4 | ✓ | Gradle build output |
+| `gtest_text` | 4 | ✓ | Google Test (C++) |
 | `iptables` | 5 | - | iptables/netfilter logs |
+| `maven_build` | 4 | ✓ | Maven build output |
+| `mocha_chai_text` | 4 | ✓ | Mocha/Chai (JavaScript) |
+| `msbuild` | 4 | ✓ | MSBuild (.NET) |
 | `mypy_text` | 3 | ✓ | MyPy type checker |
 | `nginx_access` | 6 | - | Nginx access logs |
+| `node_build` | 4 | ✓ | npm/yarn build errors |
+| `pylint_text` | 4 | ✓ | Pylint Python linter |
 | `pytest_json` | 2 | ✓ | pytest JSON output |
 | `pytest_text` | 5 | ✓ | pytest text output |
+| `rspec_text` | 4 | ✓ | RSpec (Ruby) |
+| `tfsec_json` | 4 | ✓ | tfsec Terraform security |
+| `trivy_json` | 4 | ✓ | Trivy vulnerability scanner |
+| `valgrind` | 4 | ✓ | Valgrind memory analyzer |
 | `windows_event` | 4 | - | Windows Event Log |
 | `winston` | 3 | ✓ | Winston (Node.js) logging |
 
@@ -105,6 +124,8 @@ These formats have limited test coverage. Use with caution.
 | `gotest_json` | 1 | ✓ | Go test JSON output |
 | `jsonl` | 1 | ✓ | JSON Lines |
 | `log4j` | 1 | ✓ | Log4j/Log4j2 (Java) logging |
+| `python_build` | 3 | ✓ | pip/setuptools errors |
+| `s3_access` | 3 | ✓ | S3 Access Logs |
 
 ## Experimental ⭐
 
@@ -114,39 +135,31 @@ These formats have sample files but no dedicated tests. They may work but are no
 |--------|--------|-------------|
 | `ansible_text` | - | Ansible playbook output |
 | `autopep8_text` | - | autopep8 Python formatter |
-| `bazel_build` | ✓ | Bazel build output |
-| `black_text` | ✓ | Black Python formatter |
-| `cargo_build` | ✓ | Cargo build (Rust) |
-| `clang_tidy_text` | ✓ | clang-tidy C++ linter |
 | `coverage_text` | ✓ | Coverage.py text output |
-| `docker_build` | ✓ | Docker build output |
 | `drone_ci_text` | - | Drone CI logs |
 | `duckdb_test` | - | DuckDB test runner |
-| `flake8_text` | ✓ | Flake8 Python linter |
-| `gdb_lldb` | ✓ | GDB/LLDB debugger |
-| `github_actions_text` | ✓ | GitHub Actions logs |
 | `github_cli` | - | GitHub CLI output |
-| `gitlab_ci_text` | ✓ | GitLab CI logs |
-| `gradle_build` | ✓ | Gradle build output |
-| `gtest_text` | ✓ | Google Test (C++) |
 | `isort_text` | ✓ | isort Python import sorter |
-| `jenkins_text` | ✓ | Jenkins console output |
 | `junit_text` | - | JUnit text output |
-| `maven_build` | ✓ | Maven build output |
-| `mocha_chai_text` | ✓ | Mocha/Chai (JavaScript) |
-| `msbuild` | ✓ | MSBuild (.NET) |
-| `node_build` | ✓ | npm/yarn build errors |
 | `nunit_xunit_text` | ✓ | NUnit/xUnit text output |
-| `pylint_text` | ✓ | Pylint Python linter |
 | `pytest_cov_text` | - | pytest-cov coverage output |
-| `python_build` | ✓ | pip/setuptools errors |
-| `rspec_text` | ✓ | RSpec (Ruby) |
-| `s3_access` | ✓ | S3 Access Logs |
 | `terraform_text` | - | Terraform output |
-| `tfsec_json` | ✓ | tfsec Terraform security |
-| `trivy_json` | ✓ | Trivy vulnerability scanner |
-| `valgrind` | ✓ | Valgrind memory analyzer |
 | `yapf_text` | - | YAPF Python formatter |
+
+---
+
+## Workflow Formats
+
+The following formats use `read_duck_hunt_workflow_log()` for hierarchical CI/CD parsing:
+
+| Format | Description |
+|--------|-------------|
+| `github_actions` | GitHub Actions workflow logs |
+| `gitlab_ci` | GitLab CI pipeline logs |
+| `jenkins` | Jenkins build console output |
+| `docker_build` | Docker build output |
+
+These formats parse workflow structure (scope → group → unit → subunit) rather than individual validation events. See [Field Mappings - CI/CD Workflows](field_mappings.md#cicd-workflows) for details.
 
 ---
 
