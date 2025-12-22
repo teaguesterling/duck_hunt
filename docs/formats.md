@@ -101,15 +101,19 @@ Duck Hunt supports 80+ format strings for parsing development tool outputs. Use 
 
 ### CI/CD Systems
 
-| Format String | Tool | Sample File |
-|---------------|------|-------------|
-| `github_actions_text` | GitHub Actions | [github_actions_workflow.txt](../test/samples/ci_systems/github_actions_workflow.txt) |
-| `github_cli` | GitHub CLI | - |
-| `gitlab_ci_text` | GitLab CI | [gitlab_ci_output.txt](../test/samples/ci_systems/gitlab_ci_output.txt) |
-| `jenkins_text` | Jenkins | [jenkins_console_output.txt](../test/samples/ci_systems/jenkins_console_output.txt) |
-| `drone_ci_text` | Drone CI | - |
-| `terraform_text` | Terraform | - |
-| `ansible_text` | Ansible | - |
+> **Note:** CI/CD workflow formats use `read_duck_hunt_workflow_log()` for hierarchical parsing.
+> See **[Workflow Formats](workflow-formats.md)** for complete documentation.
+
+| Format String | Tool | Function | Sample File |
+|---------------|------|----------|-------------|
+| `github_actions` | GitHub Actions | workflow | [github_actions_workflow.txt](../test/samples/ci_systems/github_actions_workflow.txt) |
+| `gitlab_ci` | GitLab CI | workflow | [gitlab_ci_output.txt](../test/samples/ci_systems/gitlab_ci_output.txt) |
+| `jenkins` | Jenkins | workflow | [jenkins_console_output.txt](../test/samples/ci_systems/jenkins_console_output.txt) |
+| `docker_build` | Docker | workflow | [docker_logs.txt](../test/samples/infrastructure/docker_logs.txt) |
+| `github_cli` | GitHub CLI | log | - |
+| `drone_ci_text` | Drone CI | log | - |
+| `terraform_text` | Terraform | log | - |
+| `ansible_text` | Ansible | log | - |
 
 ### Cloud Logging
 

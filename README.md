@@ -61,11 +61,10 @@ SELECT status_badge(
 | `mypy_text` | MyPy | [sample](test/samples/linting_tools/mypy_output.txt) |
 | `make_error` | GNU Make | [sample](test/samples/build_systems/make_errors.txt) |
 | `gotest_json` | Go test | [sample](test/samples/test_frameworks/gotest_failures.json) |
-| `github_actions_text` | GitHub Actions | [sample](test/samples/ci_systems/github_actions_workflow.txt) |
 | `valgrind` | Valgrind | [sample](test/samples/debugging_tools/valgrind_memcheck.txt) |
 | `generic_lint` | Generic | `file:line:col: severity: message` |
 
-**[See all 80+ formats →](docs/formats.md)**
+**[See all 80+ formats →](docs/formats.md)** | **[Workflow formats →](docs/workflow-formats.md)**
 
 ## Output Schema
 
@@ -89,6 +88,7 @@ All parsers produce a standardized 39-field schema:
 ## Documentation
 
 - **[Format Reference](docs/formats.md)** - All 80+ supported formats with examples
+- **[Workflow Formats](docs/workflow-formats.md)** - CI/CD workflow parsing (GitHub Actions, GitLab CI, Jenkins)
 - **[Format Maturity](docs/format-maturity.md)** - Stability ratings and test coverage
 - **[Schema Reference](docs/schema.md)** - Complete field documentation
 - **[Field Mappings](docs/field_mappings.md)** - How fields map to each domain
