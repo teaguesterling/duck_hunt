@@ -1,6 +1,6 @@
 # Supported Formats
 
-Duck Hunt supports 60+ format strings for parsing development tool outputs. Use these with `read_duck_hunt_log()` or `parse_duck_hunt_log()`.
+Duck Hunt supports 80+ format strings for parsing development tool outputs. Use these with `read_duck_hunt_log()` or `parse_duck_hunt_log()`.
 
 ## Quick Reference
 
@@ -13,84 +13,139 @@ Duck Hunt supports 60+ format strings for parsing development tool outputs. Use 
 
 | Format String | Tool | Sample File |
 |---------------|------|-------------|
-| `pytest_json` | pytest (JSON) | [pytest.json](../test/samples/pytest.json) |
-| `pytest_text` | pytest (text) | - |
-| `gotest_json` | Go test | [gotest.json](../test/samples/gotest.json) |
-| `cargo_test_json` | Cargo test (Rust) | - |
+| `pytest_json` | pytest (JSON) | [pytest_json_failures.json](../test/samples/test_frameworks/pytest_json_failures.json) |
+| `pytest_text` | pytest (text) | [pytest_failures.txt](../test/samples/test_frameworks/pytest_failures.txt) |
+| `gotest_json` | Go test | [gotest_failures.json](../test/samples/test_frameworks/gotest_failures.json) |
+| `cargo_test_json` | Cargo test (Rust) | [cargo_test_output.jsonl](../test/samples/test_frameworks/cargo_test_output.jsonl) |
 | `junit_text` | JUnit/TestNG/Surefire | - |
-| `rspec_text` | RSpec (Ruby) | - |
-| `mocha_chai_text` | Mocha/Chai (JS) | - |
-| `gtest_text` | Google Test (C++) | - |
-| `nunit_xunit_text` | NUnit/xUnit (.NET) | - |
+| `junit_xml` | JUnit XML | [junit_xml_failures.xml](../test/samples/test_frameworks/junit_xml_failures.xml) |
+| `rspec_text` | RSpec (Ruby) | [rspec_failures.txt](../test/samples/test_frameworks/rspec_failures.txt) |
+| `mocha_chai_text` | Mocha/Chai (JS) | [mocha_failures.txt](../test/samples/test_frameworks/mocha_failures.txt) |
+| `gtest_text` | Google Test (C++) | [gtest_failures.txt](../test/samples/test_frameworks/gtest_failures.txt) |
+| `nunit_xunit_text` | NUnit/xUnit (.NET) | [nunit_xml_failures.xml](../test/samples/test_frameworks/nunit_xml_failures.xml) |
 | `duckdb_test` | DuckDB test runner | - |
+| `pytest_cov_text` | pytest-cov | - |
 
 ### Linting & Static Analysis
 
 | Format String | Tool | Sample File |
 |---------------|------|-------------|
-| `eslint_json` | ESLint | [eslint.json](../test/samples/eslint.json) |
-| `pylint_text` | Pylint | - |
-| `flake8_text` | Flake8 | - |
-| `mypy_text` | MyPy | [mypy.txt](../test/samples/mypy.txt) |
-| `black_text` | Black | - |
-| `bandit_json` | Bandit (JSON) | - |
-| `bandit_text` | Bandit (text) | - |
-| `rubocop_json` | RuboCop | - |
-| `swiftlint_json` | SwiftLint | - |
-| `phpstan_json` | PHPStan | - |
-| `shellcheck_json` | Shellcheck | - |
-| `stylelint_json` | Stylelint | - |
-| `clippy_json` | Clippy (Rust) | - |
-| `markdownlint_json` | Markdownlint | - |
-| `yamllint_json` | yamllint | - |
-| `spotbugs_json` | SpotBugs | - |
-| `ktlint_json` | ktlint | - |
-| `hadolint_json` | Hadolint | - |
-| `lintr_json` | lintr (R) | - |
-| `sqlfluff_json` | sqlfluff | - |
-| `tflint_json` | tflint | - |
-| `isort_text` | isort | - |
+| `eslint_json` | ESLint | [eslint_output.json](../test/samples/linting_tools/eslint_output.json) |
+| `pylint_text` | Pylint | [pylint_output.txt](../test/samples/linting_tools/pylint_output.txt) |
+| `flake8_text` | Flake8 | [flake8_output.txt](../test/samples/linting_tools/flake8_output.txt) |
+| `mypy_text` | MyPy | [mypy_output.txt](../test/samples/linting_tools/mypy_output.txt) |
+| `black_text` | Black | [black_output.txt](../test/samples/python_tools/black_output.txt) |
+| `bandit_json` | Bandit (security) | [bandit_output.json](../test/samples/linting_tools/bandit_output.json) |
+| `rubocop_json` | RuboCop | [rubocop_output.json](../test/samples/linting_tools/rubocop_output.json) |
+| `swiftlint_json` | SwiftLint | [swiftlint_output.json](../test/samples/linting_tools/swiftlint_output.json) |
+| `phpstan_json` | PHPStan | [phpstan_output.json](../test/samples/linting_tools/phpstan_output.json) |
+| `shellcheck_json` | Shellcheck | [shellcheck_output.json](../test/samples/linting_tools/shellcheck_output.json) |
+| `stylelint_json` | Stylelint | [stylelint_output.json](../test/samples/linting_tools/stylelint_output.json) |
+| `clippy_json` | Clippy (Rust) | [clippy_output.jsonl](../test/samples/linting_tools/clippy_output.jsonl) |
+| `markdownlint_json` | Markdownlint | [markdownlint_output.json](../test/samples/linting_tools/markdownlint_output.json) |
+| `yamllint_json` | yamllint | [yamllint_output.json](../test/samples/linting_tools/yamllint_output.json) |
+| `spotbugs_json` | SpotBugs | [spotbugs_output.json](../test/samples/linting_tools/spotbugs_output.json) |
+| `ktlint_json` | ktlint | [ktlint_output.json](../test/samples/linting_tools/ktlint_output.json) |
+| `hadolint_json` | Hadolint | [hadolint_output.json](../test/samples/linting_tools/hadolint_output.json) |
+| `lintr_json` | lintr (R) | [lintr_output.json](../test/samples/linting_tools/lintr_output.json) |
+| `sqlfluff_json` | sqlfluff | [sqlfluff_output.json](../test/samples/linting_tools/sqlfluff_output.json) |
+| `clang_tidy_text` | clang-tidy | [clang_tidy_output.txt](../test/samples/linting_tools/clang_tidy_output.txt) |
+| `isort_text` | isort | [isort_output.txt](../test/samples/python_tools/isort_output.txt) |
 | `autopep8_text` | autopep8 | - |
 | `yapf_text` | YAPF | - |
-| `clang_tidy_text` | clang-tidy | - |
-| `kube_score_json` | kube-score | - |
 | `generic_lint` | Generic format | - |
 
 ### Build Systems
 
 | Format String | Tool | Sample File |
 |---------------|------|-------------|
-| `make_error` | GNU Make | [make.out](../test/samples/make.out) |
-| `cmake_build` | CMake | - |
-| `python_build` | pip/setuptools | - |
-| `node_build` | npm/yarn/webpack | - |
-| `cargo_build` | Cargo (Rust) | - |
-| `maven_build` | Maven | - |
-| `gradle_build` | Gradle | - |
-| `msbuild` | MSBuild (.NET) | - |
-| `bazel_build` | Bazel | - |
-| `docker_build` | Docker | - |
+| `make_error` | GNU Make | [make_errors.txt](../test/samples/build_systems/make_errors.txt) |
+| `cmake_build` | CMake | [cmake_build_errors.txt](../test/samples/build_systems/cmake_build_errors.txt) |
+| `python_build` | pip/setuptools | [pip_install_errors.txt](../test/samples/build_systems/pip_install_errors.txt) |
+| `node_build` | npm/yarn/webpack | [npm_build_errors.txt](../test/samples/build_systems/npm_build_errors.txt) |
+| `cargo_build` | Cargo (Rust) | [cargo_build_errors.txt](../test/samples/build_systems/cargo_build_errors.txt) |
+| `maven_build` | Maven | [maven_build_failures.txt](../test/samples/build_systems/maven_build_failures.txt) |
+| `gradle_build` | Gradle | [gradle_build_failures.txt](../test/samples/build_systems/gradle_build_failures.txt) |
+| `msbuild` | MSBuild (.NET) | [msbuild_errors.txt](../test/samples/build_systems/msbuild_errors.txt) |
+| `bazel_build` | Bazel | [bazel_build_errors.txt](../test/samples/build_systems/bazel_build_errors.txt) |
+| `docker_build` | Docker | [docker_logs.txt](../test/samples/infrastructure/docker_logs.txt) |
+
+### Infrastructure & Security
+
+| Format String | Tool | Sample File |
+|---------------|------|-------------|
+| `tflint_json` | tflint | [tflint_output.json](../test/samples/infrastructure/tflint_output.json) |
+| `kube_score_json` | kube-score | [kube_score_output.json](../test/samples/infrastructure/kube_score_output.json) |
+| `trivy_json` | Trivy (security) | [trivy_scan.json](../test/samples/security_tools/trivy_scan.json) |
+| `tfsec_json` | tfsec (security) | [tfsec_scan.json](../test/samples/security_tools/tfsec_scan.json) |
+| `kubernetes` | Kubernetes events | [kubernetes_events.json](../test/samples/infrastructure/kubernetes_events.json) |
+| `vpc_flow` | VPC Flow Logs | [vpc_flow_logs.txt](../test/samples/infrastructure/vpc_flow_logs.txt) |
+| `s3_access` | S3 Access Logs | [s3_access_logs.txt](../test/samples/infrastructure/s3_access_logs.txt) |
+| `pf` | BSD Packet Filter | [pf_firewall.txt](../test/samples/infrastructure/pf_firewall.txt) |
+| `iptables` | iptables/netfilter | - |
+| `cisco_asa` | Cisco ASA | - |
+| `windows_event` | Windows Event Log | - |
+| `auditd` | Linux auditd | - |
 
 ### Debugging & Coverage
 
 | Format String | Tool | Sample File |
 |---------------|------|-------------|
-| `valgrind` | Valgrind | - |
-| `gdb_lldb` | GDB/LLDB | - |
-| `coverage_text` | Coverage.py | - |
+| `valgrind` | Valgrind | [valgrind_memcheck.txt](../test/samples/debugging_tools/valgrind_memcheck.txt) |
+| `gdb_lldb` | GDB/LLDB | [gdb_session.txt](../test/samples/debugging_tools/gdb_session.txt) |
+| `strace` | strace | [strace_output.txt](../test/samples/debugging_tools/strace_output.txt) |
+| `coverage_text` | Coverage.py | [coverage_xml.xml](../test/samples/coverage/coverage_xml.xml) |
 | `pytest_cov_text` | pytest-cov | - |
 
-### CI/CD & Infrastructure
+### CI/CD Systems
 
 | Format String | Tool | Sample File |
 |---------------|------|-------------|
-| `github_actions_text` | GitHub Actions | [github_actions.log](../test/samples/github_actions.log) |
+| `github_actions_text` | GitHub Actions | [github_actions_workflow.txt](../test/samples/ci_systems/github_actions_workflow.txt) |
 | `github_cli` | GitHub CLI | - |
-| `gitlab_ci_text` | GitLab CI | - |
-| `jenkins_text` | Jenkins | - |
+| `gitlab_ci_text` | GitLab CI | [gitlab_ci_output.txt](../test/samples/ci_systems/gitlab_ci_output.txt) |
+| `jenkins_text` | Jenkins | [jenkins_console_output.txt](../test/samples/ci_systems/jenkins_console_output.txt) |
 | `drone_ci_text` | Drone CI | - |
 | `terraform_text` | Terraform | - |
 | `ansible_text` | Ansible | - |
+
+### Cloud Logging
+
+| Format String | Tool | Sample File |
+|---------------|------|-------------|
+| `aws_cloudtrail` | AWS CloudTrail | [aws_cloudtrail_events.json](../test/samples/cloud_audit/aws_cloudtrail_events.json) |
+| `gcp_cloud_logging` | GCP Cloud Logging | [gcp_cloud_logging.json](../test/samples/cloud_audit/gcp_cloud_logging.json) |
+| `azure_activity` | Azure Activity Log | [azure_activity_log.json](../test/samples/cloud_audit/azure_activity_log.json) |
+
+### Application Logging
+
+| Format String | Tool | Sample File |
+|---------------|------|-------------|
+| `python_logging` | Python logging | [python_logging_output.txt](../test/samples/app_logging/python_logging_output.txt) |
+| `log4j` | Log4j/Log4j2 | [log4j_output.txt](../test/samples/app_logging/log4j_output.txt) |
+| `logrus` | Logrus (Go) | [logrus_output.txt](../test/samples/app_logging/logrus_output.txt) |
+| `winston` | Winston (Node.js) | [winston_logs.json](../test/samples/app_logging/winston_logs.json) |
+| `pino` | Pino (Node.js) | [pino_output.jsonl](../test/samples/app_logging/pino_output.jsonl) |
+| `bunyan` | Bunyan (Node.js) | [bunyan_logs.json](../test/samples/app_logging/bunyan_logs.json) |
+| `serilog` | Serilog (.NET) | [serilog_output.txt](../test/samples/app_logging/serilog_output.txt) |
+| `nlog` | NLog (.NET) | [nlog_output.txt](../test/samples/app_logging/nlog_output.txt) |
+| `ruby_logger` | Ruby Logger | [ruby_logger_output.txt](../test/samples/app_logging/ruby_logger_output.txt) |
+| `rails_log` | Rails Log | [rails_log_output.txt](../test/samples/app_logging/rails_log_output.txt) |
+
+### Web Access Logs
+
+| Format String | Tool | Sample File |
+|---------------|------|-------------|
+| `syslog` | Syslog | [syslog_messages.txt](../test/samples/structured_logs/syslog_messages.txt) |
+| `apache_access` | Apache Access Log | - |
+| `nginx_access` | Nginx Access Log | - |
+
+### Structured Logs
+
+| Format String | Tool | Sample File |
+|---------------|------|-------------|
+| `jsonl` | JSON Lines | [jsonl_logs.jsonl](../test/samples/structured_logs/jsonl_logs.jsonl) |
+| `logfmt` | logfmt | [logfmt_logs.txt](../test/samples/structured_logs/logfmt_logs.txt) |
 
 ---
 

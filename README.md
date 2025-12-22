@@ -1,6 +1,6 @@
 # Duck Hunt
 
-A DuckDB extension for parsing test results, build outputs, and CI/CD logs from 60+ development tools.
+A DuckDB extension for parsing test results, build outputs, and CI/CD logs from 80+ development tools.
 
 ## Functions
 
@@ -56,16 +56,16 @@ SELECT status_badge(
 |--------|------|---------|
 | `auto` | Auto-detect | `read_duck_hunt_log('file.log', 'auto')` |
 | `regexp:<pattern>` | Custom regex | `'regexp:(?P<severity>ERROR):\s+(?P<message>.*)'` |
-| `pytest_json` | pytest | [sample](test/samples/pytest.json) |
-| `eslint_json` | ESLint | [sample](test/samples/eslint.json) |
-| `mypy_text` | MyPy | [sample](test/samples/mypy.txt) |
-| `make_error` | GNU Make | [sample](test/samples/make.out) |
-| `gotest_json` | Go test | [sample](test/samples/gotest.json) |
-| `github_actions` | GitHub Actions | [sample](test/samples/github_actions.log) |
-| `valgrind` | Valgrind | Memory analysis |
+| `pytest_json` | pytest | [sample](test/samples/test_frameworks/pytest_json_failures.json) |
+| `eslint_json` | ESLint | [sample](test/samples/linting_tools/eslint_output.json) |
+| `mypy_text` | MyPy | [sample](test/samples/linting_tools/mypy_output.txt) |
+| `make_error` | GNU Make | [sample](test/samples/build_systems/make_errors.txt) |
+| `gotest_json` | Go test | [sample](test/samples/test_frameworks/gotest_failures.json) |
+| `github_actions` | GitHub Actions | [sample](test/samples/ci_systems/github_actions_workflow.txt) |
+| `valgrind` | Valgrind | [sample](test/samples/debugging_tools/valgrind_memcheck.txt) |
 | `generic_lint` | Generic | `file:line:col: severity: message` |
 
-**[See all 60+ formats →](docs/formats.md)**
+**[See all 80+ formats →](docs/formats.md)**
 
 ## Output Schema
 
@@ -88,7 +88,7 @@ All parsers produce a standardized 39-field schema:
 
 ## Documentation
 
-- **[Format Reference](docs/formats.md)** - All 60+ supported formats with examples
+- **[Format Reference](docs/formats.md)** - All 80+ supported formats with examples
 - **[Schema Reference](docs/schema.md)** - Complete field documentation
 - **[Field Mappings](docs/field_mappings.md)** - How fields map to each domain
 - **[Migration Guide](docs/migration-guide.md)** - Upgrading from previous schema versions
