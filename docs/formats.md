@@ -2,6 +2,8 @@
 
 Duck Hunt supports 80+ format strings for parsing development tool outputs. Use these with `read_duck_hunt_log()` or `parse_duck_hunt_log()`.
 
+> **See also:** [Format Maturity Levels](format-maturity.md) for test coverage and stability ratings.
+
 ## Quick Reference
 
 | Format String | Tool | Sample File |

@@ -89,6 +89,7 @@ All parsers produce a standardized 39-field schema:
 ## Documentation
 
 - **[Format Reference](docs/formats.md)** - All 80+ supported formats with examples
+- **[Format Maturity](docs/format-maturity.md)** - Stability ratings and test coverage
 - **[Schema Reference](docs/schema.md)** - Complete field documentation
 - **[Field Mappings](docs/field_mappings.md)** - How fields map to each domain
 - **[Migration Guide](docs/migration-guide.md)** - Upgrading from previous schema versions
