@@ -61,7 +61,7 @@ SELECT status_badge(
 | `mypy_text` | MyPy | [sample](test/samples/linting_tools/mypy_output.txt) |
 | `make_error` | GNU Make | [sample](test/samples/build_systems/make_errors.txt) |
 | `gotest_json` | Go test | [sample](test/samples/test_frameworks/gotest_failures.json) |
-| `github_actions` | GitHub Actions | [sample](test/samples/ci_systems/github_actions_workflow.txt) |
+| `github_actions_text` | GitHub Actions | [sample](test/samples/ci_systems/github_actions_workflow.txt) |
 | `valgrind` | Valgrind | [sample](test/samples/debugging_tools/valgrind_memcheck.txt) |
 | `generic_lint` | Generic | `file:line:col: severity: message` |
 

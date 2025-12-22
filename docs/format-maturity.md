@@ -16,11 +16,13 @@ This document describes the maturity levels for each supported format in Duck Hu
 
 | Maturity | Count | Percentage |
 |----------|-------|------------|
-| Production ⭐⭐⭐⭐⭐ | 9 | 11% |
-| Stable ⭐⭐⭐⭐ | 28 | 35% |
-| Beta ⭐⭐⭐ | 10 | 13% |
-| Alpha ⭐⭐ | 15 | 19% |
-| Experimental ⭐ | 18 | 22% |
+| Production ⭐⭐⭐⭐⭐ | 7 | 8% |
+| Stable ⭐⭐⭐⭐ | 27 | 31% |
+| Beta ⭐⭐⭐ | 11 | 13% |
+| Alpha ⭐⭐ | 7 | 8% |
+| Experimental ⭐ | 35 | 40% |
+
+**Total: 87 formats**
 
 ---
 
@@ -102,6 +104,7 @@ These formats have limited test coverage. Use with caution.
 | `gcp_cloud_logging` | 1 | ✓ | GCP Cloud Logging |
 | `gotest_json` | 1 | ✓ | Go test JSON output |
 | `jsonl` | 1 | ✓ | JSON Lines |
+| `log4j` | 1 | ✓ | Log4j/Log4j2 (Java) logging |
 
 ## Experimental ⭐
 
@@ -109,29 +112,41 @@ These formats have sample files but no dedicated tests. They may work but are no
 
 | Format | Sample | Description |
 |--------|--------|-------------|
+| `ansible_text` | - | Ansible playbook output |
+| `autopep8_text` | - | autopep8 Python formatter |
 | `bazel_build` | ✓ | Bazel build output |
 | `black_text` | ✓ | Black Python formatter |
 | `cargo_build` | ✓ | Cargo build (Rust) |
 | `clang_tidy_text` | ✓ | clang-tidy C++ linter |
+| `coverage_text` | ✓ | Coverage.py text output |
+| `docker_build` | ✓ | Docker build output |
+| `drone_ci_text` | - | Drone CI logs |
+| `duckdb_test` | - | DuckDB test runner |
 | `flake8_text` | ✓ | Flake8 Python linter |
 | `gdb_lldb` | ✓ | GDB/LLDB debugger |
 | `github_actions_text` | ✓ | GitHub Actions logs |
+| `github_cli` | - | GitHub CLI output |
 | `gitlab_ci_text` | ✓ | GitLab CI logs |
 | `gradle_build` | ✓ | Gradle build output |
 | `gtest_text` | ✓ | Google Test (C++) |
 | `isort_text` | ✓ | isort Python import sorter |
 | `jenkins_text` | ✓ | Jenkins console output |
+| `junit_text` | - | JUnit text output |
 | `maven_build` | ✓ | Maven build output |
 | `mocha_chai_text` | ✓ | Mocha/Chai (JavaScript) |
 | `msbuild` | ✓ | MSBuild (.NET) |
 | `node_build` | ✓ | npm/yarn build errors |
+| `nunit_xunit_text` | ✓ | NUnit/xUnit text output |
 | `pylint_text` | ✓ | Pylint Python linter |
+| `pytest_cov_text` | - | pytest-cov coverage output |
 | `python_build` | ✓ | pip/setuptools errors |
 | `rspec_text` | ✓ | RSpec (Ruby) |
 | `s3_access` | ✓ | S3 Access Logs |
+| `terraform_text` | - | Terraform output |
 | `tfsec_json` | ✓ | tfsec Terraform security |
 | `trivy_json` | ✓ | Trivy vulnerability scanner |
 | `valgrind` | ✓ | Valgrind memory analyzer |
+| `yapf_text` | - | YAPF Python formatter |
 
 ---
 
