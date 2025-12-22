@@ -1950,6 +1950,65 @@ FROM read_duck_hunt_log('test/samples/linting_tools/yamllint_output.json', 'yaml
 ----
 test/samples/linting_tools/yamllint_output.json
 
+# ============================================================================
+# File-based pf (BSD Packet Filter) tests (Tests 216-221)
+# ============================================================================
+
+# Test 216: pf file-based parsing - total count and severity
+query III
+SELECT COUNT(*),
+       SUM(CASE WHEN severity = 'info' THEN 1 ELSE 0 END) as pass_count,
+       SUM(CASE WHEN severity = 'warning' THEN 1 ELSE 0 END) as block_count
+FROM read_duck_hunt_log('test/samples/infrastructure/pf_firewall.txt', 'pf');
+----
+12	5	7
+
+# Test 217: pf file-based parsing - events by interface (category)
+query II
+SELECT category as interface, COUNT(*) as cnt
+FROM read_duck_hunt_log('test/samples/infrastructure/pf_firewall.txt', 'pf')
+GROUP BY category
+ORDER BY category;
+----
+em0	8
+em1	2
+igb0	1
+vtnet0	1
+
+# Test 218: pf file-based parsing - blocked events with origin IPs
+query II
+SELECT origin, message
+FROM read_duck_hunt_log('test/samples/infrastructure/pf_firewall.txt', 'pf')
+WHERE severity = 'warning' AND category = 'em0'
+ORDER BY log_line_start
+LIMIT 3;
+----
+192.168.1.100	block in: 192.168.1.100:54321 -> 10.0.0.1:22 [S]
+192.168.1.101	block in: 192.168.1.101:48762 -> 10.0.0.1:22 [S]
+192.168.1.102	block in: 192.168.1.102:62341 -> 10.0.0.1:3389 [S]
+
+# Test 219: pf file-based parsing - tool_name verification
+query I
+SELECT DISTINCT tool_name
+FROM read_duck_hunt_log('test/samples/infrastructure/pf_firewall.txt', 'pf');
+----
+pf
+
+# Test 220: pf file-based parsing - event_type verification
+query II
+SELECT event_type, COUNT(*)
+FROM read_duck_hunt_log('test/samples/infrastructure/pf_firewall.txt', 'pf')
+GROUP BY event_type;
+----
+debug_info	12
+
+# Test 221: pf file-based parsing - log_file tracking
+query I
+SELECT DISTINCT log_file
+FROM read_duck_hunt_log('test/samples/infrastructure/pf_firewall.txt', 'pf');
+----
+test/samples/infrastructure/pf_firewall.txt
+
 # Clean up
 statement ok
 DROP TABLE rubocop_results;
