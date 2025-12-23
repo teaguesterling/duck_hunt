@@ -14,6 +14,7 @@
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/catalog/catalog.hpp"
 #include "duckdb/parser/parsed_data/create_table_function_info.hpp"
+#include <algorithm>
 #include <regex>
 #include <sstream>
 #include <fstream>
@@ -110,7 +111,15 @@ unique_ptr<FunctionData> ReadDuckHuntWorkflowLogBind(ClientContext &context, Tab
     } else {
         bind_data->format = WorkflowLogFormat::AUTO;
     }
-    
+
+    // Handle severity_threshold named parameter
+    auto threshold_param = input.named_parameters.find("severity_threshold");
+    if (threshold_param != input.named_parameters.end()) {
+        std::string threshold_str = threshold_param->second.ToString();
+        bind_data->severity_threshold = StringToSeverityLevel(threshold_str);
+    }
+    // Default is already set to WARNING in the constructor
+
     // Define return schema (Schema V2) - includes all ValidationEvent fields plus workflow-specific ones
     return_types = {
         // Core identification
@@ -258,6 +267,19 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntWorkflowLogInitGlobal(ClientCon
         global_state->events = std::move(parsed_events);
     }
 
+    // Apply severity threshold filtering
+    if (bind_data.severity_threshold != SeverityLevel::DEBUG) {
+        // Filter out events below the threshold
+        auto new_end = std::remove_if(
+            global_state->events.begin(),
+            global_state->events.end(),
+            [&bind_data](const WorkflowEvent& event) {
+                return !ShouldEmitEvent(event.base_event.severity, bind_data.severity_threshold);
+            }
+        );
+        global_state->events.erase(new_end, global_state->events.end());
+    }
+
     return std::move(global_state);
 }
 
@@ -357,11 +379,13 @@ TableFunctionSet GetReadDuckHuntWorkflowLogFunction() {
     // Single argument version: read_duck_hunt_workflow_log(source) - auto-detects format
     TableFunction single_arg("read_duck_hunt_workflow_log", {LogicalType::VARCHAR},
                             ReadDuckHuntWorkflowLogFunction, ReadDuckHuntWorkflowLogBind, ReadDuckHuntWorkflowLogInitGlobal, ReadDuckHuntWorkflowLogInitLocal);
+    single_arg.named_parameters["severity_threshold"] = LogicalType::VARCHAR;
     set.AddFunction(single_arg);
 
     // Two argument version: read_duck_hunt_workflow_log(source, format)
     TableFunction two_arg("read_duck_hunt_workflow_log", {LogicalType::VARCHAR, LogicalType::VARCHAR},
                          ReadDuckHuntWorkflowLogFunction, ReadDuckHuntWorkflowLogBind, ReadDuckHuntWorkflowLogInitGlobal, ReadDuckHuntWorkflowLogInitLocal);
+    two_arg.named_parameters["severity_threshold"] = LogicalType::VARCHAR;
     set.AddFunction(two_arg);
 
     return set;

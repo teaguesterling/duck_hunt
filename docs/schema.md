@@ -44,9 +44,52 @@ For code-related events (lint issues, test failures, stack traces).
 | Field | Type | Description |
 |-------|------|-------------|
 | `status` | VARCHAR | PASS, FAIL, ERROR, WARNING, INFO, SKIP |
-| `severity` | VARCHAR | error, warning, info, critical |
+| `severity` | VARCHAR | debug, info, warning, error, critical |
 | `category` | VARCHAR | Domain-specific classifier |
 | `error_code` | VARCHAR | Tool-specific error code or rule ID |
+
+### Severity Levels
+
+Severity indicates the importance/urgency of an event, ordered from lowest to highest:
+
+| Level | Description | Examples |
+|-------|-------------|----------|
+| `debug` | Trace/debug information | Build command output, directory changes |
+| `info` | Informational events | Passing tests, commands executed, summaries |
+| `warning` | Non-fatal issues | Skipped tests, deprecations, compiler warnings |
+| `error` | Errors and failures | Test failures, build errors, lint errors |
+| `critical` | Fatal/severe errors | Crashes, security critical, internal errors |
+
+### Severity Threshold Parameter
+
+Control which events are emitted using `severity_threshold`:
+
+```sql
+-- Default (threshold = 'all') - includes everything, backwards compatible
+SELECT * FROM read_duck_hunt_log('build.log', 'make_error');
+
+-- Only warnings and above
+SELECT * FROM read_duck_hunt_log('test.json', 'pytest_json', severity_threshold := 'warning');
+
+-- Only errors and critical
+SELECT * FROM read_duck_hunt_log('build.log', 'make_error', severity_threshold := 'error');
+
+-- Explicit 'all' for clarity
+SELECT * FROM read_duck_hunt_log('build.log', 'make_error', severity_threshold := 'all');
+```
+
+Events are emitted when `event.severity >= threshold`. The default is `'all'` (alias for `'debug'`) for backwards compatibility.
+
+### Status vs Severity
+
+These fields serve different purposes:
+
+| Field | Purpose | Example |
+|-------|---------|---------|
+| `status` | Semantic outcome | PASS, FAIL, SKIP |
+| `severity` | Importance level | info, warning, error |
+
+A passing test has `status='PASS'` but `severity='info'`. A skipped test has `status='SKIP'` but `severity='warning'`.
 
 ## Content Fields
 

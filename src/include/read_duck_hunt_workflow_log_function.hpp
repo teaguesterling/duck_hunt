@@ -46,8 +46,9 @@ void ParseDockerBuildLog(const std::string& content, std::vector<WorkflowEvent>&
 struct ReadDuckHuntWorkflowLogBindData : public TableFunctionData {
     std::string source;
     WorkflowLogFormat format;
-    
-    ReadDuckHuntWorkflowLogBindData() {}
+    SeverityLevel severity_threshold;  // Minimum severity level to emit (default: DEBUG = include all)
+
+    ReadDuckHuntWorkflowLogBindData() : severity_threshold(SeverityLevel::DEBUG) {}
 };
 
 // Global state for read_duck_hunt_workflow_log table function
