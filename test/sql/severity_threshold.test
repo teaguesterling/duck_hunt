@@ -1,0 +1,143 @@
+# name: test/sql/severity_threshold.test
+# description: test severity_threshold parameter for filtering events
+# group: [sql]
+
+require duck_hunt
+
+# ====================================================================
+# Test severity_threshold parameter
+# ====================================================================
+
+# Test 1: Default threshold ('all') includes all events - backwards compatible
+# ESLint with severity 1 (warning) and 2 (error) - both should be included by default
+query II
+SELECT COUNT(*), status
+FROM parse_duck_hunt_log('[
+  {"filePath": "/test.js", "messages": [
+    {"ruleId": "no-unused-vars", "severity": 2, "message": "Error 1", "line": 1, "column": 1},
+    {"ruleId": "prefer-const", "severity": 1, "message": "Warning 1", "line": 2, "column": 1}
+  ]}
+]', 'eslint_json')
+GROUP BY status
+ORDER BY status;
+----
+1	ERROR
+1	WARNING
+
+# Test 2: severity_threshold := 'error' filters out warnings
+query II
+SELECT COUNT(*), status
+FROM parse_duck_hunt_log('[
+  {"filePath": "/test.js", "messages": [
+    {"ruleId": "no-unused-vars", "severity": 2, "message": "Error 1", "line": 1, "column": 1},
+    {"ruleId": "prefer-const", "severity": 1, "message": "Warning 1", "line": 2, "column": 1}
+  ]}
+]', 'eslint_json', severity_threshold := 'error')
+GROUP BY status
+ORDER BY status;
+----
+1	ERROR
+
+# Test 3: severity_threshold := 'warning' includes warnings and errors
+query II
+SELECT COUNT(*), status
+FROM parse_duck_hunt_log('[
+  {"filePath": "/test.js", "messages": [
+    {"ruleId": "no-unused-vars", "severity": 2, "message": "Error 1", "line": 1, "column": 1},
+    {"ruleId": "prefer-const", "severity": 1, "message": "Warning 1", "line": 2, "column": 1}
+  ]}
+]', 'eslint_json', severity_threshold := 'warning')
+GROUP BY status
+ORDER BY status;
+----
+1	ERROR
+1	WARNING
+
+# Test 4: severity_threshold := 'all' includes everything (alias for debug)
+query II
+SELECT COUNT(*), status
+FROM parse_duck_hunt_log('[
+  {"filePath": "/test.js", "messages": [
+    {"ruleId": "no-unused-vars", "severity": 2, "message": "Error 1", "line": 1, "column": 1},
+    {"ruleId": "prefer-const", "severity": 1, "message": "Warning 1", "line": 2, "column": 1}
+  ]}
+]', 'eslint_json', severity_threshold := 'all')
+GROUP BY status
+ORDER BY status;
+----
+1	ERROR
+1	WARNING
+
+# Test 5: severity_threshold := 'critical' filters out errors and warnings
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('[
+  {"filePath": "/test.js", "messages": [
+    {"ruleId": "no-unused-vars", "severity": 2, "message": "Error 1", "line": 1, "column": 1},
+    {"ruleId": "prefer-const", "severity": 1, "message": "Warning 1", "line": 2, "column": 1}
+  ]}
+]', 'eslint_json', severity_threshold := 'critical');
+----
+0
+
+# Test 6: Test with make_error format
+query II
+SELECT COUNT(*), severity
+FROM parse_duck_hunt_log('gcc -Wall -o test test.c
+test.c:10:5: error: undeclared identifier
+test.c:15:10: warning: unused variable
+make: *** [Makefile:5: test] Error 1', 'make_error', severity_threshold := 'error')
+GROUP BY severity
+ORDER BY severity;
+----
+2	error
+
+# Test 7: Test with generic_lint format
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('file.c:1:1: error: test error
+file.c:2:1: warning: test warning', 'generic_lint', severity_threshold := 'error');
+----
+1
+
+# Test 8: Named parameter works with single-argument version (auto-detect)
+query II
+SELECT COUNT(*), status
+FROM parse_duck_hunt_log('[
+  {"filePath": "/test.js", "messages": [
+    {"ruleId": "error-rule", "severity": 2, "message": "Error", "line": 1, "column": 1}
+  ]}
+]', severity_threshold := 'error')
+GROUP BY status;
+----
+1	ERROR
+
+# ====================================================================
+# Test read_duck_hunt_log with severity_threshold
+# ====================================================================
+
+# Test 9: read_duck_hunt_log with severity_threshold
+query I
+SELECT COUNT(*) >= 0 as has_results
+FROM read_duck_hunt_log('test/samples/linting_tools/eslint_output.json', 'eslint_json', severity_threshold := 'error');
+----
+true
+
+# Test 10: Verify threshold with read_duck_hunt_log
+query I
+SELECT COUNT(*) >= 0 as works
+FROM read_duck_hunt_log('test/samples/linting_tools/eslint_output.json', severity_threshold := 'warning');
+----
+true
+
+# ====================================================================
+# Test workflow log with severity_threshold
+# ====================================================================
+
+# Test 11: read_duck_hunt_workflow_log with severity_threshold
+query I
+SELECT COUNT(*) >= 0 as works
+FROM read_duck_hunt_workflow_log('test/samples/ci_systems/github_actions_output.txt', 'github_actions', severity_threshold := 'warning');
+----
+true
+

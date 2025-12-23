@@ -65,20 +65,20 @@ Severity indicates the importance/urgency of an event, ordered from lowest to hi
 Control which events are emitted using `severity_threshold`:
 
 ```sql
--- Default (threshold = 'warning') - current behavior
+-- Default (threshold = 'all') - includes everything, backwards compatible
 SELECT * FROM read_duck_hunt_log('build.log', 'make_error');
 
--- Include info events (summaries, passing tests)
-SELECT * FROM read_duck_hunt_log('test.json', 'pytest_json', severity_threshold := 'info');
+-- Only warnings and above
+SELECT * FROM read_duck_hunt_log('test.json', 'pytest_json', severity_threshold := 'warning');
 
 -- Only errors and critical
 SELECT * FROM read_duck_hunt_log('build.log', 'make_error', severity_threshold := 'error');
 
--- Everything including debug traces
+-- Explicit 'all' for clarity
 SELECT * FROM read_duck_hunt_log('build.log', 'make_error', severity_threshold := 'all');
 ```
 
-Events are emitted when `event.severity >= threshold`. The special value `'all'` is an alias for `'debug'`.
+Events are emitted when `event.severity >= threshold`. The default is `'all'` (alias for `'debug'`) for backwards compatibility.
 
 ### Status vs Severity
 

@@ -15,6 +15,23 @@ enum class ValidationEventStatus : uint8_t {
     INFO = 5
 };
 
+// Enum for severity levels (ordered from lowest to highest)
+// Used for severity_threshold filtering
+enum class SeverityLevel : uint8_t {
+    DEBUG = 0,      // Trace/debug information
+    INFO = 1,       // Informational: summaries, passing tests
+    WARNING = 2,    // Non-fatal issues: skipped tests, deprecations
+    ERROR = 3,      // Errors and failures
+    CRITICAL = 4    // Fatal/severe errors: crashes, security critical
+};
+
+// Severity level helper functions
+SeverityLevel StringToSeverityLevel(const std::string& str);
+std::string SeverityLevelToString(SeverityLevel level);
+int SeverityLevelToInt(SeverityLevel level);
+SeverityLevel SeverityStringToLevel(const std::string& severity_str);
+bool ShouldEmitEvent(const std::string& event_severity, SeverityLevel threshold);
+
 // Enum for validation event type  
 enum class ValidationEventType : uint8_t {
     TEST_RESULT = 0,

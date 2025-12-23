@@ -42,9 +42,9 @@ Special value:
 
 ## Default Threshold
 
-**Default: `'warning'`**
+**Default: `'all'` (alias for `'debug'`)**
 
-This maintains backwards compatibility - current parsers emit WARNING and ERROR events, and this behavior continues unchanged.
+This maintains backwards compatibility - all events are emitted by default, just as before this feature was added. Users can explicitly set a higher threshold to filter out lower-severity events.
 
 ## Severity Mappings by Event Type
 

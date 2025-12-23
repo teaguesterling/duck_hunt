@@ -63,6 +63,52 @@ ValidationEventType StringToValidationEventType(const std::string& str) {
     return ValidationEventType::TEST_RESULT;  // Default
 }
 
+// Severity level helper functions
+
+SeverityLevel StringToSeverityLevel(const std::string& str) {
+    // Handle the threshold parameter values
+    if (str == "all" || str == "debug") return SeverityLevel::DEBUG;
+    if (str == "info") return SeverityLevel::INFO;
+    if (str == "warning") return SeverityLevel::WARNING;
+    if (str == "error") return SeverityLevel::ERROR;
+    if (str == "critical") return SeverityLevel::CRITICAL;
+    return SeverityLevel::WARNING;  // Default threshold
+}
+
+std::string SeverityLevelToString(SeverityLevel level) {
+    switch (level) {
+        case SeverityLevel::DEBUG: return "debug";
+        case SeverityLevel::INFO: return "info";
+        case SeverityLevel::WARNING: return "warning";
+        case SeverityLevel::ERROR: return "error";
+        case SeverityLevel::CRITICAL: return "critical";
+        default: return "warning";
+    }
+}
+
+int SeverityLevelToInt(SeverityLevel level) {
+    return static_cast<int>(level);
+}
+
+SeverityLevel SeverityStringToLevel(const std::string& severity_str) {
+    // Map event severity strings to SeverityLevel
+    // This handles the severity field values in ValidationEvent
+    if (severity_str == "debug" || severity_str == "trace") return SeverityLevel::DEBUG;
+    if (severity_str == "info") return SeverityLevel::INFO;
+    if (severity_str == "warning" || severity_str == "warn") return SeverityLevel::WARNING;
+    if (severity_str == "error") return SeverityLevel::ERROR;
+    if (severity_str == "critical" || severity_str == "fatal") return SeverityLevel::CRITICAL;
+    // Default: treat empty or unknown as warning level
+    return SeverityLevel::WARNING;
+}
+
+bool ShouldEmitEvent(const std::string& event_severity, SeverityLevel threshold) {
+    // Returns true if event should be emitted based on threshold
+    // Event is emitted when its severity >= threshold
+    SeverityLevel event_level = SeverityStringToLevel(event_severity);
+    return static_cast<int>(event_level) >= static_cast<int>(threshold);
+}
+
 // Schema definition removed - handled directly in the table function
 
 } // namespace duckdb
