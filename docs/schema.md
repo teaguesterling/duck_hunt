@@ -221,6 +221,32 @@ ORDER BY occurrences DESC;
 | `DEBUG_EVENT` | Debugger event |
 | `SUMMARY` | Summary/statistics |
 
+### Summary Events
+
+Parsers emit `SUMMARY` events to confirm tool execution and provide aggregate statistics. This is useful when using `severity_threshold` to filter events—you can still see that a tool ran successfully even when filtering out individual issues.
+
+**Parsers with summary events:**
+- **pytest** - `"2 passed, 1 failed in 1.23s"` from text output or JSON summary object
+- **ESLint** - `"3 problem(s) in 2 file(s)"` with file/issue counts
+- **Flake8** - `"18 issue(s) found"` with total count
+- **MyPy** - `"Success: no issues found"` or `"Found 5 errors"`
+- **Pylint** - `"Your code has been rated at 8.50/10"`
+
+**Summary event fields:**
+- `event_type` = `'summary'`
+- `status` = `WARNING` if issues found, `INFO` if clean
+- `severity` = `'warning'` or `'info'`
+- `message` = Human-readable summary
+- `structured_data` = JSON with counts (e.g., `{"passed":5,"failed":1}`)
+
+**Example: Filtering with summaries**
+```sql
+-- Show only errors, but keep summary events visible
+SELECT event_type, status, message
+FROM read_duck_hunt_log('pytest.json', 'pytest_json', severity_threshold := 'warning')
+WHERE status = 'ERROR' OR event_type = 'summary';
+```
+
 ## Status Values
 
 | Status | Description |

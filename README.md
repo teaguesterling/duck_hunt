@@ -7,11 +7,14 @@ A DuckDB extension for parsing test results, build outputs, and CI/CD logs from 
 ### Table Functions
 
 ```sql
-read_duck_hunt_log(file_path, format := 'auto')           -- Parse from file
-parse_duck_hunt_log(content, format := 'auto')            -- Parse from string
-read_duck_hunt_workflow_log(file_path, format := 'auto')  -- Parse CI/CD workflows
-parse_duck_hunt_workflow_log(content, format := 'auto')   -- Parse CI/CD from string
+read_duck_hunt_log(file_path, format := 'auto', severity_threshold := 'all')
+parse_duck_hunt_log(content, format := 'auto', severity_threshold := 'all')
+read_duck_hunt_workflow_log(file_path, format := 'auto', severity_threshold := 'all')
+parse_duck_hunt_workflow_log(content, format := 'auto', severity_threshold := 'all')
 ```
+
+- `format` - Parser format or `'auto'` for auto-detection
+- `severity_threshold` - Minimum severity to include: `'all'`, `'info'`, `'warning'`, `'error'`, `'critical'`
 
 ### Scalar Functions
 
