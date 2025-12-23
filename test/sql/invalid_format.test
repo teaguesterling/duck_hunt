@@ -33,7 +33,7 @@ statement ok
 CREATE TABLE test_auto AS SELECT * FROM read_duck_hunt_log('test/samples/pytest.json', 'auto');
 
 query I
-SELECT COUNT(*) FROM test_auto;
+SELECT COUNT(*) FROM test_auto WHERE event_type != 'summary';
 ----
 3
 
@@ -42,7 +42,7 @@ statement ok
 CREATE TABLE test_explicit AS SELECT * FROM read_duck_hunt_log('test/samples/pytest.json', 'pytest_json');
 
 query I
-SELECT COUNT(*) FROM test_explicit;
+SELECT COUNT(*) FROM test_explicit WHERE event_type != 'summary';
 ----
 3
 

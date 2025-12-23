@@ -94,7 +94,32 @@ std::vector<ValidationEvent> Flake8Parser::parse(const std::string& content) con
             events.push_back(event);
         }
     }
-    
+
+    // Add summary event with issue count
+    ValidationEvent summary;
+    summary.event_id = event_id++;
+    summary.event_type = ValidationEventType::SUMMARY;
+    summary.tool_name = "flake8";
+    summary.category = "lint_summary";
+    summary.ref_file = "";
+    summary.ref_line = -1;
+    summary.ref_column = -1;
+    summary.execution_time = 0.0;
+
+    size_t issue_count = events.size();
+    if (issue_count == 0) {
+        summary.status = ValidationEventStatus::INFO;
+        summary.severity = "info";
+        summary.message = "No issues found";
+    } else {
+        summary.status = ValidationEventStatus::WARNING;
+        summary.severity = "warning";
+        summary.message = std::to_string(issue_count) + " issue(s) found";
+    }
+
+    summary.structured_data = "{\"issues\":" + std::to_string(issue_count) + "}";
+    events.push_back(summary);
+
     return events;
 }
 

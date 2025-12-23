@@ -2739,11 +2739,12 @@ FROM read_duck_hunt_log('test/samples/python_tools/black_output.txt', 'black_tex
 test/samples/python_tools/black_output.txt
 
 # -----------------------------------------------------------------------------
-# Test 278: flake8_text - count and severity breakdown
+# Test 278: flake8_text - count and severity breakdown (filter out summary)
 # -----------------------------------------------------------------------------
 query II
 SELECT status, COUNT(*) as cnt
 FROM read_duck_hunt_log('test/samples/linting_tools/flake8_output.txt', 'flake8_text')
+WHERE event_type != 'summary'
 GROUP BY status
 ORDER BY cnt DESC, status;
 ----
@@ -2751,11 +2752,12 @@ ERROR	13
 WARNING	5
 
 # -----------------------------------------------------------------------------
-# Test 279: flake8_text - tool_name and category
+# Test 279: flake8_text - tool_name and category (filter out summary)
 # -----------------------------------------------------------------------------
 query II
 SELECT tool_name, category
 FROM read_duck_hunt_log('test/samples/linting_tools/flake8_output.txt', 'flake8_text')
+WHERE event_type != 'summary'
 GROUP BY tool_name, category
 ORDER BY tool_name;
 ----

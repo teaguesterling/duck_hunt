@@ -9,10 +9,10 @@ statement ok
 CREATE TABLE schema_test AS 
 SELECT * FROM parse_duck_hunt_log('[{"filePath":"/test.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"test error","line":1,"column":8}]}]', 'eslint_json');
 
-# Test field presence and types
+# Test field presence and types (filter out SUMMARY events for consistent count)
 query I
 SELECT COUNT(*) FROM (
-  SELECT 
+  SELECT
     event_id::BIGINT,
     tool_name::VARCHAR,
     event_type::VARCHAR,
@@ -31,6 +31,7 @@ SELECT COUNT(*) FROM (
     log_content::VARCHAR,
     structured_data::VARCHAR
   FROM schema_test
+  WHERE event_type != 'summary'
 );
 ----
 1
@@ -62,9 +63,10 @@ FAIL
 PASS
 SKIP
 
-# Test 4: Verify event_type enum values
+# Test 4: Verify event_type enum values (now includes summary events)
 query I
-SELECT DISTINCT event_type FROM parse_duck_hunt_log('[{"filePath":"/test.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"test","line":1,"column":8}]}]', 'eslint_json');
+SELECT DISTINCT event_type FROM parse_duck_hunt_log('[{"filePath":"/test.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"test","line":1,"column":8}]}]', 'eslint_json')
+WHERE event_type != 'summary';
 ----
 lint_issue
 
@@ -82,10 +84,11 @@ FROM parse_duck_hunt_log('{"Action":"run","Package":"github.com/test","Test":"Te
 ----
 1	NULL	NULL	0.123
 
-# Test 6: Verify string field handling with special characters
+# Test 6: Verify string field handling with special characters (filter out summary)
 query II
 SELECT ref_file, message
-FROM parse_duck_hunt_log('[{"filePath":"/src/special-chars@#$.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"Variable with special chars: @#$%","line":1,"column":8}]}]', 'eslint_json');
+FROM parse_duck_hunt_log('[{"filePath":"/src/special-chars@#$.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"Variable with special chars: @#$%","line":1,"column":8}]}]', 'eslint_json')
+WHERE event_type != 'summary';
 ----
 /src/special-chars@#$.js	Variable with special chars: @#$%
 
@@ -118,17 +121,19 @@ SELECT DISTINCT tool_name FROM parse_duck_hunt_log('make: *** [Makefile:23: buil
 ----
 make
 
-# Test 9: Verify severity mapping
+# Test 9: Verify severity mapping (filter out summary)
 query II
 SELECT severity, status FROM parse_duck_hunt_log('[{"filePath":"/test.js","messages":[{"ruleId":"rule1","severity":1,"message":"warning msg","line":1,"column":8},{"ruleId":"rule2","severity":2,"message":"error msg","line":2,"column":9}]}]', 'eslint_json')
+WHERE event_type != 'summary'
 ORDER BY event_id;
 ----
 warning	WARNING
 error	ERROR
 
-# Test 10: Verify category field usage
+# Test 10: Verify category field usage (filter out summary)
 query I
-SELECT DISTINCT category FROM parse_duck_hunt_log('[{"filePath":"/test.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"test","line":1,"column":8}]}]', 'eslint_json');
+SELECT DISTINCT category FROM parse_duck_hunt_log('[{"filePath":"/test.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"test","line":1,"column":8}]}]', 'eslint_json')
+WHERE event_type != 'summary';
 ----
 lint_error
 
@@ -138,9 +143,10 @@ SELECT LENGTH(log_content) > 0 as has_log_content FROM parse_duck_hunt_log('src/
 ----
 false
 
-# Test 12: Verify structured_data field for JSON formats
+# Test 12: Verify structured_data field for JSON formats (filter out summary)
 query I
-SELECT structured_data IS NOT NULL as has_structured_data FROM parse_duck_hunt_log('[{"filePath":"/test.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"test","line":1,"column":8}]}]', 'eslint_json');
+SELECT structured_data IS NOT NULL as has_structured_data FROM parse_duck_hunt_log('[{"filePath":"/test.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"test","line":1,"column":8}]}]', 'eslint_json')
+WHERE event_type != 'summary';
 ----
 true
 

@@ -171,7 +171,48 @@ std::vector<ValidationEvent> PytestJSONParser::parse(const std::string& content)
         
         events.push_back(event);
     }
-    
+
+    // Check for summary object and add summary event
+    yyjson_val *summary_obj = yyjson_obj_get(root, "summary");
+    if (summary_obj && yyjson_is_obj(summary_obj)) {
+        ValidationEvent summary;
+        summary.event_id = event_id++;
+        summary.event_type = ValidationEventType::SUMMARY;
+        summary.tool_name = "pytest";
+        summary.category = "test_summary";
+        summary.ref_file = "";
+        summary.ref_line = -1;
+        summary.ref_column = -1;
+        summary.execution_time = 0.0;
+
+        int passed = 0, failed = 0, skipped = 0;
+
+        yyjson_val *v;
+        if ((v = yyjson_obj_get(summary_obj, "passed")) && yyjson_is_int(v))
+            passed = yyjson_get_int(v);
+        if ((v = yyjson_obj_get(summary_obj, "failed")) && yyjson_is_int(v))
+            failed = yyjson_get_int(v);
+        if ((v = yyjson_obj_get(summary_obj, "skipped")) && yyjson_is_int(v))
+            skipped = yyjson_get_int(v);
+
+        // Check for duration at root level
+        if ((v = yyjson_obj_get(root, "duration")) && yyjson_is_num(v))
+            summary.execution_time = yyjson_get_real(v);
+
+        summary.status = (failed > 0) ? ValidationEventStatus::ERROR : ValidationEventStatus::INFO;
+        summary.severity = (failed > 0) ? "error" : "info";
+
+        summary.message = std::to_string(passed) + " passed";
+        if (failed > 0) summary.message += ", " + std::to_string(failed) + " failed";
+        if (skipped > 0) summary.message += ", " + std::to_string(skipped) + " skipped";
+
+        summary.structured_data = "{\"passed\":" + std::to_string(passed) +
+                                  ",\"failed\":" + std::to_string(failed) +
+                                  ",\"skipped\":" + std::to_string(skipped) + "}";
+
+        events.push_back(summary);
+    }
+
     yyjson_doc_free(doc);
     return events;
 }

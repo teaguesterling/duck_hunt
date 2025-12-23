@@ -155,7 +155,36 @@ std::vector<ValidationEvent> ESLintJSONParser::parse(const std::string& content)
             events.push_back(event);
         }
     }
-    
+
+    // Add summary event with file/issue counts
+    ValidationEvent summary;
+    summary.event_id = event_id++;
+    summary.event_type = ValidationEventType::SUMMARY;
+    summary.tool_name = "eslint";
+    summary.category = "lint_summary";
+    summary.ref_file = "";
+    summary.ref_line = -1;
+    summary.ref_column = -1;
+    summary.execution_time = 0.0;
+
+    size_t file_count = yyjson_arr_size(root);
+    size_t issue_count = events.size();
+
+    if (issue_count == 0) {
+        summary.status = ValidationEventStatus::INFO;
+        summary.severity = "info";
+        summary.message = "No problems found in " + std::to_string(file_count) + " file(s)";
+    } else {
+        summary.status = ValidationEventStatus::WARNING;
+        summary.severity = "warning";
+        summary.message = std::to_string(issue_count) + " problem(s) in " +
+                          std::to_string(file_count) + " file(s)";
+    }
+
+    summary.structured_data = "{\"files\":" + std::to_string(file_count) +
+                              ",\"problems\":" + std::to_string(issue_count) + "}";
+    events.push_back(summary);
+
     yyjson_doc_free(doc);
     return events;
 }

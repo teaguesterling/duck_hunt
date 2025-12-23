@@ -10,6 +10,7 @@ require duck_hunt
 
 # Test 1: Default threshold ('all') includes all events - backwards compatible
 # ESLint with severity 1 (warning) and 2 (error) - both should be included by default
+# (excluding SUMMARY event which is now added to track total counts)
 query II
 SELECT COUNT(*), status
 FROM parse_duck_hunt_log('[
@@ -18,6 +19,7 @@ FROM parse_duck_hunt_log('[
     {"ruleId": "prefer-const", "severity": 1, "message": "Warning 1", "line": 2, "column": 1}
   ]}
 ]', 'eslint_json')
+WHERE event_type != 'summary'
 GROUP BY status
 ORDER BY status;
 ----
@@ -47,6 +49,7 @@ FROM parse_duck_hunt_log('[
     {"ruleId": "prefer-const", "severity": 1, "message": "Warning 1", "line": 2, "column": 1}
   ]}
 ]', 'eslint_json', severity_threshold := 'warning')
+WHERE event_type != 'summary'
 GROUP BY status
 ORDER BY status;
 ----
@@ -62,6 +65,7 @@ FROM parse_duck_hunt_log('[
     {"ruleId": "prefer-const", "severity": 1, "message": "Warning 1", "line": 2, "column": 1}
   ]}
 ]', 'eslint_json', severity_threshold := 'all')
+WHERE event_type != 'summary'
 GROUP BY status
 ORDER BY status;
 ----
@@ -140,4 +144,57 @@ SELECT COUNT(*) >= 0 as works
 FROM read_duck_hunt_workflow_log('test/samples/ci_systems/github_actions_output.txt', 'github_actions', severity_threshold := 'warning');
 ----
 true
+
+# ====================================================================
+# Test summary events (INFO-level tool completion indicators)
+# ====================================================================
+
+# Test 12: ESLint summary event is present
+query III
+SELECT event_type, status, message LIKE '%problem(s)%' as is_summary_message
+FROM parse_duck_hunt_log('[{"filePath":"/test.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"Error","line":1,"column":1}]}]', 'eslint_json')
+WHERE event_type = 'summary';
+----
+summary	WARNING	true
+
+# Test 13: Pytest JSON summary event is present when summary object exists
+query III
+SELECT event_type, status, message LIKE '%passed%' as has_passed_count
+FROM read_duck_hunt_log('test/samples/pytest.json', 'pytest_json')
+WHERE event_type = 'summary';
+----
+summary	ERROR	true
+
+# Test 14: Flake8 summary event is present
+query III
+SELECT event_type, status, message LIKE '%issue(s)%' as is_summary_message
+FROM parse_duck_hunt_log('test.py:1:1: E501 line too long', 'flake8_text')
+WHERE event_type = 'summary';
+----
+summary	WARNING	true
+
+# Test 15: Summary events include structured_data
+query I
+SELECT structured_data IS NOT NULL AND structured_data != '' as has_structured_data
+FROM parse_duck_hunt_log('[{"filePath":"/test.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"Error","line":1,"column":1}]}]', 'eslint_json')
+WHERE event_type = 'summary';
+----
+true
+
+# Test 16: Summary events are filtered by severity_threshold='error'
+# ESLint summary has WARNING status, so should be filtered out with error threshold
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('[{"filePath":"/test.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"Error","line":1,"column":1}]}]', 'eslint_json', severity_threshold := 'error')
+WHERE event_type = 'summary';
+----
+0
+
+# Test 17: Summary events included with severity_threshold='warning'
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('[{"filePath":"/test.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"Error","line":1,"column":1}]}]', 'eslint_json', severity_threshold := 'warning')
+WHERE event_type = 'summary';
+----
+1
 

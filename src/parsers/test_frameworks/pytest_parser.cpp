@@ -1,5 +1,6 @@
 #include "pytest_parser.hpp"
 #include <sstream>
+#include <regex>
 
 namespace duckdb {
 
@@ -18,9 +19,58 @@ std::vector<ValidationEvent> PytestParser::parse(const std::string& content) con
     int64_t event_id = 1;
     int32_t current_line_num = 0;
 
+    // Regex for pytest summary line: ===== N passed, N failed, N skipped in X.XXs =====
+    static const std::regex summary_regex(
+        R"(=+\s*(\d+)\s+passed(?:,\s*(\d+)\s+failed)?(?:,\s*(\d+)\s+skipped)?.*?in\s+([\d.]+)s?\s*=+)",
+        std::regex::icase);
+
     while (std::getline(stream, line)) {
         current_line_num++;
         if (line.empty()) continue;
+
+        // Check for summary line first
+        std::smatch match;
+        if (std::regex_search(line, match, summary_regex)) {
+            ValidationEvent summary;
+            summary.event_id = event_id++;
+            summary.event_type = ValidationEventType::SUMMARY;
+            summary.tool_name = "pytest";
+            summary.category = "test_summary";
+            summary.ref_file = "";
+            summary.ref_line = -1;
+            summary.ref_column = -1;
+            summary.execution_time = 0.0;
+            summary.log_line_start = current_line_num;
+            summary.log_line_end = current_line_num;
+            summary.log_content = line;
+
+            int passed = std::stoi(match[1].str());
+            int failed = match[2].matched ? std::stoi(match[2].str()) : 0;
+            int skipped = match[3].matched ? std::stoi(match[3].str()) : 0;
+            std::string duration_str = match[4].str();
+
+            summary.message = std::to_string(passed) + " passed";
+            if (failed > 0) summary.message += ", " + std::to_string(failed) + " failed";
+            if (skipped > 0) summary.message += ", " + std::to_string(skipped) + " skipped";
+            summary.message += " in " + duration_str + "s";
+
+            // If failures, mark as error severity
+            if (failed > 0) {
+                summary.status = ValidationEventStatus::ERROR;
+                summary.severity = "error";
+            } else {
+                summary.status = ValidationEventStatus::INFO;
+                summary.severity = "info";
+            }
+
+            summary.structured_data = "{\"passed\":" + std::to_string(passed) +
+                                      ",\"failed\":" + std::to_string(failed) +
+                                      ",\"skipped\":" + std::to_string(skipped) +
+                                      ",\"duration\":" + duration_str + "}";
+
+            events.push_back(summary);
+            continue;
+        }
 
         // Look for pytest text output patterns: "file.py::test_name STATUS"
         if (line.find("::") != std::string::npos) {

@@ -50,9 +50,10 @@ gtest
 # Test 3: Single-argument functions (auto-detection by default)
 # =============================================================================
 
-# parse_duck_hunt_log with single argument
+# parse_duck_hunt_log with single argument (filter out SUMMARY event for count check)
 query I
-SELECT tool_name FROM parse_duck_hunt_log('[{"filePath":"/test.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"test","line":1,"column":8}]}]');
+SELECT DISTINCT tool_name FROM parse_duck_hunt_log('[{"filePath":"/test.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"test","line":1,"column":8}]}]')
+WHERE event_type != 'summary';
 ----
 eslint
 

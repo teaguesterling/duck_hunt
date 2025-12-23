@@ -10,19 +10,21 @@ statement ok
 CREATE TABLE test_data AS 
 SELECT * FROM read_duck_hunt_log('workspace/eslint_sample.json', 'eslint_json');
 
-# Verify ESLint parsing results
+# Verify ESLint parsing results (excluding SUMMARY event for count)
 query III
-SELECT COUNT(*), 
+SELECT COUNT(*),
        COUNT(CASE WHEN status = 'ERROR' THEN 1 END) as errors,
        COUNT(CASE WHEN status = 'WARNING' THEN 1 END) as warnings
-FROM test_data;
+FROM test_data
+WHERE event_type != 'summary';
 ----
 3	1	2
 
 # Test parse_duck_hunt_log function with string input
 query IIII
 SELECT event_id, tool_name, status, error_code
-FROM parse_duck_hunt_log('[{"filePath":"/test.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"test error","line":1,"column":8}]}]', 'eslint_json');
+FROM parse_duck_hunt_log('[{"filePath":"/test.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"test error","line":1,"column":8}]}]', 'eslint_json')
+WHERE event_type != 'summary';
 ----
 1	eslint	ERROR	no-unused-vars
 

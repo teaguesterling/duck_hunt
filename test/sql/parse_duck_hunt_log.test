@@ -33,12 +33,13 @@ SELECT * FROM parse_duck_hunt_log('[
   }
 ]', 'eslint_json');
 
-# Verify ESLint parsing results
+# Verify ESLint parsing results (excluding SUMMARY event for count)
 query IIII
-SELECT COUNT(*), tool_name, 
+SELECT COUNT(*), tool_name,
        COUNT(CASE WHEN status = 'ERROR' THEN 1 END) as errors,
        COUNT(CASE WHEN status = 'WARNING' THEN 1 END) as warnings
 FROM eslint_results
+WHERE event_type != 'summary'
 GROUP BY tool_name;
 ----
 2	eslint	1	1
@@ -97,10 +98,11 @@ GROUP BY tool_name;
 ----
 3	make	3
 
-# Test 5: Auto-detection capability
+# Test 5: Auto-detection capability (filter out SUMMARY events for count accuracy)
 query II
 SELECT tool_name, COUNT(*) as event_count
 FROM parse_duck_hunt_log('[{"filePath":"/test.js","messages":[{"ruleId":"no-console","severity":1,"message":"Unexpected console statement.","line":3,"column":3}]}]', 'auto')
+WHERE event_type != 'summary'
 GROUP BY tool_name;
 ----
 eslint	1
@@ -135,10 +137,11 @@ SELECT COUNT(*) FROM parse_duck_hunt_log('random text content', 'unknown');
 ----
 Unknown format
 
-# Test 10: Field validation tests
+# Test 10: Field validation tests (filter out summary)
 query IIIIII
 SELECT ref_file, ref_line, ref_column, status, severity, error_code
-FROM parse_duck_hunt_log('[{"filePath":"/src/Button.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"React is defined but never used.","line":1,"column":8}]}]', 'eslint_json');
+FROM parse_duck_hunt_log('[{"filePath":"/src/Button.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"React is defined but never used.","line":1,"column":8}]}]', 'eslint_json')
+WHERE event_type != 'summary';
 ----
 /src/Button.js	1	8	ERROR	error	no-unused-vars
 
