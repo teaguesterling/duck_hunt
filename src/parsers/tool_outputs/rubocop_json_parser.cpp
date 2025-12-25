@@ -134,10 +134,19 @@ std::vector<ValidationEvent> RuboCopJSONParser::parse(const std::string& content
                     event.ref_column = yyjson_get_int(start_column);
                 }
             }
-            
+
+            // Check if offense is auto-correctable
+            yyjson_val *correctable = yyjson_obj_get(offense, "correctable");
+            bool is_correctable = false;
+            if (correctable && yyjson_is_bool(correctable) && yyjson_get_bool(correctable)) {
+                event.suggestion = "Auto-correctable with `rubocop -a`";
+                is_correctable = true;
+            }
+
             // Set raw output and structured data
             event.log_content = content;
-            event.structured_data = "{\"tool\": \"rubocop\", \"cop_name\": \"" + event.error_code + "\"}";
+            event.structured_data = "{\"tool\": \"rubocop\", \"cop_name\": \"" + event.error_code +
+                                    "\", \"correctable\": " + (is_correctable ? "true" : "false") + "}";
             
             events.push_back(event);
         }

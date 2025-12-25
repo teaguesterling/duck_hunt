@@ -144,24 +144,28 @@ std::vector<ValidationEvent> BanditJSONParser::parse(const std::string& content)
             event.function_name = yyjson_get_str(test_name);
         }
         
-        // Get CWE information for suggestion
+        // Get CWE information for suggestion and structured_data
+        std::string cwe_id_str;
         yyjson_val *issue_cwe = yyjson_obj_get(issue, "issue_cwe");
         if (issue_cwe && yyjson_is_obj(issue_cwe)) {
             yyjson_val *cwe_id = yyjson_obj_get(issue_cwe, "id");
             yyjson_val *cwe_link = yyjson_obj_get(issue_cwe, "link");
-            
+
             if (cwe_id && yyjson_is_num(cwe_id)) {
-                std::string suggestion = "CWE-" + std::to_string(yyjson_get_int(cwe_id));
+                cwe_id_str = std::to_string(yyjson_get_int(cwe_id));
+                std::string suggestion = "CWE-" + cwe_id_str;
                 if (cwe_link && yyjson_is_str(cwe_link)) {
                     suggestion += ": " + std::string(yyjson_get_str(cwe_link));
                 }
                 event.suggestion = suggestion;
             }
         }
-        
-        // Set raw output and structured data
+
+        // Set raw output and structured data (include CWE ID if present)
         event.log_content = content;
-        event.structured_data = "{\"tool\": \"bandit\", \"test_id\": \"" + event.error_code + "\", \"severity\": \"" + event.severity + "\"}";
+        event.structured_data = "{\"tool\": \"bandit\", \"test_id\": \"" + event.error_code +
+                                "\", \"severity\": \"" + event.severity + "\"" +
+                                (cwe_id_str.empty() ? "" : ", \"cwe_id\": " + cwe_id_str) + "}";
         
         events.push_back(event);
     }

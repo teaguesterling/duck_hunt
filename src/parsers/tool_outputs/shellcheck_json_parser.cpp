@@ -35,7 +35,7 @@ bool ShellCheckJSONParser::isValidShellCheckJSON(const std::string& content) con
                 
                 if (file && yyjson_is_str(file) &&
                     level && yyjson_is_str(level) &&
-                    code && yyjson_is_str(code)) {
+                    code && (yyjson_is_str(code) || yyjson_is_int(code))) {
                     is_valid = true;
                     break;
                 }
@@ -122,10 +122,15 @@ std::vector<ValidationEvent> ShellCheckJSONParser::parse(const std::string& cont
             event.status = ValidationEventStatus::WARNING;
         }
         
-        // Get error code (SC#### codes)
+        // Get error code (SC#### codes) - can be string or integer
         yyjson_val *code = yyjson_obj_get(issue, "code");
-        if (code && yyjson_is_str(code)) {
-            event.error_code = yyjson_get_str(code);
+        if (code) {
+            if (yyjson_is_str(code)) {
+                event.error_code = yyjson_get_str(code);
+            } else if (yyjson_is_int(code)) {
+                // ShellCheck outputs integer codes, prefix with "SC"
+                event.error_code = "SC" + std::to_string(yyjson_get_int(code));
+            }
         }
         
         // Get message
