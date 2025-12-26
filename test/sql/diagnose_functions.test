@@ -66,13 +66,13 @@ WHERE format = 'make_error';
 ----
 make_error	true	true
 
-# Test 8: Test with JSONL logs
+# Test 8: Test with JSONL logs (winston is selected over jsonl due to level/message fields)
 query III
 SELECT format, can_parse, is_selected
 FROM duck_hunt_diagnose_read('test/samples/structured_logs/jsonl_logs.jsonl')
-WHERE format = 'jsonl';
+WHERE format = 'winston';
 ----
-jsonl	true	true
+winston	true	true
 
 # Test 9: Verify events_produced matches actual parse output
 statement ok

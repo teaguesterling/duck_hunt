@@ -129,23 +129,21 @@ info	2
 # Format Detection Tests
 # =============================================================================
 
-# Test 15: Auto-detect JSON log format (winston detects level/message fields)
-# TODO: Not sure what's driving jsonl to take over here on MacOSX and Windows
-#       could be related to line endings?
-#query I
-#SELECT DISTINCT tool_name IN ('jsonl', 'watson')
-#FROM parse_duck_hunt_log(E'{"level":"info","message":"test1"}\n{"level":"error","message":"test2"}', 'auto');
-#----
-#true
+# Test 15: Auto-detect JSON log format (winston has specific level/message fields)
+# Winston should be detected (priority 60) over generic JSONL (priority 50)
+query I
+SELECT DISTINCT tool_name
+FROM parse_duck_hunt_log(E'{"level":"info","message":"test1"}\n{"level":"error","message":"test2"}', 'auto');
+----
+winston
 
-# Test 16: Auto-detect logfmt-style format (logrus is a specific implementation)
-# TODO: Not sure what's driving logrus to take over here on MacOSX and Windows
-#       could be related to line endings?
-#query I
-#SELECT DISTINCT tool_name IN ('logfmt', 'logrus')
-#FROM parse_duck_hunt_log(E'level=info msg="test1" service=api\nlevel=error msg="test2" service=api', 'auto');
-#----
-#logrus
+# Test 16: Auto-detect logfmt-style format (logrus has specific format markers)
+# Logrus should be detected (priority 60) over generic logfmt (priority 55)
+query I
+SELECT DISTINCT tool_name
+FROM parse_duck_hunt_log(E'level=info msg="test1" service=api\nlevel=error msg="test2" service=api', 'auto');
+----
+logrus
 
 # =============================================================================
 # duck_hunt_formats() includes new formats
