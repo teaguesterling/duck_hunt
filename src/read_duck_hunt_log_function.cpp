@@ -656,11 +656,11 @@ TestResultFormat DetectTestResultFormat(const std::string& content) {
         return TestResultFormat::BANDIT_TEXT;
     }
     
-    // Check for pytest-cov patterns (should be checked before regular pytest since it includes pytest output)
+    // Check for pytest-cov patterns - requires actual coverage DATA, not just plugin installed
+    // Only match when coverage section markers or coverage table are present
     if ((content.find("-- coverage:") != std::string::npos && content.find("python") != std::string::npos) ||
-        (content.find("collected") != std::string::npos && content.find("items") != std::string::npos && content.find("----------- coverage:") != std::string::npos) ||
-        (content.find("PASSED") != std::string::npos && content.find("::") != std::string::npos && content.find("Name") != std::string::npos && content.find("Stmts") != std::string::npos && content.find("Miss") != std::string::npos && content.find("Cover") != std::string::npos) ||
-        (content.find("platform") != std::string::npos && content.find("plugins: cov-") != std::string::npos) ||
+        (content.find("----------- coverage:") != std::string::npos) ||
+        (content.find("Name") != std::string::npos && content.find("Stmts") != std::string::npos && content.find("Miss") != std::string::npos && content.find("Cover") != std::string::npos) ||
         (content.find("Coverage threshold check failed") != std::string::npos && content.find("Expected:") != std::string::npos) ||
         (content.find("Required test coverage") != std::string::npos && content.find("not met") != std::string::npos)) {
         return TestResultFormat::PYTEST_COV_TEXT;

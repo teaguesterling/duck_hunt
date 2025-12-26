@@ -6,13 +6,30 @@
 namespace duck_hunt {
 
 bool PytestCovTextParser::CanParse(const std::string& content) const {
-    // Check for pytest-cov specific patterns
-    return (content.find("coverage:") != std::string::npos &&
-            content.find("platform") != std::string::npos) ||
-           (content.find("test session starts") != std::string::npos &&
-            content.find("cov") != std::string::npos) ||
-           content.find("pytest-cov") != std::string::npos ||
-           (content.find("TOTAL") != std::string::npos && content.find("Stmts") != std::string::npos);
+    // Only match when actual coverage DATA is present, not just pytest-cov plugin installed
+    // Require coverage section markers or coverage table to be present
+
+    // Coverage section header: "----------- coverage: platform"
+    if (content.find("coverage:") != std::string::npos &&
+        content.find("platform") != std::string::npos &&
+        content.find("-------") != std::string::npos) {
+        return true;
+    }
+
+    // Coverage table with TOTAL row and column headers
+    if (content.find("TOTAL") != std::string::npos &&
+        content.find("Stmts") != std::string::npos &&
+        content.find("Miss") != std::string::npos) {
+        return true;
+    }
+
+    // Coverage threshold failure messages (actual coverage output)
+    if (content.find("Coverage threshold check failed") != std::string::npos ||
+        content.find("Required test coverage of") != std::string::npos) {
+        return true;
+    }
+
+    return false;
 }
 
 void PytestCovTextParser::Parse(const std::string& content, std::vector<duckdb::ValidationEvent>& events) const {
