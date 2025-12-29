@@ -2,9 +2,9 @@
 #include <sstream>
 #include <string>
 
-namespace duck_hunt {
+namespace duckdb {
 
-bool DuckDBTestParser::CanParse(const std::string& content) const {
+bool DuckDBTestParser::canParse(const std::string& content) const {
     // Check for DuckDB test output patterns
     return (content.find("unittest is a Catch") != std::string::npos ||
             content.find("test cases:") != std::string::npos ||
@@ -12,11 +12,14 @@ bool DuckDBTestParser::CanParse(const std::string& content) const {
             content.find("Wrong result in query!") != std::string::npos);
 }
 
-void DuckDBTestParser::Parse(const std::string& content, std::vector<duckdb::ValidationEvent>& events) const {
+std::vector<ValidationEvent> DuckDBTestParser::parse(const std::string& content) const {
+    std::vector<ValidationEvent> events;
     ParseDuckDBTestOutput(content, events);
+    return events;
 }
 
-void DuckDBTestParser::ParseDuckDBTestOutput(const std::string& content, std::vector<duckdb::ValidationEvent>& events) {
+// Static method for backward compatibility with legacy code
+void DuckDBTestParser::ParseDuckDBTestOutput(const std::string& content, std::vector<ValidationEvent>& events) {
     std::istringstream stream(content);
     std::string line;
     int64_t event_id = 1;
@@ -108,15 +111,15 @@ void DuckDBTestParser::ParseDuckDBTestOutput(const std::string& content, std::ve
 
         // End of failure section - create failure event
         else if (in_failure_section && line.find("FAILED:") != std::string::npos) {
-            duckdb::ValidationEvent event;
+            ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = "duckdb_test";
-            event.event_type = duckdb::ValidationEventType::TEST_RESULT;
+            event.event_type = ValidationEventType::TEST_RESULT;
             event.ref_file = current_test_file;
             event.ref_line = failure_line;
             event.ref_column = -1;
             event.function_name = failure_query.empty() ? "unknown" : failure_query.substr(0, 50);
-            event.status = duckdb::ValidationEventStatus::FAIL;
+            event.status = ValidationEventStatus::FAIL;
             event.category = "test_failure";
 
             // Enhanced message with mismatch details
@@ -166,11 +169,11 @@ void DuckDBTestParser::ParseDuckDBTestOutput(const std::string& content, std::ve
                         int passed_count = std::stoi(summary_line.substr(passed_start + 1, passed_pos - passed_start - 1));
 
                         // Create passed test events (summary)
-                        duckdb::ValidationEvent summary_event;
+                        ValidationEvent summary_event;
                         summary_event.event_id = event_id++;
                         summary_event.tool_name = "duckdb_test";
-                        summary_event.event_type = duckdb::ValidationEventType::TEST_RESULT;
-                        summary_event.status = duckdb::ValidationEventStatus::INFO;
+                        summary_event.event_type = ValidationEventType::TEST_RESULT;
+                        summary_event.status = ValidationEventStatus::INFO;
                         summary_event.category = "test_summary";
                         summary_event.message = "Test summary: " + std::to_string(passed_count) + " tests passed";
                         summary_event.ref_line = -1;
@@ -188,11 +191,11 @@ void DuckDBTestParser::ParseDuckDBTestOutput(const std::string& content, std::ve
 
     // If no events were created, add a basic summary
     if (events.empty()) {
-        duckdb::ValidationEvent summary_event;
+        ValidationEvent summary_event;
         summary_event.event_id = 1;
         summary_event.tool_name = "duckdb_test";
-        summary_event.event_type = duckdb::ValidationEventType::TEST_RESULT;
-        summary_event.status = duckdb::ValidationEventStatus::INFO;
+        summary_event.event_type = ValidationEventType::TEST_RESULT;
+        summary_event.status = ValidationEventStatus::INFO;
         summary_event.category = "test_summary";
         summary_event.message = "DuckDB test output parsed (no specific test results found)";
         summary_event.ref_line = -1;
@@ -203,4 +206,4 @@ void DuckDBTestParser::ParseDuckDBTestOutput(const std::string& content, std::ve
     }
 }
 
-} // namespace duck_hunt
+} // namespace duckdb

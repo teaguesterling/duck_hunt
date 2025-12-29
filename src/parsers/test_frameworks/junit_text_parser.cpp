@@ -3,9 +3,9 @@
 #include <sstream>
 #include <string>
 
-namespace duck_hunt {
+namespace duckdb {
 
-bool JUnitTextParser::CanParse(const std::string& content) const {
+bool JUnitTextParser::canParse(const std::string& content) const {
     // Check for JUnit text patterns (should be checked before pytest since they can contain similar keywords)
     return content.find("Running ") != std::string::npos && 
            (content.find("Tests run:") != std::string::npos || 
@@ -15,11 +15,16 @@ bool JUnitTextParser::CanParse(const std::string& content) const {
             content.find("[INFO] Running") != std::string::npos);
 }
 
-void JUnitTextParser::Parse(const std::string& content, std::vector<duckdb::ValidationEvent>& events) const {
-    ParseJUnitText(content, events);
+// Forward declaration for implementation
+static void parseJUnitTextImpl(const std::string& content, std::vector<ValidationEvent>& events);
+
+std::vector<ValidationEvent> JUnitTextParser::parse(const std::string& content) const {
+    std::vector<ValidationEvent> events;
+    parseJUnitTextImpl(content, events);
+    return events;
 }
 
-void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duckdb::ValidationEvent>& events) {
+static void parseJUnitTextImpl(const std::string& content, std::vector<ValidationEvent>& events) {
     std::istringstream iss(content);
     std::string line;
     int64_t event_id = 1;
@@ -74,12 +79,12 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
             int skipped = std::stoi(match[4].str());
             double time_elapsed = std::stod(match[5].str());
             
-            duckdb::ValidationEvent event;
+            ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = "junit4";
-            event.event_type = duckdb::ValidationEventType::TEST_RESULT;
+            event.event_type = ValidationEventType::TEST_RESULT;
             event.function_name = current_class;
-            event.status = (failures > 0 || errors > 0) ? duckdb::ValidationEventStatus::FAIL : duckdb::ValidationEventStatus::PASS;
+            event.status = (failures > 0 || errors > 0) ? ValidationEventStatus::FAIL : ValidationEventStatus::PASS;
             event.severity = (failures > 0 || errors > 0) ? "error" : "info";
             event.category = "test_summary";
             event.message = "Tests: " + std::to_string(tests_run) + 
@@ -102,10 +107,10 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
             double time_elapsed = std::stod(match[3].str());
             std::string result = match[4].str();
             
-            duckdb::ValidationEvent event;
+            ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = "junit4";
-            event.event_type = duckdb::ValidationEventType::TEST_RESULT;
+            event.event_type = ValidationEventType::TEST_RESULT;
             event.function_name = test_method;
             event.test_name = test_class + "." + test_method;
             event.execution_time = time_elapsed;
@@ -115,26 +120,26 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
             event.log_line_end = current_line_num;
 
             if (result == "PASSED!") {
-                event.status = duckdb::ValidationEventStatus::PASS;
+                event.status = ValidationEventStatus::PASS;
                 event.severity = "info";
                 event.category = "test_success";
                 event.message = "Test passed";
             } else if (result == "FAILURE!") {
-                event.status = duckdb::ValidationEventStatus::FAIL;
+                event.status = ValidationEventStatus::FAIL;
                 event.severity = "error";
                 event.category = "test_failure";
                 event.message = "Test failed";
                 current_test = event.test_name;
                 in_stack_trace = true;
             } else if (result == "ERROR!") {
-                event.status = duckdb::ValidationEventStatus::ERROR;
+                event.status = ValidationEventStatus::ERROR;
                 event.severity = "error";
                 event.category = "test_error";
                 event.message = "Test error";
                 current_test = event.test_name;
                 in_stack_trace = true;
             } else if (result == "SKIPPED!") {
-                event.status = duckdb::ValidationEventStatus::SKIP;
+                event.status = ValidationEventStatus::SKIP;
                 event.severity = "info";
                 event.category = "test_skipped";
                 event.message = "Test skipped";
@@ -146,11 +151,11 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
         }
         // Parse JUnit 5 header
         else if (std::regex_search(line, match, junit5_header_pattern)) {
-            duckdb::ValidationEvent event;
+            ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = "junit5";
-            event.event_type = duckdb::ValidationEventType::TEST_RESULT;
-            event.status = duckdb::ValidationEventStatus::INFO;
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.status = ValidationEventStatus::INFO;
             event.severity = "info";
             event.category = "test_framework";
             event.message = "JUnit Jupiter " + match[1].str();
@@ -172,10 +177,10 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
             std::string result_symbol = match[2].str();
             int time_ms = std::stoi(match[3].str());
             
-            duckdb::ValidationEvent event;
+            ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = "junit5";
-            event.event_type = duckdb::ValidationEventType::TEST_RESULT;
+            event.event_type = ValidationEventType::TEST_RESULT;
             event.function_name = test_method;
             event.test_name = current_class + "." + test_method;
             event.execution_time = static_cast<double>(time_ms) / 1000.0;
@@ -185,17 +190,17 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
             event.log_line_end = current_line_num;
 
             if (result_symbol == "✓") {
-                event.status = duckdb::ValidationEventStatus::PASS;
+                event.status = ValidationEventStatus::PASS;
                 event.severity = "info";
                 event.category = "test_success";
                 event.message = "Test passed";
             } else if (result_symbol == "✗") {
-                event.status = duckdb::ValidationEventStatus::FAIL;
+                event.status = ValidationEventStatus::FAIL;
                 event.severity = "error";
                 event.category = "test_failure";
                 event.message = "Test failed";
             } else if (result_symbol == "↷") {
-                event.status = duckdb::ValidationEventStatus::SKIP;
+                event.status = ValidationEventStatus::SKIP;
                 event.severity = "info";
                 event.category = "test_skipped";
                 event.message = "Test skipped";
@@ -216,10 +221,10 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
             double time_elapsed = std::stod(match[3].str());
             std::string result = match[4].str();
             
-            duckdb::ValidationEvent event;
+            ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = "surefire";
-            event.event_type = duckdb::ValidationEventType::TEST_RESULT;
+            event.event_type = ValidationEventType::TEST_RESULT;
             event.function_name = test_method;
             event.test_name = test_class + "." + test_method;
             event.execution_time = time_elapsed;
@@ -229,12 +234,12 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
             event.log_line_end = current_line_num;
 
             if (result == "FAILURE!") {
-                event.status = duckdb::ValidationEventStatus::FAIL;
+                event.status = ValidationEventStatus::FAIL;
                 event.severity = "error";
                 event.category = "test_failure";
                 event.message = "Test failed";
             } else if (result == "ERROR!") {
-                event.status = duckdb::ValidationEventStatus::ERROR;
+                event.status = ValidationEventStatus::ERROR;
                 event.severity = "error";
                 event.category = "test_error";
                 event.message = "Test error";
@@ -251,11 +256,11 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
             int errors = std::stoi(match[3].str());
             int skipped = std::stoi(match[4].str());
             
-            duckdb::ValidationEvent event;
+            ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = "surefire";
-            event.event_type = duckdb::ValidationEventType::TEST_RESULT;
-            event.status = (failures > 0 || errors > 0) ? duckdb::ValidationEventStatus::FAIL : duckdb::ValidationEventStatus::PASS;
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.status = (failures > 0 || errors > 0) ? ValidationEventStatus::FAIL : ValidationEventStatus::PASS;
             event.severity = (failures > 0 || errors > 0) ? "error" : "info";
             event.category = "test_summary";
             event.message = "Tests: " + std::to_string(tests_run) + 
@@ -277,10 +282,10 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
             std::string test_method = match[2].str();
             std::string result = match[3].str();
             
-            duckdb::ValidationEvent event;
+            ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = "gradle-test";
-            event.event_type = duckdb::ValidationEventType::TEST_RESULT;
+            event.event_type = ValidationEventType::TEST_RESULT;
             event.function_name = test_method;
             event.test_name = test_class + "." + test_method;
             event.execution_time = 0.0;
@@ -290,17 +295,17 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
             event.log_line_end = current_line_num;
 
             if (result == "PASSED") {
-                event.status = duckdb::ValidationEventStatus::PASS;
+                event.status = ValidationEventStatus::PASS;
                 event.severity = "info";
                 event.category = "test_success";
                 event.message = "Test passed";
             } else if (result == "FAILED") {
-                event.status = duckdb::ValidationEventStatus::FAIL;
+                event.status = ValidationEventStatus::FAIL;
                 event.severity = "error";
                 event.category = "test_failure";
                 event.message = "Test failed";
             } else if (result == "SKIPPED") {
-                event.status = duckdb::ValidationEventStatus::SKIP;
+                event.status = ValidationEventStatus::SKIP;
                 event.severity = "info";
                 event.category = "test_skipped";
                 event.message = "Test skipped";
@@ -317,11 +322,11 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
             int skipped = std::stoi(match[3].str());
             int passed = total - failed - skipped;
             
-            duckdb::ValidationEvent event;
+            ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = "gradle-test";
-            event.event_type = duckdb::ValidationEventType::TEST_RESULT;
-            event.status = (failed > 0) ? duckdb::ValidationEventStatus::FAIL : duckdb::ValidationEventStatus::PASS;
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.status = (failed > 0) ? ValidationEventStatus::FAIL : ValidationEventStatus::PASS;
             event.severity = (failed > 0) ? "error" : "info";
             event.category = "test_summary";
             event.message = "Tests: " + std::to_string(total) + 
@@ -342,10 +347,10 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
             std::string test_method = match[2].str();
             std::string result = match[3].str();
             
-            duckdb::ValidationEvent event;
+            ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = "testng";
-            event.event_type = duckdb::ValidationEventType::TEST_RESULT;
+            event.event_type = ValidationEventType::TEST_RESULT;
             event.function_name = test_method;
             event.test_name = test_class + "." + test_method;
             event.execution_time = 0.0;
@@ -355,17 +360,17 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
             event.log_line_end = current_line_num;
 
             if (result == "PASS") {
-                event.status = duckdb::ValidationEventStatus::PASS;
+                event.status = ValidationEventStatus::PASS;
                 event.severity = "info";
                 event.category = "test_success";
                 event.message = "Test passed";
             } else if (result == "FAIL") {
-                event.status = duckdb::ValidationEventStatus::FAIL;
+                event.status = ValidationEventStatus::FAIL;
                 event.severity = "error";
                 event.category = "test_failure";
                 event.message = "Test failed";
             } else if (result == "SKIP") {
-                event.status = duckdb::ValidationEventStatus::SKIP;
+                event.status = ValidationEventStatus::SKIP;
                 event.severity = "info";
                 event.category = "test_skipped";
                 event.message = "Test skipped";
@@ -382,11 +387,11 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
             int skipped = std::stoi(match[3].str());
             int passed = total - failed - skipped;
             
-            duckdb::ValidationEvent event;
+            ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = "testng";
-            event.event_type = duckdb::ValidationEventType::TEST_RESULT;
-            event.status = (failed > 0) ? duckdb::ValidationEventStatus::FAIL : duckdb::ValidationEventStatus::PASS;
+            event.event_type = ValidationEventType::TEST_RESULT;
+            event.status = (failed > 0) ? ValidationEventStatus::FAIL : ValidationEventStatus::PASS;
             event.severity = (failed > 0) ? "error" : "info";
             event.category = "test_summary";
             event.message = "Tests: " + std::to_string(total) + 
@@ -412,7 +417,7 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
                 
                 // Update the last test event with exception details
                 if (!events.empty() && events.back().test_name == current_test) {
-                    duckdb::ValidationEvent& last_event = events.back();
+                    ValidationEvent& last_event = events.back();
                     last_event.ref_file = file;
                     last_event.ref_line = line_number;
                     if (!current_exception.empty()) {
@@ -424,4 +429,4 @@ void JUnitTextParser::ParseJUnitText(const std::string& content, std::vector<duc
     }
 }
 
-} // namespace duck_hunt
+} // namespace duckdb

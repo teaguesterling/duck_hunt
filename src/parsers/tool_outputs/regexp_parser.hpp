@@ -4,17 +4,17 @@
 #include <string>
 #include <vector>
 
-namespace duck_hunt {
+namespace duckdb {
 
 class RegexpParser {
 public:
     static void ParseWithRegexp(const std::string& content, const std::string& pattern,
-                                std::vector<duckdb::ValidationEvent>& events);
+                                std::vector<ValidationEvent>& events);
 
     std::string GetName() const { return "regexp"; }
     // Note: CanParse is not applicable for regexp - it always needs user-provided pattern
     void Parse(const std::string& content, const std::string& pattern,
-               std::vector<duckdb::ValidationEvent>& events) const;
+               std::vector<ValidationEvent>& events) const;
 };
 
-} // namespace duck_hunt
+} // namespace duckdb

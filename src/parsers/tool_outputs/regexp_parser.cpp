@@ -5,15 +5,15 @@
 #include <map>
 #include <algorithm>
 
-namespace duck_hunt {
+namespace duckdb {
 
 void RegexpParser::Parse(const std::string& content, const std::string& pattern,
-                         std::vector<duckdb::ValidationEvent>& events) const {
+                         std::vector<ValidationEvent>& events) const {
     ParseWithRegexp(content, pattern, events);
 }
 
 void RegexpParser::ParseWithRegexp(const std::string& content, const std::string& pattern,
-                                   std::vector<duckdb::ValidationEvent>& events) {
+                                   std::vector<ValidationEvent>& events) {
     // Extract named group names from the pattern
     // Supports both Python-style (?P<name>...) and ECMAScript-style (?<name>...)
     std::vector<std::string> group_names;
@@ -42,11 +42,11 @@ void RegexpParser::ParseWithRegexp(const std::string& content, const std::string
         user_regex = std::regex(modified_pattern);
     } catch (const std::regex_error& e) {
         // If regex compilation fails, create an error event
-        duckdb::ValidationEvent error_event;
+        ValidationEvent error_event;
         error_event.event_id = 1;
         error_event.tool_name = "regexp";
-        error_event.event_type = duckdb::ValidationEventType::BUILD_ERROR;
-        error_event.status = duckdb::ValidationEventStatus::ERROR;
+        error_event.event_type = ValidationEventType::BUILD_ERROR;
+        error_event.status = ValidationEventStatus::ERROR;
         error_event.severity = "error";
         error_event.category = "parse_error";
         error_event.message = std::string("Invalid regex pattern: ") + e.what();
@@ -84,10 +84,10 @@ void RegexpParser::ParseWithRegexp(const std::string& content, const std::string
         std::smatch match;
 
         if (std::regex_search(line, match, user_regex)) {
-            duckdb::ValidationEvent event;
+            ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = "regexp";
-            event.event_type = duckdb::ValidationEventType::LINT_ISSUE;
+            event.event_type = ValidationEventType::LINT_ISSUE;
 
             // Map captured groups to event fields
             std::string severity = getGroupValue(match, {"severity", "level"});
@@ -96,20 +96,20 @@ void RegexpParser::ParseWithRegexp(const std::string& content, const std::string
                 std::transform(severity_lower.begin(), severity_lower.end(), severity_lower.begin(), ::tolower);
 
                 if (severity_lower == "error" || severity_lower == "fatal" || severity_lower == "fail" || severity_lower == "failed") {
-                    event.status = duckdb::ValidationEventStatus::ERROR;
+                    event.status = ValidationEventStatus::ERROR;
                     event.severity = "error";
                 } else if (severity_lower == "warning" || severity_lower == "warn") {
-                    event.status = duckdb::ValidationEventStatus::WARNING;
+                    event.status = ValidationEventStatus::WARNING;
                     event.severity = "warning";
                 } else if (severity_lower == "info" || severity_lower == "note" || severity_lower == "debug") {
-                    event.status = duckdb::ValidationEventStatus::INFO;
+                    event.status = ValidationEventStatus::INFO;
                     event.severity = "info";
                 } else {
-                    event.status = duckdb::ValidationEventStatus::WARNING;
+                    event.status = ValidationEventStatus::WARNING;
                     event.severity = severity;
                 }
             } else {
-                event.status = duckdb::ValidationEventStatus::WARNING;
+                event.status = ValidationEventStatus::WARNING;
                 event.severity = "warning";
             }
 
@@ -193,11 +193,11 @@ void RegexpParser::ParseWithRegexp(const std::string& content, const std::string
 
     // If no events were created, add a summary event
     if (events.empty()) {
-        duckdb::ValidationEvent summary_event;
+        ValidationEvent summary_event;
         summary_event.event_id = 1;
         summary_event.tool_name = "regexp";
-        summary_event.event_type = duckdb::ValidationEventType::LINT_ISSUE;
-        summary_event.status = duckdb::ValidationEventStatus::INFO;
+        summary_event.event_type = ValidationEventType::LINT_ISSUE;
+        summary_event.status = ValidationEventStatus::INFO;
         summary_event.severity = "info";
         summary_event.category = "regexp_summary";
         summary_event.message = "No matches found for the provided pattern";
@@ -208,4 +208,4 @@ void RegexpParser::ParseWithRegexp(const std::string& content, const std::string
     }
 }
 
-} // namespace duck_hunt
+} // namespace duckdb

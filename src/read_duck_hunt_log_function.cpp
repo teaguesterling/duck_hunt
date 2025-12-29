@@ -1331,14 +1331,14 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &co
             // Legacy fallback for special cases not in modular registry
             switch (format) {
                 case TestResultFormat::DUCKDB_TEST:
-                    duck_hunt::DuckDBTestParser::ParseDuckDBTestOutput(content, global_state->events);
+                    duckdb::DuckDBTestParser::ParseDuckDBTestOutput(content, global_state->events);
                     break;
                 case TestResultFormat::GENERIC_LINT:
-                    duck_hunt::GenericLintParser::ParseGenericLint(content, global_state->events);
+                    duckdb::GenericLintParser::ParseGenericLint(content, global_state->events);
                     break;
                 case TestResultFormat::REGEXP:
                     // Dynamic regexp parser - uses user-provided pattern
-                    duck_hunt::RegexpParser::ParseWithRegexp(content, bind_data.regexp_pattern, global_state->events);
+                    duckdb::RegexpParser::ParseWithRegexp(content, bind_data.regexp_pattern, global_state->events);
                     break;
                 default:
                     // All formats now handled by modular registry above
@@ -1637,14 +1637,14 @@ unique_ptr<GlobalTableFunctionState> ParseDuckHuntLogInitGlobal(ClientContext &c
         // Legacy fallback for special cases not in modular registry
         switch (format) {
             case TestResultFormat::DUCKDB_TEST:
-                duck_hunt::DuckDBTestParser::ParseDuckDBTestOutput(content, global_state->events);
+                duckdb::DuckDBTestParser::ParseDuckDBTestOutput(content, global_state->events);
                 break;
             case TestResultFormat::GENERIC_LINT:
-                duck_hunt::GenericLintParser::ParseGenericLint(content, global_state->events);
+                duckdb::GenericLintParser::ParseGenericLint(content, global_state->events);
                 break;
             case TestResultFormat::REGEXP:
                 // Dynamic regexp parser - uses user-provided pattern
-                duck_hunt::RegexpParser::ParseWithRegexp(content, bind_data.regexp_pattern, global_state->events);
+                duckdb::RegexpParser::ParseWithRegexp(content, bind_data.regexp_pattern, global_state->events);
                 break;
             default:
                 // All formats now handled by modular registry above

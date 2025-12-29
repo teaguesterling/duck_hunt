@@ -1,18 +1,25 @@
 #pragma once
 
-#include "validation_event_types.hpp"
+#include "parsers/base/parser_interface.hpp"
 #include <string>
 #include <vector>
 
-namespace duck_hunt {
+namespace duckdb {
 
-class GTestTextParser {
+/**
+ * Parser for Google Test (gtest) output.
+ * Handles test results, failures, and summary information.
+ */
+class GTestTextParser : public IParser {
 public:
-    static void ParseGoogleTest(const std::string& content, std::vector<duckdb::ValidationEvent>& events);
-    
-    std::string GetName() const { return "gtest_text"; }
-    bool CanParse(const std::string& content) const;
-    void Parse(const std::string& content, std::vector<duckdb::ValidationEvent>& events) const;
+    bool canParse(const std::string& content) const override;
+    std::vector<ValidationEvent> parse(const std::string& content) const override;
+
+    std::string getFormatName() const override { return "gtest_text"; }
+    std::string getName() const override { return "gtest"; }
+    std::string getDescription() const override { return "Google Test (gtest) output format"; }
+    int getPriority() const override { return 80; }  // HIGH
+    std::string getCategory() const override { return "test_framework"; }
 };
 
-} // namespace duck_hunt
+} // namespace duckdb

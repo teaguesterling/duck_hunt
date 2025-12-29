@@ -1,18 +1,21 @@
 #pragma once
 
-#include "validation_event_types.hpp"
+#include "parsers/base/parser_interface.hpp"
 #include <string>
 #include <vector>
 
-namespace duck_hunt {
+namespace duckdb {
 
-class PytestCovTextParser {
+class PytestCovTextParser : public IParser {
 public:
-    static void ParsePytestCovText(const std::string& content, std::vector<duckdb::ValidationEvent>& events);
+    bool canParse(const std::string& content) const override;
+    std::vector<ValidationEvent> parse(const std::string& content) const override;
 
-    std::string GetName() const { return "pytest_cov_text"; }
-    bool CanParse(const std::string& content) const;
-    void Parse(const std::string& content, std::vector<duckdb::ValidationEvent>& events) const;
+    std::string getFormatName() const override { return "pytest_cov_text"; }
+    std::string getName() const override { return "pytest_cov"; }
+    std::string getDescription() const override { return "Python pytest-cov text output with coverage"; }
+    int getPriority() const override { return 80; }
+    std::string getCategory() const override { return "test_framework"; }
 };
 
-} // namespace duck_hunt
+} // namespace duckdb

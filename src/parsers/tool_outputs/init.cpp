@@ -30,34 +30,6 @@ template<typename T>
 using P = DelegatingParser<T>;
 
 /**
- * Wrapper for GenericLintParser which uses different interface (Parse with events param)
- */
-class GenericLintParserImpl : public BaseParser {
-public:
-    GenericLintParserImpl()
-        : BaseParser("generic_lint",
-                     "Generic Lint Parser",
-                     ParserCategory::LINTING,
-                     "Generic lint format (file:line:col: level: message)",
-                     ParserPriority::LOW) {
-        addAlias("lint");
-    }
-
-    bool canParse(const std::string& content) const override {
-        return parser_.CanParse(content);
-    }
-
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        std::vector<ValidationEvent> events;
-        parser_.Parse(content, events);
-        return events;
-    }
-
-private:
-    duck_hunt::GenericLintParser parser_;
-};
-
-/**
  * Register all tool output parsers with the registry.
  */
 DECLARE_PARSER_CATEGORY(ToolOutputs);
@@ -171,8 +143,11 @@ void RegisterToolOutputsParsers(ParserRegistry& registry) {
         "Rust cargo test JSON output", ParserPriority::VERY_HIGH,
         std::vector<std::string>{"cargo_test"}));
 
-    // Generic fallback
-    registry.registerParser(make_uniq<GenericLintParserImpl>());
+    // Generic fallback (low priority)
+    registry.registerParser(make_uniq<P<GenericLintParser>>(
+        "generic_lint", "Generic Lint Parser", ParserCategory::LINTING,
+        "Generic lint format (file:line:col: level: message)", ParserPriority::LOW,
+        std::vector<std::string>{"lint"}));
 }
 
 // Auto-register this category

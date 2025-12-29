@@ -3,9 +3,9 @@
 #include <sstream>
 #include <string>
 
-namespace duck_hunt {
+namespace duckdb {
 
-bool MochaChaiTextParser::CanParse(const std::string& content) const {
+bool MochaChaiTextParser::canParse(const std::string& content) const {
     // Check for Mocha/Chai text patterns (should be checked before RSpec since they can share similar symbols)
     return (content.find("✓") != std::string::npos || content.find("✗") != std::string::npos) &&
            (content.find("passing") != std::string::npos || content.find("failing") != std::string::npos) &&
@@ -13,11 +13,8 @@ bool MochaChaiTextParser::CanParse(const std::string& content) const {
             content.find("AssertionError") != std::string::npos || content.find("at Context") != std::string::npos);
 }
 
-void MochaChaiTextParser::Parse(const std::string& content, std::vector<duckdb::ValidationEvent>& events) const {
-    ParseMochaChai(content, events);
-}
-
-void MochaChaiTextParser::ParseMochaChai(const std::string& content, std::vector<duckdb::ValidationEvent>& events) {
+std::vector<ValidationEvent> MochaChaiTextParser::parse(const std::string& content) const {
+    std::vector<ValidationEvent> events;
     std::istringstream stream(content);
     std::string line;
     int64_t event_id = 1;
@@ -71,13 +68,13 @@ void MochaChaiTextParser::ParseMochaChai(const std::string& content, std::vector
             std::string time_str = match[2].str();
             current_execution_time = std::stoll(time_str);
             
-            duckdb::ValidationEvent event;
+            ValidationEvent event;
             event.event_id = event_id++;
-            event.event_type = duckdb::ValidationEventType::TEST_RESULT;
+            event.event_type = ValidationEventType::TEST_RESULT;
             event.severity = "info";
             event.message = "Test passed: " + test_name;
             event.test_name = current_context + " " + current_nested_context + " " + test_name;
-            event.status = duckdb::ValidationEventStatus::PASS;
+            event.status = ValidationEventStatus::PASS;
             event.ref_file = current_file_path;
             event.ref_line = current_line_number;
             event.ref_column = current_column;
@@ -106,13 +103,13 @@ void MochaChaiTextParser::ParseMochaChai(const std::string& content, std::vector
         else if (std::regex_match(line, match, test_pending)) {
             std::string test_name = match[1].str();
             
-            duckdb::ValidationEvent event;
+            ValidationEvent event;
             event.event_id = event_id++;
-            event.event_type = duckdb::ValidationEventType::TEST_RESULT;
+            event.event_type = ValidationEventType::TEST_RESULT;
             event.severity = "warning";
             event.message = "Test pending: " + test_name;
             event.test_name = current_context + " " + current_nested_context + " " + test_name;
-            event.status = duckdb::ValidationEventStatus::SKIP;
+            event.status = ValidationEventStatus::SKIP;
             event.ref_file = "";
             event.ref_line = 0;
             event.ref_column = 0;
@@ -148,13 +145,13 @@ void MochaChaiTextParser::ParseMochaChai(const std::string& content, std::vector
 
             // If we have a failed test from inline ✗ marker, create the event now
             if (!current_test_name.empty() && !current_error_message.empty() && !in_failure_details) {
-                duckdb::ValidationEvent event;
+                ValidationEvent event;
                 event.event_id = event_id++;
-                event.event_type = duckdb::ValidationEventType::TEST_RESULT;
+                event.event_type = ValidationEventType::TEST_RESULT;
                 event.severity = "error";
                 event.message = current_error_message;
                 event.test_name = current_context + " " + current_nested_context + " " + current_test_name;
-                event.status = duckdb::ValidationEventStatus::FAIL;
+                event.status = ValidationEventStatus::FAIL;
                 event.ref_file = current_file_path;
                 event.ref_line = current_line_number;
                 event.ref_column = current_column;
@@ -186,13 +183,13 @@ void MochaChaiTextParser::ParseMochaChai(const std::string& content, std::vector
         else if (std::regex_match(line, match, failed_example_start)) {
             // If we have a pending failure from previous block, emit it
             if (in_failure_details && !accumulated_test_name.empty()) {
-                duckdb::ValidationEvent event;
+                ValidationEvent event;
                 event.event_id = event_id++;
-                event.event_type = duckdb::ValidationEventType::TEST_RESULT;
+                event.event_type = ValidationEventType::TEST_RESULT;
                 event.severity = "error";
                 event.message = current_error_message.empty() ? "Test failed" : current_error_message;
                 event.test_name = accumulated_test_name;
-                event.status = duckdb::ValidationEventStatus::FAIL;
+                event.status = ValidationEventStatus::FAIL;
                 event.ref_file = current_file_path;
                 event.ref_line = current_line_number;
                 event.ref_column = current_column;
@@ -236,11 +233,11 @@ void MochaChaiTextParser::ParseMochaChai(const std::string& content, std::vector
             
             duckdb::ValidationEvent summary_event;
             summary_event.event_id = event_id++;
-            summary_event.event_type = duckdb::ValidationEventType::SUMMARY;
+            summary_event.event_type = ValidationEventType::SUMMARY;
             summary_event.severity = "info";
             summary_event.message = "Test execution completed with " + std::to_string(passing_count) + " passing tests";
             summary_event.test_name = "";
-            summary_event.status = duckdb::ValidationEventStatus::INFO;
+            summary_event.status = ValidationEventStatus::INFO;
             summary_event.ref_file = "";
             summary_event.ref_line = 0;
             summary_event.ref_column = 0;
@@ -258,11 +255,11 @@ void MochaChaiTextParser::ParseMochaChai(const std::string& content, std::vector
             
             duckdb::ValidationEvent summary_event;
             summary_event.event_id = event_id++;
-            summary_event.event_type = duckdb::ValidationEventType::SUMMARY;
+            summary_event.event_type = ValidationEventType::SUMMARY;
             summary_event.severity = "error";
             summary_event.message = "Test execution completed with " + std::to_string(failing_count) + " failing tests";
             summary_event.test_name = "";
-            summary_event.status = duckdb::ValidationEventStatus::FAIL;
+            summary_event.status = ValidationEventStatus::FAIL;
             summary_event.ref_file = "";
             summary_event.ref_line = 0;
             summary_event.ref_column = 0;
@@ -280,11 +277,11 @@ void MochaChaiTextParser::ParseMochaChai(const std::string& content, std::vector
             
             duckdb::ValidationEvent summary_event;
             summary_event.event_id = event_id++;
-            summary_event.event_type = duckdb::ValidationEventType::SUMMARY;
+            summary_event.event_type = ValidationEventType::SUMMARY;
             summary_event.severity = "warning";
             summary_event.message = "Test execution completed with " + std::to_string(pending_count) + " pending tests";
             summary_event.test_name = "";
-            summary_event.status = duckdb::ValidationEventStatus::WARNING;
+            summary_event.status = ValidationEventStatus::WARNING;
             summary_event.ref_file = "";
             summary_event.ref_line = 0;
             summary_event.ref_column = 0;
@@ -306,13 +303,13 @@ void MochaChaiTextParser::ParseMochaChai(const std::string& content, std::vector
 
     // Emit any pending failure at the end of the file
     if (in_failure_details && !accumulated_test_name.empty()) {
-        duckdb::ValidationEvent event;
+        ValidationEvent event;
         event.event_id = event_id++;
-        event.event_type = duckdb::ValidationEventType::TEST_RESULT;
+        event.event_type = ValidationEventType::TEST_RESULT;
         event.severity = "error";
         event.message = current_error_message.empty() ? "Test failed" : current_error_message;
         event.test_name = accumulated_test_name;
-        event.status = duckdb::ValidationEventStatus::FAIL;
+        event.status = ValidationEventStatus::FAIL;
         event.ref_file = current_file_path;
         event.ref_line = current_line_number;
         event.ref_column = current_column;
@@ -326,6 +323,8 @@ void MochaChaiTextParser::ParseMochaChai(const std::string& content, std::vector
         event.log_line_end = current_line_num;
         events.push_back(event);
     }
+
+    return events;
 }
 
-} // namespace duck_hunt
+} // namespace duckdb
