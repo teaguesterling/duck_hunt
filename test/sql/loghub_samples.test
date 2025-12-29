@@ -1,0 +1,93 @@
+# name: test/sql/loghub_samples.test
+# description: Test parsers against loghub real-world log samples
+# group: [duck_hunt]
+
+require duck_hunt
+
+# =============================================================================
+# Loghub Sample Tests
+# =============================================================================
+# These tests use real-world log samples from the loghub repository
+# (https://github.com/logpai/loghub) to verify parser reliability.
+
+# =============================================================================
+# Test 1: Linux Syslog - Parse entire 2k sample file
+# =============================================================================
+
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('test/samples/loghub/Linux/Linux_2k.log', 'syslog');
+----
+2000
+
+# Verify tool name detection
+query I
+SELECT DISTINCT tool_name FROM read_duck_hunt_log('test/samples/loghub/Linux/Linux_2k.log', 'syslog');
+----
+syslog
+
+# =============================================================================
+# Test 2: Linux Syslog - Auto-detection works
+# =============================================================================
+
+# Test single line detection
+query I
+SELECT duck_hunt_detect_format('Jun 14 15:16:01 combo sshd(pam_unix)[19939]: authentication failure; logname= uid=0 euid=0 tty=NODEVssh ruser= rhost=218.188.2.4');
+----
+syslog
+
+# =============================================================================
+# Test 3: Linux Syslog - Field extraction
+# =============================================================================
+
+# Verify origin (hostname) extraction
+query I
+SELECT COUNT(DISTINCT origin) >= 1 FROM read_duck_hunt_log('test/samples/loghub/Linux/Linux_2k.log', 'syslog');
+----
+true
+
+# Verify process category extraction (sshd, su, etc.)
+query I
+SELECT COUNT(*) > 0 FROM read_duck_hunt_log('test/samples/loghub/Linux/Linux_2k.log', 'syslog')
+WHERE category LIKE '%sshd%' OR category LIKE '%su%';
+----
+true
+
+# =============================================================================
+# Test 4: OpenSSH Syslog - Parse entire 2k sample file
+# =============================================================================
+
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('test/samples/loghub/OpenSSH/OpenSSH_2k.log', 'syslog');
+----
+2000
+
+# Verify tool name detection
+query I
+SELECT DISTINCT tool_name FROM read_duck_hunt_log('test/samples/loghub/OpenSSH/OpenSSH_2k.log', 'syslog');
+----
+syslog
+
+# =============================================================================
+# Test 5: OpenSSH - Security-relevant events
+# =============================================================================
+
+# Verify we capture authentication-related messages
+query I
+SELECT COUNT(*) > 100 FROM read_duck_hunt_log('test/samples/loghub/OpenSSH/OpenSSH_2k.log', 'syslog')
+WHERE message LIKE '%Failed%' OR message LIKE '%Accepted%' OR message LIKE '%Invalid%';
+----
+true
+
+# =============================================================================
+# Test 6: Performance - Can process full loghub sample
+# =============================================================================
+
+# Both files together should process without error
+query I
+SELECT COUNT(*) = 4000 FROM (
+    SELECT * FROM read_duck_hunt_log('test/samples/loghub/Linux/Linux_2k.log', 'syslog')
+    UNION ALL
+    SELECT * FROM read_duck_hunt_log('test/samples/loghub/OpenSSH/OpenSSH_2k.log', 'syslog')
+);
+----
+true
