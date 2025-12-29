@@ -1,0 +1,127 @@
+# name: test/sql/lcov_parser.test
+# description: Test LCOV coverage format parsing
+# group: [duck_hunt]
+
+require duck_hunt
+
+require json
+
+# =============================================================================
+# LCOV Format Parsing Tests
+# =============================================================================
+
+# Test 1: Basic LCOV file parsing - should detect format
+query I
+SELECT DISTINCT tool_name
+FROM read_duck_hunt_log('test/samples/coverage/lcov_coverage.info', 'lcov');
+----
+lcov
+
+# Test 2: Parse file-level coverage summaries with JSON extraction
+query IIII
+SELECT
+    ref_file,
+    CAST(json_extract(structured_data, '$.lines_found') AS INTEGER) as lines_found,
+    CAST(json_extract(structured_data, '$.lines_hit') AS INTEGER) as lines_hit,
+    ROUND(CAST(json_extract(structured_data, '$.line_coverage_pct') AS DOUBLE), 2) as coverage_pct
+FROM read_duck_hunt_log('test/samples/coverage/lcov_coverage.info', 'lcov')
+WHERE event_type = 'summary'
+ORDER BY ref_file;
+----
+src/main.cpp	17	14	82.35
+src/parser.cpp	10	9	90.0
+src/utils.cpp	15	13	86.67
+
+# Test 3: Parse uncovered lines
+query III
+SELECT ref_file, ref_line, message
+FROM read_duck_hunt_log('test/samples/coverage/lcov_coverage.info', 'lcov')
+WHERE status = 'WARNING' AND category = 'coverage' AND ref_file = 'src/main.cpp'
+  AND event_type = 'lint_issue'
+ORDER BY ref_line;
+----
+src/main.cpp	20	Line not covered
+src/main.cpp	55	Line not covered
+src/main.cpp	60	Line not covered
+
+# Test 4: Function coverage data with hit counts
+query III
+SELECT ref_file, function_name,
+    CAST(json_extract(structured_data, '$.hit_count') AS INTEGER) as hits
+FROM read_duck_hunt_log('test/samples/coverage/lcov_coverage.info', 'lcov')
+WHERE category = 'function_coverage' AND ref_file = 'src/main.cpp'
+ORDER BY function_name;
+----
+src/main.cpp	initialize	1
+src/main.cpp	main	1
+src/main.cpp	process_data	5
+
+# Test 5: Branch coverage data
+query IIII
+SELECT ref_file, ref_line,
+    CAST(json_extract(structured_data, '$.branch_id') AS INTEGER) as branch_id,
+    CAST(json_extract(structured_data, '$.hit_count') AS INTEGER) as hits
+FROM read_duck_hunt_log('test/samples/coverage/lcov_coverage.info', 'lcov')
+WHERE category = 'branch_coverage' AND ref_file = 'src/main.cpp'
+ORDER BY ref_line, branch_id;
+----
+src/main.cpp	15	0	1
+src/main.cpp	15	1	0
+src/main.cpp	50	0	1
+src/main.cpp	50	1	1
+src/main.cpp	85	0	3
+src/main.cpp	85	1	2
+
+# Test 6: Auto-detection of LCOV format
+query I
+SELECT DISTINCT tool_name
+FROM read_duck_hunt_log('test/samples/coverage/lcov_coverage.info', 'auto');
+----
+lcov
+
+# Test 7: Summary event count (one per source file)
+query I
+SELECT COUNT(*)
+FROM read_duck_hunt_log('test/samples/coverage/lcov_coverage.info', 'lcov')
+WHERE event_type = 'summary';
+----
+3
+
+# Test 8: Inline LCOV parsing
+query II
+SELECT ref_file, status
+FROM parse_duck_hunt_log('SF:test.cpp
+DA:1,1
+DA:2,0
+DA:3,1
+LF:3
+LH:2
+end_of_record', 'lcov')
+WHERE event_type = 'summary';
+----
+test.cpp	WARNING
+
+# Test 9: Coverage percentage calculation
+query II
+SELECT ref_file,
+    ROUND(CAST(json_extract(structured_data, '$.line_coverage_pct') AS DOUBLE), 1) as pct
+FROM parse_duck_hunt_log('SF:example.cpp
+DA:1,1
+DA:2,1
+DA:3,0
+DA:4,1
+DA:5,0
+LF:5
+LH:3
+end_of_record', 'lcov')
+WHERE event_type = 'summary';
+----
+example.cpp	60.0
+
+# Test 10: Empty LCOV file handling
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('TN:
+end_of_record', 'lcov');
+----
+0

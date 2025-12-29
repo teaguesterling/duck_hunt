@@ -149,6 +149,7 @@ namespace ParserCategory {
     constexpr const char* STRUCTURED_LOG = "structured_log";
     constexpr const char* PYTHON_TOOL = "python_tool";
     constexpr const char* SECURITY_TOOL = "security_tool";
+    constexpr const char* COVERAGE = "coverage";
 }
 
 } // namespace duckdb

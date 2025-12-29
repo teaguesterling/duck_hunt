@@ -21,6 +21,7 @@ void RegisterCloudLogsParsers(ParserRegistry& registry);
 void RegisterAppLoggingParsers(ParserRegistry& registry);
 void RegisterInfrastructureParsers(ParserRegistry& registry);
 void RegisterInfrastructureToolsParsers(ParserRegistry& registry);
+void RegisterCoverageParsers(ParserRegistry& registry);
 
 // Category registration storage (kept for backwards compatibility)
 static std::vector<std::pair<std::string, CategoryRegistrationFn>>& GetCategoryRegistry() {
@@ -64,6 +65,8 @@ void InitializeAllParsers() {
         RegisterInfrastructureParsers(registry);
         PARSER_TRACE("Registering InfrastructureTools category...");
         RegisterInfrastructureToolsParsers(registry);
+        PARSER_TRACE("Registering Coverage category...");
+        RegisterCoverageParsers(registry);
         PARSER_TRACE("=== Parser initialization complete ===");
     });
 }

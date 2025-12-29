@@ -4,6 +4,22 @@ Duck Hunt supports 80+ format strings for parsing development tool outputs. Use 
 
 > **See also:** [Format Maturity Levels](format-maturity.md) for test coverage and stability ratings.
 
+## Notes
+
+### XML Format Requirements
+
+Some XML-based formats require the optional `webbed` DuckDB extension for XML parsing:
+- `junit_xml` - JUnit/NUnit/xUnit XML test reports
+- `cobertura_xml` - Cobertura coverage XML reports
+
+To use these formats, first install the webbed extension:
+```sql
+INSTALL webbed;
+LOAD webbed;
+```
+
+If the extension is not available, use the text-based alternatives (`junit_text`, `lcov`) or convert XML to JSON before parsing.
+
 ## Quick Reference
 
 | Format String | Tool | Sample File |
@@ -96,6 +112,7 @@ Duck Hunt supports 80+ format strings for parsing development tool outputs. Use 
 | `valgrind` | Valgrind | [valgrind_memcheck.txt](../test/samples/debugging_tools/valgrind_memcheck.txt) |
 | `gdb_lldb` | GDB/LLDB | [gdb_session.txt](../test/samples/debugging_tools/gdb_session.txt) |
 | `strace` | strace | [strace_output.txt](../test/samples/debugging_tools/strace_output.txt) |
+| `lcov` | LCOV/gcov | [lcov_coverage.info](../test/samples/coverage/lcov_coverage.info) |
 | `coverage_text` | Coverage.py | [coverage_xml.xml](../test/samples/coverage/coverage_xml.xml) |
 | `pytest_cov_text` | pytest-cov | - |
 

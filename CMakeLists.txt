@@ -31,6 +31,7 @@ set(EXTENSION_SOURCES
     src/parsers/app_logging/init.cpp
     src/parsers/infrastructure/init.cpp
     src/parsers/infrastructure_tools/init.cpp
+    src/parsers/coverage/init.cpp
 
     # Parser implementations
     src/parsers/test_frameworks/pytest_parser.cpp
@@ -187,6 +188,9 @@ set(EXTENSION_SOURCES
     src/parsers/infrastructure/windows_event_parser.cpp
     src/parsers/infrastructure/auditd_parser.cpp
     src/parsers/infrastructure/s3_access_parser.cpp
+
+    # Coverage parsers
+    src/parsers/coverage/lcov_parser.cpp
 
     # XML-based parsers (require webbed extension)
     src/parsers/test_frameworks/junit_xml_parser.cpp
