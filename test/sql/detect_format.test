@@ -1,0 +1,81 @@
+# name: test/sql/detect_format.test
+# description: Test duck_hunt_detect_format() scalar function
+# group: [duck_hunt]
+
+require duck_hunt
+
+# =============================================================================
+# duck_hunt_detect_format() Tests
+# =============================================================================
+
+# Test 1: Empty content returns unknown
+query I
+SELECT duck_hunt_detect_format('');
+----
+unknown
+
+# Test 2: Unrecognized content returns unknown
+query I
+SELECT duck_hunt_detect_format('random text that matches nothing');
+----
+unknown
+
+# Test 3: LCOV format detection
+query I
+SELECT duck_hunt_detect_format('SF:test.cpp
+DA:1,1
+DA:2,0
+LF:2
+LH:1
+end_of_record');
+----
+lcov
+
+# Test 4: Syslog format detection
+query I
+SELECT duck_hunt_detect_format('Dec 25 10:30:00 hostname sshd[1234]: Connection from 192.168.1.1');
+----
+syslog
+
+# Test 5: Winston/JSON structured log detection
+query I
+SELECT duck_hunt_detect_format('{"level":"info","message":"Server started","timestamp":"2024-01-01T00:00:00Z"}');
+----
+winston
+
+# Test 6: pytest JSON format detection
+query I
+SELECT duck_hunt_detect_format('{"tests":[{"nodeid":"test_example.py::test_one","outcome":"passed"}],"summary":{"passed":1}}');
+----
+pytest_json
+
+# Test 7: ESLint JSON format detection
+query I
+SELECT duck_hunt_detect_format('[{"filePath":"/src/app.js","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"x is defined but never used","line":1,"column":5}]}]');
+----
+eslint_json
+
+# Test 8: Go test JSON format detection
+query I
+SELECT duck_hunt_detect_format('{"Time":"2024-01-01T00:00:00Z","Action":"pass","Package":"mypackage","Test":"TestExample","Elapsed":0.001}');
+----
+gotest_json
+
+# Test 9: Detection works with table data (using simple single-line formats)
+query II
+SELECT content, duck_hunt_detect_format(content) as detected_format
+FROM (VALUES
+    ('Dec 25 10:30:00 host sshd[1]: test'),
+    ('{"level":"info","message":"test"}')
+) AS t(content)
+ORDER BY detected_format;
+----
+Dec 25 10:30:00 host sshd[1]: test	syslog
+{"level":"info","message":"test"}	winston
+
+# Test 10: Same detection as read_duck_hunt_log auto - verify consistency
+query I
+SELECT DISTINCT tool_name
+FROM read_duck_hunt_log('test/samples/coverage/lcov_coverage.info', 'auto');
+----
+lcov
