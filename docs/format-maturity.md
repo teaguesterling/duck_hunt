@@ -18,13 +18,13 @@ This document describes the maturity levels for formats used with `read_duck_hun
 
 | Maturity | Count | Percentage |
 |----------|-------|------------|
-| Production ⭐⭐⭐⭐⭐ | 7 | 8% |
-| Stable ⭐⭐⭐⭐ | 27 | 33% |
-| Beta ⭐⭐⭐ | 28 | 34% |
+| Production ⭐⭐⭐⭐⭐ | 8 | 10% |
+| Stable ⭐⭐⭐⭐ | 27 | 32% |
+| Beta ⭐⭐⭐ | 28 | 33% |
 | Alpha ⭐⭐ | 9 | 11% |
 | Experimental ⭐ | 12 | 14% |
 
-**Total: 83 log formats** (plus 4 workflow formats)
+**Total: 84 log formats** (plus 4 workflow formats)
 
 ---
 
@@ -35,6 +35,7 @@ These formats have extensive test coverage and are recommended for production us
 | Format | Tests | Sample | Description |
 |--------|-------|--------|-------------|
 | `logfmt` | 12 | ✓ | logfmt structured logs |
+| `lcov` | 16 | ✓ | LCOV/gcov code coverage |
 | `logrus` | 16 | ✓ | Logrus (Go) logging |
 | `nlog` | 14 | ✓ | NLog (.NET) logging |
 | `rails_log` | 14 | ✓ | Rails application logs |

@@ -1,6 +1,6 @@
 # Supported Formats
 
-Duck Hunt supports 80+ format strings for parsing development tool outputs. Use these with `read_duck_hunt_log()` or `parse_duck_hunt_log()`.
+Duck Hunt supports 84+ format strings for parsing development tool outputs. Use these with `read_duck_hunt_log()` or `parse_duck_hunt_log()`.
 
 > **See also:** [Format Maturity Levels](format-maturity.md) for test coverage and stability ratings.
 
@@ -19,6 +19,20 @@ LOAD webbed;
 ```
 
 If the extension is not available, use the text-based alternatives (`junit_text`, `lcov`) or convert XML to JSON before parsing.
+
+### Format Detection
+
+Use `duck_hunt_detect_format()` to automatically identify the format of log content:
+
+```sql
+-- Detect format from file content
+SELECT duck_hunt_detect_format(content) AS detected_format
+FROM read_text('build.log');
+
+-- Returns: 'make_error', 'pytest_json', etc.
+```
+
+The function analyzes content patterns and returns the best-matching format string. Returns `NULL` if no format matches confidently. This is the same detection logic used by `format := 'auto'`.
 
 ## Quick Reference
 

@@ -1,6 +1,6 @@
 # Duck Hunt
 
-A DuckDB extension for parsing test results, build outputs, and CI/CD logs from 80+ development tools.
+A DuckDB extension for parsing test results, build outputs, and CI/CD logs from 84+ development tools.
 
 ## Functions
 
@@ -11,6 +11,7 @@ read_duck_hunt_log(file_path, format := 'auto', severity_threshold := 'all')
 parse_duck_hunt_log(content, format := 'auto', severity_threshold := 'all')
 read_duck_hunt_workflow_log(file_path, format := 'auto', severity_threshold := 'all')
 parse_duck_hunt_workflow_log(content, format := 'auto', severity_threshold := 'all')
+duck_hunt_formats()                               -- List all supported formats
 ```
 
 - `format` - Parser format or `'auto'` for auto-detection
@@ -19,12 +20,14 @@ parse_duck_hunt_workflow_log(content, format := 'auto', severity_threshold := 'a
 ### Scalar Functions
 
 ```sql
+duck_hunt_detect_format(content)                  -- Auto-detect format from content
 status_badge(status)                              -- 'error' → '[FAIL]'
 status_badge(error_count, warning_count)          -- Compute from counts
 status_badge(error_count, warning_count, running) -- With running state
 ```
 
-Badges: `[ OK ]` `[FAIL]` `[WARN]` `[ .. ]` `[ ?? ]`
+- `duck_hunt_detect_format()` - Returns format string like `'pytest_json'`, `'make_error'`, or `NULL`
+- `status_badge()` - Returns badges: `[ OK ]` `[FAIL]` `[WARN]` `[ .. ]` `[ ?? ]`
 
 ## Quick Start
 
