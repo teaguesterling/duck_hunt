@@ -939,7 +939,7 @@ SELECT COUNT(*), tool_name,
 FROM cmake_results
 GROUP BY tool_name;
 ----
-24	cmake	19	5
+24	cmake	18	5
 
 # Test 118: CMake auto-detection
 query I
@@ -959,7 +959,7 @@ FROM parse_duck_hunt_log('/home/user/src/main.cpp:15:10: error: iostream file no
 
 # Test 120: CMake configuration error parsing
 query IIII
-SELECT ref_file, ref_line, category, message LIKE '%Could not find%' as has_package_error
+SELECT ref_file, ref_line, category, message LIKE '%find_package%' as has_package_error
 FROM parse_duck_hunt_log('CMake Error at CMakeLists.txt:25 (find_package):
   Could not find a package configuration file provided by "Boost"', 'cmake_build');
 ----

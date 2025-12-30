@@ -7,12 +7,31 @@ namespace duckdb {
 
 bool PythonBuildParser::canParse(const std::string& content) const {
     // Check for Python build patterns
-    return (content.find("ERROR: Failed building wheel for") != std::string::npos) ||
-           (content.find("FAILED ") != std::string::npos && content.find("::") != std::string::npos) ||
-           (content.find("ERROR ") != std::string::npos && content.find("::") != std::string::npos) ||
-           (content.find("AssertionError:") != std::string::npos || content.find("TypeError:") != std::string::npos) ||
-           (content.find("error: command") != std::string::npos && content.find("failed with exit status") != std::string::npos) ||
-           (content.find("setuptools") != std::string::npos && content.find(".c:") != std::string::npos);
+    // Definitive Python build markers
+    if (content.find("ERROR: Failed building wheel for") != std::string::npos ||
+        content.find("error: command") != std::string::npos && content.find("failed with exit status") != std::string::npos ||
+        content.find("setuptools") != std::string::npos && content.find(".c:") != std::string::npos) {
+        return true;
+    }
+
+    // Python exception types
+    if (content.find("AssertionError:") != std::string::npos ||
+        content.find("TypeError:") != std::string::npos ||
+        content.find("ValueError:") != std::string::npos ||
+        content.find("ImportError:") != std::string::npos ||
+        content.find("ModuleNotFoundError:") != std::string::npos) {
+        return true;
+    }
+
+    // Python test patterns: require Python test naming conventions with ::
+    // e.g., "test_module::test_function" or "tests/test_foo.py::TestClass::test_method"
+    if ((content.find("FAILED ") != std::string::npos || content.find("ERROR ") != std::string::npos) &&
+        (content.find("::test_") != std::string::npos ||
+         content.find("test_") != std::string::npos && content.find(".py::") != std::string::npos)) {
+        return true;
+    }
+
+    return false;
 }
 
 std::vector<ValidationEvent> PythonBuildParser::parse(const std::string& content) const {
