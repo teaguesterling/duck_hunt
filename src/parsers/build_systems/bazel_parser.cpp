@@ -9,11 +9,22 @@ bool BazelParser::canParse(const std::string& content) const {
         content.find("INFO: Build completed") != std::string::npos ||
         content.find("INFO: Found") != std::string::npos ||
         content.find("bazel build") != std::string::npos ||
-        content.find("bazel test") != std::string::npos ||
-        (content.find("//") != std::string::npos && content.find(":") != std::string::npos &&
-         (content.find("PASSED") != std::string::npos || content.find("FAILED") != std::string::npos))) {
+        content.find("bazel test") != std::string::npos) {
         return true;
     }
+
+    // Check for Bazel target patterns with PASSED/FAILED
+    // Bazel targets look like "//package:target" or "//path/to/package:target"
+    // NOT like "hdfs://host:port" or URLs
+    // Look for pattern: //word_chars:word_chars followed by test result
+    static std::regex bazel_target_pattern(
+        R"(//[a-zA-Z0-9_/.-]+:[a-zA-Z0-9_.-]+\s+\((PASSED|FAILED|TIMEOUT|SKIPPED|FLAKY))",
+        std::regex::optimize
+    );
+    if (std::regex_search(content, bazel_target_pattern)) {
+        return true;
+    }
+
     return false;
 }
 

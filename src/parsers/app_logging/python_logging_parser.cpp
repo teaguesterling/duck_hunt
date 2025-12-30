@@ -148,15 +148,25 @@ bool PythonLoggingParser::canParse(const std::string& content) const {
     std::istringstream stream(content);
     std::string line;
     int python_log_lines = 0;
+    int log4j_lines = 0;
     int checked = 0;
 
-    // Patterns to detect Python logging
-    static std::regex timestamp_logger_pattern(
-        R"(^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}[,\.]\d+\s+-?\s*\S+)",
-        std::regex::optimize
+    // Python logging patterns - specific to Python style
+    // Python: "2025-01-15 10:30:45,123 - myapp.module - INFO - Message"
+    static std::regex python_dash_pattern(
+        R"(^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}[,\.]\d+\s+-\s+\S+\s+-\s+(DEBUG|INFO|WARNING|WARN|ERROR|CRITICAL|FATAL)\s+-)",
+        std::regex::optimize | std::regex::icase
     );
+    // Python simple: "INFO:myapp.module:Message"
     static std::regex simple_level_pattern(
         R"(^(DEBUG|INFO|WARNING|WARN|ERROR|CRITICAL|FATAL):)",
+        std::regex::optimize | std::regex::icase
+    );
+
+    // Log4j pattern to exclude: "timestamp LEVEL [thread] logger - message"
+    // Matches Java-style with [threadName] after log level
+    static std::regex log4j_thread_pattern(
+        R"(^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}[,\.]\d+\s+(TRACE|DEBUG|INFO|WARN|ERROR|FATAL)\s+\[)",
         std::regex::optimize | std::regex::icase
     );
 
@@ -168,10 +178,21 @@ bool PythonLoggingParser::canParse(const std::string& content) const {
 
         checked++;
 
-        if (std::regex_search(line, timestamp_logger_pattern) ||
+        // Check for log4j-style patterns first (to exclude)
+        if (std::regex_search(line, log4j_thread_pattern)) {
+            log4j_lines++;
+            continue;
+        }
+
+        if (std::regex_search(line, python_dash_pattern) ||
             std::regex_search(line, simple_level_pattern)) {
             python_log_lines++;
         }
+    }
+
+    // Don't claim if it looks like log4j format (has [thread] patterns)
+    if (log4j_lines > 0 && log4j_lines >= python_log_lines) {
+        return false;
     }
 
     // Need at least some Python-style log lines

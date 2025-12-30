@@ -76,11 +76,29 @@ public:
     }
 
     bool canParse(const std::string& content) const override {
-        return content.find("(gdb)") != std::string::npos ||
-               content.find("(lldb)") != std::string::npos ||
-               content.find("Program received signal") != std::string::npos ||
-               content.find("Breakpoint") != std::string::npos ||
-               content.find("Thread ") != std::string::npos;
+        // Check for definitive GDB/LLDB markers
+        if (content.find("(gdb)") != std::string::npos ||
+            content.find("(lldb)") != std::string::npos ||
+            content.find("Program received signal") != std::string::npos) {
+            return true;
+        }
+
+        // Breakpoint in debugger context (not just any "Breakpoint" word)
+        if (content.find("Breakpoint") != std::string::npos &&
+            (content.find("hit") != std::string::npos ||
+             content.find("set at") != std::string::npos ||
+             content.find("pending") != std::string::npos)) {
+            return true;
+        }
+
+        // GDB thread format: "Thread 0x" or "* Thread" (not Java's "Thread[")
+        if (content.find("Thread 0x") != std::string::npos ||
+            content.find("* Thread") != std::string::npos ||
+            content.find("thread #") != std::string::npos) {
+            return true;
+        }
+
+        return false;
     }
 
     std::vector<ValidationEvent> parse(const std::string& content) const override {
