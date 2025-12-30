@@ -1,0 +1,61 @@
+# name: test/sql/spack_parser.test
+# description: Test Spack build log workflow parser
+# group: [duck_hunt]
+
+require duck_hunt
+
+# =============================================================================
+# Test 1: Basic Spack parsing
+# =============================================================================
+
+query I
+SELECT COUNT(*) > 0 FROM read_duck_hunt_workflow_log('test/samples/ci_systems/spack_build.txt', 'spack');
+----
+true
+
+# =============================================================================
+# Test 2: Verify package name extraction
+# =============================================================================
+
+query I
+SELECT DISTINCT scope FROM read_duck_hunt_workflow_log('test/samples/ci_systems/spack_build.txt', 'spack')
+WHERE scope LIKE '%bcftools%';
+----
+Spack Build: bcftools
+
+# =============================================================================
+# Test 3: Verify phase extraction
+# =============================================================================
+
+query I
+SELECT COUNT(DISTINCT "group") >= 3 FROM read_duck_hunt_workflow_log('test/samples/ci_systems/spack_build.txt', 'spack');
+----
+true
+
+# =============================================================================
+# Test 4: Verify Spack marker lines are identified
+# =============================================================================
+
+query I
+SELECT COUNT(*) > 0 FROM read_duck_hunt_workflow_log('test/samples/ci_systems/spack_build.txt', 'spack')
+WHERE message LIKE '==> %';
+----
+true
+
+# =============================================================================
+# Test 5: Verify tool name
+# =============================================================================
+
+query I
+SELECT DISTINCT tool_name FROM read_duck_hunt_workflow_log('test/samples/ci_systems/spack_build.txt', 'spack');
+----
+spack
+
+# =============================================================================
+# Test 6: Auto-detection test
+# =============================================================================
+
+query I
+SELECT COUNT(*) > 0 FROM read_duck_hunt_workflow_log('test/samples/ci_systems/spack_build.txt', 'auto');
+----
+true

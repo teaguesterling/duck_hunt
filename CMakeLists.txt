@@ -141,6 +141,7 @@ set(EXTENSION_SOURCES
     src/parsers/workflow_engines/gitlab_ci_parser.cpp
     src/parsers/workflow_engines/jenkins_parser.cpp
     src/parsers/workflow_engines/docker_parser.cpp
+    src/parsers/workflow_engines/spack_parser.cpp
 
     # Scalar utility functions
     src/status_badge_function.cpp

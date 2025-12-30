@@ -16,6 +16,7 @@ enum class WorkflowLogFormat : uint8_t {
     GITLAB_CI = 2,
     JENKINS = 3,
     DOCKER_BUILD = 4,
+    SPACK = 5,
     UNKNOWN = 255
 };
 

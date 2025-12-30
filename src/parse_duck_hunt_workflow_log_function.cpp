@@ -6,6 +6,7 @@
 #include "parsers/workflow_engines/gitlab_ci_parser.hpp"
 #include "parsers/workflow_engines/jenkins_parser.hpp"
 #include "parsers/workflow_engines/docker_parser.hpp"
+#include "parsers/workflow_engines/spack_parser.hpp"
 
 #include "duckdb/common/exception.hpp"
 #include "duckdb/common/string_util.hpp"
@@ -23,7 +24,8 @@ WorkflowLogFormat StringToWorkflowLogFormatForParse(const std::string& format_st
     if (lower_format == "gitlab_ci" || lower_format == "gitlab") return WorkflowLogFormat::GITLAB_CI;
     if (lower_format == "jenkins") return WorkflowLogFormat::JENKINS;
     if (lower_format == "docker_build" || lower_format == "docker") return WorkflowLogFormat::DOCKER_BUILD;
-    
+    if (lower_format == "spack" || lower_format == "spack_build") return WorkflowLogFormat::SPACK;
+
     return WorkflowLogFormat::UNKNOWN;
 }
 
@@ -45,6 +47,7 @@ std::vector<WorkflowEvent> ParseDuckHuntWorkflowLogFromString(const std::string&
             registry.registerParser(make_uniq<GitLabCIParser>());
             registry.registerParser(make_uniq<JenkinsParser>());
             registry.registerParser(make_uniq<DockerParser>());
+            registry.registerParser(make_uniq<SpackParser>());
         }
         
         const WorkflowEngineParser* parser = nullptr;

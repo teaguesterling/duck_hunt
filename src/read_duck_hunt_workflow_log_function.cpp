@@ -7,6 +7,7 @@
 #include "parsers/workflow_engines/gitlab_ci_parser.hpp"
 #include "parsers/workflow_engines/jenkins_parser.hpp"
 #include "parsers/workflow_engines/docker_parser.hpp"
+#include "parsers/workflow_engines/spack_parser.hpp"
 #include "duckdb/common/exception.hpp"
 #include "duckdb/common/file_system.hpp"
 #include "duckdb/common/string_util.hpp"
@@ -29,6 +30,7 @@ std::string WorkflowLogFormatToString(WorkflowLogFormat format) {
         case WorkflowLogFormat::GITLAB_CI: return "gitlab_ci";
         case WorkflowLogFormat::JENKINS: return "jenkins";
         case WorkflowLogFormat::DOCKER_BUILD: return "docker_build";
+        case WorkflowLogFormat::SPACK: return "spack";
         case WorkflowLogFormat::UNKNOWN: return "unknown";
         default: return "unknown";
     }
@@ -37,13 +39,14 @@ std::string WorkflowLogFormatToString(WorkflowLogFormat format) {
 // Convert string to workflow format enum
 WorkflowLogFormat StringToWorkflowLogFormat(const std::string& format_str) {
     std::string lower_format = StringUtil::Lower(format_str);
-    
+
     if (lower_format == "auto") return WorkflowLogFormat::AUTO;
     if (lower_format == "github_actions" || lower_format == "github") return WorkflowLogFormat::GITHUB_ACTIONS;
     if (lower_format == "gitlab_ci" || lower_format == "gitlab") return WorkflowLogFormat::GITLAB_CI;
     if (lower_format == "jenkins") return WorkflowLogFormat::JENKINS;
     if (lower_format == "docker_build" || lower_format == "docker") return WorkflowLogFormat::DOCKER_BUILD;
-    
+    if (lower_format == "spack" || lower_format == "spack_build") return WorkflowLogFormat::SPACK;
+
     return WorkflowLogFormat::UNKNOWN;
 }
 
@@ -83,7 +86,15 @@ WorkflowLogFormat DetectWorkflowLogFormat(const std::string& content) {
         content.find("COPY --from=") != std::string::npos) {
         return WorkflowLogFormat::DOCKER_BUILD;
     }
-    
+
+    // Spack build patterns
+    if (content.find("==> ") != std::string::npos &&
+        (content.find("Executing phase:") != std::string::npos ||
+         content.find("spack-stage") != std::string::npos ||
+         content.find("spack/opt/spack") != std::string::npos)) {
+        return WorkflowLogFormat::SPACK;
+    }
+
     return WorkflowLogFormat::UNKNOWN;
 }
 
@@ -251,6 +262,7 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntWorkflowLogInitGlobal(ClientCon
         registry.registerParser(make_uniq<GitLabCIParser>());
         registry.registerParser(make_uniq<JenkinsParser>());
         registry.registerParser(make_uniq<DockerParser>());
+        registry.registerParser(make_uniq<SpackParser>());
     }
 
     const WorkflowEngineParser* parser_ptr = nullptr;
