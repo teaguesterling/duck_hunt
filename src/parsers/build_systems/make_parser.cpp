@@ -1,4 +1,5 @@
 #include "make_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <sstream>
 
 namespace duckdb {
@@ -24,60 +25,82 @@ bool MakeParser::canParse(const std::string& content) const {
 }
 
 bool MakeParser::isValidMakeError(const std::string& content) const {
-    // Check for GCC/Clang error patterns or make failure patterns
-    std::regex gcc_pattern(R"([^:]+:\d+:\d*:?\s*(error|warning|note):)");
-    std::regex make_pattern(R"(make: \*\*\*.*Error)");
-    
-    return std::regex_search(content, gcc_pattern) || 
-           std::regex_search(content, make_pattern);
+    // Check for GCC/Clang error patterns or make failure patterns using safe parsing
+    // Check a sample of lines (first 50 lines) to detect patterns without full regex scan
+    SafeParsing::SafeLineReader reader(content);
+    std::string line;
+    int lines_checked = 0;
+
+    while (reader.getLine(line) && lines_checked < 50) {
+        lines_checked++;
+
+        // Check for make failure pattern
+        if (line.find("make: ***") != std::string::npos && line.find("Error") != std::string::npos) {
+            return true;
+        }
+
+        // Check for GCC/Clang error pattern using safe string parsing
+        std::string file, severity, message;
+        int line_num, col;
+        if (SafeParsing::ParseCompilerDiagnostic(line, file, line_num, col, severity, message)) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 std::vector<ValidationEvent> MakeParser::parse(const std::string& content) const {
     std::vector<ValidationEvent> events;
-    std::istringstream stream(content);
+    SafeParsing::SafeLineReader reader(content);
     std::string line;
     int64_t event_id = 1;
     std::string current_function;
-    int32_t current_line_num = 0;  // Track position in log file (1-indexed)
 
-    while (std::getline(stream, line)) {
-        current_line_num++;  // Increment before processing (1-indexed)
+    // Pre-compiled regex patterns for short, predictable patterns only
+    static const std::regex target_pattern(R"(\[([^:\]]+):(\d+):\s*([^\]]+)\])");
+
+    while (reader.getLine(line)) {
+        int32_t current_line_num = reader.lineNumber();
+
         // Parse function context: "file.c: In function 'function_name':"
-        std::regex function_pattern(R"(([^:]+):\s*In function\s+'([^']+)':)");
-        std::smatch func_match;
-        if (std::regex_match(line, func_match, function_pattern)) {
-            current_function = func_match[2].str();
+        // Use string search instead of regex for safety
+        size_t in_func_pos = line.find(": In function '");
+        if (in_func_pos != std::string::npos) {
+            size_t func_start = in_func_pos + 15;  // length of ": In function '"
+            size_t func_end = line.find("':", func_start);
+            if (func_end != std::string::npos) {
+                current_function = line.substr(func_start, func_end - func_start);
+            }
             continue;
         }
-        
-        // Parse GCC/Clang error format: file:line:column: severity: message
-        std::regex error_pattern(R"(([^:]+):(\d+):(\d*):?\s*(error|warning|note):\s*(.+))");
-        std::smatch match;
-        
-        if (std::regex_match(line, match, error_pattern)) {
+
+        // Parse GCC/Clang error format using safe parsing (no regex backtracking risk)
+        std::string file, severity, message;
+        int line_num, col;
+        if (SafeParsing::ParseCompilerDiagnostic(line, file, line_num, col, severity, message)) {
             ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = "make";
             event.event_type = ValidationEventType::BUILD_ERROR;
-            event.ref_file = match[1].str();
-            event.ref_line = std::stoi(match[2].str());
-            event.ref_column = match[3].str().empty() ? -1 : std::stoi(match[3].str());
+            event.ref_file = file;
+            event.ref_line = line_num;
+            event.ref_column = col;
             event.function_name = current_function;
-            event.message = match[5].str();
+            event.message = message;
             event.execution_time = 0.0;
-            event.log_content = content;
+            event.log_content = line;
             event.structured_data = "make_build";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
-            
-            std::string severity = match[4].str();
+
             if (severity == "error") {
                 event.status = ValidationEventStatus::ERROR;
                 event.category = "compilation";
                 event.severity = "error";
             } else if (severity == "warning") {
                 event.status = ValidationEventStatus::WARNING;
-                event.category = "compilation"; 
+                event.category = "compilation";
                 event.severity = "warning";
             } else if (severity == "note") {
                 event.status = ValidationEventStatus::INFO;
@@ -88,7 +111,7 @@ std::vector<ValidationEvent> MakeParser::parse(const std::string& content) const
                 event.category = "compilation";
                 event.severity = "info";
             }
-            
+
             events.push_back(event);
         }
         // Parse make failure line with target extraction
@@ -104,21 +127,20 @@ std::vector<ValidationEvent> MakeParser::parse(const std::string& content) const
             event.ref_line = -1;
             event.ref_column = -1;
             event.execution_time = 0.0;
-            event.log_content = content;
+            event.log_content = line;
             event.structured_data = "make_build";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
-            
+
             // Extract makefile target from pattern like "[Makefile:23: build/main]"
-            // Note: We extract file_path and test_name but NOT line_number for make build failures
-            std::regex target_pattern(R"(\[([^:]+):(\d+):\s*([^\]]+)\])");
+            // This regex is safe - the pattern has bounded character classes [^:\]]+
             std::smatch target_match;
-            if (std::regex_search(line, target_match, target_pattern)) {
+            if (SafeParsing::SafeRegexSearch(line, target_match, target_pattern)) {
                 event.ref_file = target_match[1].str();  // Makefile
                 // Don't extract line_number for make build failures - keep it as -1 (NULL)
                 event.test_name = target_match[3].str();  // Target name (e.g., "build/main")
             }
-            
+
             events.push_back(event);
         }
         // Parse linker errors for make builds
@@ -134,23 +156,26 @@ std::vector<ValidationEvent> MakeParser::parse(const std::string& content) const
             event.ref_line = -1;
             event.ref_column = -1;
             event.execution_time = 0.0;
-            event.log_content = content;
+            event.log_content = line;
             event.structured_data = "make_build";
             event.log_line_start = current_line_num;
             event.log_line_end = current_line_num;
-            
-            // Extract symbol name from undefined reference
-            std::regex symbol_pattern(R"(undefined reference to `([^']+)')");
-            std::smatch symbol_match;
-            if (std::regex_search(line, symbol_match, symbol_pattern)) {
-                event.function_name = symbol_match[1].str();
-                event.suggestion = "Link the library containing '" + event.function_name + "'";
+
+            // Extract symbol name using string search (no regex needed)
+            size_t ref_start = line.find("undefined reference to `");
+            if (ref_start != std::string::npos) {
+                ref_start += 24;  // length of "undefined reference to `"
+                size_t ref_end = line.find("'", ref_start);
+                if (ref_end != std::string::npos) {
+                    event.function_name = line.substr(ref_start, ref_end - ref_start);
+                    event.suggestion = "Link the library containing '" + event.function_name + "'";
+                }
             }
-            
+
             events.push_back(event);
         }
     }
-    
+
     return events;
 }
 

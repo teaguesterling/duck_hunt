@@ -1,4 +1,5 @@
 #include "cmake_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <sstream>
 
 namespace duckdb {
@@ -17,35 +18,34 @@ bool CMakeParser::canParse(const std::string& content) const {
 
 std::vector<ValidationEvent> CMakeParser::parse(const std::string& content) const {
     std::vector<ValidationEvent> events;
-    std::istringstream stream(content);
+    SafeParsing::SafeLineReader reader(content);
     std::string line;
     int64_t event_id = 1;
-    int32_t current_line_num = 0;
 
-    // Pre-compiled regex patterns for performance
-    static const std::regex cpp_error_pattern(R"(([^:]+):(\d+):(\d*):?\s*(error|warning|note):\s*(.+))");
+    // Pre-compiled regex patterns for CMake-specific patterns (these are safe - short lines expected)
     static const std::regex cmake_error_pattern(R"(CMake Error at ([^:]+):(\d+))");
     static const std::regex cmake_warning_pattern(R"(CMake Warning at ([^:]+):(\d+))");
     static const std::regex linker_pattern(R"(undefined reference to `([^`]+)`)");
 
-    while (std::getline(stream, line)) {
-        current_line_num++;
+    while (reader.getLine(line)) {
         std::smatch match;
+        int32_t current_line = reader.lineNumber();
 
-        // Parse GCC/Clang error format: file:line:column: severity: message
-        if (std::regex_match(line, match, cpp_error_pattern)) {
+        // Parse GCC/Clang error format using safe string parsing (no regex backtracking risk)
+        std::string file, severity, message;
+        int line_num, col;
+        if (SafeParsing::ParseCompilerDiagnostic(line, file, line_num, col, severity, message)) {
             ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = "cmake";
             event.event_type = ValidationEventType::BUILD_ERROR;
-            event.ref_file = match[1].str();
-            event.ref_line = std::stoi(match[2].str());
-            event.ref_column = match[3].str().empty() ? -1 : std::stoi(match[3].str());
+            event.ref_file = file;
+            event.ref_line = line_num;
+            event.ref_column = col;
             event.function_name = "";
-            event.message = match[5].str();
+            event.message = message;
             event.execution_time = 0.0;
 
-            std::string severity = match[4].str();
             if (severity == "error") {
                 event.status = ValidationEventStatus::ERROR;
                 event.category = "compilation";
@@ -55,19 +55,19 @@ std::vector<ValidationEvent> CMakeParser::parse(const std::string& content) cons
                 event.category = "compilation";
                 event.severity = "warning";
             } else if (severity == "note") {
-                event.status = ValidationEventStatus::ERROR;
+                event.status = ValidationEventStatus::INFO;
                 event.category = "compilation";
-                event.severity = "error";
+                event.severity = "info";
             } else {
                 event.status = ValidationEventStatus::INFO;
                 event.category = "compilation";
                 event.severity = "info";
             }
 
-            event.log_content = content;
+            event.log_content = line;
             event.structured_data = "cmake_build";
-            event.log_line_start = current_line_num;
-            event.log_line_end = current_line_num;
+            event.log_line_start = current_line;
+            event.log_line_end = current_line;
 
             events.push_back(event);
         }
@@ -84,17 +84,17 @@ std::vector<ValidationEvent> CMakeParser::parse(const std::string& content) cons
             event.ref_column = -1;
 
             std::smatch cmake_match;
-            if (std::regex_search(line, cmake_match, cmake_error_pattern)) {
+            if (SafeParsing::SafeRegexSearch(line, cmake_match, cmake_error_pattern)) {
                 event.ref_file = cmake_match[1].str();
                 event.ref_line = std::stoi(cmake_match[2].str());
             }
 
-            event.message = content;
+            event.message = line;
             event.execution_time = 0.0;
-            event.log_content = content;
+            event.log_content = line;
             event.structured_data = "cmake_build";
-            event.log_line_start = current_line_num;
-            event.log_line_end = current_line_num;
+            event.log_line_start = current_line;
+            event.log_line_end = current_line;
 
             events.push_back(event);
         }
@@ -111,17 +111,17 @@ std::vector<ValidationEvent> CMakeParser::parse(const std::string& content) cons
             event.ref_column = -1;
 
             std::smatch cmake_match;
-            if (std::regex_search(line, cmake_match, cmake_warning_pattern)) {
+            if (SafeParsing::SafeRegexSearch(line, cmake_match, cmake_warning_pattern)) {
                 event.ref_file = cmake_match[1].str();
                 event.ref_line = std::stoi(cmake_match[2].str());
             }
 
             event.message = line;
             event.execution_time = 0.0;
-            event.log_content = content;
+            event.log_content = line;
             event.structured_data = "cmake_build";
-            event.log_line_start = current_line_num;
-            event.log_line_end = current_line_num;
+            event.log_line_start = current_line;
+            event.log_line_end = current_line;
 
             events.push_back(event);
         }
@@ -138,17 +138,17 @@ std::vector<ValidationEvent> CMakeParser::parse(const std::string& content) cons
             event.ref_column = -1;
 
             std::smatch linker_match;
-            if (std::regex_search(line, linker_match, linker_pattern)) {
+            if (SafeParsing::SafeRegexSearch(line, linker_match, linker_pattern)) {
                 event.function_name = linker_match[1].str();
                 event.suggestion = "Link the library containing '" + event.function_name + "'";
             }
 
             event.message = line;
             event.execution_time = 0.0;
-            event.log_content = content;
+            event.log_content = line;
             event.structured_data = "cmake_build";
-            event.log_line_start = current_line_num;
-            event.log_line_end = current_line_num;
+            event.log_line_start = current_line;
+            event.log_line_end = current_line;
 
             events.push_back(event);
         }
@@ -165,10 +165,10 @@ std::vector<ValidationEvent> CMakeParser::parse(const std::string& content) cons
             event.ref_column = -1;
             event.message = line;
             event.execution_time = 0.0;
-            event.log_content = content;
+            event.log_content = line;
             event.structured_data = "cmake_build";
-            event.log_line_start = current_line_num;
-            event.log_line_end = current_line_num;
+            event.log_line_start = current_line;
+            event.log_line_end = current_line;
 
             events.push_back(event);
         }
@@ -185,10 +185,10 @@ std::vector<ValidationEvent> CMakeParser::parse(const std::string& content) cons
             event.ref_line = -1;
             event.ref_column = -1;
             event.execution_time = 0.0;
-            event.log_content = content;
+            event.log_content = line;
             event.structured_data = "cmake_build";
-            event.log_line_start = current_line_num;
-            event.log_line_end = current_line_num;
+            event.log_line_start = current_line;
+            event.log_line_end = current_line;
 
             events.push_back(event);
         }
@@ -205,10 +205,10 @@ std::vector<ValidationEvent> CMakeParser::parse(const std::string& content) cons
             event.ref_line = -1;
             event.ref_column = -1;
             event.execution_time = 0.0;
-            event.log_content = content;
+            event.log_content = line;
             event.structured_data = "cmake_build";
-            event.log_line_start = current_line_num;
-            event.log_line_end = current_line_num;
+            event.log_line_start = current_line;
+            event.log_line_end = current_line;
 
             events.push_back(event);
         }

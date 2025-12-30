@@ -1,0 +1,32 @@
+# Test file for long line handling
+# This file tests that parsers don't crash on very long lines (>2000 chars)
+# Previously, regex patterns with backtracking caused segfaults on such lines
+
+# Normal error line - should be parsed
+/path/to/file.cpp:42:10: error: undefined reference to 'main'
+
+# Very long template error (simulating C++ template expansion)
+/path/to/template_heavy.cpp:100:5: error: no matching function for call to 'std::vector<std::tuple<std::string, std::map<std::string, std::vector<std::pair<int, std::optional<std::variant<std::string, int, double, std::vector<std::string>, std::map<std::string, int>, std::set<std::string>, std::deque<int>, std::list<double>, std::forward_list<std::string>, std::array<int, 10>, std::bitset<64>, std::unique_ptr<std::string>, std::shared_ptr<int>, std::weak_ptr<double>, std::complex<double>, std::valarray<int>, std::slice, std::gslice, std::mask_array<int>, std::indirect_array<int>, std::ratio<1, 1000>, std::chrono::duration<long, std::ratio<1, 1000>>, std::chrono::time_point<std::chrono::system_clock, std::chrono::duration<long, std::ratio<1, 1000>>>, std::chrono::system_clock, std::chrono::steady_clock, std::chrono::high_resolution_clock, std::filesystem::path, std::filesystem::file_status, std::filesystem::space_info, std::filesystem::file_time_type, std::filesystem::directory_entry, std::filesystem::directory_iterator, std::filesystem::recursive_directory_iterator, std::error_code, std::error_condition, std::error_category, std::system_error, std::exception, std::bad_exception, std::nested_exception, std::terminate_handler, std::unexpected_handler, std::bad_alloc, std::bad_array_new_length, std::bad_cast, std::bad_typeid, std::bad_weak_ptr, std::bad_function_call, std::bad_any_cast, std::bad_optional_access, std::bad_variant_access, std::logic_error, std::invalid_argument, std::domain_error, std::length_error, std::out_of_range, std::runtime_error, std::range_error, std::overflow_error, std::underflow_error, std::regex_error, std::ios_base::failure, std::future_error, std::tx_exception>>>>>>>>::push_back(const std::tuple<std::string, std::map<std::string, std::vector<std::pair<int, std::optional<std::variant<std::string, int, double>>>>>>&)' - candidate template ignored: could not match 'vector' against 'tuple' - this is an extremely long error message that continues for many more characters to test the parser's ability to handle very long lines without crashing due to catastrophic regex backtracking which was previously causing segmentation faults in the cmake parser when processing real-world build logs that contained template instantiation errors with deeply nested types
+
+# Very long linker command (simulating what cmake outputs)
+/usr/bin/ld -plugin /usr/lib/gcc/x86_64-linux-gnu/11/liblto_plugin.so -plugin-opt=/usr/lib/gcc/x86_64-linux-gnu/11/lto-wrapper -plugin-opt=-fresolution=/tmp/ccXXXXXX.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --eh-frame-hdr -m elf_x86_64 --hash-style=gnu --as-needed -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -z now -z relro -o build/release/duckdb /usr/lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu/Scrt1.o /usr/lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu/crti.o /usr/lib/gcc/x86_64-linux-gnu/11/crtbeginS.o -Lbuild/release -L/usr/lib/gcc/x86_64-linux-gnu/11 -L/usr/lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu -L/usr/lib/gcc/x86_64-linux-gnu/11/../../../../lib -L/lib/x86_64-linux-gnu -L/lib/../lib -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-linux-gnu/11/../../.. CMakeFiles/duckdb.dir/src/main.cpp.o CMakeFiles/duckdb.dir/src/core/parser_registry.cpp.o CMakeFiles/duckdb.dir/src/core/auto_detect.cpp.o CMakeFiles/duckdb.dir/src/parsers/build_systems/cmake_parser.cpp.o CMakeFiles/duckdb.dir/src/parsers/build_systems/make_parser.cpp.o CMakeFiles/duckdb.dir/src/parsers/base/safe_parsing.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-linux-gnu/11/crtendS.o /usr/lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu/crtn.o
+
+# Linker error with undefined reference
+/usr/bin/ld: CMakeFiles/myapp.dir/src/main.cpp.o: in function `main':
+/path/to/src/main.cpp:50: undefined reference to `MyClass::doSomething()'
+collect2: error: ld returned 1 exit status
+
+# Normal warning - should be parsed
+/path/to/file.cpp:55:3: warning: unused variable 'x'
+
+# CMake Error
+CMake Error at /path/to/CMakeLists.txt:42 (find_package):
+  Could not find a package configuration file
+
+# CMake Warning
+CMake Warning at /path/to/CMakeLists.txt:100 (message):
+  This is a deprecation warning
+
+# CMake Deprecation Warning
+CMake Deprecation Warning at /path/to/old/CMakeLists.txt:1 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed

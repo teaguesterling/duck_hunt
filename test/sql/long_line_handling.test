@@ -1,0 +1,101 @@
+# name: test/sql/long_line_handling.test
+# description: Test that parsers handle very long lines without crashing (regression test for segfault)
+# group: [sql]
+
+require duck_hunt
+
+# Test 1: CMake parser handles file with very long lines without crashing
+# This is a regression test for a segfault caused by catastrophic regex backtracking
+statement ok
+CREATE TABLE long_line_results AS
+SELECT * FROM read_duck_hunt_log('workspace/long_line_sample.txt', 'cmake');
+
+# Test 2: Verify we got results (parser didn't crash and processed the file)
+query I
+SELECT COUNT(*) > 0 as has_results FROM long_line_results;
+----
+true
+
+# Test 3: Verify normal error lines are still parsed correctly
+query III
+SELECT ref_file, ref_line, severity
+FROM long_line_results
+WHERE message LIKE '%undefined reference to%main%'
+LIMIT 1;
+----
+/path/to/file.cpp	42	error
+
+# Test 4: Verify normal warning lines are still parsed correctly
+query III
+SELECT ref_file, ref_line, severity
+FROM long_line_results
+WHERE message LIKE '%unused variable%'
+LIMIT 1;
+----
+/path/to/file.cpp	55	warning
+
+# Test 5: Verify CMake Error is parsed
+query II
+SELECT category, severity
+FROM long_line_results
+WHERE message LIKE '%CMake Error%'
+LIMIT 1;
+----
+configuration	error
+
+# Test 6: Verify CMake Warning is parsed
+query II
+SELECT category, severity
+FROM long_line_results
+WHERE message LIKE '%CMake Warning at%message%'
+LIMIT 1;
+----
+configuration	warning
+
+# Test 7: Verify CMake Deprecation Warning is parsed (the specific pattern that was failing)
+query II
+SELECT category, severity
+FROM long_line_results
+WHERE message LIKE '%CMake Deprecation Warning%'
+LIMIT 1;
+----
+configuration	warning
+
+# Test 8: Verify collect2 linker error is parsed
+query II
+SELECT category, severity
+FROM long_line_results
+WHERE message LIKE '%collect2: error:%'
+LIMIT 1;
+----
+linking	error
+
+# Test 9: Verify undefined reference linker errors are parsed
+query I
+SELECT COUNT(*) FROM long_line_results
+WHERE category = 'linking' AND message LIKE '%undefined reference%';
+----
+2
+
+# Test 10: Count total events to ensure reasonable parsing occurred
+query I
+SELECT COUNT(*) >= 8 as sufficient_events FROM long_line_results;
+----
+true
+
+# Test 11: Auto-detection should work without crashing on long lines
+statement ok
+CREATE TABLE auto_detect_long AS
+SELECT * FROM read_duck_hunt_log('workspace/long_line_sample.txt', 'auto');
+
+query I
+SELECT COUNT(*) > 0 as has_results FROM auto_detect_long;
+----
+true
+
+# Clean up
+statement ok
+DROP TABLE long_line_results;
+
+statement ok
+DROP TABLE auto_detect_long;
