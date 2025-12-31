@@ -7,6 +7,7 @@
 #include "yapf_text_parser.hpp"
 #include "clang_tidy_parser.hpp"
 #include "autopep8_text_parser.hpp"
+#include "isort_parser.hpp"
 
 
 namespace duckdb {
@@ -52,6 +53,11 @@ void RegisterLintingToolsParsers(ParserRegistry& registry) {
         "autopep8_text", "Autopep8 Parser", ParserCategory::LINTING,
         "Python autopep8 formatter output", ParserPriority::HIGH,
         std::vector<std::string>{"autopep8"}));
+
+    registry.registerParser(make_uniq<DelegatingParser<IsortParser>>(
+        "isort_text", "isort Parser", ParserCategory::LINTING,
+        "Python isort import sorter output", ParserPriority::HIGH,
+        std::vector<std::string>{"isort"}));
 }
 
 // Auto-register this category

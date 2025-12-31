@@ -130,7 +130,8 @@ set(EXTENSION_SOURCES
     src/parsers/ci_systems/terraform_text_parser.cpp
     src/parsers/linting_tools/clang_tidy_parser.cpp
     src/parsers/linting_tools/yapf_text_parser.cpp
-    
+    src/parsers/linting_tools/isort_parser.cpp
+
     # Phase 2 Final: Infrastructure Tools
     src/parsers/infrastructure_tools/ansible_text_parser.cpp
     

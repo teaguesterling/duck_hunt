@@ -1,0 +1,72 @@
+# name: test/sql/isort_parser.test
+# description: Test isort Python import sorter parser
+# group: [duck_hunt]
+
+require duck_hunt
+
+# =============================================================================
+# isort Parser Tests
+# =============================================================================
+
+# Test 1: Parse isort sample file
+query I
+SELECT COUNT(*) > 0 FROM read_duck_hunt_log('test/samples/python_tools/isort_output.txt', 'isort_text');
+----
+true
+
+# Test 2: Tool name is correct
+query I
+SELECT DISTINCT tool_name FROM read_duck_hunt_log('test/samples/python_tools/isort_output.txt', 'isort_text');
+----
+isort
+
+# Test 3: "Fixing" messages are parsed
+query II
+SELECT ref_file, message
+FROM read_duck_hunt_log('test/samples/python_tools/isort_output.txt', 'isort_text')
+WHERE message = 'isort fixed import ordering'
+ORDER BY ref_file;
+----
+myapp/api/routes.py	isort fixed import ordering
+myapp/services/user_service.py	isort fixed import ordering
+
+# Test 4: Summary is parsed
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('test/samples/python_tools/isort_output.txt', 'isort_text')
+WHERE event_type = 'summary';
+----
+1
+
+# Test 5: Diff changes are captured
+query I
+SELECT COUNT(*) > 0 FROM read_duck_hunt_log('test/samples/python_tools/isort_output.txt', 'isort_text')
+WHERE message LIKE 'Add:%' OR message LIKE 'Remove:%';
+----
+true
+
+# Test 6: Auto-detection works
+query I
+SELECT DISTINCT tool_name FROM read_duck_hunt_log('test/samples/python_tools/isort_output.txt');
+----
+isort
+
+# Test 7: Inline parsing - Fixing message
+query II
+SELECT ref_file, message
+FROM parse_duck_hunt_log('Fixing myapp/utils.py', 'isort_text');
+----
+myapp/utils.py	isort fixed import ordering
+
+# Test 8: Inline parsing - Error message
+query II
+SELECT severity, status
+FROM parse_duck_hunt_log('ERROR: isort found an import in the wrong position in myapp/main.py', 'isort_text');
+----
+error	ERROR
+
+# Test 9: Category is import_sorting
+query I
+SELECT DISTINCT category FROM read_duck_hunt_log('test/samples/python_tools/isort_output.txt', 'isort_text')
+WHERE category IS NOT NULL LIMIT 1;
+----
+import_sorting
