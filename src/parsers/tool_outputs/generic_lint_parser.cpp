@@ -1,18 +1,21 @@
 #include "generic_lint_parser.hpp"
-#include <regex>
+#include "parsers/base/safe_parsing.hpp"
 #include <sstream>
 #include <string>
 
 namespace duckdb {
 
 bool GenericLintParser::canParse(const std::string& content) const {
-    // Check for generic lint format: file:line:column: level: message
-    std::regex lint_pattern(R"([^:]+:\d+:\d*:?\s*(error|warning|info|note):\s*.+)");
-    std::istringstream stream(content);
+    // Check for generic lint format using safe string parsing (no regex backtracking risk)
+    SafeParsing::SafeLineReader reader(content);
     std::string line;
+    int lines_checked = 0;
 
-    while (std::getline(stream, line)) {
-        if (std::regex_search(line, lint_pattern)) {
+    while (reader.getLine(line) && lines_checked < 50) {
+        lines_checked++;
+        std::string file, severity, message;
+        int line_num, col;
+        if (SafeParsing::ParseCompilerDiagnostic(line, file, line_num, col, severity, message)) {
             return true;
         }
     }
@@ -26,33 +29,35 @@ std::vector<ValidationEvent> GenericLintParser::parse(const std::string& content
 }
 
 void GenericLintParser::ParseGenericLint(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
+    SafeParsing::SafeLineReader reader(content);
     std::string line;
     int64_t event_id = 1;
 
-    while (std::getline(stream, line)) {
-        // Parse generic lint format: file:line:column: level: message
-        std::regex lint_pattern(R"(([^:]+):(\d+):(\d*):?\s*(error|warning|info|note):\s*(.+))");
-        std::smatch match;
+    while (reader.getLine(line)) {
+        // Parse generic lint format using safe string parsing (no regex backtracking risk)
+        std::string file, severity, message;
+        int line_num, col;
 
-        if (std::regex_match(line, match, lint_pattern)) {
+        if (SafeParsing::ParseCompilerDiagnostic(line, file, line_num, col, severity, message)) {
             ValidationEvent event;
             event.event_id = event_id++;
             event.tool_name = "lint";
             event.event_type = ValidationEventType::LINT_ISSUE;
-            event.ref_file = match[1].str();
-            event.ref_line = std::stoi(match[2].str());
-            event.ref_column = match[3].str().empty() ? -1 : std::stoi(match[3].str());
+            event.ref_file = file;
+            event.ref_line = line_num;
+            event.ref_column = col;
             event.function_name = "";
-            event.message = match[5].str();
+            event.message = message;
             event.execution_time = 0.0;
+            event.log_content = line;
+            event.log_line_start = reader.lineNumber();
+            event.log_line_end = reader.lineNumber();
 
-            std::string level = match[4].str();
-            if (level == "error") {
+            if (severity == "error") {
                 event.status = ValidationEventStatus::ERROR;
                 event.category = "lint_error";
                 event.severity = "error";
-            } else if (level == "warning") {
+            } else if (severity == "warning") {
                 event.status = ValidationEventStatus::WARNING;
                 event.category = "lint_warning";
                 event.severity = "warning";

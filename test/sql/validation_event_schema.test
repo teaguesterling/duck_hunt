@@ -141,7 +141,7 @@ lint_error
 query I
 SELECT LENGTH(log_content) > 0 as has_log_content FROM parse_duck_hunt_log('src/main.c:15:5: error: test error', 'generic_lint');
 ----
-false
+true
 
 # Test 12: Verify structured_data field for JSON formats (filter out summary)
 query I

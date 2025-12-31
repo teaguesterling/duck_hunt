@@ -2656,6 +2656,7 @@ ORDER BY cnt DESC, status;
 ----
 WARNING	6
 ERROR	3
+INFO	3
 
 # -----------------------------------------------------------------------------
 # Test 271: clang_tidy_text - tool_name and category
@@ -2666,7 +2667,7 @@ FROM read_duck_hunt_log('test/samples/linting_tools/clang_tidy_output.txt', 'cla
 GROUP BY tool_name
 ORDER BY tool_name;
 ----
-clang-tidy	9
+clang-tidy	12
 
 # -----------------------------------------------------------------------------
 # Test 272: clang_tidy_text - error codes
