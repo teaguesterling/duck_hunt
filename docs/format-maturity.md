@@ -2,7 +2,7 @@
 
 This document describes the maturity levels for formats used with `read_duck_hunt_log()` and `parse_duck_hunt_log()`. Maturity is determined by test coverage and the presence of sample files.
 
-> **Note:** CI/CD workflow formats (`github_actions`, `gitlab_ci`, `jenkins`, `docker_build`) use a separate function `read_duck_hunt_workflow_log()` with hierarchical parsing. See [Field Mappings - CI/CD Workflows](field_mappings.md#cicd-workflows) for workflow format documentation.
+> **Note:** CI/CD workflow formats (`github_actions`, `gitlab_ci`, `jenkins`, `docker_build`, `spack`) use a separate function `read_duck_hunt_workflow_log()` with hierarchical parsing. See [Field Mappings - CI/CD Workflows](field_mappings.md#cicd-workflows) for workflow format documentation.
 
 ## Maturity Ratings
 
@@ -24,7 +24,7 @@ This document describes the maturity levels for formats used with `read_duck_hun
 | Alpha ⭐⭐ | 9 | 10% |
 | Experimental ⭐ | 12 | 13% |
 
-**Total: 90 log formats** (plus 4 workflow formats)
+**Total: 90 log formats** (plus 5 workflow formats)
 
 ---
 
@@ -165,6 +165,7 @@ The following formats use `read_duck_hunt_workflow_log()` for hierarchical CI/CD
 | `gitlab_ci` | GitLab CI pipeline logs |
 | `jenkins` | Jenkins build console output |
 | `docker_build` | Docker build output |
+| `spack` | Spack package manager build logs |
 
 These formats parse workflow structure (scope → group → unit → subunit) rather than individual validation events. See [Field Mappings - CI/CD Workflows](field_mappings.md#cicd-workflows) for details.
 

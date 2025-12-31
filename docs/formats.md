@@ -1,6 +1,6 @@
 # Supported Formats
 
-Duck Hunt supports 90+ format strings for parsing development tool outputs. Use these with `read_duck_hunt_log()` or `parse_duck_hunt_log()`.
+Duck Hunt supports 91+ format strings for parsing development tool outputs. Use these with `read_duck_hunt_log()` or `parse_duck_hunt_log()`.
 
 > **See also:** [Format Maturity Levels](format-maturity.md) for test coverage and stability ratings.
 
@@ -145,6 +145,7 @@ The function analyzes content patterns and returns the best-matching format stri
 | `drone_ci_text` | Drone CI | log | - |
 | `terraform_text` | Terraform | log | - |
 | `ansible_text` | Ansible | log | - |
+| `spack` | Spack | workflow | [spack_build.txt](../test/samples/ci_systems/spack_build.txt) |
 
 ### Cloud Logging
 

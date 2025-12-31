@@ -282,6 +282,59 @@ GROUP BY category;
 
 ---
 
+### spack
+
+Parses Spack package manager build logs.
+
+**Sample Input:**
+```
+==> bcftools: Executing phase: 'autoreconf'
+==> bcftools: Executing phase: 'configure'
+==> [2025-12-14-13:58:04.226532] Find (max depth = None): ['/tmp/spack-stage/...'] ['configure']
+==> [2025-12-14-13:58:04.313356] '/tmp/spack-stage/.../configure' '--prefix=/opt/spack/...'
+checking for gcc... /opt/spack/.../gcc/gcc
+checking whether the C compiler works... yes
+==> bcftools: Executing phase: 'build'
+==> [2025-12-14-13:58:05.343008] '/opt/spack/.../gmake' '-j16' 'V=1'
+```
+
+**Key Patterns Recognized:**
+- `==> package: Executing phase: 'phase_name'` - Phase boundaries
+- `==> [timestamp] command` - Timestamped Spack operations
+- `==> [timestamp] Find/FILTER FILE` - Spack internal operations
+- Configure/build tool output
+
+**Field Mappings:**
+
+| Field | Spack Meaning |
+|-------|---------------|
+| `scope` | Package name (e.g., bcftools) |
+| `group` | Build operation |
+| `unit` | Phase name (autoreconf, configure, build, install) |
+| `message` | Log line content |
+| `started_at` | Timestamp from `==> [timestamp]` lines |
+
+**Example Queries:**
+
+```sql
+-- Find all build phases for a package
+SELECT DISTINCT unit as phase
+FROM read_duck_hunt_workflow_log('spack.log', 'spack')
+WHERE scope = 'bcftools';
+
+-- Get timestamped Spack operations
+SELECT started_at, message
+FROM read_duck_hunt_workflow_log('spack.log', 'spack')
+WHERE started_at IS NOT NULL;
+
+-- Find configure checks
+SELECT message
+FROM read_duck_hunt_workflow_log('spack.log', 'spack')
+WHERE message LIKE 'checking %';
+```
+
+---
+
 ## Common Query Patterns
 
 ### Find Failed Steps Across All Formats
@@ -348,6 +401,7 @@ The auto-detector recognizes:
 - GitLab CI by `Running with gitlab-runner` header
 - Jenkins by `[Pipeline]` markers
 - Docker by timestamp + stream format
+- Spack by `==>` markers with phase patterns and spack paths
 
 ---
 
