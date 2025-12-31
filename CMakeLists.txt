@@ -32,6 +32,7 @@ set(EXTENSION_SOURCES
     src/parsers/infrastructure/init.cpp
     src/parsers/infrastructure_tools/init.cpp
     src/parsers/coverage/init.cpp
+    src/parsers/distributed_systems/init.cpp
 
     # Parser implementations
     src/parsers/test_frameworks/pytest_parser.cpp
@@ -195,6 +196,14 @@ set(EXTENSION_SOURCES
 
     # Coverage parsers
     src/parsers/coverage/lcov_parser.cpp
+
+    # Distributed systems parsers (loghub formats)
+    src/parsers/distributed_systems/hdfs_parser.cpp
+    src/parsers/distributed_systems/spark_parser.cpp
+    src/parsers/distributed_systems/android_parser.cpp
+    src/parsers/distributed_systems/zookeeper_parser.cpp
+    src/parsers/distributed_systems/openstack_parser.cpp
+    src/parsers/distributed_systems/bgl_parser.cpp
 
     # XML-based parsers (require webbed extension)
     src/parsers/test_frameworks/junit_xml_parser.cpp

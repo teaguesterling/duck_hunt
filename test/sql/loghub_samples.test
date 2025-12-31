@@ -91,3 +91,94 @@ SELECT COUNT(*) = 4000 FROM (
 );
 ----
 true
+
+# =============================================================================
+# Test 7: HDFS - Parse and auto-detect
+# =============================================================================
+
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('test/samples/loghub/HDFS/HDFS_2k.log', 'hdfs');
+----
+2000
+
+# Auto-detection
+query I
+SELECT DISTINCT tool_name FROM read_duck_hunt_log('test/samples/loghub/HDFS/HDFS_2k.log');
+----
+hdfs
+
+# =============================================================================
+# Test 8: Spark - Parse and auto-detect
+# =============================================================================
+
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('test/samples/loghub/Spark/Spark_2k.log', 'spark');
+----
+2000
+
+# Auto-detection
+query I
+SELECT DISTINCT tool_name FROM read_duck_hunt_log('test/samples/loghub/Spark/Spark_2k.log');
+----
+spark
+
+# =============================================================================
+# Test 9: Android logcat - Parse and auto-detect
+# =============================================================================
+
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('test/samples/loghub/Android/Android_2k.log', 'android');
+----
+2000
+
+# Auto-detection
+query I
+SELECT DISTINCT tool_name FROM read_duck_hunt_log('test/samples/loghub/Android/Android_2k.log');
+----
+android
+
+# =============================================================================
+# Test 10: Zookeeper - Parse and auto-detect
+# =============================================================================
+
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('test/samples/loghub/Zookeeper/Zookeeper_2k.log', 'zookeeper');
+----
+2000
+
+# Auto-detection
+query I
+SELECT DISTINCT tool_name FROM read_duck_hunt_log('test/samples/loghub/Zookeeper/Zookeeper_2k.log');
+----
+zookeeper
+
+# =============================================================================
+# Test 11: OpenStack - Parse and auto-detect
+# =============================================================================
+
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('test/samples/loghub/OpenStack/OpenStack_2k.log', 'openstack');
+----
+2000
+
+# Auto-detection
+query I
+SELECT DISTINCT tool_name FROM read_duck_hunt_log('test/samples/loghub/OpenStack/OpenStack_2k.log');
+----
+openstack
+
+# =============================================================================
+# Test 12: BGL (Blue Gene/L) - Parse with explicit format
+# =============================================================================
+
+# BGL has some format variants, so we expect most but not all lines to parse
+query I
+SELECT COUNT(*) >= 1900 FROM read_duck_hunt_log('test/samples/loghub/BGL/BGL_2k.log', 'bgl');
+----
+true
+
+# Verify tool name
+query I
+SELECT DISTINCT tool_name FROM read_duck_hunt_log('test/samples/loghub/BGL/BGL_2k.log', 'bgl');
+----
+bgl

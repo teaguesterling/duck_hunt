@@ -150,6 +150,7 @@ namespace ParserCategory {
     constexpr const char* PYTHON_TOOL = "python_tool";
     constexpr const char* SECURITY_TOOL = "security_tool";
     constexpr const char* COVERAGE = "coverage";
+    constexpr const char* DISTRIBUTED_SYSTEMS = "distributed_systems";
 }
 
 } // namespace duckdb
