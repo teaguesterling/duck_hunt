@@ -18,13 +18,13 @@ This document describes the maturity levels for formats used with `read_duck_hun
 
 | Maturity | Count | Percentage |
 |----------|-------|------------|
-| Production ⭐⭐⭐⭐⭐ | 8 | 10% |
-| Stable ⭐⭐⭐⭐ | 27 | 32% |
-| Beta ⭐⭐⭐ | 28 | 33% |
-| Alpha ⭐⭐ | 9 | 11% |
-| Experimental ⭐ | 12 | 14% |
+| Production ⭐⭐⭐⭐⭐ | 8 | 9% |
+| Stable ⭐⭐⭐⭐ | 27 | 30% |
+| Beta ⭐⭐⭐ | 34 | 38% |
+| Alpha ⭐⭐ | 9 | 10% |
+| Experimental ⭐ | 12 | 13% |
 
-**Total: 84 log formats** (plus 4 workflow formats)
+**Total: 90 log formats** (plus 4 workflow formats)
 
 ---
 
@@ -111,6 +111,12 @@ These formats have moderate test coverage and work for common scenarios.
 | `valgrind` | 4 | ✓ | Valgrind memory analyzer |
 | `windows_event` | 4 | - | Windows Event Log |
 | `winston` | 3 | ✓ | Winston (Node.js) logging |
+| `hdfs` | 2 | ✓ | Hadoop HDFS logs |
+| `spark` | 2 | ✓ | Apache Spark logs |
+| `android` | 2 | ✓ | Android logcat |
+| `zookeeper` | 2 | ✓ | Apache Zookeeper logs |
+| `openstack` | 2 | ✓ | OpenStack service logs |
+| `bgl` | 2 | ✓ | Blue Gene/L supercomputer logs |
 
 ## Alpha ⭐⭐
 

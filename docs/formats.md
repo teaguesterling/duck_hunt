@@ -1,6 +1,6 @@
 # Supported Formats
 
-Duck Hunt supports 84+ format strings for parsing development tool outputs. Use these with `read_duck_hunt_log()` or `parse_duck_hunt_log()`.
+Duck Hunt supports 90+ format strings for parsing development tool outputs. Use these with `read_duck_hunt_log()` or `parse_duck_hunt_log()`.
 
 > **See also:** [Format Maturity Levels](format-maturity.md) for test coverage and stability ratings.
 
@@ -176,6 +176,17 @@ The function analyzes content patterns and returns the best-matching format stri
 | `syslog` | Syslog | [syslog_messages.txt](../test/samples/structured_logs/syslog_messages.txt) |
 | `apache_access` | Apache Access Log | - |
 | `nginx_access` | Nginx Access Log | - |
+
+### Distributed Systems
+
+| Format String | Tool | Sample File |
+|---------------|------|-------------|
+| `hdfs` | Hadoop HDFS | [HDFS_2k.log](../test/samples/loghub/HDFS/HDFS_2k.log) |
+| `spark` | Apache Spark | [Spark_2k.log](../test/samples/loghub/Spark/Spark_2k.log) |
+| `android` | Android logcat | [Android_2k.log](../test/samples/loghub/Android/Android_2k.log) |
+| `zookeeper` | Apache Zookeeper | [Zookeeper_2k.log](../test/samples/loghub/Zookeeper/Zookeeper_2k.log) |
+| `openstack` | OpenStack services | [OpenStack_2k.log](../test/samples/loghub/OpenStack/OpenStack_2k.log) |
+| `bgl` | Blue Gene/L | [BGL_2k.log](../test/samples/loghub/BGL/BGL_2k.log) |
 
 ### Structured Logs
 
