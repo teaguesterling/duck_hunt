@@ -19,12 +19,12 @@ This document describes the maturity levels for formats used with `read_duck_hun
 | Maturity | Count | Percentage |
 |----------|-------|------------|
 | Production ⭐⭐⭐⭐⭐ | 8 | 9% |
-| Stable ⭐⭐⭐⭐ | 27 | 30% |
+| Stable ⭐⭐⭐⭐ | 28 | 31% |
 | Beta ⭐⭐⭐ | 34 | 38% |
 | Alpha ⭐⭐ | 9 | 10% |
 | Experimental ⭐ | 12 | 13% |
 
-**Total: 90 log formats** (plus 5 workflow formats)
+**Total: 91 log formats** (plus 5 workflow formats)
 
 ---
 
@@ -76,6 +76,7 @@ These formats have good test coverage and are reliable for most use cases.
 | `tflint_json` | 8 | ✓ | tflint Terraform linter |
 | `vpc_flow` | 6 | ✓ | AWS VPC Flow Logs |
 | `yamllint_json` | 7 | ✓ | yamllint YAML linter |
+| `isort_text` | 9 | ✓ | isort Python import sorter |
 
 ## Beta ⭐⭐⭐
 
