@@ -1,0 +1,123 @@
+# Duck Hunt
+
+A DuckDB extension for parsing test results, build outputs, and CI/CD logs from 91+ development tools.
+
+## Installation
+
+```sql
+-- Install from DuckDB Community Extensions
+INSTALL duck_hunt FROM community;
+LOAD duck_hunt;
+```
+
+## Functions
+
+### Table Functions
+
+```sql
+read_duck_hunt_log(file_path, format := 'auto', severity_threshold := 'all')
+parse_duck_hunt_log(content, format := 'auto', severity_threshold := 'all')
+read_duck_hunt_workflow_log(file_path, format := 'auto', severity_threshold := 'all')
+parse_duck_hunt_workflow_log(content, format := 'auto', severity_threshold := 'all')
+duck_hunt_formats()                               -- List all supported formats
+```
+
+**Parameters:**
+
+- `format` - Parser format or `'auto'` for auto-detection
+- `severity_threshold` - Minimum severity to include: `'all'`, `'info'`, `'warning'`, `'error'`, `'critical'`
+
+### Scalar Functions
+
+```sql
+duck_hunt_detect_format(content)                  -- Auto-detect format from content
+status_badge(status)                              -- 'error' → '[FAIL]'
+status_badge(error_count, warning_count)          -- Compute from counts
+status_badge(error_count, warning_count, running) -- With running state
+```
+
+- `duck_hunt_detect_format()` - Returns format string like `'pytest_json'`, `'make_error'`, or `NULL`
+- `status_badge()` - Returns badges: `[ OK ]` `[FAIL]` `[WARN]` `[ .. ]` `[ ?? ]`
+
+## Quick Start
+
+### Parse Build Errors
+
+```sql
+SELECT file_path, line_number, message
+FROM read_duck_hunt_log('build.log', 'auto')
+WHERE status = 'ERROR';
+```
+
+### Parse Test Results
+
+```sql
+SELECT test_name, status, execution_time
+FROM read_duck_hunt_log('pytest.json', 'pytest_json')
+WHERE status = 'FAIL';
+```
+
+### Custom Regex Pattern
+
+```sql
+SELECT severity, message
+FROM parse_duck_hunt_log(
+  'ERROR: Connection failed\nWARNING: Retrying...',
+  'regexp:(?P<severity>ERROR|WARNING):\s+(?P<message>.+)'
+);
+```
+
+### Build Health Badge
+
+```sql
+SELECT status_badge(
+  COUNT(*) FILTER (WHERE status = 'ERROR'),
+  COUNT(*) FILTER (WHERE status = 'WARNING')
+) FROM read_duck_hunt_log('build.log', 'auto');
+```
+
+## Common Formats
+
+| Format | Tool | Example |
+|--------|------|---------|
+| `auto` | Auto-detect | `read_duck_hunt_log('file.log', 'auto')` |
+| `regexp:<pattern>` | Custom regex | `'regexp:(?P<severity>ERROR):\s+(?P<message>.*)'` |
+| `pytest_json` | pytest | JSON output with `--json-report` |
+| `eslint_json` | ESLint | JSON output with `--format json` |
+| `mypy_text` | MyPy | Type checker text output |
+| `make_error` | GNU Make | Build errors with GCC/Clang |
+| `gotest_json` | Go test | JSON output with `-json` |
+| `valgrind` | Valgrind | Memory checker output |
+| `generic_lint` | Generic | `file:line:col: severity: message` |
+
+See [Supported Formats](formats.md) for the complete list of 91+ formats.
+
+## Output Schema
+
+All parsers produce a standardized 39-field schema:
+
+| Field | Description |
+|-------|-------------|
+| `event_id` | Unique event identifier |
+| `tool_name` | Tool name (pytest, eslint, make, etc.) |
+| `status` | PASS, FAIL, ERROR, WARNING, INFO, SKIP |
+| `file_path` | Source file path |
+| `line_number` | Line number |
+| `message` | Error/warning message |
+| `scope` | Hierarchy level 1 (workflow, cluster, suite) |
+| `group` | Hierarchy level 2 (job, namespace, class) |
+| `unit` | Hierarchy level 3 (step, pod, method) |
+| `fingerprint` | Error pattern signature for clustering |
+
+See [Schema Reference](schema.md) for complete field documentation.
+
+## Next Steps
+
+- **[Supported Formats](formats.md)** - All 91+ supported formats with examples
+- **[Workflow Formats](workflow-formats.md)** - CI/CD workflow parsing (GitHub Actions, GitLab CI, Jenkins)
+- **[Usage Examples](examples.md)** - Detailed examples for common scenarios
+- **[Schema Reference](schema.md)** - Complete field documentation
+
+## License
+
+MIT License - see [LICENSE](https://github.com/teaguesterling/duck_hunt/blob/main/LICENSE)

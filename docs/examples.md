@@ -4,7 +4,7 @@ Real examples using Duck Hunt with sample files and actual query results.
 
 ## pytest (JSON)
 
-**Sample:** [`test/samples/pytest.json`](../test/samples/pytest.json)
+**Sample:** [`test/samples/pytest.json`](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/pytest.json)
 ```json
 {
   "tests": [
@@ -32,7 +32,7 @@ FROM read_duck_hunt_log('test/samples/pytest.json', 'pytest_json');
 
 ## ESLint (JSON)
 
-**Sample:** [`test/samples/eslint.json`](../test/samples/eslint.json)
+**Sample:** [`test/samples/eslint.json`](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/eslint.json)
 ```json
 [{
   "filePath": "/src/components/Button.tsx",
@@ -60,7 +60,7 @@ FROM read_duck_hunt_log('test/samples/eslint.json', 'eslint_json');
 
 ## GNU Make
 
-**Sample:** [`test/samples/make.out`](../test/samples/make.out)
+**Sample:** [`test/samples/make.out`](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/make.out)
 ```
 gcc -Wall -Wextra -g -c src/main.c -o build/main.o
 src/main.c:15:5: error: 'undefined_var' undeclared (first use in this function)
@@ -88,7 +88,7 @@ FROM read_duck_hunt_log('test/samples/make.out', 'make_error');
 
 ## MyPy
 
-**Sample:** [`test/samples/mypy.txt`](../test/samples/mypy.txt)
+**Sample:** [`test/samples/mypy.txt`](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/mypy.txt)
 ```
 src/api/routes.py:23: error: Argument 1 to "process" has incompatible type "str"; expected "int"  [arg-type]
 src/api/routes.py:45: error: "None" has no attribute "items"  [union-attr]
@@ -114,7 +114,7 @@ FROM read_duck_hunt_log('test/samples/mypy.txt', 'mypy_text');
 
 ## Go Test (JSON)
 
-**Sample:** [`test/samples/gotest.json`](../test/samples/gotest.json)
+**Sample:** [`test/samples/gotest.json`](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/gotest.json)
 ```json
 {"Time":"2024-01-15T10:30:00.123Z","Action":"pass","Package":"github.com/example/app","Test":"TestUserCreate","Elapsed":0.333}
 {"Time":"2024-01-15T10:30:01.200Z","Action":"fail","Package":"github.com/example/app","Test":"TestUserDelete","Elapsed":0.7}
@@ -138,7 +138,7 @@ FROM read_duck_hunt_log('test/samples/gotest.json', 'gotest_json');
 
 ## GitHub Actions
 
-**Sample:** [`test/samples/github_actions.log`](../test/samples/github_actions.log)
+**Sample:** [`test/samples/github_actions.log`](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/github_actions.log)
 ```
 2024-01-15T10:00:00.000Z ##[group]Run actions/checkout@v4
 2024-01-15T10:00:01.000Z Syncing repository: owner/repo
@@ -276,7 +276,7 @@ FROM read_duck_hunt_log('build.log', 'auto');
 
 Duck Hunt automatically clusters similar errors together, making it easy to understand the types of issues in a build rather than scrolling through hundreds of individual errors.
 
-**Sample:** [`test/samples/large_build.out`](../test/samples/large_build.out) - A build log with 24 issues across 4 source files.
+**Sample:** [`test/samples/large_build.out`](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/large_build.out) - A build log with 24 issues across 4 source files.
 
 ### Cluster by Pattern
 

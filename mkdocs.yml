@@ -1,0 +1,62 @@
+site_name: Duck Hunt
+site_description: A DuckDB extension for parsing test results, build outputs, and CI/CD logs
+site_url: https://duck-hunt.readthedocs.io/
+repo_url: https://github.com/teaguesterling/duck_hunt
+repo_name: teaguesterling/duck_hunt
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: amber
+      accent: orange
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: amber
+      accent: orange
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+plugins:
+  - search
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - admonition
+  - pymdownx.details
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: index.md
+      - Quick Start: index.md
+  - Reference:
+      - Supported Formats: formats.md
+      - Workflow Formats: workflow-formats.md
+      - Schema: schema.md
+      - Field Mappings: field_mappings.md
+  - Guides:
+      - Usage Examples: examples.md
+      - Migration Guide: migration-guide.md
+  - Development:
+      - Format Maturity: format-maturity.md
+      - Updating: UPDATING.md
