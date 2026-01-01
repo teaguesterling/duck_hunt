@@ -1,0 +1,257 @@
+# name: test/sql/ci_parsers.test
+# description: Tests for CI system parsers (drone_ci, github_cli, terraform_text, ansible_text)
+# group: [duck_hunt]
+
+require duck_hunt
+
+# ============================================================================
+# Drone CI Parser Tests
+# ============================================================================
+
+# Test 1: drone_ci format detection
+query I
+SELECT duck_hunt_detect_format(E'[drone:exec] abc123 starting build step: test\n[drone:exec] abc123 completed build step: test (exit code 0)\n[drone:exec] abc123 pipeline execution complete');
+----
+drone_ci_text
+
+# Test 2: drone_ci step parsing - step start and complete
+query III
+SELECT tool_name, category, status
+FROM parse_duck_hunt_log(E'[drone:exec] abc123 starting build step: build\n[drone:exec] abc123 completed build step: build (exit code 0)', 'drone_ci_text')
+ORDER BY event_id;
+----
+drone-ci	step_start	INFO
+drone-ci	step_complete	PASS
+
+# Test 3: drone_ci failed step
+query III
+SELECT tool_name, category, status
+FROM parse_duck_hunt_log('[drone:exec] abc123 completed build step: test (exit code 1)', 'drone_ci_text');
+----
+drone-ci	step_complete	FAIL
+
+# Test 4: drone_ci pipeline complete
+query II
+SELECT category, message
+FROM parse_duck_hunt_log('[drone:exec] abc123 pipeline execution complete', 'drone_ci_text');
+----
+pipeline_complete	Pipeline execution complete
+
+# Test 5: drone_ci pipeline failed
+query III
+SELECT category, status, severity
+FROM parse_duck_hunt_log('[drone:exec] abc123 pipeline failed with exit code 1', 'drone_ci_text');
+----
+pipeline_failed	FAIL	error
+
+# Test 6: drone_ci git operations
+query II
+SELECT category, message
+FROM parse_duck_hunt_log(E'+ git clone https://github.com/example/repo .\n+ git checkout abc123def456', 'drone_ci_text')
+ORDER BY event_id;
+----
+git_clone	Cloning repository: https://github.com/example/repo
+git_checkout	Checkout commit: abc123def456
+
+# ============================================================================
+# GitHub CLI Parser Tests
+# ============================================================================
+
+# Test 7: github_cli format detection - run view format (gh run view)
+query I
+SELECT duck_hunt_detect_format(E'Run #12345\nStatus: completed\nConclusion: success\n✓ build Success\n✓ test Success\nX deploy Failure');
+----
+github_cli
+
+# Test 8: github_cli run view parsing
+query III
+SELECT tool_name, category, status
+FROM parse_duck_hunt_log(E'Run #12345\nStatus: completed\nConclusion: success\n✓ build Success\n✓ test Success\nX deploy Failure', 'github_cli')
+WHERE category = 'ci_job'
+ORDER BY event_id;
+----
+github-cli	ci_job	PASS
+github-cli	ci_job	PASS
+github-cli	ci_job	ERROR
+
+# Test 9: github_cli workflow log parsing (::error::/::warning::/::notice::)
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log(E'::error::Process completed with exit code 1\n::warning::Deprecated feature used\n::notice::Build completed successfully', 'github_cli')
+ORDER BY event_id;
+----
+error	Process completed with exit code 1
+warning	Deprecated feature used
+info	Build completed successfully
+
+# Test 10: github_cli run list format detection
+query I
+SELECT duck_hunt_detect_format(E'STATUS\tCONCLUSION\tWORKFLOW\tBRANCH\n✓\tcompleted\tsuccess\tCI\tmain');
+----
+github_cli
+
+# ============================================================================
+# Terraform Parser Tests
+# ============================================================================
+
+# Test 11: terraform_text format detection
+query I
+SELECT duck_hunt_detect_format(E'Terraform v1.5.0\n+ provider registry.terraform.io/hashicorp/aws v5.0.0\n# aws_instance.web will be created\nPlan: 1 to add, 0 to change, 0 to destroy');
+----
+terraform_text
+
+# Test 12: terraform version and provider parsing
+query II
+SELECT category, message
+FROM parse_duck_hunt_log(E'Terraform v1.5.0\n+ provider registry.terraform.io/hashicorp/aws v5.0.0', 'terraform_text')
+ORDER BY event_id;
+----
+version	Terraform version: 1.5.0
+provider	Provider aws version 5.0.0
+
+# Test 13: terraform plan parsing
+query III
+SELECT category, status, message
+FROM parse_duck_hunt_log(E'# aws_instance.web will be created\n# aws_security_group.main will be updated in-place\n# aws_instance.old will be destroyed\nPlan: 1 to add, 1 to change, 1 to destroy', 'terraform_text')
+ORDER BY event_id;
+----
+plan_create	INFO	Resource will be created: aws_instance.web
+plan_update	INFO	Resource will be updated in-place: aws_security_group.main
+plan_destroy	WARNING	Resource will be destroyed: aws_instance.old
+plan_summary	WARNING	Plan: 1 to add, 1 to change, 1 to destroy
+
+# Test 14: terraform apply operations
+query III
+SELECT category, status, message
+FROM parse_duck_hunt_log(E'aws_instance.web: Creating...\naws_instance.web: Creation complete after 30s [id=i-123456]\nApply complete! Resources: 1 added, 0 changed, 0 destroyed', 'terraform_text')
+ORDER BY event_id;
+----
+resource_creating	INFO	Creating resource: aws_instance.web
+resource_created	PASS	Creation complete: aws_instance.web [id=i-123456]
+apply_complete	PASS	Apply complete! Resources: 1 added, 0 changed, 0 destroyed
+
+# Test 15: terraform errors and warnings
+query III
+SELECT category, status, severity
+FROM parse_duck_hunt_log(E'Error: Invalid resource type\nWarning: Deprecated attribute', 'terraform_text')
+ORDER BY event_id;
+----
+terraform_error	ERROR	error
+terraform_warning	WARNING	warning
+
+# Test 16: terraform resource modification
+query II
+SELECT category, message
+FROM parse_duck_hunt_log(E'aws_instance.web: Modifying... [id=i-123456]\naws_instance.web: Modifications complete after 10s [id=i-123456]', 'terraform_text')
+ORDER BY event_id;
+----
+resource_modifying	Modifying resource: aws_instance.web [id=i-123456]
+resource_modified	Modifications complete: aws_instance.web [id=i-123456]
+
+# Test 17: terraform resource destruction
+query III
+SELECT category, status, message
+FROM parse_duck_hunt_log(E'aws_instance.old: Destroying... [id=i-old123]\naws_instance.old: Destruction complete after 5s', 'terraform_text')
+ORDER BY event_id;
+----
+resource_destroying	WARNING	Destroying resource: aws_instance.old [id=i-old123]
+resource_destroyed	WARNING	Destruction complete: aws_instance.old
+
+# ============================================================================
+# Ansible Parser Tests
+# ============================================================================
+
+# Test 18: ansible_text format detection
+query I
+SELECT duck_hunt_detect_format(E'PLAY [webservers] *****\nTASK [Install nginx] *****\nok: [server1]\nchanged: [server2]\nPLAY RECAP *****');
+----
+ansible_text
+
+# Test 19: ansible play and task parsing
+query II
+SELECT category, message
+FROM parse_duck_hunt_log(E'PLAY [Configure webservers] ******************************\nTASK [Gathering Facts] ***********************************\nTASK [Install packages] **********************************', 'ansible_text')
+ORDER BY event_id;
+----
+play_start	Starting play: Configure webservers
+task_start	Starting task: Gathering Facts
+task_start	Starting task: Install packages
+
+# Test 20: ansible task results
+query III
+SELECT category, status, message
+FROM parse_duck_hunt_log(E'ok: [server1]\nchanged: [server2]\nskipping: [server3]', 'ansible_text')
+ORDER BY event_id;
+----
+task_success	PASS	Task succeeded on server1
+task_changed	PASS	Task changed on server2
+task_skipped	SKIP	Task skipped on server3
+
+# Test 21: ansible failures
+query III
+SELECT category, status, severity
+FROM parse_duck_hunt_log(E'fatal: [server1]: FAILED! => {"msg": "Package not found"}\nfatal: [server2]: UNREACHABLE! => {"msg": "Connection timeout"}', 'ansible_text')
+ORDER BY event_id;
+----
+task_failed	ERROR	error
+host_unreachable	ERROR	error
+
+# Test 22: ansible play recap
+query III
+SELECT category, status, message
+FROM parse_duck_hunt_log(E'PLAY RECAP *********************************************\nserver1                    : ok=5    changed=2    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0\nserver2                    : ok=3    changed=0    unreachable=1    failed=2    skipped=0    rescued=0    ignored=0', 'ansible_text')
+WHERE category IN ('play_recap', 'host_summary')
+ORDER BY event_id;
+----
+play_recap	INFO	Play recap
+host_summary	PASS	Host server1 summary: ok=5 changed=2 unreachable=0 failed=0 skipped=1 rescued=0 ignored=0
+host_summary	ERROR	Host server2 summary: ok=3 changed=0 unreachable=1 failed=2 skipped=0 rescued=0 ignored=0
+
+# Test 23: ansible warnings and errors
+query III
+SELECT category, status, message
+FROM parse_duck_hunt_log(E'[WARNING]: No inventory was parsed\n[DEPRECATION WARNING]: Using bare variables is deprecated\nERROR! Syntax error in playbook', 'ansible_text')
+ORDER BY event_id;
+----
+ansible_warning	WARNING	No inventory was parsed
+deprecation	WARNING	Using bare variables is deprecated
+ansible_error	ERROR	Syntax error in playbook
+
+# Test 24: ansible handler execution
+query II
+SELECT category, message
+FROM parse_duck_hunt_log('RUNNING HANDLER [restart nginx] *************************', 'ansible_text');
+----
+handler	Running handler: restart nginx
+
+# ============================================================================
+# Cross-parser tests
+# ============================================================================
+
+# Test 25: Verify all 4 parsers are registered
+query I
+SELECT COUNT(*)
+FROM duck_hunt_formats()
+WHERE format IN ('drone_ci_text', 'github_cli', 'terraform_text', 'ansible_text');
+----
+4
+
+# Test 26: Verify tool names are set correctly
+query II
+SELECT DISTINCT tool_name, COUNT(*) as events
+FROM (
+    SELECT tool_name FROM parse_duck_hunt_log('[drone:exec] x starting build step: test', 'drone_ci_text')
+    UNION ALL
+    SELECT tool_name FROM parse_duck_hunt_log('::error::test error', 'github_cli')
+    UNION ALL
+    SELECT tool_name FROM parse_duck_hunt_log('Terraform v1.0.0', 'terraform_text')
+    UNION ALL
+    SELECT tool_name FROM parse_duck_hunt_log('PLAY [test] ***', 'ansible_text')
+)
+GROUP BY tool_name
+ORDER BY tool_name;
+----
+ansible	1
+drone-ci	1
+github-actions	1
+terraform	1

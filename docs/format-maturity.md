@@ -20,9 +20,9 @@ This document describes the maturity levels for formats used with `read_duck_hun
 |----------|-------|------------|
 | Production ⭐⭐⭐⭐⭐ | 8 | 9% |
 | Stable ⭐⭐⭐⭐ | 28 | 31% |
-| Beta ⭐⭐⭐ | 34 | 38% |
+| Beta ⭐⭐⭐ | 38 | 42% |
 | Alpha ⭐⭐ | 9 | 10% |
-| Experimental ⭐ | 11 | 12% |
+| Experimental ⭐ | 7 | 8% |
 
 **Total: 90 log formats** (plus 5 workflow formats)
 
@@ -118,6 +118,10 @@ These formats have moderate test coverage and work for common scenarios.
 | `zookeeper` | 2 | ✓ | Apache Zookeeper logs |
 | `openstack` | 2 | ✓ | OpenStack service logs |
 | `bgl` | 2 | ✓ | Blue Gene/L supercomputer logs |
+| `ansible_text` | 7 | - | Ansible playbook output |
+| `drone_ci_text` | 6 | - | Drone CI logs |
+| `github_cli` | 4 | - | GitHub CLI output |
+| `terraform_text` | 7 | - | Terraform output |
 
 ## Alpha ⭐⭐
 
@@ -141,16 +145,12 @@ These formats have sample files but no dedicated tests. They may work but are no
 
 | Format | Sample | Description |
 |--------|--------|-------------|
-| `ansible_text` | - | Ansible playbook output |
 | `autopep8_text` | - | autopep8 Python formatter |
 | `coverage_text` | ✓ | Coverage.py text output |
-| `drone_ci_text` | - | Drone CI logs |
 | `duckdb_test` | - | DuckDB test runner |
-| `github_cli` | - | GitHub CLI output |
 | `junit_text` | - | JUnit text output |
 | `nunit_xunit_text` | ✓ | NUnit/xUnit text output |
 | `pytest_cov_text` | - | pytest-cov coverage output |
-| `terraform_text` | - | Terraform output |
 | `yapf_text` | - | YAPF Python formatter |
 
 ---
