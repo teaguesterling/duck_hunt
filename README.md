@@ -1,5 +1,7 @@
 # Duck Hunt
 
+[![Documentation Status](https://readthedocs.org/projects/duck-hunt/badge/?version=latest)](https://duck-hunt.readthedocs.io/en/latest/?badge=latest)
+
 A DuckDB extension for parsing test results, build outputs, and CI/CD logs from 92+ development tools.
 
 ## Functions
