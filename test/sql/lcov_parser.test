@@ -1,6 +1,6 @@
 # name: test/sql/lcov_parser.test
 # description: Test LCOV coverage format parsing
-# group: [duck_hunt]
+# group: [sql]
 
 require duck_hunt
 

@@ -16,7 +16,7 @@
 #include "include/duck_hunt_formats_function.hpp"
 #include "include/duck_hunt_diagnose_function.hpp"
 #include "include/duck_hunt_detect_format_function.hpp"
-#include "core/parser_registry.hpp"  // Modular parser registry
+#include "core/parser_registry.hpp" // Modular parser registry
 
 // Workflow engine interface for registry
 #include "workflow_engine_interface.hpp"
@@ -30,14 +30,14 @@ static void LoadInternal(ExtensionLoader &loader) {
 	// Register table functions for test result parsing
 	auto read_duck_hunt_log_function = GetReadDuckHuntLogFunction();
 	loader.RegisterFunction(read_duck_hunt_log_function);
-	
+
 	auto parse_duck_hunt_log_function = GetParseDuckHuntLogFunction();
 	loader.RegisterFunction(parse_duck_hunt_log_function);
-	
+
 	// Phase 3: Register workflow log parsing functions
 	auto read_duck_hunt_workflow_log_function = GetReadDuckHuntWorkflowLogFunction();
 	loader.RegisterFunction(read_duck_hunt_workflow_log_function);
-	
+
 	auto parse_duck_hunt_workflow_log_function = GetParseDuckHuntWorkflowLogFunction();
 	loader.RegisterFunction(parse_duck_hunt_workflow_log_function);
 
@@ -81,7 +81,7 @@ std::string DuckHuntExtension::Version() const {
 extern "C" {
 
 DUCKDB_CPP_EXTENSION_ENTRY(duck_hunt, loader) {
-        duckdb::LoadInternal(loader);
+	duckdb::LoadInternal(loader);
 }
 
 DUCKDB_EXTENSION_API const char *duck_hunt_version() {

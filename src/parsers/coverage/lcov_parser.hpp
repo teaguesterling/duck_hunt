@@ -38,12 +38,20 @@ namespace duckdb {
  */
 class LcovParser : public IParser {
 public:
-    bool canParse(const std::string& content) const override;
-    std::vector<ValidationEvent> parse(const std::string& content) const override;
-    std::string getFormatName() const override { return "lcov"; }
-    std::string getName() const override { return "lcov"; }
-    int getPriority() const override { return 75; }  // Medium-high priority for coverage files
-    std::string getCategory() const override { return "coverage"; }
+	bool canParse(const std::string &content) const override;
+	std::vector<ValidationEvent> parse(const std::string &content) const override;
+	std::string getFormatName() const override {
+		return "lcov";
+	}
+	std::string getName() const override {
+		return "lcov";
+	}
+	int getPriority() const override {
+		return 75;
+	} // Medium-high priority for coverage files
+	std::string getCategory() const override {
+		return "coverage";
+	}
 };
 
 } // namespace duckdb

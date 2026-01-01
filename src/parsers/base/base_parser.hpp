@@ -27,51 +27,64 @@ namespace duckdb {
  */
 class BaseParser : public IParser {
 public:
-    BaseParser(std::string format_name,
-               std::string name,
-               std::string category,
-               std::string description,
-               int priority = 50)
-        : format_name_(std::move(format_name))
-        , name_(std::move(name))
-        , category_(std::move(category))
-        , description_(std::move(description))
-        , priority_(priority) {}
+	BaseParser(std::string format_name, std::string name, std::string category, std::string description,
+	           int priority = 50)
+	    : format_name_(std::move(format_name)), name_(std::move(name)), category_(std::move(category)),
+	      description_(std::move(description)), priority_(priority) {
+	}
 
-    virtual ~BaseParser() = default;
+	virtual ~BaseParser() = default;
 
-    // Metadata accessors
-    std::string getFormatName() const override { return format_name_; }
-    std::string getName() const override { return name_; }
-    std::string getCategory() const override { return category_; }
-    std::string getDescription() const override { return description_; }
-    int getPriority() const override { return priority_; }
+	// Metadata accessors
+	std::string getFormatName() const override {
+		return format_name_;
+	}
+	std::string getName() const override {
+		return name_;
+	}
+	std::string getCategory() const override {
+		return category_;
+	}
+	std::string getDescription() const override {
+		return description_;
+	}
+	int getPriority() const override {
+		return priority_;
+	}
 
-    // Override these if needed
-    std::vector<std::string> getAliases() const override { return aliases_; }
-    std::string getRequiredExtension() const override { return required_extension_; }
+	// Override these if needed
+	std::vector<std::string> getAliases() const override {
+		return aliases_;
+	}
+	std::string getRequiredExtension() const override {
+		return required_extension_;
+	}
 
 protected:
-    // Subclasses can set these in constructor
-    void addAlias(const std::string& alias) { aliases_.push_back(alias); }
-    void setRequiredExtension(const std::string& ext) { required_extension_ = ext; }
+	// Subclasses can set these in constructor
+	void addAlias(const std::string &alias) {
+		aliases_.push_back(alias);
+	}
+	void setRequiredExtension(const std::string &ext) {
+		required_extension_ = ext;
+	}
 
-    // Helper to create a basic event with common fields pre-filled
-    ValidationEvent createEvent() const {
-        ValidationEvent event;
-        event.tool_name = format_name_;
-        event.category = category_;
-        return event;
-    }
+	// Helper to create a basic event with common fields pre-filled
+	ValidationEvent createEvent() const {
+		ValidationEvent event;
+		event.tool_name = format_name_;
+		event.category = category_;
+		return event;
+	}
 
 private:
-    std::string format_name_;
-    std::string name_;
-    std::string category_;
-    std::string description_;
-    int priority_;
-    std::vector<std::string> aliases_;
-    std::string required_extension_;
+	std::string format_name_;
+	std::string name_;
+	std::string category_;
+	std::string description_;
+	int priority_;
+	std::vector<std::string> aliases_;
+	std::string required_extension_;
 };
 
 /**
@@ -86,63 +99,75 @@ private:
  *       {"pylint"}  // aliases
  *   ));
  */
-template<typename ParserT>
+template <typename ParserT>
 class DelegatingParser : public BaseParser {
 private:
-    // Helper to get metadata from a temporary parser instance
-    static std::string getParserFormatName() { ParserT p; return p.getFormatName(); }
-    static std::string getParserName() { ParserT p; return p.getName(); }
-    static std::string getParserCategory() { ParserT p; return p.getCategory(); }
-    static std::string getParserDescription() { ParserT p; return p.getDescription(); }
-    static int getParserPriority() { ParserT p; return p.getPriority(); }
-    static std::vector<std::string> getParserAliases() { ParserT p; return p.getAliases(); }
+	// Helper to get metadata from a temporary parser instance
+	static std::string getParserFormatName() {
+		ParserT p;
+		return p.getFormatName();
+	}
+	static std::string getParserName() {
+		ParserT p;
+		return p.getName();
+	}
+	static std::string getParserCategory() {
+		ParserT p;
+		return p.getCategory();
+	}
+	static std::string getParserDescription() {
+		ParserT p;
+		return p.getDescription();
+	}
+	static int getParserPriority() {
+		ParserT p;
+		return p.getPriority();
+	}
+	static std::vector<std::string> getParserAliases() {
+		ParserT p;
+		return p.getAliases();
+	}
 
 public:
-    /**
-     * Default constructor - pulls metadata from the underlying parser.
-     * The parser type must implement IParser methods: getFormatName(), getName(),
-     * getCategory(), getDescription(), getPriority(), getAliases().
-     */
-    DelegatingParser()
-        : BaseParser(getParserFormatName(), getParserName(),
-                     getParserCategory(), getParserDescription(),
-                     getParserPriority()) {
-        for (const auto& alias : getParserAliases()) {
-            addAlias(alias);
-        }
-    }
+	/**
+	 * Default constructor - pulls metadata from the underlying parser.
+	 * The parser type must implement IParser methods: getFormatName(), getName(),
+	 * getCategory(), getDescription(), getPriority(), getAliases().
+	 */
+	DelegatingParser()
+	    : BaseParser(getParserFormatName(), getParserName(), getParserCategory(), getParserDescription(),
+	                 getParserPriority()) {
+		for (const auto &alias : getParserAliases()) {
+			addAlias(alias);
+		}
+	}
 
-    /**
-     * Explicit constructor - allows overriding parser metadata.
-     */
-    DelegatingParser(std::string format_name,
-                     std::string name,
-                     std::string category,
-                     std::string description,
-                     int priority = 50,
-                     std::vector<std::string> aliases = {})
-        : BaseParser(std::move(format_name), std::move(name),
-                     std::move(category), std::move(description), priority) {
-        for (const auto& alias : aliases) {
-            addAlias(alias);
-        }
-    }
+	/**
+	 * Explicit constructor - allows overriding parser metadata.
+	 */
+	DelegatingParser(std::string format_name, std::string name, std::string category, std::string description,
+	                 int priority = 50, std::vector<std::string> aliases = {})
+	    : BaseParser(std::move(format_name), std::move(name), std::move(category), std::move(description), priority) {
+		for (const auto &alias : aliases) {
+			addAlias(alias);
+		}
+	}
 
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
+	bool canParse(const std::string &content) const override {
+		return parser_.canParse(content);
+	}
 
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
+	std::vector<ValidationEvent> parse(const std::string &content) const override {
+		return parser_.parse(content);
+	}
 
 private:
-    ParserT parser_;
+	ParserT parser_;
 };
 
 // Backward compatibility: alias in log_parsers namespace
 namespace log_parsers {
-    using BaseParser = duckdb::BaseParser;
+using BaseParser = duckdb::BaseParser;
 }
 
 } // namespace duckdb

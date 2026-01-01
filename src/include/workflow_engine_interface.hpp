@@ -15,73 +15,74 @@ struct WorkflowEvent;
 // Base interface for all workflow engine parsers
 class WorkflowEngineParser {
 public:
-    virtual ~WorkflowEngineParser() = default;
-    
-    // Check if this parser can handle the given content
-    virtual bool canParse(const std::string& content) const = 0;
-    
-    // Get the workflow format name this parser handles
-    virtual std::string getFormatName() const = 0;
-    
-    // Parse workflow logs into events with hierarchical structure
-    virtual std::vector<WorkflowEvent> parseWorkflowLog(const std::string& content) const = 0;
-    
-    // Get parser priority (higher = checked first)
-    virtual int getPriority() const { return 100; }
-    
-    // Get parser name for debugging
-    virtual std::string getName() const = 0;
+	virtual ~WorkflowEngineParser() = default;
+
+	// Check if this parser can handle the given content
+	virtual bool canParse(const std::string &content) const = 0;
+
+	// Get the workflow format name this parser handles
+	virtual std::string getFormatName() const = 0;
+
+	// Parse workflow logs into events with hierarchical structure
+	virtual std::vector<WorkflowEvent> parseWorkflowLog(const std::string &content) const = 0;
+
+	// Get parser priority (higher = checked first)
+	virtual int getPriority() const {
+		return 100;
+	}
+
+	// Get parser name for debugging
+	virtual std::string getName() const = 0;
 
 protected:
-    // Helper to create base ValidationEvent with hierarchical context
-    ValidationEvent createBaseEvent(const std::string& raw_line,
-                                   const std::string& scope_name,
-                                   const std::string& group_name = "",
-                                   const std::string& unit_name = "") const;
-    
-    // Helper to extract timestamp from common formats
-    std::string extractTimestamp(const std::string& line) const;
-    
-    // Helper to determine event severity from status/message
-    std::string determineSeverity(const std::string& status, const std::string& message) const;
+	// Helper to create base ValidationEvent with hierarchical context
+	ValidationEvent createBaseEvent(const std::string &raw_line, const std::string &scope_name,
+	                                const std::string &group_name = "", const std::string &unit_name = "") const;
+
+	// Helper to extract timestamp from common formats
+	std::string extractTimestamp(const std::string &line) const;
+
+	// Helper to determine event severity from status/message
+	std::string determineSeverity(const std::string &status, const std::string &message) const;
 };
 
 // Workflow engine registry for managing parsers
 class WorkflowEngineRegistry {
 public:
-    static WorkflowEngineRegistry& getInstance();
-    
-    // Register a workflow parser
-    void registerParser(std::unique_ptr<WorkflowEngineParser> parser);
-    
-    // Find appropriate parser for content
-    const WorkflowEngineParser* findParser(const std::string& content) const;
-    
-    // Get parser by format name
-    const WorkflowEngineParser* getParser(const std::string& format_name) const;
-    
-    // Get all registered parsers (sorted by priority)
-    const std::vector<std::unique_ptr<WorkflowEngineParser>>& getParsers() const;
-    size_t getParserCount() const { return parsers_.size(); }
+	static WorkflowEngineRegistry &getInstance();
+
+	// Register a workflow parser
+	void registerParser(std::unique_ptr<WorkflowEngineParser> parser);
+
+	// Find appropriate parser for content
+	const WorkflowEngineParser *findParser(const std::string &content) const;
+
+	// Get parser by format name
+	const WorkflowEngineParser *getParser(const std::string &format_name) const;
+
+	// Get all registered parsers (sorted by priority)
+	const std::vector<std::unique_ptr<WorkflowEngineParser>> &getParsers() const;
+	size_t getParserCount() const {
+		return parsers_.size();
+	}
 
 private:
-    WorkflowEngineRegistry() = default;
-    std::vector<std::unique_ptr<WorkflowEngineParser>> parsers_;
-    bool sorted_ = false;
-    
-    void ensureSorted();
+	WorkflowEngineRegistry() = default;
+	std::vector<std::unique_ptr<WorkflowEngineParser>> parsers_;
+	bool sorted_ = false;
+
+	void ensureSorted();
 };
 
 // Auto-registration helper
-template<typename T>
+template <typename T>
 class WorkflowParserRegistrar {
 public:
-    WorkflowParserRegistrar() {
-        WorkflowEngineRegistry::getInstance().registerParser(make_uniq<T>());
-    }
+	WorkflowParserRegistrar() {
+		WorkflowEngineRegistry::getInstance().registerParser(make_uniq<T>());
+	}
 };
 
-#define REGISTER_WORKFLOW_PARSER(className) \
-    static WorkflowParserRegistrar<className> g_##className##_registrar;
+#define REGISTER_WORKFLOW_PARSER(className) static WorkflowParserRegistrar<className> g_##className##_registrar;
 
 } // namespace duckdb

@@ -5,336 +5,337 @@
 
 namespace duckdb {
 
-bool RSpecTextParser::canParse(const std::string& content) const {
-    // RSpec-specific patterns that distinguish it from other test frameworks
-    // Key distinguishing features:
-    // 1. "N examples, N failures" summary format (not "tests" or "test suites")
-    // 2. "Failure/Error:" pattern unique to RSpec
-    // 3. "rspec ./path:line" in failed examples section
-    // 4. "Failed examples:" section header
+bool RSpecTextParser::canParse(const std::string &content) const {
+	// RSpec-specific patterns that distinguish it from other test frameworks
+	// Key distinguishing features:
+	// 1. "N examples, N failures" summary format (not "tests" or "test suites")
+	// 2. "Failure/Error:" pattern unique to RSpec
+	// 3. "rspec ./path:line" in failed examples section
+	// 4. "Failed examples:" section header
 
-    // Strong RSpec indicators (highly specific)
-    bool has_rspec_summary = (content.find(" examples,") != std::string::npos &&
-                              content.find(" failures") != std::string::npos);
-    bool has_failure_error = content.find("Failure/Error:") != std::string::npos;
-    bool has_rspec_command = content.find("rspec ./") != std::string::npos;
-    bool has_failed_examples = content.find("Failed examples:") != std::string::npos;
+	// Strong RSpec indicators (highly specific)
+	bool has_rspec_summary =
+	    (content.find(" examples,") != std::string::npos && content.find(" failures") != std::string::npos);
+	bool has_failure_error = content.find("Failure/Error:") != std::string::npos;
+	bool has_rspec_command = content.find("rspec ./") != std::string::npos;
+	bool has_failed_examples = content.find("Failed examples:") != std::string::npos;
 
-    // If we have strong RSpec indicators, it's definitely RSpec
-    if (has_failure_error || has_rspec_command || has_failed_examples) {
-        return true;
-    }
+	// If we have strong RSpec indicators, it's definitely RSpec
+	if (has_failure_error || has_rspec_command || has_failed_examples) {
+		return true;
+	}
 
-    // RSpec summary format: "N examples, N failures" (NOT "tests" or "Test Suites")
-    if (has_rspec_summary) {
-        // Make sure it's not Jest/Mocha (they use "passing"/"failing" or "Test Suites")
-        bool is_jest_mocha = content.find("Test Suites:") != std::string::npos ||
-                             content.find(" passing") != std::string::npos;
-        if (!is_jest_mocha) {
-            return true;
-        }
-    }
+	// RSpec summary format: "N examples, N failures" (NOT "tests" or "Test Suites")
+	if (has_rspec_summary) {
+		// Make sure it's not Jest/Mocha (they use "passing"/"failing" or "Test Suites")
+		bool is_jest_mocha =
+		    content.find("Test Suites:") != std::string::npos || content.find(" passing") != std::string::npos;
+		if (!is_jest_mocha) {
+			return true;
+		}
+	}
 
-    // RSpec documentation format with pending marker
-    // Format: "test name (PENDING: reason)" or "(FAILED - N)"
-    bool has_rspec_markers = content.find("(PENDING:") != std::string::npos ||
-                             content.find("(FAILED - ") != std::string::npos;
-    if (has_rspec_markers) {
-        return true;
-    }
+	// RSpec documentation format with pending marker
+	// Format: "test name (PENDING: reason)" or "(FAILED - N)"
+	bool has_rspec_markers =
+	    content.find("(PENDING:") != std::string::npos || content.find("(FAILED - ") != std::string::npos;
+	if (has_rspec_markers) {
+		return true;
+	}
 
-    return false;
+	return false;
 }
 
 // Forward declaration for implementation
-static void parseRSpecTextImpl(const std::string& content, std::vector<ValidationEvent>& events);
+static void parseRSpecTextImpl(const std::string &content, std::vector<ValidationEvent> &events);
 
-std::vector<ValidationEvent> RSpecTextParser::parse(const std::string& content) const {
-    std::vector<ValidationEvent> events;
-    parseRSpecTextImpl(content, events);
-    return events;
+std::vector<ValidationEvent> RSpecTextParser::parse(const std::string &content) const {
+	std::vector<ValidationEvent> events;
+	parseRSpecTextImpl(content, events);
+	return events;
 }
 
-static void parseRSpecTextImpl(const std::string& content, std::vector<ValidationEvent>& events) {
-    std::istringstream stream(content);
-    std::string line;
-    int64_t event_id = 1;
-    int32_t current_line_num = 0;
+static void parseRSpecTextImpl(const std::string &content, std::vector<ValidationEvent> &events) {
+	std::istringstream stream(content);
+	std::string line;
+	int64_t event_id = 1;
+	int32_t current_line_num = 0;
 
-    // Regex patterns for RSpec output
-    // With markers
-    std::regex test_passed_marker(R"(\s*✓\s*(.+))");
-    std::regex test_failed_marker(R"(\s*✗\s*(.+))");
-    // Documentation format - tests are deeply indented (4+ spaces) with behavior descriptions
-    // Test names typically start with "is", "should", "does", "returns", "raises", "has", etc.
-    std::regex doc_test_line(R"(^(\s{4,})(.+?)\s*(\(FAILED - \d+\)|\(PENDING.*\))?\s*$)");
-    // Context/describe blocks - 2 spaces indent, often start with # for methods or capitalized words
-    std::regex doc_context_2space(R"(^  (#?\w.+?)\s*$)");
-    // Top-level context - no indent, capitalized
-    std::regex doc_context_top(R"(^([A-Z][A-Za-z0-9_:]+)\s*$)");
-    std::regex test_pending(R"(\s*pending:\s*(.+)\s*\(PENDING:\s*(.+)\))");
-    std::regex failure_error(R"(Failure/Error:\s*(.+))");
-    std::regex expected_pattern(R"(\s*expected\s*(.+))");
-    std::regex got_pattern(R"(\s*got:\s*(.+))");
-    std::regex file_line_pattern(R"(# (.+):(\d+):in)");
-    std::regex summary_pattern(R"(Finished in (.+) seconds .* (\d+) examples?, (\d+) failures?(, (\d+) pending)?)");
-    std::regex failed_example(R"(rspec (.+):(\d+) # (.+))");
-    // Alternative summary patterns
-    std::regex simple_summary(R"((\d+) examples?, (\d+) failures?)");
+	// Regex patterns for RSpec output
+	// With markers
+	std::regex test_passed_marker(R"(\s*✓\s*(.+))");
+	std::regex test_failed_marker(R"(\s*✗\s*(.+))");
+	// Documentation format - tests are deeply indented (4+ spaces) with behavior descriptions
+	// Test names typically start with "is", "should", "does", "returns", "raises", "has", etc.
+	std::regex doc_test_line(R"(^(\s{4,})(.+?)\s*(\(FAILED - \d+\)|\(PENDING.*\))?\s*$)");
+	// Context/describe blocks - 2 spaces indent, often start with # for methods or capitalized words
+	std::regex doc_context_2space(R"(^  (#?\w.+?)\s*$)");
+	// Top-level context - no indent, capitalized
+	std::regex doc_context_top(R"(^([A-Z][A-Za-z0-9_:]+)\s*$)");
+	std::regex test_pending(R"(\s*pending:\s*(.+)\s*\(PENDING:\s*(.+)\))");
+	std::regex failure_error(R"(Failure/Error:\s*(.+))");
+	std::regex expected_pattern(R"(\s*expected\s*(.+))");
+	std::regex got_pattern(R"(\s*got:\s*(.+))");
+	std::regex file_line_pattern(R"(# (.+):(\d+):in)");
+	std::regex summary_pattern(R"(Finished in (.+) seconds .* (\d+) examples?, (\d+) failures?(, (\d+) pending)?)");
+	std::regex failed_example(R"(rspec (.+):(\d+) # (.+))");
+	// Alternative summary patterns
+	std::regex simple_summary(R"((\d+) examples?, (\d+) failures?)");
 
-    std::string current_context;
-    std::string current_method;
-    std::string current_failure_file;
-    int current_failure_line = -1;
-    std::string current_failure_message;
-    bool in_failure_section = false;
-    bool in_failed_examples = false;
-    std::vector<std::string> context_stack;  // Track nested contexts
-    
-    while (std::getline(stream, line)) {
-        current_line_num++;
-        std::smatch match;
+	std::string current_context;
+	std::string current_method;
+	std::string current_failure_file;
+	int current_failure_line = -1;
+	std::string current_failure_message;
+	bool in_failure_section = false;
+	bool in_failed_examples = false;
+	std::vector<std::string> context_stack; // Track nested contexts
 
-        // Skip empty lines and dividers
-        if (line.empty() || line.find("Failures:") != std::string::npos ||
-            line.find("Failed examples:") != std::string::npos) {
-            if (line.find("Failures:") != std::string::npos) {
-                in_failure_section = true;
-            }
-            if (line.find("Failed examples:") != std::string::npos) {
-                in_failed_examples = true;
-            }
-            continue;
-        }
-        
-        // Parse failed example references
-        if (in_failed_examples && std::regex_search(line, match, failed_example)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "RSpec";
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.status = ValidationEventStatus::FAIL;
-            event.severity = "error";
-            event.category = "test_failure";
-            event.ref_file = match[1].str();
-            event.ref_line = std::stoi(match[2].str());
-            event.test_name = match[3].str();
-            event.message = "Test failed: " + match[3].str();
-            event.log_content = line;
-            event.log_line_start = current_line_num;
-            event.log_line_end = current_line_num;
-            events.push_back(event);
-            continue;
-        }
-        
-        // Parse top-level context (class/module names) - no indent
-        if (std::regex_match(line, match, doc_context_top)) {
-            current_context = match[1].str();
-            context_stack.clear();
-            context_stack.push_back(current_context);
-            current_method = "";
-            continue;
-        }
+	while (std::getline(stream, line)) {
+		current_line_num++;
+		std::smatch match;
 
-        // Parse 2-space indented context (describe/context blocks)
-        if (std::regex_match(line, match, doc_context_2space)) {
-            std::string ctx = match[1].str();
-            // This is a sub-context
-            if (context_stack.size() > 1) {
-                context_stack.resize(1);  // Keep only top-level
-            }
-            context_stack.push_back(ctx);
-            current_method = ctx;
-            continue;
-        }
+		// Skip empty lines and dividers
+		if (line.empty() || line.find("Failures:") != std::string::npos ||
+		    line.find("Failed examples:") != std::string::npos) {
+			if (line.find("Failures:") != std::string::npos) {
+				in_failure_section = true;
+			}
+			if (line.find("Failed examples:") != std::string::npos) {
+				in_failed_examples = true;
+			}
+			continue;
+		}
 
-        // Parse documentation format test lines (4+ spaces indent)
-        // These are actual test cases (it blocks)
-        if (!in_failure_section && !in_failed_examples && std::regex_match(line, match, doc_test_line)) {
-            std::string indent = match[1].str();
-            std::string test_name = match[2].str();
-            std::string status_marker = match[3].matched ? match[3].str() : "";
+		// Parse failed example references
+		if (in_failed_examples && std::regex_search(line, match, failed_example)) {
+			ValidationEvent event;
+			event.event_id = event_id++;
+			event.tool_name = "RSpec";
+			event.event_type = ValidationEventType::TEST_RESULT;
+			event.status = ValidationEventStatus::FAIL;
+			event.severity = "error";
+			event.category = "test_failure";
+			event.ref_file = match[1].str();
+			event.ref_line = std::stoi(match[2].str());
+			event.test_name = match[3].str();
+			event.message = "Test failed: " + match[3].str();
+			event.log_content = line;
+			event.log_line_start = current_line_num;
+			event.log_line_end = current_line_num;
+			events.push_back(event);
+			continue;
+		}
 
-            // Skip if this looks like a context header (starts with #, or is very short capitalized word)
-            if (test_name.length() > 0 && test_name[0] == '#') {
-                // This is a method context like "#login"
-                current_method = test_name.substr(1);  // Remove #
-                continue;
-            }
+		// Parse top-level context (class/module names) - no indent
+		if (std::regex_match(line, match, doc_context_top)) {
+			current_context = match[1].str();
+			context_stack.clear();
+			context_stack.push_back(current_context);
+			current_method = "";
+			continue;
+		}
 
-            // Determine status based on marker
-            ValidationEventStatus status = ValidationEventStatus::PASS;
-            std::string severity = "info";
-            std::string category = "test_success";
+		// Parse 2-space indented context (describe/context blocks)
+		if (std::regex_match(line, match, doc_context_2space)) {
+			std::string ctx = match[1].str();
+			// This is a sub-context
+			if (context_stack.size() > 1) {
+				context_stack.resize(1); // Keep only top-level
+			}
+			context_stack.push_back(ctx);
+			current_method = ctx;
+			continue;
+		}
 
-            if (status_marker.find("FAILED") != std::string::npos) {
-                status = ValidationEventStatus::FAIL;
-                severity = "error";
-                category = "test_failure";
-            } else if (status_marker.find("PENDING") != std::string::npos) {
-                status = ValidationEventStatus::SKIP;
-                severity = "warning";
-                category = "test_pending";
-            }
+		// Parse documentation format test lines (4+ spaces indent)
+		// These are actual test cases (it blocks)
+		if (!in_failure_section && !in_failed_examples && std::regex_match(line, match, doc_test_line)) {
+			std::string indent = match[1].str();
+			std::string test_name = match[2].str();
+			std::string status_marker = match[3].matched ? match[3].str() : "";
 
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "RSpec";
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.status = status;
-            event.severity = severity;
-            event.category = category;
+			// Skip if this looks like a context header (starts with #, or is very short capitalized word)
+			if (test_name.length() > 0 && test_name[0] == '#') {
+				// This is a method context like "#login"
+				current_method = test_name.substr(1); // Remove #
+				continue;
+			}
 
-            // Build full context name
-            std::string full_context;
-            for (const auto& ctx : context_stack) {
-                if (!full_context.empty()) full_context += " ";
-                full_context += ctx;
-            }
-            event.function_name = full_context;
-            event.test_name = test_name;
-            event.message = (status == ValidationEventStatus::PASS ? "Test passed: " :
-                           status == ValidationEventStatus::FAIL ? "Test failed: " : "Test pending: ") + test_name;
-            event.log_content = line;
-            event.log_line_start = current_line_num;
-            event.log_line_end = current_line_num;
-            events.push_back(event);
-            continue;
-        }
+			// Determine status based on marker
+			ValidationEventStatus status = ValidationEventStatus::PASS;
+			std::string severity = "info";
+			std::string category = "test_success";
 
-        // Parse passed tests with ✓ marker
-        if (std::regex_search(line, match, test_passed_marker)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "RSpec";
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.status = ValidationEventStatus::PASS;
-            event.severity = "info";
-            event.category = "test_success";
-            std::string full_context;
-            for (const auto& ctx : context_stack) {
-                if (!full_context.empty()) full_context += " ";
-                full_context += ctx;
-            }
-            event.function_name = full_context;
-            event.test_name = match[1].str();
-            event.message = "Test passed: " + match[1].str();
-            event.log_content = line;
-            event.log_line_start = current_line_num;
-            event.log_line_end = current_line_num;
-            events.push_back(event);
-        }
+			if (status_marker.find("FAILED") != std::string::npos) {
+				status = ValidationEventStatus::FAIL;
+				severity = "error";
+				category = "test_failure";
+			} else if (status_marker.find("PENDING") != std::string::npos) {
+				status = ValidationEventStatus::SKIP;
+				severity = "warning";
+				category = "test_pending";
+			}
 
-        // Parse failed tests with ✗ marker
-        else if (std::regex_search(line, match, test_failed_marker)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "RSpec";
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.status = ValidationEventStatus::FAIL;
-            event.severity = "error";
-            event.category = "test_failure";
-            if (!current_context.empty()) {
-                event.function_name = current_context;
-                if (!current_method.empty()) {
-                    event.function_name += "::" + current_method;
-                }
-            }
-            event.test_name = match[1].str();
-            event.message = "Test failed: " + match[1].str();
-            event.log_content = line;
-            event.log_line_start = current_line_num;
-            event.log_line_end = current_line_num;
-            events.push_back(event);
-        }
-        
-        // Parse pending tests
-        else if (std::regex_search(line, match, test_pending)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "RSpec";
-            event.event_type = ValidationEventType::TEST_RESULT;
-            event.status = ValidationEventStatus::SKIP;
-            event.severity = "warning";
-            event.category = "test_pending";
-            if (!current_context.empty()) {
-                event.function_name = current_context;
-                if (!current_method.empty()) {
-                    event.function_name += "::" + current_method;
-                }
-            }
-            event.test_name = match[1].str();
-            event.message = "Test pending: " + match[2].str();
-            event.log_content = line;
-            event.log_line_start = current_line_num;
-            event.log_line_end = current_line_num;
-            events.push_back(event);
-        }
-        
-        // Parse failure details
-        else if (std::regex_search(line, match, failure_error)) {
-            current_failure_message = match[1].str();
-        }
-        
-        // Parse expected/got patterns for better error details
-        else if (std::regex_search(line, match, expected_pattern)) {
-            if (!current_failure_message.empty()) {
-                current_failure_message += " | Expected: " + match[1].str();
-            }
-        }
-        else if (std::regex_search(line, match, got_pattern)) {
-            if (!current_failure_message.empty()) {
-                current_failure_message += " | Got: " + match[1].str();
-            }
-        }
-        
-        // Parse file and line information
-        else if (std::regex_search(line, match, file_line_pattern)) {
-            current_failure_file = match[1].str();
-            current_failure_line = std::stoi(match[2].str());
-            
-            // Update the most recent failed test event with file/line info
-            for (auto it = events.rbegin(); it != events.rend(); ++it) {
-                if (it->tool_name == "RSpec" && it->status == ValidationEventStatus::FAIL && 
-                    it->ref_file.empty()) {
-                    it->ref_file = current_failure_file;
-                    it->ref_line = current_failure_line;
-                    if (!current_failure_message.empty()) {
-                        it->message = current_failure_message;
-                    }
-                    break;
-                }
-            }
-        }
-        
-        // Parse summary
-        else if (std::regex_search(line, match, summary_pattern)) {
-            ValidationEvent event;
-            event.event_id = event_id++;
-            event.tool_name = "RSpec";
-            event.event_type = ValidationEventType::SUMMARY;
-            event.status = ValidationEventStatus::INFO;
-            event.severity = "info";
-            event.category = "test_summary";
-            
-            std::string execution_time = match[1].str();
-            int total_examples = std::stoi(match[2].str());
-            int failures = std::stoi(match[3].str());
-            int pending = 0;
-            if (match[5].matched) {
-                pending = std::stoi(match[5].str());
-            }
-            
-            event.message = "Test run completed: " + std::to_string(total_examples) + 
-                          " examples, " + std::to_string(failures) + " failures, " + 
-                          std::to_string(pending) + " pending";
-            event.execution_time = std::stod(execution_time);
-            event.log_content = line;
-            event.log_line_start = current_line_num;
-            event.log_line_end = current_line_num;
-            events.push_back(event);
-        }
-    }
+			ValidationEvent event;
+			event.event_id = event_id++;
+			event.tool_name = "RSpec";
+			event.event_type = ValidationEventType::TEST_RESULT;
+			event.status = status;
+			event.severity = severity;
+			event.category = category;
+
+			// Build full context name
+			std::string full_context;
+			for (const auto &ctx : context_stack) {
+				if (!full_context.empty())
+					full_context += " ";
+				full_context += ctx;
+			}
+			event.function_name = full_context;
+			event.test_name = test_name;
+			event.message = (status == ValidationEventStatus::PASS   ? "Test passed: "
+			                 : status == ValidationEventStatus::FAIL ? "Test failed: "
+			                                                         : "Test pending: ") +
+			                test_name;
+			event.log_content = line;
+			event.log_line_start = current_line_num;
+			event.log_line_end = current_line_num;
+			events.push_back(event);
+			continue;
+		}
+
+		// Parse passed tests with ✓ marker
+		if (std::regex_search(line, match, test_passed_marker)) {
+			ValidationEvent event;
+			event.event_id = event_id++;
+			event.tool_name = "RSpec";
+			event.event_type = ValidationEventType::TEST_RESULT;
+			event.status = ValidationEventStatus::PASS;
+			event.severity = "info";
+			event.category = "test_success";
+			std::string full_context;
+			for (const auto &ctx : context_stack) {
+				if (!full_context.empty())
+					full_context += " ";
+				full_context += ctx;
+			}
+			event.function_name = full_context;
+			event.test_name = match[1].str();
+			event.message = "Test passed: " + match[1].str();
+			event.log_content = line;
+			event.log_line_start = current_line_num;
+			event.log_line_end = current_line_num;
+			events.push_back(event);
+		}
+
+		// Parse failed tests with ✗ marker
+		else if (std::regex_search(line, match, test_failed_marker)) {
+			ValidationEvent event;
+			event.event_id = event_id++;
+			event.tool_name = "RSpec";
+			event.event_type = ValidationEventType::TEST_RESULT;
+			event.status = ValidationEventStatus::FAIL;
+			event.severity = "error";
+			event.category = "test_failure";
+			if (!current_context.empty()) {
+				event.function_name = current_context;
+				if (!current_method.empty()) {
+					event.function_name += "::" + current_method;
+				}
+			}
+			event.test_name = match[1].str();
+			event.message = "Test failed: " + match[1].str();
+			event.log_content = line;
+			event.log_line_start = current_line_num;
+			event.log_line_end = current_line_num;
+			events.push_back(event);
+		}
+
+		// Parse pending tests
+		else if (std::regex_search(line, match, test_pending)) {
+			ValidationEvent event;
+			event.event_id = event_id++;
+			event.tool_name = "RSpec";
+			event.event_type = ValidationEventType::TEST_RESULT;
+			event.status = ValidationEventStatus::SKIP;
+			event.severity = "warning";
+			event.category = "test_pending";
+			if (!current_context.empty()) {
+				event.function_name = current_context;
+				if (!current_method.empty()) {
+					event.function_name += "::" + current_method;
+				}
+			}
+			event.test_name = match[1].str();
+			event.message = "Test pending: " + match[2].str();
+			event.log_content = line;
+			event.log_line_start = current_line_num;
+			event.log_line_end = current_line_num;
+			events.push_back(event);
+		}
+
+		// Parse failure details
+		else if (std::regex_search(line, match, failure_error)) {
+			current_failure_message = match[1].str();
+		}
+
+		// Parse expected/got patterns for better error details
+		else if (std::regex_search(line, match, expected_pattern)) {
+			if (!current_failure_message.empty()) {
+				current_failure_message += " | Expected: " + match[1].str();
+			}
+		} else if (std::regex_search(line, match, got_pattern)) {
+			if (!current_failure_message.empty()) {
+				current_failure_message += " | Got: " + match[1].str();
+			}
+		}
+
+		// Parse file and line information
+		else if (std::regex_search(line, match, file_line_pattern)) {
+			current_failure_file = match[1].str();
+			current_failure_line = std::stoi(match[2].str());
+
+			// Update the most recent failed test event with file/line info
+			for (auto it = events.rbegin(); it != events.rend(); ++it) {
+				if (it->tool_name == "RSpec" && it->status == ValidationEventStatus::FAIL && it->ref_file.empty()) {
+					it->ref_file = current_failure_file;
+					it->ref_line = current_failure_line;
+					if (!current_failure_message.empty()) {
+						it->message = current_failure_message;
+					}
+					break;
+				}
+			}
+		}
+
+		// Parse summary
+		else if (std::regex_search(line, match, summary_pattern)) {
+			ValidationEvent event;
+			event.event_id = event_id++;
+			event.tool_name = "RSpec";
+			event.event_type = ValidationEventType::SUMMARY;
+			event.status = ValidationEventStatus::INFO;
+			event.severity = "info";
+			event.category = "test_summary";
+
+			std::string execution_time = match[1].str();
+			int total_examples = std::stoi(match[2].str());
+			int failures = std::stoi(match[3].str());
+			int pending = 0;
+			if (match[5].matched) {
+				pending = std::stoi(match[5].str());
+			}
+
+			event.message = "Test run completed: " + std::to_string(total_examples) + " examples, " +
+			                std::to_string(failures) + " failures, " + std::to_string(pending) + " pending";
+			event.execution_time = std::stod(execution_time);
+			event.log_content = line;
+			event.log_line_start = current_line_num;
+			event.log_line_end = current_line_num;
+			events.push_back(event);
+		}
+	}
 }
 
 } // namespace duckdb

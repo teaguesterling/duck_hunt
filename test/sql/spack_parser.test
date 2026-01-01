@@ -1,6 +1,6 @@
 # name: test/sql/spack_parser.test
 # description: Test Spack build log workflow parser
-# group: [duck_hunt]
+# group: [sql]
 
 require duck_hunt
 

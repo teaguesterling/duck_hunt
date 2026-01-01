@@ -11,16 +11,24 @@ namespace duckdb {
  */
 class KubeScoreJSONParser : public IParser {
 public:
-    bool canParse(const std::string& content) const override;
-    std::vector<ValidationEvent> parse(const std::string& content) const override;
-    std::string getFormatName() const override { return "kube_score_json"; }
-    std::string getName() const override { return "kube-score"; }
-    int getPriority() const override { return 70; }
-    std::string getCategory() const override { return "infrastructure_analysis"; }
+	bool canParse(const std::string &content) const override;
+	std::vector<ValidationEvent> parse(const std::string &content) const override;
+	std::string getFormatName() const override {
+		return "kube_score_json";
+	}
+	std::string getName() const override {
+		return "kube-score";
+	}
+	int getPriority() const override {
+		return 70;
+	}
+	std::string getCategory() const override {
+		return "infrastructure_analysis";
+	}
 
 private:
-    bool isValidKubeScoreJSON(const std::string& content) const;
-    ValidationEventStatus mapGradeToStatus(const std::string& grade) const;
+	bool isValidKubeScoreJSON(const std::string &content) const;
+	ValidationEventStatus mapGradeToStatus(const std::string &grade) const;
 };
 
 } // namespace duckdb

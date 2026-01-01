@@ -14,45 +14,44 @@ namespace duckdb {
  */
 class WebbedIntegration {
 public:
-    /**
-     * Check if the webbed extension is loaded by looking for its functions.
-     */
-    static bool IsWebbedAvailable(ClientContext &context);
+	/**
+	 * Check if the webbed extension is loaded by looking for its functions.
+	 */
+	static bool IsWebbedAvailable(ClientContext &context);
 
-    /**
-     * Try to auto-load the webbed extension if not already loaded.
-     * Returns true if webbed is available after the attempt.
-     */
-    static bool TryAutoLoadWebbed(ClientContext &context);
+	/**
+	 * Try to auto-load the webbed extension if not already loaded.
+	 * Returns true if webbed is available after the attempt.
+	 */
+	static bool TryAutoLoadWebbed(ClientContext &context);
 
-    /**
-     * Convert XML content to JSON using webbed's xml_to_json function.
-     * Throws if webbed is not available.
-     */
-    static std::string XmlToJson(ClientContext &context, const std::string &xml_content);
+	/**
+	 * Convert XML content to JSON using webbed's xml_to_json function.
+	 * Throws if webbed is not available.
+	 */
+	static std::string XmlToJson(ClientContext &context, const std::string &xml_content);
 
-    /**
-     * Check if XML content is valid using webbed's xml_valid function.
-     * Returns false if webbed is not available (fails gracefully).
-     */
-    static bool IsValidXml(ClientContext &context, const std::string &xml_content);
+	/**
+	 * Check if XML content is valid using webbed's xml_valid function.
+	 * Returns false if webbed is not available (fails gracefully).
+	 */
+	static bool IsValidXml(ClientContext &context, const std::string &xml_content);
 
-    /**
-     * Get a helpful error message for when webbed is required but not loaded.
-     */
-    static std::string GetWebbedRequiredError();
+	/**
+	 * Get a helpful error message for when webbed is required but not loaded.
+	 */
+	static std::string GetWebbedRequiredError();
 
 private:
-    /**
-     * Look up a scalar function in the catalog.
-     */
-    static optional_ptr<CatalogEntry> LookupFunction(ClientContext &context, const std::string &name);
+	/**
+	 * Look up a scalar function in the catalog.
+	 */
+	static optional_ptr<CatalogEntry> LookupFunction(ClientContext &context, const std::string &name);
 
-    /**
-     * Invoke a scalar function with a single string argument.
-     */
-    static Value InvokeScalarFunction(ClientContext &context, const std::string &func_name,
-                                       const std::string &arg);
+	/**
+	 * Invoke a scalar function with a single string argument.
+	 */
+	static Value InvokeScalarFunction(ClientContext &context, const std::string &func_name, const std::string &arg);
 };
 
 } // namespace duckdb

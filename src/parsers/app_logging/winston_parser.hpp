@@ -6,12 +6,20 @@ namespace duckdb {
 
 class WinstonParser : public IParser {
 public:
-    bool canParse(const std::string& content) const override;
-    std::vector<ValidationEvent> parse(const std::string& content) const override;
-    std::string getFormatName() const override { return "winston"; }
-    std::string getName() const override { return "winston"; }
-    int getPriority() const override { return 60; }  // Higher than generic JSONL (50) - more specific format
-    std::string getCategory() const override { return "app_logging"; }
+	bool canParse(const std::string &content) const override;
+	std::vector<ValidationEvent> parse(const std::string &content) const override;
+	std::string getFormatName() const override {
+		return "winston";
+	}
+	std::string getName() const override {
+		return "winston";
+	}
+	int getPriority() const override {
+		return 60;
+	} // Higher than generic JSONL (50) - more specific format
+	std::string getCategory() const override {
+		return "app_logging";
+	}
 };
 
 } // namespace duckdb

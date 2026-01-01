@@ -1,6 +1,6 @@
 # name: test/sql/workflow_parsers.test
 # description: Test workflow log parsing functionality
-# group: [workflow]
+# group: [sql]
 
 # Require statement will ensure this test is run with this extension loaded
 require duck_hunt

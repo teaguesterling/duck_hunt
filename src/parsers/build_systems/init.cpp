@@ -10,7 +10,6 @@
 #include "python_parser.hpp"
 #include "bazel_parser.hpp"
 
-
 namespace duckdb {
 
 /**
@@ -19,27 +18,26 @@ namespace duckdb {
  */
 DECLARE_PARSER_CATEGORY(BuildSystems);
 
-void RegisterBuildSystemsParsers(ParserRegistry& registry) {
-    // Core build systems
-    registry.registerParser(make_uniq<DelegatingParser<MakeParser>>());
-    registry.registerParser(make_uniq<DelegatingParser<CMakeParser>>());
-    registry.registerParser(make_uniq<DelegatingParser<BazelParser>>());
+void RegisterBuildSystemsParsers(ParserRegistry &registry) {
+	// Core build systems
+	registry.registerParser(make_uniq<DelegatingParser<MakeParser>>());
+	registry.registerParser(make_uniq<DelegatingParser<CMakeParser>>());
+	registry.registerParser(make_uniq<DelegatingParser<BazelParser>>());
 
-    // Java/JVM build systems
-    registry.registerParser(make_uniq<DelegatingParser<MavenParser>>());
-    registry.registerParser(make_uniq<DelegatingParser<GradleParser>>());
+	// Java/JVM build systems
+	registry.registerParser(make_uniq<DelegatingParser<MavenParser>>());
+	registry.registerParser(make_uniq<DelegatingParser<GradleParser>>());
 
-    // Microsoft build systems
-    registry.registerParser(make_uniq<DelegatingParser<MSBuildParser>>());
+	// Microsoft build systems
+	registry.registerParser(make_uniq<DelegatingParser<MSBuildParser>>());
 
-    // Language-specific build systems
-    registry.registerParser(make_uniq<DelegatingParser<CargoParser>>());
-    registry.registerParser(make_uniq<DelegatingParser<NodeParser>>());
-    registry.registerParser(make_uniq<DelegatingParser<PythonBuildParser>>());
+	// Language-specific build systems
+	registry.registerParser(make_uniq<DelegatingParser<CargoParser>>());
+	registry.registerParser(make_uniq<DelegatingParser<NodeParser>>());
+	registry.registerParser(make_uniq<DelegatingParser<PythonBuildParser>>());
 }
 
 // Auto-register this category
 REGISTER_PARSER_CATEGORY(BuildSystems);
-
 
 } // namespace duckdb

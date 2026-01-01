@@ -11,7 +11,6 @@
 #include "ruby_logger_parser.hpp"
 #include "rails_log_parser.hpp"
 
-
 namespace duckdb {
 
 /**
@@ -19,23 +18,21 @@ namespace duckdb {
  */
 class PythonLoggingParserImpl : public BaseParser {
 public:
-    PythonLoggingParserImpl()
-        : BaseParser("python_logging",
-                     "Python Logging Parser",
-                     ParserCategory::APP_LOGGING,
-                     "Python standard logging module output",
-                     ParserPriority::HIGH) {}
+	PythonLoggingParserImpl()
+	    : BaseParser("python_logging", "Python Logging Parser", ParserCategory::APP_LOGGING,
+	                 "Python standard logging module output", ParserPriority::HIGH) {
+	}
 
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
+	bool canParse(const std::string &content) const override {
+		return parser_.canParse(content);
+	}
 
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
+	std::vector<ValidationEvent> parse(const std::string &content) const override {
+		return parser_.parse(content);
+	}
 
 private:
-    PythonLoggingParser parser_;
+	PythonLoggingParser parser_;
 };
 
 /**
@@ -43,25 +40,22 @@ private:
  */
 class Log4jParserImpl : public BaseParser {
 public:
-    Log4jParserImpl()
-        : BaseParser("log4j",
-                     "Log4j Parser",
-                     ParserCategory::APP_LOGGING,
-                     "Java Log4j/Log4j2 log output",
-                     ParserPriority::HIGH) {
-        addAlias("log4j2");
-    }
+	Log4jParserImpl()
+	    : BaseParser("log4j", "Log4j Parser", ParserCategory::APP_LOGGING, "Java Log4j/Log4j2 log output",
+	                 ParserPriority::HIGH) {
+		addAlias("log4j2");
+	}
 
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
+	bool canParse(const std::string &content) const override {
+		return parser_.canParse(content);
+	}
 
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
+	std::vector<ValidationEvent> parse(const std::string &content) const override {
+		return parser_.parse(content);
+	}
 
 private:
-    Log4jParser parser_;
+	Log4jParser parser_;
 };
 
 /**
@@ -69,23 +63,21 @@ private:
  */
 class LogrusParserImpl : public BaseParser {
 public:
-    LogrusParserImpl()
-        : BaseParser("logrus",
-                     "Logrus Parser",
-                     ParserCategory::APP_LOGGING,
-                     "Go Logrus structured logging output",
-                     ParserPriority::HIGH) {}
+	LogrusParserImpl()
+	    : BaseParser("logrus", "Logrus Parser", ParserCategory::APP_LOGGING, "Go Logrus structured logging output",
+	                 ParserPriority::HIGH) {
+	}
 
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
+	bool canParse(const std::string &content) const override {
+		return parser_.canParse(content);
+	}
 
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
+	std::vector<ValidationEvent> parse(const std::string &content) const override {
+		return parser_.parse(content);
+	}
 
 private:
-    LogrusParser parser_;
+	LogrusParser parser_;
 };
 
 /**
@@ -93,23 +85,21 @@ private:
  */
 class WinstonParserImpl : public BaseParser {
 public:
-    WinstonParserImpl()
-        : BaseParser("winston",
-                     "Winston Parser",
-                     ParserCategory::APP_LOGGING,
-                     "Node.js Winston logger output",
-                     ParserPriority::HIGH) {}
+	WinstonParserImpl()
+	    : BaseParser("winston", "Winston Parser", ParserCategory::APP_LOGGING, "Node.js Winston logger output",
+	                 ParserPriority::HIGH) {
+	}
 
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
+	bool canParse(const std::string &content) const override {
+		return parser_.canParse(content);
+	}
 
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
+	std::vector<ValidationEvent> parse(const std::string &content) const override {
+		return parser_.parse(content);
+	}
 
 private:
-    WinstonParser parser_;
+	WinstonParser parser_;
 };
 
 /**
@@ -117,23 +107,21 @@ private:
  */
 class PinoParserImpl : public BaseParser {
 public:
-    PinoParserImpl()
-        : BaseParser("pino",
-                     "Pino Parser",
-                     ParserCategory::APP_LOGGING,
-                     "Node.js Pino logger output",
-                     ParserPriority::HIGH) {}
+	PinoParserImpl()
+	    : BaseParser("pino", "Pino Parser", ParserCategory::APP_LOGGING, "Node.js Pino logger output",
+	                 ParserPriority::HIGH) {
+	}
 
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
+	bool canParse(const std::string &content) const override {
+		return parser_.canParse(content);
+	}
 
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
+	std::vector<ValidationEvent> parse(const std::string &content) const override {
+		return parser_.parse(content);
+	}
 
 private:
-    PinoParser parser_;
+	PinoParser parser_;
 };
 
 /**
@@ -141,23 +129,21 @@ private:
  */
 class BunyanParserImpl : public BaseParser {
 public:
-    BunyanParserImpl()
-        : BaseParser("bunyan",
-                     "Bunyan Parser",
-                     ParserCategory::APP_LOGGING,
-                     "Node.js Bunyan logger output",
-                     ParserPriority::HIGH) {}
+	BunyanParserImpl()
+	    : BaseParser("bunyan", "Bunyan Parser", ParserCategory::APP_LOGGING, "Node.js Bunyan logger output",
+	                 ParserPriority::HIGH) {
+	}
 
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
+	bool canParse(const std::string &content) const override {
+		return parser_.canParse(content);
+	}
 
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
+	std::vector<ValidationEvent> parse(const std::string &content) const override {
+		return parser_.parse(content);
+	}
 
 private:
-    BunyanParser parser_;
+	BunyanParser parser_;
 };
 
 /**
@@ -165,23 +151,21 @@ private:
  */
 class SerilogParserImpl : public BaseParser {
 public:
-    SerilogParserImpl()
-        : BaseParser("serilog",
-                     "Serilog Parser",
-                     ParserCategory::APP_LOGGING,
-                     ".NET Serilog structured logging output",
-                     ParserPriority::HIGH) {}
+	SerilogParserImpl()
+	    : BaseParser("serilog", "Serilog Parser", ParserCategory::APP_LOGGING, ".NET Serilog structured logging output",
+	                 ParserPriority::HIGH) {
+	}
 
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
+	bool canParse(const std::string &content) const override {
+		return parser_.canParse(content);
+	}
 
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
+	std::vector<ValidationEvent> parse(const std::string &content) const override {
+		return parser_.parse(content);
+	}
 
 private:
-    SerilogParser parser_;
+	SerilogParser parser_;
 };
 
 /**
@@ -189,23 +173,21 @@ private:
  */
 class NLogParserImpl : public BaseParser {
 public:
-    NLogParserImpl()
-        : BaseParser("nlog",
-                     "NLog Parser",
-                     ParserCategory::APP_LOGGING,
-                     ".NET NLog logger output",
-                     ParserPriority::HIGH) {}
+	NLogParserImpl()
+	    : BaseParser("nlog", "NLog Parser", ParserCategory::APP_LOGGING, ".NET NLog logger output",
+	                 ParserPriority::HIGH) {
+	}
 
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
+	bool canParse(const std::string &content) const override {
+		return parser_.canParse(content);
+	}
 
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
+	std::vector<ValidationEvent> parse(const std::string &content) const override {
+		return parser_.parse(content);
+	}
 
 private:
-    NLogParser parser_;
+	NLogParser parser_;
 };
 
 /**
@@ -213,23 +195,21 @@ private:
  */
 class RubyLoggerParserImpl : public BaseParser {
 public:
-    RubyLoggerParserImpl()
-        : BaseParser("ruby_logger",
-                     "Ruby Logger Parser",
-                     ParserCategory::APP_LOGGING,
-                     "Ruby standard Logger output",
-                     ParserPriority::HIGH) {}
+	RubyLoggerParserImpl()
+	    : BaseParser("ruby_logger", "Ruby Logger Parser", ParserCategory::APP_LOGGING, "Ruby standard Logger output",
+	                 ParserPriority::HIGH) {
+	}
 
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
+	bool canParse(const std::string &content) const override {
+		return parser_.canParse(content);
+	}
 
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
+	std::vector<ValidationEvent> parse(const std::string &content) const override {
+		return parser_.parse(content);
+	}
 
 private:
-    RubyLoggerParser parser_;
+	RubyLoggerParser parser_;
 };
 
 /**
@@ -237,25 +217,22 @@ private:
  */
 class RailsLogParserImpl : public BaseParser {
 public:
-    RailsLogParserImpl()
-        : BaseParser("rails_log",
-                     "Rails Log Parser",
-                     ParserCategory::APP_LOGGING,
-                     "Ruby on Rails application log output",
-                     ParserPriority::HIGH) {
-        addAlias("rails");
-    }
+	RailsLogParserImpl()
+	    : BaseParser("rails_log", "Rails Log Parser", ParserCategory::APP_LOGGING,
+	                 "Ruby on Rails application log output", ParserPriority::HIGH) {
+		addAlias("rails");
+	}
 
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
+	bool canParse(const std::string &content) const override {
+		return parser_.canParse(content);
+	}
 
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
+	std::vector<ValidationEvent> parse(const std::string &content) const override {
+		return parser_.parse(content);
+	}
 
 private:
-    RailsLogParser parser_;
+	RailsLogParser parser_;
 };
 
 /**
@@ -263,21 +240,20 @@ private:
  */
 DECLARE_PARSER_CATEGORY(AppLogging);
 
-void RegisterAppLoggingParsers(ParserRegistry& registry) {
-    registry.registerParser(make_uniq<PythonLoggingParserImpl>());
-    registry.registerParser(make_uniq<Log4jParserImpl>());
-    registry.registerParser(make_uniq<LogrusParserImpl>());
-    registry.registerParser(make_uniq<WinstonParserImpl>());
-    registry.registerParser(make_uniq<PinoParserImpl>());
-    registry.registerParser(make_uniq<BunyanParserImpl>());
-    registry.registerParser(make_uniq<SerilogParserImpl>());
-    registry.registerParser(make_uniq<NLogParserImpl>());
-    registry.registerParser(make_uniq<RubyLoggerParserImpl>());
-    registry.registerParser(make_uniq<RailsLogParserImpl>());
+void RegisterAppLoggingParsers(ParserRegistry &registry) {
+	registry.registerParser(make_uniq<PythonLoggingParserImpl>());
+	registry.registerParser(make_uniq<Log4jParserImpl>());
+	registry.registerParser(make_uniq<LogrusParserImpl>());
+	registry.registerParser(make_uniq<WinstonParserImpl>());
+	registry.registerParser(make_uniq<PinoParserImpl>());
+	registry.registerParser(make_uniq<BunyanParserImpl>());
+	registry.registerParser(make_uniq<SerilogParserImpl>());
+	registry.registerParser(make_uniq<NLogParserImpl>());
+	registry.registerParser(make_uniq<RubyLoggerParserImpl>());
+	registry.registerParser(make_uniq<RailsLogParserImpl>());
 }
 
 // Auto-register this category
 REGISTER_PARSER_CATEGORY(AppLogging);
-
 
 } // namespace duckdb

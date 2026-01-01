@@ -1,6 +1,6 @@
 # name: test/sql/infrastructure.test
 # description: Test infrastructure log parsers (iptables, pf, cisco_asa, vpc_flow, kubernetes, windows_event, auditd, s3_access)
-# group: [duck_hunt]
+# group: [sql]
 
 require duck_hunt
 

@@ -31,14 +31,22 @@ namespace duckdb {
  */
 class JUnitXmlParser : public XmlParserBase {
 public:
-    bool canParse(const std::string& content) const override;
-    std::string getFormatName() const override { return "junit_xml"; }
-    std::string getName() const override { return "JUnit XML Parser"; }
-    int getPriority() const override { return 85; }  // High priority for XML detection
-    std::string getCategory() const override { return "test_framework"; }
+	bool canParse(const std::string &content) const override;
+	std::string getFormatName() const override {
+		return "junit_xml";
+	}
+	std::string getName() const override {
+		return "JUnit XML Parser";
+	}
+	int getPriority() const override {
+		return 85;
+	} // High priority for XML detection
+	std::string getCategory() const override {
+		return "test_framework";
+	}
 
 protected:
-    std::vector<ValidationEvent> parseJsonContent(const std::string& json_content) const override;
+	std::vector<ValidationEvent> parseJsonContent(const std::string &json_content) const override;
 };
 
 } // namespace duckdb

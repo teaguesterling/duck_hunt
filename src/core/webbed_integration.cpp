@@ -11,131 +11,131 @@
 namespace duckdb {
 
 bool WebbedIntegration::IsWebbedAvailable(ClientContext &context) {
-    auto entry = LookupFunction(context, "xml_to_json");
-    return entry != nullptr;
+	auto entry = LookupFunction(context, "xml_to_json");
+	return entry != nullptr;
 }
 
 bool WebbedIntegration::TryAutoLoadWebbed(ClientContext &context) {
-    // Already loaded?
-    if (IsWebbedAvailable(context)) {
-        return true;
-    }
+	// Already loaded?
+	if (IsWebbedAvailable(context)) {
+		return true;
+	}
 
-    // Try to auto-load the webbed extension
-    if (ExtensionHelper::TryAutoLoadExtension(context, "webbed")) {
-        // Verify it actually loaded by checking for the function
-        return IsWebbedAvailable(context);
-    }
+	// Try to auto-load the webbed extension
+	if (ExtensionHelper::TryAutoLoadExtension(context, "webbed")) {
+		// Verify it actually loaded by checking for the function
+		return IsWebbedAvailable(context);
+	}
 
-    return false;
+	return false;
 }
 
 std::string WebbedIntegration::XmlToJson(ClientContext &context, const std::string &xml_content) {
-    if (!IsWebbedAvailable(context)) {
-        throw InvalidInputException(GetWebbedRequiredError());
-    }
+	if (!IsWebbedAvailable(context)) {
+		throw InvalidInputException(GetWebbedRequiredError());
+	}
 
-    // Use a query to invoke the function - this is the most reliable approach
-    // We need to escape the XML content for use in a query
-    auto escaped = StringUtil::Replace(xml_content, "'", "''");
+	// Use a query to invoke the function - this is the most reliable approach
+	// We need to escape the XML content for use in a query
+	auto escaped = StringUtil::Replace(xml_content, "'", "''");
 
-    // Build and execute query
-    auto query = "SELECT xml_to_json('" + escaped + "')";
+	// Build and execute query
+	auto query = "SELECT xml_to_json('" + escaped + "')";
 
-    // Execute using the context's connection
-    auto &db = DatabaseInstance::GetDatabase(context);
-    Connection con(db);
-    auto result = con.Query(query);
+	// Execute using the context's connection
+	auto &db = DatabaseInstance::GetDatabase(context);
+	Connection con(db);
+	auto result = con.Query(query);
 
-    if (result->HasError()) {
-        throw InvalidInputException("xml_to_json failed: %s", result->GetError());
-    }
+	if (result->HasError()) {
+		throw InvalidInputException("xml_to_json failed: %s", result->GetError());
+	}
 
-    auto chunk = result->Fetch();
-    if (!chunk || chunk->size() == 0) {
-        throw InvalidInputException("xml_to_json returned no results");
-    }
+	auto chunk = result->Fetch();
+	if (!chunk || chunk->size() == 0) {
+		throw InvalidInputException("xml_to_json returned no results");
+	}
 
-    auto val = chunk->data[0].GetValue(0);
-    if (val.IsNull()) {
-        throw InvalidInputException("xml_to_json returned NULL - XML content may be invalid");
-    }
+	auto val = chunk->data[0].GetValue(0);
+	if (val.IsNull()) {
+		throw InvalidInputException("xml_to_json returned NULL - XML content may be invalid");
+	}
 
-    return val.ToString();
+	return val.ToString();
 }
 
 bool WebbedIntegration::IsValidXml(ClientContext &context, const std::string &xml_content) {
-    // If webbed is not available, we can't validate - return true and let parsing fail later
-    if (!IsWebbedAvailable(context)) {
-        return true;
-    }
+	// If webbed is not available, we can't validate - return true and let parsing fail later
+	if (!IsWebbedAvailable(context)) {
+		return true;
+	}
 
-    try {
-        auto escaped = StringUtil::Replace(xml_content, "'", "''");
-        auto query = "SELECT xml_valid('" + escaped + "')";
+	try {
+		auto escaped = StringUtil::Replace(xml_content, "'", "''");
+		auto query = "SELECT xml_valid('" + escaped + "')";
 
-        auto &db = DatabaseInstance::GetDatabase(context);
-        Connection con(db);
-        auto result = con.Query(query);
+		auto &db = DatabaseInstance::GetDatabase(context);
+		Connection con(db);
+		auto result = con.Query(query);
 
-        if (result->HasError()) {
-            return false;
-        }
+		if (result->HasError()) {
+			return false;
+		}
 
-        auto chunk = result->Fetch();
-        if (!chunk || chunk->size() == 0) {
-            return false;
-        }
+		auto chunk = result->Fetch();
+		if (!chunk || chunk->size() == 0) {
+			return false;
+		}
 
-        auto val = chunk->data[0].GetValue(0);
-        if (val.IsNull()) {
-            return false;
-        }
+		auto val = chunk->data[0].GetValue(0);
+		if (val.IsNull()) {
+			return false;
+		}
 
-        return val.GetValue<bool>();
-    } catch (...) {
-        return false;
-    }
+		return val.GetValue<bool>();
+	} catch (...) {
+		return false;
+	}
 }
 
 std::string WebbedIntegration::GetWebbedRequiredError() {
-    return "XML parsing requires the 'webbed' extension. "
-           "Install and load it with:\n"
-           "  INSTALL webbed FROM community;\n"
-           "  LOAD webbed;";
+	return "XML parsing requires the 'webbed' extension. "
+	       "Install and load it with:\n"
+	       "  INSTALL webbed FROM community;\n"
+	       "  LOAD webbed;";
 }
 
 optional_ptr<CatalogEntry> WebbedIntegration::LookupFunction(ClientContext &context, const std::string &name) {
-    try {
-        auto &catalog = Catalog::GetSystemCatalog(context);
-        auto entry = catalog.GetEntry(context, CatalogType::SCALAR_FUNCTION_ENTRY,
-                                       DEFAULT_SCHEMA, name, OnEntryNotFound::RETURN_NULL);
-        return entry;
-    } catch (...) {
-        return nullptr;
-    }
+	try {
+		auto &catalog = Catalog::GetSystemCatalog(context);
+		auto entry = catalog.GetEntry(context, CatalogType::SCALAR_FUNCTION_ENTRY, DEFAULT_SCHEMA, name,
+		                              OnEntryNotFound::RETURN_NULL);
+		return entry;
+	} catch (...) {
+		return nullptr;
+	}
 }
 
 Value WebbedIntegration::InvokeScalarFunction(ClientContext &context, const std::string &func_name,
-                                               const std::string &arg) {
-    // Use query-based invocation for reliability
-    auto escaped = StringUtil::Replace(arg, "'", "''");
-    auto query = "SELECT " + func_name + "('" + escaped + "')";
+                                              const std::string &arg) {
+	// Use query-based invocation for reliability
+	auto escaped = StringUtil::Replace(arg, "'", "''");
+	auto query = "SELECT " + func_name + "('" + escaped + "')";
 
-    auto &db = DatabaseInstance::GetDatabase(context);
-    Connection con(db);
-    auto result = con.Query(query);
+	auto &db = DatabaseInstance::GetDatabase(context);
+	Connection con(db);
+	auto result = con.Query(query);
 
-    if (result->HasError()) {
-        throw InvalidInputException("Function %s failed: %s", func_name, result->GetError());
-    }
+	if (result->HasError()) {
+		throw InvalidInputException("Function %s failed: %s", func_name, result->GetError());
+	}
 
-    auto chunk = result->Fetch();
-    if (!chunk || chunk->size() == 0) {
-        return Value();
-    }
+	auto chunk = result->Fetch();
+	if (!chunk || chunk->size() == 0) {
+		return Value();
+	}
 
-    return chunk->data[0].GetValue(0);
+	return chunk->data[0].GetValue(0);
 }
 
 } // namespace duckdb

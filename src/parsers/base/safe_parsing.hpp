@@ -41,13 +41,12 @@ constexpr size_t MAX_FILE_PATH_LENGTH = 500;
  * @param max_length Maximum line length to attempt matching (default: MAX_REGEX_LINE_LENGTH)
  * @return true if matched, false if line too long or no match
  */
-inline bool SafeRegexMatch(const std::string& line, std::smatch& match,
-                           const std::regex& pattern,
+inline bool SafeRegexMatch(const std::string &line, std::smatch &match, const std::regex &pattern,
                            size_t max_length = MAX_REGEX_LINE_LENGTH) {
-    if (line.length() > max_length) {
-        return false;
-    }
-    return std::regex_match(line, match, pattern);
+	if (line.length() > max_length) {
+		return false;
+	}
+	return std::regex_match(line, match, pattern);
 }
 
 /**
@@ -59,13 +58,12 @@ inline bool SafeRegexMatch(const std::string& line, std::smatch& match,
  * @param max_length Maximum line length to attempt searching (default: MAX_REGEX_LINE_LENGTH)
  * @return true if found, false if line too long or not found
  */
-inline bool SafeRegexSearch(const std::string& line, std::smatch& match,
-                            const std::regex& pattern,
+inline bool SafeRegexSearch(const std::string &line, std::smatch &match, const std::regex &pattern,
                             size_t max_length = MAX_REGEX_LINE_LENGTH) {
-    if (line.length() > max_length) {
-        return false;
-    }
-    return std::regex_search(line, match, pattern);
+	if (line.length() > max_length) {
+		return false;
+	}
+	return std::regex_search(line, match, pattern);
 }
 
 /**
@@ -81,73 +79,78 @@ inline bool SafeRegexSearch(const std::string& line, std::smatch& match,
  * @param column Output: the column number (-1 if not found)
  * @return true if successfully parsed file:line pattern
  */
-inline bool ParseFileLineColumn(const std::string& line, std::string& file,
-                                 int& line_num, int& column) {
-    line_num = -1;
-    column = -1;
-    file.clear();
+inline bool ParseFileLineColumn(const std::string &line, std::string &file, int &line_num, int &column) {
+	line_num = -1;
+	column = -1;
+	file.clear();
 
-    if (line.empty()) return false;
+	if (line.empty())
+		return false;
 
-    // For very long lines, only check the first portion for file:line pattern
-    size_t search_limit = std::min(line.length(), MAX_FILE_PATH_LENGTH + 20);
+	// For very long lines, only check the first portion for file:line pattern
+	size_t search_limit = std::min(line.length(), MAX_FILE_PATH_LENGTH + 20);
 
-    // Find first colon that's followed by a digit (start of line number)
-    // Handle Windows paths like C:\path by skipping single-char drive letters
-    size_t pos1 = 0;
-    while (pos1 < search_limit) {
-        pos1 = line.find(':', pos1);
-        if (pos1 == std::string::npos || pos1 == 0) return false;
+	// Find first colon that's followed by a digit (start of line number)
+	// Handle Windows paths like C:\path by skipping single-char drive letters
+	size_t pos1 = 0;
+	while (pos1 < search_limit) {
+		pos1 = line.find(':', pos1);
+		if (pos1 == std::string::npos || pos1 == 0)
+			return false;
 
-        // Skip Windows drive letters (single char before colon)
-        if (pos1 == 1 && std::isalpha(line[0])) {
-            pos1++;
-            continue;
-        }
+		// Skip Windows drive letters (single char before colon)
+		if (pos1 == 1 && std::isalpha(line[0])) {
+			pos1++;
+			continue;
+		}
 
-        // Check if followed by digit
-        if (pos1 + 1 < line.length() && std::isdigit(line[pos1 + 1])) {
-            break;
-        }
-        pos1++;
-    }
+		// Check if followed by digit
+		if (pos1 + 1 < line.length() && std::isdigit(line[pos1 + 1])) {
+			break;
+		}
+		pos1++;
+	}
 
-    if (pos1 >= search_limit) return false;
+	if (pos1 >= search_limit)
+		return false;
 
-    // Extract file path
-    file = line.substr(0, pos1);
-    if (file.length() > MAX_FILE_PATH_LENGTH) return false;
+	// Extract file path
+	file = line.substr(0, pos1);
+	if (file.length() > MAX_FILE_PATH_LENGTH)
+		return false;
 
-    // Find end of line number
-    size_t pos2 = line.find(':', pos1 + 1);
-    if (pos2 == std::string::npos) return false;
+	// Find end of line number
+	size_t pos2 = line.find(':', pos1 + 1);
+	if (pos2 == std::string::npos)
+		return false;
 
-    // Extract and validate line number
-    std::string line_str = line.substr(pos1 + 1, pos2 - pos1 - 1);
-    if (line_str.empty() || !std::isdigit(line_str[0])) return false;
+	// Extract and validate line number
+	std::string line_str = line.substr(pos1 + 1, pos2 - pos1 - 1);
+	if (line_str.empty() || !std::isdigit(line_str[0]))
+		return false;
 
-    try {
-        line_num = std::stoi(line_str);
-    } catch (...) {
-        return false;
-    }
+	try {
+		line_num = std::stoi(line_str);
+	} catch (...) {
+		return false;
+	}
 
-    // Try to extract column (optional)
-    if (pos2 + 1 < line.length() && std::isdigit(line[pos2 + 1])) {
-        size_t pos3 = line.find(':', pos2 + 1);
-        if (pos3 != std::string::npos) {
-            std::string col_str = line.substr(pos2 + 1, pos3 - pos2 - 1);
-            if (!col_str.empty() && std::isdigit(col_str[0])) {
-                try {
-                    column = std::stoi(col_str);
-                } catch (...) {
-                    column = -1;
-                }
-            }
-        }
-    }
+	// Try to extract column (optional)
+	if (pos2 + 1 < line.length() && std::isdigit(line[pos2 + 1])) {
+		size_t pos3 = line.find(':', pos2 + 1);
+		if (pos3 != std::string::npos) {
+			std::string col_str = line.substr(pos2 + 1, pos3 - pos2 - 1);
+			if (!col_str.empty() && std::isdigit(col_str[0])) {
+				try {
+					column = std::stoi(col_str);
+				} catch (...) {
+					column = -1;
+				}
+			}
+		}
+	}
 
-    return true;
+	return true;
 }
 
 /**
@@ -162,44 +165,45 @@ inline bool ParseFileLineColumn(const std::string& line, std::string& file,
  * @param message Output: the error/warning message
  * @return true if successfully parsed
  */
-inline bool ParseCompilerDiagnostic(const std::string& line, std::string& file,
-                                     int& line_num, int& column,
-                                     std::string& severity, std::string& message) {
-    // First parse file:line:column
-    if (!ParseFileLineColumn(line, file, line_num, column)) {
-        return false;
-    }
+inline bool ParseCompilerDiagnostic(const std::string &line, std::string &file, int &line_num, int &column,
+                                    std::string &severity, std::string &message) {
+	// First parse file:line:column
+	if (!ParseFileLineColumn(line, file, line_num, column)) {
+		return false;
+	}
 
-    // Find severity marker
-    size_t sev_pos = line.find(" error:");
-    if (sev_pos == std::string::npos) sev_pos = line.find(" warning:");
-    if (sev_pos == std::string::npos) sev_pos = line.find(" note:");
-    if (sev_pos == std::string::npos) return false;
+	// Find severity marker
+	size_t sev_pos = line.find(" error:");
+	if (sev_pos == std::string::npos)
+		sev_pos = line.find(" warning:");
+	if (sev_pos == std::string::npos)
+		sev_pos = line.find(" note:");
+	if (sev_pos == std::string::npos)
+		return false;
 
-    // Determine severity
-    if (line.find(" error:") != std::string::npos &&
-        line.find(" error:") == sev_pos) {
-        severity = "error";
-    } else if (line.find(" warning:") != std::string::npos &&
-               line.find(" warning:") == sev_pos) {
-        severity = "warning";
-    } else {
-        severity = "note";
-    }
+	// Determine severity
+	if (line.find(" error:") != std::string::npos && line.find(" error:") == sev_pos) {
+		severity = "error";
+	} else if (line.find(" warning:") != std::string::npos && line.find(" warning:") == sev_pos) {
+		severity = "warning";
+	} else {
+		severity = "note";
+	}
 
-    // Extract message (everything after "severity: ")
-    size_t msg_start = line.find(':', sev_pos + 1);
-    if (msg_start == std::string::npos) return false;
+	// Extract message (everything after "severity: ")
+	size_t msg_start = line.find(':', sev_pos + 1);
+	if (msg_start == std::string::npos)
+		return false;
 
-    message = line.substr(msg_start + 1);
+	message = line.substr(msg_start + 1);
 
-    // Trim leading whitespace
-    size_t content_start = message.find_first_not_of(" \t");
-    if (content_start != std::string::npos && content_start > 0) {
-        message = message.substr(content_start);
-    }
+	// Trim leading whitespace
+	size_t content_start = message.find_first_not_of(" \t");
+	if (content_start != std::string::npos && content_start > 0) {
+		message = message.substr(content_start);
+	}
 
-    return true;
+	return true;
 }
 
 /**
@@ -213,24 +217,23 @@ inline bool ParseCompilerDiagnostic(const std::string& line, std::string& file,
  *
  * If your pattern matches any of these, use string parsing instead.
  */
-inline bool HasPotentialBacktracking(const std::string& pattern) {
-    // Check for [^x]+ or [^x]* patterns (common cause of backtracking)
-    if (pattern.find("[^") != std::string::npos &&
-        (pattern.find("]+") != std::string::npos || pattern.find("]*") != std::string::npos)) {
-        return true;
-    }
-    // Check for nested quantifiers
-    if (pattern.find(")+)") != std::string::npos ||
-        pattern.find(")*)*") != std::string::npos ||
-        pattern.find("+)+") != std::string::npos) {
-        return true;
-    }
-    // Check for .* followed by more patterns
-    size_t dotstar = pattern.find(".*");
-    if (dotstar != std::string::npos && dotstar < pattern.length() - 2) {
-        return true;
-    }
-    return false;
+inline bool HasPotentialBacktracking(const std::string &pattern) {
+	// Check for [^x]+ or [^x]* patterns (common cause of backtracking)
+	if (pattern.find("[^") != std::string::npos &&
+	    (pattern.find("]+") != std::string::npos || pattern.find("]*") != std::string::npos)) {
+		return true;
+	}
+	// Check for nested quantifiers
+	if (pattern.find(")+)") != std::string::npos || pattern.find(")*)*") != std::string::npos ||
+	    pattern.find("+)+") != std::string::npos) {
+		return true;
+	}
+	// Check for .* followed by more patterns
+	size_t dotstar = pattern.find(".*");
+	if (dotstar != std::string::npos && dotstar < pattern.length() - 2) {
+		return true;
+	}
+	return false;
 }
 
 /**
@@ -239,52 +242,56 @@ inline bool HasPotentialBacktracking(const std::string& pattern) {
  */
 class SafeLineReader {
 public:
-    explicit SafeLineReader(const std::string& content,
-                            size_t max_line_length = MAX_REGEX_LINE_LENGTH)
-        : stream_(content), max_length_(max_line_length), line_number_(0) {}
+	explicit SafeLineReader(const std::string &content, size_t max_line_length = MAX_REGEX_LINE_LENGTH)
+	    : stream_(content), max_length_(max_line_length), line_number_(0) {
+	}
 
-    /**
-     * Read the next line. Long lines are truncated with "..." suffix.
-     * @param line Output: the next line (possibly truncated)
-     * @return true if a line was read, false at end of input
-     */
-    bool getLine(std::string& line) {
-        if (!std::getline(stream_, line)) {
-            return false;
-        }
-        line_number_++;
+	/**
+	 * Read the next line. Long lines are truncated with "..." suffix.
+	 * @param line Output: the next line (possibly truncated)
+	 * @return true if a line was read, false at end of input
+	 */
+	bool getLine(std::string &line) {
+		if (!std::getline(stream_, line)) {
+			return false;
+		}
+		line_number_++;
 
-        // Remove trailing CR if present (Windows line endings)
-        if (!line.empty() && line.back() == '\r') {
-            line.pop_back();
-        }
+		// Remove trailing CR if present (Windows line endings)
+		if (!line.empty() && line.back() == '\r') {
+			line.pop_back();
+		}
 
-        // Truncate if too long
-        if (line.length() > max_length_) {
-            line = line.substr(0, max_length_ - 3) + "...";
-            was_truncated_ = true;
-        } else {
-            was_truncated_ = false;
-        }
+		// Truncate if too long
+		if (line.length() > max_length_) {
+			line = line.substr(0, max_length_ - 3) + "...";
+			was_truncated_ = true;
+		} else {
+			was_truncated_ = false;
+		}
 
-        return true;
-    }
+		return true;
+	}
 
-    /**
-     * Get the current line number (1-based).
-     */
-    int lineNumber() const { return line_number_; }
+	/**
+	 * Get the current line number (1-based).
+	 */
+	int lineNumber() const {
+		return line_number_;
+	}
 
-    /**
-     * Check if the last line was truncated.
-     */
-    bool wasTruncated() const { return was_truncated_; }
+	/**
+	 * Check if the last line was truncated.
+	 */
+	bool wasTruncated() const {
+		return was_truncated_;
+	}
 
 private:
-    std::istringstream stream_;
-    size_t max_length_;
-    int line_number_;
-    bool was_truncated_ = false;
+	std::istringstream stream_;
+	size_t max_length_;
+	int line_number_;
+	bool was_truncated_ = false;
 };
 
 } // namespace SafeParsing

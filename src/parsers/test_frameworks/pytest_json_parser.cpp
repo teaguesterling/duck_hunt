@@ -5,217 +5,220 @@ namespace duckdb {
 
 using namespace duckdb_yyjson;
 
-bool PytestJSONParser::canParse(const std::string& content) const {
-    // Look for pytest JSON structure
-    if (content.find("\"tests\"") == std::string::npos ||
-        content.find("\"nodeid\"") == std::string::npos) {
-        return false;
-    }
-    
-    return isValidPytestJSON(content);
+bool PytestJSONParser::canParse(const std::string &content) const {
+	// Look for pytest JSON structure
+	if (content.find("\"tests\"") == std::string::npos || content.find("\"nodeid\"") == std::string::npos) {
+		return false;
+	}
+
+	return isValidPytestJSON(content);
 }
 
-bool PytestJSONParser::isValidPytestJSON(const std::string& content) const {
-    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
-    if (!doc) {
-        return false;
-    }
-    
-    yyjson_val *root = yyjson_doc_get_root(doc);
-    bool is_valid = false;
-    
-    if (yyjson_is_obj(root)) {
-        yyjson_val *tests = yyjson_obj_get(root, "tests");
-        if (tests && yyjson_is_arr(tests)) {
-            // Check if first test has pytest structure
-            size_t arr_size = yyjson_arr_size(tests);
-            if (arr_size > 0) {
-                yyjson_val *first_test = yyjson_arr_get_first(tests);
-                if (yyjson_is_obj(first_test)) {
-                    yyjson_val *nodeid = yyjson_obj_get(first_test, "nodeid");
-                    yyjson_val *outcome = yyjson_obj_get(first_test, "outcome");
-                    
-                    is_valid = (nodeid && yyjson_is_str(nodeid)) &&
-                              (outcome && yyjson_is_str(outcome));
-                }
-            } else {
-                // Empty tests array is valid pytest output
-                is_valid = true;
-            }
-        }
-    }
-    
-    yyjson_doc_free(doc);
-    return is_valid;
+bool PytestJSONParser::isValidPytestJSON(const std::string &content) const {
+	yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
+	if (!doc) {
+		return false;
+	}
+
+	yyjson_val *root = yyjson_doc_get_root(doc);
+	bool is_valid = false;
+
+	if (yyjson_is_obj(root)) {
+		yyjson_val *tests = yyjson_obj_get(root, "tests");
+		if (tests && yyjson_is_arr(tests)) {
+			// Check if first test has pytest structure
+			size_t arr_size = yyjson_arr_size(tests);
+			if (arr_size > 0) {
+				yyjson_val *first_test = yyjson_arr_get_first(tests);
+				if (yyjson_is_obj(first_test)) {
+					yyjson_val *nodeid = yyjson_obj_get(first_test, "nodeid");
+					yyjson_val *outcome = yyjson_obj_get(first_test, "outcome");
+
+					is_valid = (nodeid && yyjson_is_str(nodeid)) && (outcome && yyjson_is_str(outcome));
+				}
+			} else {
+				// Empty tests array is valid pytest output
+				is_valid = true;
+			}
+		}
+	}
+
+	yyjson_doc_free(doc);
+	return is_valid;
 }
 
-std::vector<ValidationEvent> PytestJSONParser::parse(const std::string& content) const {
-    std::vector<ValidationEvent> events;
-    
-    // Parse JSON using yyjson
-    yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
-    if (!doc) {
-        throw IOException("Failed to parse pytest JSON");
-    }
-    
-    yyjson_val *root = yyjson_doc_get_root(doc);
-    if (!yyjson_is_obj(root)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid pytest JSON: root is not an object");
-    }
-    
-    // Get tests array
-    yyjson_val *tests = yyjson_obj_get(root, "tests");
-    if (!tests || !yyjson_is_arr(tests)) {
-        yyjson_doc_free(doc);
-        throw IOException("Invalid pytest JSON: no tests array found");
-    }
-    
-    // Parse each test
-    size_t idx, max;
-    yyjson_val *test;
-    int64_t event_id = 1;
-    
-    yyjson_arr_foreach(tests, idx, max, test) {
-        if (!yyjson_is_obj(test)) continue;
-        
-        ValidationEvent event;
-        event.event_id = event_id++;
-        event.tool_name = "pytest";
-        event.event_type = ValidationEventType::TEST_RESULT;
-        event.ref_line = -1;
-        event.ref_column = -1;
-        event.execution_time = 0.0;
-        
-        // Extract nodeid (test name with file path)
-        yyjson_val *nodeid = yyjson_obj_get(test, "nodeid");
-        if (nodeid && yyjson_is_str(nodeid)) {
-            std::string nodeid_str = yyjson_get_str(nodeid);
-            
-            // Parse nodeid format: "file.py::test_function"
-            size_t separator = nodeid_str.find("::");
-            if (separator != std::string::npos) {
-                event.ref_file = nodeid_str.substr(0, separator);
-                event.test_name = nodeid_str.substr(separator + 2);
-                event.function_name = event.test_name;
-            } else {
-                event.test_name = nodeid_str;
-                event.function_name = nodeid_str;
-            }
-        }
-        
-        // Extract outcome
-        yyjson_val *outcome = yyjson_obj_get(test, "outcome");
-        if (outcome && yyjson_is_str(outcome)) {
-            std::string outcome_str = yyjson_get_str(outcome);
-            event.status = StringToValidationEventStatus(outcome_str);
-        } else {
-            event.status = ValidationEventStatus::ERROR;
-        }
-        
-        // Extract duration - check top level first, then inside call object
-        yyjson_val *duration = yyjson_obj_get(test, "duration");
-        if (duration && yyjson_is_num(duration)) {
-            event.execution_time = yyjson_get_real(duration);
-        }
+std::vector<ValidationEvent> PytestJSONParser::parse(const std::string &content) const {
+	std::vector<ValidationEvent> events;
 
-        // Extract longrepr (error message) - check top level first
-        yyjson_val *longrepr = yyjson_obj_get(test, "longrepr");
-        if (longrepr && yyjson_is_str(longrepr)) {
-            event.message = yyjson_get_str(longrepr);
-        }
+	// Parse JSON using yyjson
+	yyjson_doc *doc = yyjson_read(content.c_str(), content.length(), 0);
+	if (!doc) {
+		throw IOException("Failed to parse pytest JSON");
+	}
 
-        // Also check inside call object (pytest-json-report format)
-        yyjson_val *call = yyjson_obj_get(test, "call");
-        if (call && yyjson_is_obj(call)) {
-            // Duration from call (if not already set)
-            if (event.execution_time == 0.0) {
-                yyjson_val *call_duration = yyjson_obj_get(call, "duration");
-                if (call_duration && yyjson_is_num(call_duration)) {
-                    event.execution_time = yyjson_get_real(call_duration);
-                }
-            }
+	yyjson_val *root = yyjson_doc_get_root(doc);
+	if (!yyjson_is_obj(root)) {
+		yyjson_doc_free(doc);
+		throw IOException("Invalid pytest JSON: root is not an object");
+	}
 
-            // Longrepr from call (if not already set)
-            if (event.message.empty()) {
-                yyjson_val *call_longrepr = yyjson_obj_get(call, "longrepr");
-                if (call_longrepr && yyjson_is_str(call_longrepr)) {
-                    event.message = yyjson_get_str(call_longrepr);
-                }
-            }
-        }
-        
-        // Set category and severity based on status
-        switch (event.status) {
-            case ValidationEventStatus::PASS:
-                event.category = "test_success";
-                event.severity = "info";
-                if (event.message.empty()) event.message = "Test passed";
-                break;
-            case ValidationEventStatus::FAIL:
-                event.category = "test_failure";
-                event.severity = "error";
-                if (event.message.empty()) event.message = "Test failed";
-                break;
-            case ValidationEventStatus::SKIP:
-                event.category = "test_skipped";
-                event.severity = "warning";
-                if (event.message.empty()) event.message = "Test skipped";
-                break;
-            default:
-                event.category = "test_error";
-                event.severity = "error";
-                if (event.message.empty()) event.message = "Test error";
-                break;
-        }
-        
-        events.push_back(event);
-    }
+	// Get tests array
+	yyjson_val *tests = yyjson_obj_get(root, "tests");
+	if (!tests || !yyjson_is_arr(tests)) {
+		yyjson_doc_free(doc);
+		throw IOException("Invalid pytest JSON: no tests array found");
+	}
 
-    // Check for summary object and add summary event
-    yyjson_val *summary_obj = yyjson_obj_get(root, "summary");
-    if (summary_obj && yyjson_is_obj(summary_obj)) {
-        ValidationEvent summary;
-        summary.event_id = event_id++;
-        summary.event_type = ValidationEventType::SUMMARY;
-        summary.tool_name = "pytest";
-        summary.category = "test_summary";
-        summary.ref_file = "";
-        summary.ref_line = -1;
-        summary.ref_column = -1;
-        summary.execution_time = 0.0;
+	// Parse each test
+	size_t idx, max;
+	yyjson_val *test;
+	int64_t event_id = 1;
 
-        int passed = 0, failed = 0, skipped = 0;
+	yyjson_arr_foreach(tests, idx, max, test) {
+		if (!yyjson_is_obj(test))
+			continue;
 
-        yyjson_val *v;
-        if ((v = yyjson_obj_get(summary_obj, "passed")) && yyjson_is_int(v))
-            passed = yyjson_get_int(v);
-        if ((v = yyjson_obj_get(summary_obj, "failed")) && yyjson_is_int(v))
-            failed = yyjson_get_int(v);
-        if ((v = yyjson_obj_get(summary_obj, "skipped")) && yyjson_is_int(v))
-            skipped = yyjson_get_int(v);
+		ValidationEvent event;
+		event.event_id = event_id++;
+		event.tool_name = "pytest";
+		event.event_type = ValidationEventType::TEST_RESULT;
+		event.ref_line = -1;
+		event.ref_column = -1;
+		event.execution_time = 0.0;
 
-        // Check for duration at root level
-        if ((v = yyjson_obj_get(root, "duration")) && yyjson_is_num(v))
-            summary.execution_time = yyjson_get_real(v);
+		// Extract nodeid (test name with file path)
+		yyjson_val *nodeid = yyjson_obj_get(test, "nodeid");
+		if (nodeid && yyjson_is_str(nodeid)) {
+			std::string nodeid_str = yyjson_get_str(nodeid);
 
-        summary.status = (failed > 0) ? ValidationEventStatus::ERROR : ValidationEventStatus::INFO;
-        summary.severity = (failed > 0) ? "error" : "info";
+			// Parse nodeid format: "file.py::test_function"
+			size_t separator = nodeid_str.find("::");
+			if (separator != std::string::npos) {
+				event.ref_file = nodeid_str.substr(0, separator);
+				event.test_name = nodeid_str.substr(separator + 2);
+				event.function_name = event.test_name;
+			} else {
+				event.test_name = nodeid_str;
+				event.function_name = nodeid_str;
+			}
+		}
 
-        summary.message = std::to_string(passed) + " passed";
-        if (failed > 0) summary.message += ", " + std::to_string(failed) + " failed";
-        if (skipped > 0) summary.message += ", " + std::to_string(skipped) + " skipped";
+		// Extract outcome
+		yyjson_val *outcome = yyjson_obj_get(test, "outcome");
+		if (outcome && yyjson_is_str(outcome)) {
+			std::string outcome_str = yyjson_get_str(outcome);
+			event.status = StringToValidationEventStatus(outcome_str);
+		} else {
+			event.status = ValidationEventStatus::ERROR;
+		}
 
-        summary.structured_data = "{\"passed\":" + std::to_string(passed) +
-                                  ",\"failed\":" + std::to_string(failed) +
-                                  ",\"skipped\":" + std::to_string(skipped) + "}";
+		// Extract duration - check top level first, then inside call object
+		yyjson_val *duration = yyjson_obj_get(test, "duration");
+		if (duration && yyjson_is_num(duration)) {
+			event.execution_time = yyjson_get_real(duration);
+		}
 
-        events.push_back(summary);
-    }
+		// Extract longrepr (error message) - check top level first
+		yyjson_val *longrepr = yyjson_obj_get(test, "longrepr");
+		if (longrepr && yyjson_is_str(longrepr)) {
+			event.message = yyjson_get_str(longrepr);
+		}
 
-    yyjson_doc_free(doc);
-    return events;
+		// Also check inside call object (pytest-json-report format)
+		yyjson_val *call = yyjson_obj_get(test, "call");
+		if (call && yyjson_is_obj(call)) {
+			// Duration from call (if not already set)
+			if (event.execution_time == 0.0) {
+				yyjson_val *call_duration = yyjson_obj_get(call, "duration");
+				if (call_duration && yyjson_is_num(call_duration)) {
+					event.execution_time = yyjson_get_real(call_duration);
+				}
+			}
+
+			// Longrepr from call (if not already set)
+			if (event.message.empty()) {
+				yyjson_val *call_longrepr = yyjson_obj_get(call, "longrepr");
+				if (call_longrepr && yyjson_is_str(call_longrepr)) {
+					event.message = yyjson_get_str(call_longrepr);
+				}
+			}
+		}
+
+		// Set category and severity based on status
+		switch (event.status) {
+		case ValidationEventStatus::PASS:
+			event.category = "test_success";
+			event.severity = "info";
+			if (event.message.empty())
+				event.message = "Test passed";
+			break;
+		case ValidationEventStatus::FAIL:
+			event.category = "test_failure";
+			event.severity = "error";
+			if (event.message.empty())
+				event.message = "Test failed";
+			break;
+		case ValidationEventStatus::SKIP:
+			event.category = "test_skipped";
+			event.severity = "warning";
+			if (event.message.empty())
+				event.message = "Test skipped";
+			break;
+		default:
+			event.category = "test_error";
+			event.severity = "error";
+			if (event.message.empty())
+				event.message = "Test error";
+			break;
+		}
+
+		events.push_back(event);
+	}
+
+	// Check for summary object and add summary event
+	yyjson_val *summary_obj = yyjson_obj_get(root, "summary");
+	if (summary_obj && yyjson_is_obj(summary_obj)) {
+		ValidationEvent summary;
+		summary.event_id = event_id++;
+		summary.event_type = ValidationEventType::SUMMARY;
+		summary.tool_name = "pytest";
+		summary.category = "test_summary";
+		summary.ref_file = "";
+		summary.ref_line = -1;
+		summary.ref_column = -1;
+		summary.execution_time = 0.0;
+
+		int passed = 0, failed = 0, skipped = 0;
+
+		yyjson_val *v;
+		if ((v = yyjson_obj_get(summary_obj, "passed")) && yyjson_is_int(v))
+			passed = yyjson_get_int(v);
+		if ((v = yyjson_obj_get(summary_obj, "failed")) && yyjson_is_int(v))
+			failed = yyjson_get_int(v);
+		if ((v = yyjson_obj_get(summary_obj, "skipped")) && yyjson_is_int(v))
+			skipped = yyjson_get_int(v);
+
+		// Check for duration at root level
+		if ((v = yyjson_obj_get(root, "duration")) && yyjson_is_num(v))
+			summary.execution_time = yyjson_get_real(v);
+
+		summary.status = (failed > 0) ? ValidationEventStatus::ERROR : ValidationEventStatus::INFO;
+		summary.severity = (failed > 0) ? "error" : "info";
+
+		summary.message = std::to_string(passed) + " passed";
+		if (failed > 0)
+			summary.message += ", " + std::to_string(failed) + " failed";
+		if (skipped > 0)
+			summary.message += ", " + std::to_string(skipped) + " skipped";
+
+		summary.structured_data = "{\"passed\":" + std::to_string(passed) + ",\"failed\":" + std::to_string(failed) +
+		                          ",\"skipped\":" + std::to_string(skipped) + "}";
+
+		events.push_back(summary);
+	}
+
+	yyjson_doc_free(doc);
+	return events;
 }
-
 
 } // namespace duckdb

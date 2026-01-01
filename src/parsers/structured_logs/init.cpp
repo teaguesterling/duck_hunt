@@ -3,7 +3,6 @@
 #include "jsonl_parser.hpp"
 #include "logfmt_parser.hpp"
 
-
 namespace duckdb {
 
 /**
@@ -11,26 +10,23 @@ namespace duckdb {
  */
 class JSONLParserImpl : public BaseParser {
 public:
-    JSONLParserImpl()
-        : BaseParser("jsonl",
-                     "JSONL Parser",
-                     ParserCategory::STRUCTURED_LOG,
-                     "JSON Lines (JSONL/NDJSON) log format",
-                     ParserPriority::MEDIUM) {  // Generic format - lower priority than specific JSON loggers
-        addAlias("ndjson");
-        addAlias("json_lines");
-    }
+	JSONLParserImpl()
+	    : BaseParser("jsonl", "JSONL Parser", ParserCategory::STRUCTURED_LOG, "JSON Lines (JSONL/NDJSON) log format",
+	                 ParserPriority::MEDIUM) { // Generic format - lower priority than specific JSON loggers
+		addAlias("ndjson");
+		addAlias("json_lines");
+	}
 
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
+	bool canParse(const std::string &content) const override {
+		return parser_.canParse(content);
+	}
 
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
+	std::vector<ValidationEvent> parse(const std::string &content) const override {
+		return parser_.parse(content);
+	}
 
 private:
-    JSONLParser parser_;
+	JSONLParser parser_;
 };
 
 /**
@@ -38,23 +34,21 @@ private:
  */
 class LogfmtParserImpl : public BaseParser {
 public:
-    LogfmtParserImpl()
-        : BaseParser("logfmt",
-                     "Logfmt Parser",
-                     ParserCategory::STRUCTURED_LOG,
-                     "Logfmt key=value log format",
-                     ParserPriority::MEDIUM) {}  // Generic format - lower priority than specific logfmt loggers
+	LogfmtParserImpl()
+	    : BaseParser("logfmt", "Logfmt Parser", ParserCategory::STRUCTURED_LOG, "Logfmt key=value log format",
+	                 ParserPriority::MEDIUM) {
+	} // Generic format - lower priority than specific logfmt loggers
 
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
+	bool canParse(const std::string &content) const override {
+		return parser_.canParse(content);
+	}
 
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
+	std::vector<ValidationEvent> parse(const std::string &content) const override {
+		return parser_.parse(content);
+	}
 
 private:
-    LogfmtParser parser_;
+	LogfmtParser parser_;
 };
 
 /**
@@ -62,13 +56,12 @@ private:
  */
 DECLARE_PARSER_CATEGORY(StructuredLogs);
 
-void RegisterStructuredLogsParsers(ParserRegistry& registry) {
-    registry.registerParser(make_uniq<JSONLParserImpl>());
-    registry.registerParser(make_uniq<LogfmtParserImpl>());
+void RegisterStructuredLogsParsers(ParserRegistry &registry) {
+	registry.registerParser(make_uniq<JSONLParserImpl>());
+	registry.registerParser(make_uniq<LogfmtParserImpl>());
 }
 
 // Auto-register this category
 REGISTER_PARSER_CATEGORY(StructuredLogs);
-
 
 } // namespace duckdb

@@ -2,7 +2,6 @@
 #include "parsers/base/base_parser.hpp"
 #include "ansible_text_parser.hpp"
 
-
 namespace duckdb {
 
 /**
@@ -10,25 +9,22 @@ namespace duckdb {
  */
 class AnsibleParserImpl : public BaseParser {
 public:
-    AnsibleParserImpl()
-        : BaseParser("ansible_text",
-                     "Ansible Parser",
-                     ParserCategory::CI_SYSTEM,
-                     "Ansible playbook output",
-                     ParserPriority::HIGH) {
-        addAlias("ansible");
-    }
+	AnsibleParserImpl()
+	    : BaseParser("ansible_text", "Ansible Parser", ParserCategory::CI_SYSTEM, "Ansible playbook output",
+	                 ParserPriority::HIGH) {
+		addAlias("ansible");
+	}
 
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
+	bool canParse(const std::string &content) const override {
+		return parser_.canParse(content);
+	}
 
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
+	std::vector<ValidationEvent> parse(const std::string &content) const override {
+		return parser_.parse(content);
+	}
 
 private:
-    AnsibleTextParser parser_;
+	AnsibleTextParser parser_;
 };
 
 /**
@@ -36,12 +32,11 @@ private:
  */
 DECLARE_PARSER_CATEGORY(InfrastructureTools);
 
-void RegisterInfrastructureToolsParsers(ParserRegistry& registry) {
-    registry.registerParser(make_uniq<AnsibleParserImpl>());
+void RegisterInfrastructureToolsParsers(ParserRegistry &registry) {
+	registry.registerParser(make_uniq<AnsibleParserImpl>());
 }
 
 // Auto-register this category
 REGISTER_PARSER_CATEGORY(InfrastructureTools);
-
 
 } // namespace duckdb

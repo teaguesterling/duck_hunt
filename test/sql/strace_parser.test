@@ -1,6 +1,6 @@
 # name: test/sql/strace_parser.test
 # description: Test strace log parsing functionality
-# group: [strace]
+# group: [sql]
 
 require duck_hunt
 

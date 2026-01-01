@@ -11,15 +11,23 @@ namespace duckdb {
  */
 class MypyParser : public IParser {
 public:
-    bool canParse(const std::string& content) const override;
-    std::vector<ValidationEvent> parse(const std::string& content) const override;
-    std::string getFormatName() const override { return "mypy_text"; }
-    std::string getName() const override { return "mypy"; }
-    int getPriority() const override { return 80; }  // Lower priority than clang-tidy to avoid conflicts
-    std::string getCategory() const override { return "linting_tool"; }
+	bool canParse(const std::string &content) const override;
+	std::vector<ValidationEvent> parse(const std::string &content) const override;
+	std::string getFormatName() const override {
+		return "mypy_text";
+	}
+	std::string getName() const override {
+		return "mypy";
+	}
+	int getPriority() const override {
+		return 80;
+	} // Lower priority than clang-tidy to avoid conflicts
+	std::string getCategory() const override {
+		return "linting_tool";
+	}
 
 private:
-    bool isValidMypyOutput(const std::string& content) const;
+	bool isValidMypyOutput(const std::string &content) const;
 };
 
 } // namespace duckdb

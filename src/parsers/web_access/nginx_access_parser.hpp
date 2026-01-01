@@ -25,12 +25,20 @@ namespace duckdb {
  */
 class NginxAccessParser : public IParser {
 public:
-    bool canParse(const std::string& content) const override;
-    std::vector<ValidationEvent> parse(const std::string& content) const override;
-    std::string getFormatName() const override { return "nginx_access"; }
-    std::string getName() const override { return "nginx_access"; }
-    int getPriority() const override { return 54; }
-    std::string getCategory() const override { return "web_access"; }
+	bool canParse(const std::string &content) const override;
+	std::vector<ValidationEvent> parse(const std::string &content) const override;
+	std::string getFormatName() const override {
+		return "nginx_access";
+	}
+	std::string getName() const override {
+		return "nginx_access";
+	}
+	int getPriority() const override {
+		return 54;
+	}
+	std::string getCategory() const override {
+		return "web_access";
+	}
 };
 
 } // namespace duckdb

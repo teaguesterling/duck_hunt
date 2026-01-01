@@ -18,11 +18,11 @@ using ParserPtr = unique_ptr<IParser>;
  * Parser metadata for the formats table function.
  */
 struct ParserInfo {
-    std::string format_name;
-    std::string description;
-    std::string category;
-    std::string required_extension;
-    int priority;
+	std::string format_name;
+	std::string description;
+	std::string category;
+	std::string required_extension;
+	int priority;
 };
 
 /**
@@ -31,73 +31,73 @@ struct ParserInfo {
  */
 class ParserRegistry {
 public:
-    /**
-     * Register a parser. The format name and aliases become lookup keys.
-     */
-    void registerParser(ParserPtr parser);
+	/**
+	 * Register a parser. The format name and aliases become lookup keys.
+	 */
+	void registerParser(ParserPtr parser);
 
-    /**
-     * Find parser by format name (or alias).
-     */
-    IParser* getParser(const std::string& format_name) const;
+	/**
+	 * Find parser by format name (or alias).
+	 */
+	IParser *getParser(const std::string &format_name) const;
 
-    /**
-     * Auto-detect: find the best parser for content.
-     */
-    IParser* findParser(const std::string& content) const;
+	/**
+	 * Auto-detect: find the best parser for content.
+	 */
+	IParser *findParser(const std::string &content) const;
 
-    /**
-     * Get all parsers in a category (sorted by priority).
-     */
-    std::vector<IParser*> getParsersByCategory(const std::string& category) const;
+	/**
+	 * Get all parsers in a category (sorted by priority).
+	 */
+	std::vector<IParser *> getParsersByCategory(const std::string &category) const;
 
-    /**
-     * Get all registered format names (for formats table function).
-     */
-    std::vector<ParserInfo> getAllFormats() const;
+	/**
+	 * Get all registered format names (for formats table function).
+	 */
+	std::vector<ParserInfo> getAllFormats() const;
 
-    /**
-     * Get all unique categories.
-     */
-    std::vector<std::string> getCategories() const;
+	/**
+	 * Get all unique categories.
+	 */
+	std::vector<std::string> getCategories() const;
 
-    /**
-     * Check if a format is registered.
-     */
-    bool hasFormat(const std::string& format_name) const;
+	/**
+	 * Check if a format is registered.
+	 */
+	bool hasFormat(const std::string &format_name) const;
 
-    /**
-     * Get singleton instance.
-     */
-    static ParserRegistry& getInstance();
+	/**
+	 * Get singleton instance.
+	 */
+	static ParserRegistry &getInstance();
 
-    /**
-     * Clear registry (for testing).
-     */
-    void clear();
+	/**
+	 * Clear registry (for testing).
+	 */
+	void clear();
 
 private:
-    ParserRegistry() = default;
+	ParserRegistry() = default;
 
-    std::vector<ParserPtr> parsers_;
-    std::unordered_map<std::string, IParser*> format_map_;  // format_name -> parser
-    mutable std::vector<IParser*> sorted_parsers_;
-    mutable bool needs_resort_ = false;
+	std::vector<ParserPtr> parsers_;
+	std::unordered_map<std::string, IParser *> format_map_; // format_name -> parser
+	mutable std::vector<IParser *> sorted_parsers_;
+	mutable bool needs_resort_ = false;
 
-    void ensureSorted() const;
+	void ensureSorted() const;
 };
 
 /**
  * Category registration helper.
  * Each parser category (debugging, linting, etc.) provides a registration function.
  */
-using CategoryRegistrationFn = std::function<void(ParserRegistry&)>;
+using CategoryRegistrationFn = std::function<void(ParserRegistry &)>;
 
 /**
  * Register a category's parsers.
  * Call this during extension initialization for each category.
  */
-void RegisterParserCategory(const std::string& category_name, CategoryRegistrationFn register_fn);
+void RegisterParserCategory(const std::string &category_name, CategoryRegistrationFn register_fn);
 
 /**
  * Initialize all registered categories.
@@ -111,18 +111,17 @@ void InitializeAllParsers();
  * Declare a parser registration function for a category.
  * Use in header: DECLARE_PARSER_CATEGORY(Debugging);
  */
-#define DECLARE_PARSER_CATEGORY(category) \
-    void Register##category##Parsers(duckdb::ParserRegistry& registry)
+#define DECLARE_PARSER_CATEGORY(category) void Register##category##Parsers(duckdb::ParserRegistry &registry)
 
 /**
  * Register a category during static initialization.
  * Use in .cpp: REGISTER_PARSER_CATEGORY(Debugging);
  */
-#define REGISTER_PARSER_CATEGORY(category) \
-    static struct category##_category_registrar { \
-        category##_category_registrar() { \
-            duckdb::RegisterParserCategory(#category, Register##category##Parsers); \
-        } \
-    } g_##category##_registrar
+#define REGISTER_PARSER_CATEGORY(category)                                                                             \
+	static struct category##_category_registrar {                                                                      \
+		category##_category_registrar() {                                                                              \
+			duckdb::RegisterParserCategory(#category, Register##category##Parsers);                                    \
+		}                                                                                                              \
+	} g_##category##_registrar
 
 } // namespace duckdb

@@ -1,6 +1,6 @@
 # name: test/sql/duck_hunt_phase3a.test
 # description: Test multi-file glob pattern processing
-# group: [duck_hunt]
+# group: [sql]
 
 require duck_hunt
 

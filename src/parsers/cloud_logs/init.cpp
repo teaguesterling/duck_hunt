@@ -4,7 +4,6 @@
 #include "gcp_cloud_logging_parser.hpp"
 #include "azure_activity_parser.hpp"
 
-
 namespace duckdb {
 
 /**
@@ -12,25 +11,22 @@ namespace duckdb {
  */
 class AWSCloudTrailParserImpl : public BaseParser {
 public:
-    AWSCloudTrailParserImpl()
-        : BaseParser("aws_cloudtrail",
-                     "AWS CloudTrail Parser",
-                     ParserCategory::CLOUD_AUDIT,
-                     "AWS CloudTrail audit logs",
-                     ParserPriority::HIGH) {
-        addAlias("cloudtrail");
-    }
+	AWSCloudTrailParserImpl()
+	    : BaseParser("aws_cloudtrail", "AWS CloudTrail Parser", ParserCategory::CLOUD_AUDIT,
+	                 "AWS CloudTrail audit logs", ParserPriority::HIGH) {
+		addAlias("cloudtrail");
+	}
 
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
+	bool canParse(const std::string &content) const override {
+		return parser_.canParse(content);
+	}
 
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
+	std::vector<ValidationEvent> parse(const std::string &content) const override {
+		return parser_.parse(content);
+	}
 
 private:
-    AWSCloudTrailParser parser_;
+	AWSCloudTrailParser parser_;
 };
 
 /**
@@ -38,26 +34,23 @@ private:
  */
 class GCPCloudLoggingParserImpl : public BaseParser {
 public:
-    GCPCloudLoggingParserImpl()
-        : BaseParser("gcp_cloud_logging",
-                     "GCP Cloud Logging Parser",
-                     ParserCategory::CLOUD_AUDIT,
-                     "Google Cloud Logging (Stackdriver) logs",
-                     ParserPriority::HIGH) {
-        addAlias("stackdriver");
-        addAlias("gcp_logging");
-    }
+	GCPCloudLoggingParserImpl()
+	    : BaseParser("gcp_cloud_logging", "GCP Cloud Logging Parser", ParserCategory::CLOUD_AUDIT,
+	                 "Google Cloud Logging (Stackdriver) logs", ParserPriority::HIGH) {
+		addAlias("stackdriver");
+		addAlias("gcp_logging");
+	}
 
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
+	bool canParse(const std::string &content) const override {
+		return parser_.canParse(content);
+	}
 
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
+	std::vector<ValidationEvent> parse(const std::string &content) const override {
+		return parser_.parse(content);
+	}
 
 private:
-    GCPCloudLoggingParser parser_;
+	GCPCloudLoggingParser parser_;
 };
 
 /**
@@ -65,25 +58,22 @@ private:
  */
 class AzureActivityParserImpl : public BaseParser {
 public:
-    AzureActivityParserImpl()
-        : BaseParser("azure_activity",
-                     "Azure Activity Parser",
-                     ParserCategory::CLOUD_AUDIT,
-                     "Azure Activity/Audit logs",
-                     ParserPriority::HIGH) {
-        addAlias("azure");
-    }
+	AzureActivityParserImpl()
+	    : BaseParser("azure_activity", "Azure Activity Parser", ParserCategory::CLOUD_AUDIT,
+	                 "Azure Activity/Audit logs", ParserPriority::HIGH) {
+		addAlias("azure");
+	}
 
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
+	bool canParse(const std::string &content) const override {
+		return parser_.canParse(content);
+	}
 
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
+	std::vector<ValidationEvent> parse(const std::string &content) const override {
+		return parser_.parse(content);
+	}
 
 private:
-    AzureActivityParser parser_;
+	AzureActivityParser parser_;
 };
 
 /**
@@ -91,14 +81,13 @@ private:
  */
 DECLARE_PARSER_CATEGORY(CloudLogs);
 
-void RegisterCloudLogsParsers(ParserRegistry& registry) {
-    registry.registerParser(make_uniq<AWSCloudTrailParserImpl>());
-    registry.registerParser(make_uniq<GCPCloudLoggingParserImpl>());
-    registry.registerParser(make_uniq<AzureActivityParserImpl>());
+void RegisterCloudLogsParsers(ParserRegistry &registry) {
+	registry.registerParser(make_uniq<AWSCloudTrailParserImpl>());
+	registry.registerParser(make_uniq<GCPCloudLoggingParserImpl>());
+	registry.registerParser(make_uniq<AzureActivityParserImpl>());
 }
 
 // Auto-register this category
 REGISTER_PARSER_CATEGORY(CloudLogs);
-
 
 } // namespace duckdb

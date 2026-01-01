@@ -14,25 +14,22 @@ namespace duckdb {
  */
 class HdfsParserImpl : public BaseParser {
 public:
-    HdfsParserImpl()
-        : BaseParser("hdfs",
-                     "HDFS Parser",
-                     ParserCategory::DISTRIBUTED_SYSTEMS,
-                     "Hadoop HDFS log output",
-                     ParserPriority::HIGH) {
-        addAlias("hadoop_hdfs");
-    }
+	HdfsParserImpl()
+	    : BaseParser("hdfs", "HDFS Parser", ParserCategory::DISTRIBUTED_SYSTEMS, "Hadoop HDFS log output",
+	                 ParserPriority::HIGH) {
+		addAlias("hadoop_hdfs");
+	}
 
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
+	bool canParse(const std::string &content) const override {
+		return parser_.canParse(content);
+	}
 
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
+	std::vector<ValidationEvent> parse(const std::string &content) const override {
+		return parser_.parse(content);
+	}
 
 private:
-    HdfsParser parser_;
+	HdfsParser parser_;
 };
 
 /**
@@ -40,25 +37,22 @@ private:
  */
 class SparkParserImpl : public BaseParser {
 public:
-    SparkParserImpl()
-        : BaseParser("spark",
-                     "Spark Parser",
-                     ParserCategory::DISTRIBUTED_SYSTEMS,
-                     "Apache Spark log output",
-                     ParserPriority::HIGH) {
-        addAlias("apache_spark");
-    }
+	SparkParserImpl()
+	    : BaseParser("spark", "Spark Parser", ParserCategory::DISTRIBUTED_SYSTEMS, "Apache Spark log output",
+	                 ParserPriority::HIGH) {
+		addAlias("apache_spark");
+	}
 
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
+	bool canParse(const std::string &content) const override {
+		return parser_.canParse(content);
+	}
 
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
+	std::vector<ValidationEvent> parse(const std::string &content) const override {
+		return parser_.parse(content);
+	}
 
 private:
-    SparkParser parser_;
+	SparkParser parser_;
 };
 
 /**
@@ -66,26 +60,23 @@ private:
  */
 class AndroidParserImpl : public BaseParser {
 public:
-    AndroidParserImpl()
-        : BaseParser("android",
-                     "Android Parser",
-                     ParserCategory::DISTRIBUTED_SYSTEMS,
-                     "Android logcat output",
-                     ParserPriority::HIGH) {
-        addAlias("logcat");
-        addAlias("android_logcat");
-    }
+	AndroidParserImpl()
+	    : BaseParser("android", "Android Parser", ParserCategory::DISTRIBUTED_SYSTEMS, "Android logcat output",
+	                 ParserPriority::HIGH) {
+		addAlias("logcat");
+		addAlias("android_logcat");
+	}
 
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
+	bool canParse(const std::string &content) const override {
+		return parser_.canParse(content);
+	}
 
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
+	std::vector<ValidationEvent> parse(const std::string &content) const override {
+		return parser_.parse(content);
+	}
 
 private:
-    AndroidParser parser_;
+	AndroidParser parser_;
 };
 
 /**
@@ -93,26 +84,23 @@ private:
  */
 class ZookeeperParserImpl : public BaseParser {
 public:
-    ZookeeperParserImpl()
-        : BaseParser("zookeeper",
-                     "Zookeeper Parser",
-                     ParserCategory::DISTRIBUTED_SYSTEMS,
-                     "Apache Zookeeper log output",
-                     ParserPriority::HIGH) {
-        addAlias("zk");
-        addAlias("apache_zookeeper");
-    }
+	ZookeeperParserImpl()
+	    : BaseParser("zookeeper", "Zookeeper Parser", ParserCategory::DISTRIBUTED_SYSTEMS,
+	                 "Apache Zookeeper log output", ParserPriority::HIGH) {
+		addAlias("zk");
+		addAlias("apache_zookeeper");
+	}
 
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
+	bool canParse(const std::string &content) const override {
+		return parser_.canParse(content);
+	}
 
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
+	std::vector<ValidationEvent> parse(const std::string &content) const override {
+		return parser_.parse(content);
+	}
 
 private:
-    ZookeeperParser parser_;
+	ZookeeperParser parser_;
 };
 
 /**
@@ -120,27 +108,24 @@ private:
  */
 class OpenStackParserImpl : public BaseParser {
 public:
-    OpenStackParserImpl()
-        : BaseParser("openstack",
-                     "OpenStack Parser",
-                     ParserCategory::DISTRIBUTED_SYSTEMS,
-                     "OpenStack service log output",
-                     ParserPriority::HIGH) {
-        addAlias("nova");
-        addAlias("neutron");
-        addAlias("cinder");
-    }
+	OpenStackParserImpl()
+	    : BaseParser("openstack", "OpenStack Parser", ParserCategory::DISTRIBUTED_SYSTEMS,
+	                 "OpenStack service log output", ParserPriority::HIGH) {
+		addAlias("nova");
+		addAlias("neutron");
+		addAlias("cinder");
+	}
 
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
+	bool canParse(const std::string &content) const override {
+		return parser_.canParse(content);
+	}
 
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
+	std::vector<ValidationEvent> parse(const std::string &content) const override {
+		return parser_.parse(content);
+	}
 
 private:
-    OpenStackParser parser_;
+	OpenStackParser parser_;
 };
 
 /**
@@ -148,26 +133,23 @@ private:
  */
 class BglParserImpl : public BaseParser {
 public:
-    BglParserImpl()
-        : BaseParser("bgl",
-                     "BGL Parser",
-                     ParserCategory::DISTRIBUTED_SYSTEMS,
-                     "Blue Gene/L supercomputer log output",
-                     ParserPriority::HIGH) {
-        addAlias("bluegene");
-        addAlias("blue_gene_l");
-    }
+	BglParserImpl()
+	    : BaseParser("bgl", "BGL Parser", ParserCategory::DISTRIBUTED_SYSTEMS, "Blue Gene/L supercomputer log output",
+	                 ParserPriority::HIGH) {
+		addAlias("bluegene");
+		addAlias("blue_gene_l");
+	}
 
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
+	bool canParse(const std::string &content) const override {
+		return parser_.canParse(content);
+	}
 
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
+	std::vector<ValidationEvent> parse(const std::string &content) const override {
+		return parser_.parse(content);
+	}
 
 private:
-    BglParser parser_;
+	BglParser parser_;
 };
 
 /**
@@ -175,13 +157,13 @@ private:
  */
 DECLARE_PARSER_CATEGORY(DistributedSystems);
 
-void RegisterDistributedSystemsParsers(ParserRegistry& registry) {
-    registry.registerParser(make_uniq<HdfsParserImpl>());
-    registry.registerParser(make_uniq<SparkParserImpl>());
-    registry.registerParser(make_uniq<AndroidParserImpl>());
-    registry.registerParser(make_uniq<ZookeeperParserImpl>());
-    registry.registerParser(make_uniq<OpenStackParserImpl>());
-    registry.registerParser(make_uniq<BglParserImpl>());
+void RegisterDistributedSystemsParsers(ParserRegistry &registry) {
+	registry.registerParser(make_uniq<HdfsParserImpl>());
+	registry.registerParser(make_uniq<SparkParserImpl>());
+	registry.registerParser(make_uniq<AndroidParserImpl>());
+	registry.registerParser(make_uniq<ZookeeperParserImpl>());
+	registry.registerParser(make_uniq<OpenStackParserImpl>());
+	registry.registerParser(make_uniq<BglParserImpl>());
 }
 
 // Auto-register this category

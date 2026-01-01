@@ -1,6 +1,6 @@
 # name: test/sql/isort_parser.test
 # description: Test isort Python import sorter parser
-# group: [duck_hunt]
+# group: [sql]
 
 require duck_hunt
 

@@ -1,6 +1,6 @@
 # name: test/sql/detect_format.test
 # description: Test duck_hunt_detect_format() scalar function
-# group: [duck_hunt]
+# group: [sql]
 
 require duck_hunt
 

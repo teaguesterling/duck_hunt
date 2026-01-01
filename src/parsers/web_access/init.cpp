@@ -4,7 +4,6 @@
 #include "apache_access_parser.hpp"
 #include "nginx_access_parser.hpp"
 
-
 namespace duckdb {
 
 /**
@@ -12,23 +11,21 @@ namespace duckdb {
  */
 class SyslogParserImpl : public BaseParser {
 public:
-    SyslogParserImpl()
-        : BaseParser("syslog",
-                     "Syslog Parser",
-                     ParserCategory::SYSTEM_LOG,
-                     "Unix/Linux syslog format",
-                     ParserPriority::HIGH) {}
+	SyslogParserImpl()
+	    : BaseParser("syslog", "Syslog Parser", ParserCategory::SYSTEM_LOG, "Unix/Linux syslog format",
+	                 ParserPriority::HIGH) {
+	}
 
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
+	bool canParse(const std::string &content) const override {
+		return parser_.canParse(content);
+	}
 
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
+	std::vector<ValidationEvent> parse(const std::string &content) const override {
+		return parser_.parse(content);
+	}
 
 private:
-    SyslogParser parser_;
+	SyslogParser parser_;
 };
 
 /**
@@ -36,25 +33,22 @@ private:
  */
 class ApacheAccessParserImpl : public BaseParser {
 public:
-    ApacheAccessParserImpl()
-        : BaseParser("apache_access",
-                     "Apache Access Parser",
-                     ParserCategory::WEB_ACCESS,
-                     "Apache HTTP Server access log",
-                     ParserPriority::HIGH) {
-        addAlias("apache");
-    }
+	ApacheAccessParserImpl()
+	    : BaseParser("apache_access", "Apache Access Parser", ParserCategory::WEB_ACCESS,
+	                 "Apache HTTP Server access log", ParserPriority::HIGH) {
+		addAlias("apache");
+	}
 
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
+	bool canParse(const std::string &content) const override {
+		return parser_.canParse(content);
+	}
 
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
+	std::vector<ValidationEvent> parse(const std::string &content) const override {
+		return parser_.parse(content);
+	}
 
 private:
-    ApacheAccessParser parser_;
+	ApacheAccessParser parser_;
 };
 
 /**
@@ -62,25 +56,22 @@ private:
  */
 class NginxAccessParserImpl : public BaseParser {
 public:
-    NginxAccessParserImpl()
-        : BaseParser("nginx_access",
-                     "Nginx Access Parser",
-                     ParserCategory::WEB_ACCESS,
-                     "Nginx HTTP Server access log",
-                     ParserPriority::HIGH) {
-        addAlias("nginx");
-    }
+	NginxAccessParserImpl()
+	    : BaseParser("nginx_access", "Nginx Access Parser", ParserCategory::WEB_ACCESS, "Nginx HTTP Server access log",
+	                 ParserPriority::HIGH) {
+		addAlias("nginx");
+	}
 
-    bool canParse(const std::string& content) const override {
-        return parser_.canParse(content);
-    }
+	bool canParse(const std::string &content) const override {
+		return parser_.canParse(content);
+	}
 
-    std::vector<ValidationEvent> parse(const std::string& content) const override {
-        return parser_.parse(content);
-    }
+	std::vector<ValidationEvent> parse(const std::string &content) const override {
+		return parser_.parse(content);
+	}
 
 private:
-    NginxAccessParser parser_;
+	NginxAccessParser parser_;
 };
 
 /**
@@ -88,14 +79,13 @@ private:
  */
 DECLARE_PARSER_CATEGORY(WebAccess);
 
-void RegisterWebAccessParsers(ParserRegistry& registry) {
-    registry.registerParser(make_uniq<SyslogParserImpl>());
-    registry.registerParser(make_uniq<ApacheAccessParserImpl>());
-    registry.registerParser(make_uniq<NginxAccessParserImpl>());
+void RegisterWebAccessParsers(ParserRegistry &registry) {
+	registry.registerParser(make_uniq<SyslogParserImpl>());
+	registry.registerParser(make_uniq<ApacheAccessParserImpl>());
+	registry.registerParser(make_uniq<NginxAccessParserImpl>());
 }
 
 // Auto-register this category
 REGISTER_PARSER_CATEGORY(WebAccess);
-
 
 } // namespace duckdb
