@@ -184,8 +184,6 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for test guidelines.
 
 ## Known Parser Issues
 
-Some parsers have known issues tracked in GitHub:
+No known parser issues at this time. Previously tracked issues have been resolved:
 
-- **Issue #25**: Parser bugs for shellcheck (integer codes), rubocop (correctable field), bandit (CWE extraction)
-
-These issues have corresponding "BLOCKED" tests in the test suite that document the expected behavior.
+- ~~**Issue #25**: Parser bugs for shellcheck (integer codes), rubocop (correctable field), bandit (CWE extraction)~~ - Fixed
