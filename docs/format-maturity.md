@@ -24,7 +24,7 @@ This document describes the maturity levels for formats used with `read_duck_hun
 | Alpha ⭐⭐ | 9 | 10% |
 | Experimental ⭐ | 11 | 12% |
 
-**Total: 91 log formats** (plus 5 workflow formats)
+**Total: 90 log formats** (plus 5 workflow formats)
 
 ---
 

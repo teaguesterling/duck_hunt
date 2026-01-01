@@ -2,7 +2,7 @@
 
 [![Documentation Status](https://readthedocs.org/projects/duck-hunt/badge/?version=latest)](https://duck-hunt.readthedocs.io/en/latest/?badge=latest)
 
-A DuckDB extension for parsing test results, build outputs, and CI/CD logs from 92+ development tools.
+A DuckDB extension for parsing test results, build outputs, and CI/CD logs from 90+ development tools.
 
 ## Functions
 
@@ -72,7 +72,7 @@ SELECT status_badge(
 | `valgrind` | Valgrind | [sample](test/samples/debugging_tools/valgrind_memcheck.txt) |
 | `generic_lint` | Generic | `file:line:col: severity: message` |
 
-**[See all 92+ formats →](docs/formats.md)** | **[Workflow formats →](docs/workflow-formats.md)**
+**[See all 90+ formats →](docs/formats.md)** | **[Workflow formats →](docs/workflow-formats.md)**
 
 ## Output Schema
 
@@ -95,7 +95,7 @@ All parsers produce a standardized 39-field schema:
 
 ## Documentation
 
-- **[Format Reference](docs/formats.md)** - All 92+ supported formats with examples
+- **[Format Reference](docs/formats.md)** - All 90+ supported formats with examples
 - **[Workflow Formats](docs/workflow-formats.md)** - CI/CD workflow parsing (GitHub Actions, GitLab CI, Jenkins)
 - **[Format Maturity](docs/format-maturity.md)** - Stability ratings and test coverage
 - **[Schema Reference](docs/schema.md)** - Complete field documentation
