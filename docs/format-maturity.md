@@ -22,7 +22,7 @@ This document describes the maturity levels for formats used with `read_duck_hun
 | Stable ⭐⭐⭐⭐ | 28 | 31% |
 | Beta ⭐⭐⭐ | 34 | 38% |
 | Alpha ⭐⭐ | 9 | 10% |
-| Experimental ⭐ | 12 | 13% |
+| Experimental ⭐ | 11 | 12% |
 
 **Total: 91 log formats** (plus 5 workflow formats)
 
@@ -147,7 +147,6 @@ These formats have sample files but no dedicated tests. They may work but are no
 | `drone_ci_text` | - | Drone CI logs |
 | `duckdb_test` | - | DuckDB test runner |
 | `github_cli` | - | GitHub CLI output |
-| `isort_text` | ✓ | isort Python import sorter |
 | `junit_text` | - | JUnit text output |
 | `nunit_xunit_text` | ✓ | NUnit/xUnit text output |
 | `pytest_cov_text` | - | pytest-cov coverage output |
