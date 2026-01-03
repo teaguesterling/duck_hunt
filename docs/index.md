@@ -39,12 +39,21 @@ status_badge(error_count, warning_count, running) -- With running state
 - `duck_hunt_detect_format()` - Returns format string like `'pytest_json'`, `'make_error'`, or `NULL`
 - `status_badge()` - Returns badges: `[ OK ]` `[FAIL]` `[WARN]` `[ .. ]` `[ ?? ]`
 
+### Diagnostic Functions
+
+```sql
+duck_hunt_diagnose_read(file_path)                -- Debug format detection for a file
+duck_hunt_diagnose_parse(content)                 -- Debug format detection for content
+```
+
+Returns a table showing which parsers match: `format`, `priority`, `can_parse`, `events_produced`, `is_selected`
+
 ## Quick Start
 
 ### Parse Build Errors
 
 ```sql
-SELECT file_path, line_number, message
+SELECT ref_file, ref_line, message
 FROM read_duck_hunt_log('build.log', 'auto')
 WHERE status = 'ERROR';
 ```
@@ -101,8 +110,9 @@ All parsers produce a standardized 39-field schema:
 | `event_id` | Unique event identifier |
 | `tool_name` | Tool name (pytest, eslint, make, etc.) |
 | `status` | PASS, FAIL, ERROR, WARNING, INFO, SKIP |
-| `file_path` | Source file path |
-| `line_number` | Line number |
+| `ref_file` | Referenced source file path |
+| `ref_line` | Line number in referenced file |
+| `log_file` | Path to the log file being parsed |
 | `message` | Error/warning message |
 | `scope` | Hierarchy level 1 (workflow, cluster, suite) |
 | `group` | Hierarchy level 2 (job, namespace, class) |
