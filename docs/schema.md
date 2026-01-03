@@ -7,10 +7,10 @@ All Duck Hunt parsers output a standardized `ValidationEvent` schema with 39 fie
 | Group | Fields |
 |-------|--------|
 | Core | `event_id`, `tool_name`, `event_type` |
-| Location | `file_path`, `line_number`, `column_number`, `function_name` |
+| Reference Location | `ref_file`, `ref_line`, `ref_column`, `function_name` |
 | Classification | `status`, `severity`, `category`, `error_code` |
-| Content | `message`, `suggestion`, `raw_output`, `structured_data` |
-| Log Tracking | `log_line_start`, `log_line_end` |
+| Content | `message`, `suggestion`, `log_content`, `structured_data` |
+| Log Tracking | `log_file`, `log_line_start`, `log_line_end` |
 | Test | `test_name`, `execution_time` |
 | Identity | `principal`, `origin`, `target`, `actor_type` |
 | Temporal | `started_at` |
@@ -28,15 +28,15 @@ All Duck Hunt parsers output a standardized `ValidationEvent` schema with 39 fie
 | `tool_name` | VARCHAR | Name of the tool (pytest, eslint, make, etc.) |
 | `event_type` | VARCHAR | Category: TEST_RESULT, BUILD_ERROR, LINT_ISSUE, etc. |
 
-## Location Fields
+## Reference Location Fields
 
-For code-related events (lint issues, test failures, stack traces).
+For code locations referenced in events (lint issues, test failures, stack traces). These refer to positions in source code files mentioned in the log output.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `file_path` | VARCHAR | Path to source code file |
-| `line_number` | INTEGER | Line number (-1 if not applicable) |
-| `column_number` | INTEGER | Column number (-1 if not applicable) |
+| `ref_file` | VARCHAR | Path to referenced source code file |
+| `ref_line` | INTEGER | Line number in source file (-1 if not applicable) |
+| `ref_column` | INTEGER | Column number in source file (-1 if not applicable) |
 | `function_name` | VARCHAR | Function/method name in source code |
 
 ## Classification Fields
@@ -97,7 +97,7 @@ A passing test has `status='PASS'` but `severity='info'`. A skipped test has `st
 |-------|------|-------------|
 | `message` | VARCHAR | Detailed error/warning message |
 | `suggestion` | VARCHAR | Suggested fix or improvement |
-| `raw_output` | VARCHAR | Original raw output line |
+| `log_content` | VARCHAR | Original raw log content for this event |
 | `structured_data` | VARCHAR | Additional JSON metadata |
 
 ## Log Tracking Fields
@@ -106,10 +106,11 @@ Track where each event originated within the source log file.
 
 | Field | Type | Description |
 |-------|------|-------------|
+| `log_file` | VARCHAR | Path to the log file being parsed |
 | `log_line_start` | INTEGER | 1-indexed line where event starts in log |
 | `log_line_end` | INTEGER | 1-indexed line where event ends in log |
 
-**Note:** `line_number` refers to source code line (e.g., line 15 in `main.c`), while `log_line_start`/`log_line_end` track position within the log file.
+**Note:** `ref_line` refers to source code line (e.g., line 15 in `main.c`), while `log_line_start`/`log_line_end` track position within the log file itself.
 
 ## Test Fields
 
@@ -269,7 +270,7 @@ SELECT * FROM read_duck_hunt_log('build.log', 'auto') LIMIT 1;
 
 **Filter by status:**
 ```sql
-SELECT file_path, line_number, message
+SELECT ref_file, ref_line, message
 FROM read_duck_hunt_log('build.log', 'auto')
 WHERE status = 'ERROR';
 ```

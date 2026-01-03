@@ -31,25 +31,36 @@ status_badge(error_count, warning_count, running) -- With running state
 - `duck_hunt_detect_format()` - Returns format string like `'pytest_json'`, `'make_error'`, or `NULL`
 - `status_badge()` - Returns badges: `[ OK ]` `[FAIL]` `[WARN]` `[ .. ]` `[ ?? ]`
 
+### Diagnostic Functions
+
+```sql
+duck_hunt_diagnose_read(file_path)                -- Debug format detection for a file
+duck_hunt_diagnose_parse(content)                 -- Debug format detection for content
+```
+
+Returns a table showing which parsers match the content:
+- `format` - Parser name
+- `priority` - Parser priority (higher = checked first)
+- `can_parse` - Whether parser can handle the content
+- `events_produced` - Number of events if parsed
+- `is_selected` - Whether auto-detect would choose this parser
+
 ## Quick Start
 
 ```sql
 -- Parse build errors
-SELECT file_path, line_number, message
+SELECT ref_file, ref_line, message
 FROM read_duck_hunt_log('build.log', 'auto')
 WHERE status = 'ERROR';
 
--- Parse test results
+-- Parse test results (filter to warnings and above)
 SELECT test_name, status, execution_time
-FROM read_duck_hunt_log('pytest.json', 'pytest_json')
+FROM read_duck_hunt_log('pytest.json', 'pytest_json', severity_threshold := 'warning')
 WHERE status = 'FAIL';
 
--- Custom regex pattern
-SELECT severity, message
-FROM parse_duck_hunt_log(
-  'ERROR: Connection failed\nWARNING: Retrying...',
-  'regexp:(?P<severity>ERROR|WARNING):\s+(?P<message>.+)'
-);
+-- Debug format detection
+SELECT format, can_parse, events_produced, is_selected
+FROM duck_hunt_diagnose_read('mystery.log');
 
 -- Build health badge
 SELECT status_badge(
@@ -83,8 +94,9 @@ All parsers produce a standardized 39-field schema:
 | `event_id` | Unique event identifier |
 | `tool_name` | Tool name (pytest, eslint, make, etc.) |
 | `status` | PASS, FAIL, ERROR, WARNING, INFO, SKIP |
-| `file_path` | Source file path |
-| `line_number` | Line number |
+| `ref_file` | Referenced source file path |
+| `ref_line` | Line number in referenced file |
+| `log_file` | Path to the log file being parsed |
 | `message` | Error/warning message |
 | `scope` | Hierarchy level 1 (workflow, cluster, suite) |
 | `group` | Hierarchy level 2 (job, namespace, class) |

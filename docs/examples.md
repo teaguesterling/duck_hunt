@@ -45,12 +45,12 @@ FROM read_duck_hunt_log('test/samples/pytest.json', 'pytest_json');
 
 **Query:**
 ```sql
-SELECT file_path, line_number, error_code, message
+SELECT ref_file, ref_line, error_code, message
 FROM read_duck_hunt_log('test/samples/eslint.json', 'eslint_json');
 ```
 
 **Result:**
-|         file_path          | line_number |             error_code             |                      message                      |
+|          ref_file          | ref_line |             error_code             |                      message                      |
 |----------------------------|------------:|------------------------------------|---------------------------------------------------|
 | /src/components/Button.tsx | 1           | no-unused-vars                     | 'useState' is defined but never used.             |
 | /src/components/Button.tsx | 5           | prefer-const                       | 'count' is never reassigned. Use 'const' instead. |
@@ -71,12 +71,12 @@ make: *** [Makefile:23: build/main.o] Error 1
 
 **Query:**
 ```sql
-SELECT file_path, line_number, severity, message
+SELECT ref_file, ref_line, severity, message
 FROM read_duck_hunt_log('test/samples/make.out', 'make_error');
 ```
 
 **Result:**
-|  file_path  | line_number | severity |                                     message                                      |
+|  ref_file   | ref_line | severity |                                     message                                      |
 |-------------|------------:|----------|----------------------------------------------------------------------------------|
 | src/main.c  | 15          | error    | 'undefined_var' undeclared (first use in this function)                          |
 | src/main.c  | 15          | info     | each undeclared identifier is reported only once for each function it appears in |
@@ -98,12 +98,12 @@ src/utils/helpers.py:8: error: Missing return statement  [return]
 
 **Query:**
 ```sql
-SELECT file_path, line_number, error_code, message
+SELECT ref_file, ref_line, error_code, message
 FROM read_duck_hunt_log('test/samples/mypy.txt', 'mypy_text');
 ```
 
 **Result:**
-|      file_path       | line_number |  error_code   |                               message                               |
+|       ref_file       | ref_line |  error_code   |                               message                               |
 |----------------------|------------:|---------------|---------------------------------------------------------------------|
 | src/api/routes.py    | 23          | arg-type      | Argument 1 to "process" has incompatible type "str"; expected "int" |
 | src/api/routes.py    | 45          | union-attr    | "None" has no attribute "items"                                     |
@@ -150,14 +150,14 @@ FROM read_duck_hunt_log('test/samples/gotest.json', 'gotest_json');
 
 **Query:**
 ```sql
-SELECT step_name, message, severity
+SELECT unit, message, severity
 FROM read_duck_hunt_workflow_log('test/samples/github_actions.log', 'github_actions')
 WHERE length(message) > 0
 LIMIT 5;
 ```
 
 **Result:**
-|        step_name        |                                        message                                         | severity |
+|          unit           |                                        message                                         | severity |
 |-------------------------|----------------------------------------------------------------------------------------|----------|
 | Run actions/checkout@v4 | 2024-01-15T10:00:00.000Z ##[group]Run actions/checkout@v4                              | info     |
 | Run actions/checkout@v4 | 2024-01-15T10:00:01.000Z Syncing repository: owner/repo                                | info     |
@@ -171,13 +171,13 @@ LIMIT 5;
 
 **Query:**
 ```sql
-SELECT status_badge(status) as badge, tool_name, file_path, message
+SELECT status_badge(status) as badge, tool_name, ref_file, message
 FROM read_duck_hunt_log('test/samples/make.out', 'make_error')
-WHERE file_path NOT LIKE '%Makefile%';
+WHERE ref_file NOT LIKE '%Makefile%';
 ```
 
 **Result:**
-| badge  | tool_name |  file_path  |                                     message                                      |
+| badge  | tool_name |  ref_file   |                                     message                                      |
 |--------|-----------|-------------|----------------------------------------------------------------------------------|
 | [FAIL] | make      | src/main.c  | 'undefined_var' undeclared (first use in this function)                          |
 | [ ?? ] | make      | src/main.c  | each undeclared identifier is reported only once for each function it appears in |
@@ -244,7 +244,7 @@ FROM parse_duck_hunt_log(
 ```bash
 # Parse build output and show errors
 make 2>&1 | duckdb -markdown -s "
-  SELECT status_badge(status) as badge, file_path, line_number, message
+  SELECT status_badge(status) as badge, ref_file, ref_line, message
   FROM read_duck_hunt_log('/dev/stdin', 'auto')
   WHERE status = 'ERROR'
 "
@@ -285,40 +285,40 @@ Duck Hunt automatically clusters similar errors together, making it easy to unde
 SELECT
     pattern_id,
     COUNT(*) as occurrences,
-    root_cause_category,
     ANY_VALUE(message) as example_message
 FROM read_duck_hunt_log('test/samples/large_build.out', 'make_error')
-GROUP BY pattern_id, root_cause_category
+GROUP BY pattern_id
 ORDER BY occurrences DESC;
 ```
 
 **Result:**
-| pattern_id | occurrences | root_cause_category | example_message |
-|-----------:|------------:|---------------------|-----------------|
-| 1 | 8 | build | 'ptr' undeclared (first use in this function) |
-| 3 | 8 | build | unused variable 'temp' [-Wunused-variable] |
-| 2 | 4 | build | each undeclared identifier is reported only once for each function it appears in |
-| 4 | 3 | build | undefined reference to 'initialize_system' |
-| 5 | 1 | build | make: *** [Makefile:45: build/app] Error 1 |
+| pattern_id | occurrences | example_message |
+|-----------:|------------:|-----------------|
+| 1 | 8 | 'ptr' undeclared (first use in this function) |
+| 3 | 8 | unused variable 'temp' [-Wunused-variable] |
+| 2 | 4 | each undeclared identifier is reported only once for each function it appears in |
+| 4 | 3 | undefined reference to 'initialize_system' |
+| 5 | 1 | make: *** [Makefile:45: build/app] Error 1 |
 
 Instead of 24 individual errors, you see 5 distinct issue types. The 8 "undeclared" errors across different files (`ptr`, `counter`, `buffer`, `data`, `handle`, `response`, `token`, `node`) all cluster together because the fingerprinting normalizes out the variable names.
 
-### Aggregate by Root Cause
+### Aggregate by Pattern
 
 **Query:**
 ```sql
 SELECT
-    root_cause_category,
+    pattern_id,
     COUNT(*) as total,
-    COUNT(DISTINCT pattern_id) as unique_patterns
+    ANY_VALUE(fingerprint) as fingerprint_sample
 FROM read_duck_hunt_log('test/samples/large_build.out', 'make_error')
-GROUP BY root_cause_category;
+GROUP BY pattern_id;
 ```
 
 **Result:**
-| root_cause_category | total | unique_patterns |
-|---------------------|------:|----------------:|
-| build | 24 | 5 |
+| pattern_id | total | fingerprint_sample |
+|-----------:|------:|-------------------|
+| 1 | 8 | abc123... |
+| 2 | 4 | def456... |
 
 ### Cross-Run Analysis
 
@@ -327,12 +327,12 @@ Compare errors across multiple CI runs to identify recurring issues:
 ```sql
 -- Find patterns that appear in multiple build logs
 SELECT
-    error_fingerprint,
-    COUNT(DISTINCT source_file) as runs_affected,
+    fingerprint,
+    COUNT(DISTINCT log_file) as runs_affected,
     COUNT(*) as total_occurrences,
     ANY_VALUE(message) as example
 FROM read_duck_hunt_log('logs/build-*.log', 'auto')
-GROUP BY error_fingerprint
-HAVING COUNT(DISTINCT source_file) > 1
+GROUP BY fingerprint
+HAVING COUNT(DISTINCT log_file) > 1
 ORDER BY runs_affected DESC;
 ```

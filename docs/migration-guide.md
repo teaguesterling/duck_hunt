@@ -8,6 +8,10 @@ This guide helps you migrate from the previous schema to Schema V2. This is a **
 
 | Old Field | New Field | Notes |
 |-----------|-----------|-------|
+| `file_path` | `ref_file` | Clarifies this is a referenced source file location |
+| `line_number` | `ref_line` | Clarifies this is a line in referenced source file |
+| `column_number` | `ref_column` | Clarifies this is a column in referenced source file |
+| `raw_output` | `log_content` | Clarifies this is the log content, not raw output |
 | `error_fingerprint` | `fingerprint` | Same functionality, shorter name |
 | `workflow_name` | `scope` | Generic hierarchy level 1 |
 | `job_name` | `group` | Generic hierarchy level 2 |
@@ -23,7 +27,7 @@ This guide helps you migrate from the previous schema to Schema V2. This is a **
 
 | Old Field | Migration Path |
 |-----------|----------------|
-| `source_file` | Use `file_path` or `structured_data` |
+| `source_file` | Use `ref_file` or `structured_data` |
 | `build_id` | Use `scope_id` or `external_id` |
 | `environment` | Use `scope` or `structured_data` |
 | `file_index` | Use `structured_data` if needed |
@@ -35,6 +39,7 @@ This guide helps you migrate from the previous schema to Schema V2. This is a **
 
 | Field | Purpose |
 |-------|---------|
+| `log_file` | Path to the log file being parsed |
 | `target` | Destination (IP:port, HTTP path, resource ARN) |
 | `actor_type` | Type of actor: user, service, system, anonymous |
 | `external_id` | External correlation ID (request ID, trace ID) |
@@ -60,6 +65,24 @@ SELECT test_name, status, fingerprint
 FROM read_duck_hunt_log('pytest.json', 'pytest_json')
 WHERE status = 'FAIL';
 ```
+
+### Location Field Queries
+
+**Before:**
+```sql
+SELECT file_path, line_number, column_number, message
+FROM read_duck_hunt_log('build.log', 'auto')
+WHERE status = 'ERROR';
+```
+
+**After:**
+```sql
+SELECT ref_file, ref_line, ref_column, message
+FROM read_duck_hunt_log('build.log', 'auto')
+WHERE status = 'ERROR';
+```
+
+> **Note:** The `ref_` prefix clarifies these are locations *referenced* in the log (e.g., source file mentioned in an error), not the log file itself. Use `log_file` for the actual log file path.
 
 ### CI/CD Workflow Queries
 
