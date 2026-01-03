@@ -19,7 +19,7 @@ This document lists all available log parsers in the Duck Hunt extension.
 | nunit_xunit_text | `nunit_xunit` | - | Inline |
 | duckdb_test | `duckdb_test` | - | Inline |
 
-### Linting Tools (7 parsers)
+### Linting Tools (8 parsers)
 
 | Parser | Format Name | Sample File | Tests |
 |--------|-------------|-------------|-------|
@@ -30,6 +30,7 @@ This document lists all available log parsers in the Duck Hunt extension.
 | autopep8_text | `autopep8` | - | Inline |
 | yapf_text | `yapf` | - | Inline |
 | clang_tidy | `clang_tidy` | - | Inline |
+| isort | `isort` | - | Yes |
 
 ### Tool Outputs - JSON Linters (20 parsers)
 
@@ -145,7 +146,7 @@ This document lists all available log parsers in the Duck Hunt extension.
 | drone_ci_text | `drone_ci` | - | Inline |
 | terraform_text | `terraform` | - | Inline |
 
-### Workflow Engines (4 parsers)
+### Workflow Engines (5 parsers)
 
 | Parser | Format Name | Sample File | Tests |
 |--------|-------------|-------------|-------|
@@ -153,8 +154,28 @@ This document lists all available log parsers in the Duck Hunt extension.
 | gitlab_ci | `gitlab_ci` | - | Inline |
 | jenkins | `jenkins` | - | Inline |
 | docker | `docker` | - | Inline |
+| spack | `spack` | - | Yes |
 
-## Total: 85 parsers
+### Distributed Systems (6 parsers)
+
+| Parser | Format Name | Sample File | Tests |
+|--------|-------------|-------------|-------|
+| hdfs | `hdfs` | - | Yes |
+| spark | `spark` | - | Yes |
+| android | `android` | - | Yes |
+| zookeeper | `zookeeper` | - | Yes |
+| openstack | `openstack` | - | Yes |
+| bgl | `bgl` | - | Yes |
+
+### Coverage (1 parser)
+
+| Parser | Format Name | Sample File | Tests |
+|--------|-------------|-------------|-------|
+| lcov | `lcov` | - | Yes |
+
+## Total: 95 formats
+
+> 90 log formats + 5 workflow formats (github_actions, gitlab_ci, jenkins, docker, spack)
 
 ## Usage
 
