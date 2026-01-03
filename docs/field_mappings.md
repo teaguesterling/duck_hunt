@@ -68,8 +68,8 @@ WHERE unit_status = 'failure';
 | `group` | Test class/module | "TestUserService", "test_auth" |
 | `unit` | Test method/function | "test_create_user", "test_login_success" |
 | `test_name` | Full test identifier | "tests/test_user.py::TestUserService::test_create" |
-| `file_path` | Test file path | "tests/test_user.py" |
-| `line_number` | Failure line | 42 |
+| `ref_file` | Test file path | "tests/test_user.py" |
+| `ref_line` | Failure line | 42 |
 | `status` | Test result | "PASS", "FAIL", "SKIP", "ERROR" |
 | `execution_time` | Test duration (ms) | 1234.5 |
 | `message` | Failure message | "AssertionError: expected 1, got 2" |
@@ -99,9 +99,9 @@ LIMIT 10;
 
 | Field | Lint Meaning | Example |
 |-------|--------------|---------|
-| `file_path` | Source file | "src/utils.js", "lib/api.py" |
-| `line_number` | Line number | 42 |
-| `column_number` | Column number | 15 |
+| `ref_file` | Source file | "src/utils.js", "lib/api.py" |
+| `ref_line` | Line number | 42 |
+| `ref_column` | Column number | 15 |
 | `error_code` | Rule ID | "no-unused-vars", "E501", "W0611" |
 | `function_name` | Rule ID (alternate) | "no-unused-vars" |
 | `category` | Rule category | "Best Practices", "Style", "Error" |
@@ -132,9 +132,9 @@ ORDER BY count DESC;
 
 | Field | Build Meaning | Example |
 |-------|---------------|---------|
-| `file_path` | Source file with error | "src/main.c" |
-| `line_number` | Error line | 15 |
-| `column_number` | Error column | 5 |
+| `ref_file` | Source file with error | "src/main.c" |
+| `ref_line` | Error line | 15 |
+| `ref_column` | Error column | 5 |
 | `error_code` | Compiler error code | "C2065", "E0001" |
 | `category` | Error category | "compilation", "linking", "syntax" |
 | `severity` | Error severity | "error", "warning", "note" |
@@ -147,8 +147,8 @@ ORDER BY count DESC;
 ```sql
 -- Find all compilation errors
 SELECT
-    file_path,
-    line_number,
+    ref_file,
+    ref_line,
     message
 FROM read_duck_hunt_log('build.log', 'make_error')
 WHERE category = 'compilation' AND severity = 'error';
@@ -280,7 +280,7 @@ ORDER BY error_count DESC;
 | `category` | Operation type | "create", "update", "delete" |
 | `status` | Operation result | "PASS", "FAIL", "WARNING" |
 | `message` | Operation message | "Resource created successfully" |
-| `file_path` | Config file | "main.tf", "playbook.yml" |
+| `ref_file` | Config file | "main.tf", "playbook.yml" |
 | `origin` | Host/node | "worker-1", "localhost" |
 
 ### Example Query
