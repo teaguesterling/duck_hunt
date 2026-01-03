@@ -239,7 +239,7 @@ ESLint JavaScript/TypeScript linter JSON output (use `eslint --format json`).
 
 **Query:**
 ```sql
-SELECT file_path, line_number, error_code, message
+SELECT ref_file, ref_line, error_code, message
 FROM read_duck_hunt_log('test/samples/eslint.json', 'eslint_json')
 WHERE severity = 'error';
 ```
@@ -259,7 +259,7 @@ make: *** [Makefile:23: build] Error 1
 
 **Query:**
 ```sql
-SELECT file_path, line_number, severity, message
+SELECT ref_file, ref_line, severity, message
 FROM read_duck_hunt_log('test/samples/make.out', 'make_error')
 WHERE status = 'ERROR';
 ```
@@ -279,7 +279,7 @@ Found 2 errors in 1 file
 
 **Query:**
 ```sql
-SELECT file_path, line_number, error_code, message
+SELECT ref_file, ref_line, error_code, message
 FROM read_duck_hunt_log('test/samples/mypy.txt', 'mypy_text');
 ```
 
@@ -336,9 +336,9 @@ Parse any log format using custom regex patterns with named capture groups.
 |-------------|---------|-------------|
 | `severity`, `level` | status, severity | ERROR, WARNING, INFO |
 | `message`, `msg` | message | Error/warning message |
-| `file`, `file_path`, `path` | file_path | File path |
-| `line`, `line_number`, `lineno` | line_number | Line number |
-| `column`, `col` | column_number | Column number |
+| `file`, `file_path`, `path` | ref_file | File path |
+| `line`, `line_number`, `lineno` | ref_line | Line number |
+| `column`, `col` | ref_column | Column number |
 | `code`, `error_code`, `rule` | error_code | Error code/rule ID |
 | `category`, `type` | category | Category |
 | `test_name`, `test`, `name` | test_name | Test name |
