@@ -15,26 +15,26 @@ When duck_hunt parses a log file, it extracts structured events but loses the co
 ### Current State
 
 ```sql
-SELECT event_id, line_number, message
+SELECT event_id, ref_line, message
 FROM read_duck_hunt_log('build.log', 'make_error');
 ```
 
-| event_id | line_number | message |
-|----------|-------------|---------|
+| event_id | ref_line | message |
+|----------|----------|---------|
 | 1 | 15 | 'undefined_var' undeclared |
 | 2 | 28 | unused variable 'temp' |
 
-Here, `line_number` is the **source code line** (line 15 in `main.c`), not the position in `build.log` where this error message appears.
+Here, `ref_line` is the **source code line** (line 15 in `main.c`), not the position in `build.log` where this error message appears.
 
 ### Desired State
 
 ```sql
-SELECT event_id, log_line_start, log_line_end, line_number, message
+SELECT event_id, log_line_start, log_line_end, ref_line, message
 FROM read_duck_hunt_log('build.log', 'make_error');
 ```
 
-| event_id | log_line_start | log_line_end | line_number | message |
-|----------|----------------|--------------|-------------|---------|
+| event_id | log_line_start | log_line_end | ref_line | message |
+|----------|----------------|--------------|----------|---------|
 | 1 | 2 | 4 | 15 | 'undefined_var' undeclared |
 | 2 | 6 | 6 | 28 | unused variable 'temp' |
 

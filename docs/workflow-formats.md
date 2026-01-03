@@ -11,7 +11,7 @@ Workflow parsing differs from regular log parsing (`read_duck_hunt_log()`) in se
 | **Function** | `read_duck_hunt_log()` | `read_duck_hunt_workflow_log()` |
 | **Purpose** | Extract validation events (errors, warnings) | Parse hierarchical workflow structure |
 | **Output** | Individual events | Workflow → Job → Step hierarchy |
-| **Primary fields** | `status`, `message`, `file_path` | `scope`, `group`, `unit`, `*_status` |
+| **Primary fields** | `status`, `message`, `ref_file` | `scope`, `group`, `unit`, `*_status` |
 
 ### When to Use Workflow Parsing
 
