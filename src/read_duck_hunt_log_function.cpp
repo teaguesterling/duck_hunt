@@ -28,6 +28,7 @@
 #include "duckdb/common/file_system.hpp"
 #include "duckdb/common/string_util.hpp"
 #include "duckdb/common/enums/file_glob_options.hpp"
+#include "duckdb/common/enums/file_compression_type.hpp"
 #include "yyjson.hpp"
 #include <fstream>
 #include <regex>
@@ -1180,35 +1181,40 @@ std::string ReadContentFromSource(ClientContext &context, const std::string &sou
 	// Use DuckDB's FileSystem to properly handle file paths including UNITTEST_ROOT_DIRECTORY
 	auto &fs = FileSystem::GetFileSystem(context);
 
-	// Open the file
-	auto flags = FileFlags::FILE_FLAGS_READ;
+	// Open the file with automatic compression detection based on file extension
+	// This handles .gz, .zst, etc. transparently
+	auto flags = FileFlags::FILE_FLAGS_READ | FileCompressionType::AUTO_DETECT;
 	auto file_handle = fs.OpenFile(source, flags);
 
-	// Check if this is a pipe/stdin (file size will be 0 or unavailable)
-	auto file_size = fs.GetFileSize(*file_handle);
+	// Check compression type - for compressed files we can't seek or get size upfront
+	auto compression = file_handle->GetFileCompressionType();
+	bool can_get_size = (compression == FileCompressionType::UNCOMPRESSED) && file_handle->CanSeek();
 
-	if (file_size > 0) {
-		// Regular file - read using known size
-		std::string content;
-		content.resize(static_cast<size_t>(file_size));
-		fs.Read(*file_handle, (void *)content.data(), file_size, 0);
-		return content;
-	} else {
-		// Pipe/stdin or empty file - read in chunks until EOF
-		std::string content;
-		constexpr size_t chunk_size = 8192;
-		char buffer[chunk_size];
-
-		while (true) {
-			auto bytes_read = fs.Read(*file_handle, buffer, chunk_size);
-			if (bytes_read == 0) {
-				break; // EOF
-			}
-			content.append(buffer, bytes_read);
+	if (can_get_size) {
+		// Uncompressed file - read using known size for efficiency
+		auto file_size = file_handle->GetFileSize();
+		if (file_size > 0) {
+			std::string content;
+			content.resize(static_cast<size_t>(file_size));
+			file_handle->Read((void *)content.data(), file_size);
+			return content;
 		}
-
-		return content;
 	}
+
+	// Compressed files, pipes, or empty files - read in chunks until EOF
+	std::string content;
+	constexpr size_t chunk_size = 8192;
+	char buffer[chunk_size];
+
+	while (true) {
+		auto bytes_read = file_handle->Read(buffer, chunk_size);
+		if (bytes_read == 0) {
+			break; // EOF
+		}
+		content.append(buffer, static_cast<size_t>(bytes_read));
+	}
+
+	return content;
 }
 
 bool IsValidJSON(const std::string &content) {

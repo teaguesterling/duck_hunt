@@ -101,6 +101,24 @@ SELECT status_badge(
 
 See [Supported Formats](formats.md) for the complete list of 90+ formats.
 
+## Compression Support
+
+Duck Hunt transparently reads compressed files based on file extension:
+
+| Extension | Format | Support |
+|-----------|--------|---------|
+| `.gz`, `.gzip` | GZIP | Built-in (always available) |
+| `.zst`, `.zstd` | ZSTD | Requires `LOAD parquet` first |
+
+```sql
+-- Read compressed log files directly
+SELECT * FROM read_duck_hunt_log('build.log.gz', 'auto');
+SELECT * FROM read_duck_hunt_workflow_log('actions.log.gz', 'github_actions');
+
+-- Glob patterns work with compression
+SELECT * FROM read_duck_hunt_log('logs/*.log.gz', 'auto');
+```
+
 ## Output Schema
 
 All parsers produce a standardized 39-field schema:

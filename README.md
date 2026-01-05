@@ -105,6 +105,28 @@ All parsers produce a standardized 39-field schema:
 
 **[See full schema →](docs/schema.md)** | **[Field mappings by domain →](docs/field_mappings.md)**
 
+## Compression Support
+
+Duck Hunt transparently reads compressed files based on file extension:
+
+```sql
+-- GZIP compression (.gz) - built-in, always available
+SELECT * FROM read_duck_hunt_log('build.log.gz', 'auto');
+SELECT * FROM read_duck_hunt_workflow_log('actions.log.gz', 'github_actions');
+
+-- ZSTD compression (.zst) - requires parquet extension
+LOAD parquet;
+SELECT * FROM read_duck_hunt_log('build.log.zst', 'auto');
+
+-- Glob patterns work with compressed files
+SELECT * FROM read_duck_hunt_log('logs/**/*.log.gz', 'auto');
+```
+
+| Extension | Format | Support |
+|-----------|--------|---------|
+| `.gz`, `.gzip` | GZIP | Built-in (always available) |
+| `.zst`, `.zstd` | ZSTD | Requires `LOAD parquet` first |
+
 ## Documentation
 
 - **[Format Reference](docs/formats.md)** - All 90+ supported formats with examples
