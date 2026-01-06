@@ -27,6 +27,12 @@ public:
 	std::string getCategory() const override {
 		return "test_framework_json";
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Like("go test -json%"),
+		    CommandPattern::Regexp("go\\s+test.*-json"),
+		};
+	}
 
 private:
 	bool isValidGoTestJSON(const std::string &content) const;

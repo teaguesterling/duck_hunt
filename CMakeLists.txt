@@ -157,6 +157,9 @@ set(EXTENSION_SOURCES
     # Format detection scalar function
     src/duck_hunt_detect_format_function.cpp
 
+    # Table macros
+    src/duck_hunt_macros.cpp
+
     # Cross-language structured log parsers
     src/parsers/structured_logs/jsonl_parser.cpp
     src/parsers/structured_logs/logfmt_parser.cpp

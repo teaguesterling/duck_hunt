@@ -33,6 +33,13 @@ public:
 	std::vector<std::string> getAliases() const override {
 		return {"cmake"};
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Literal("cmake"),
+		    CommandPattern::Like("cmake %"),
+		    CommandPattern::Like("cmake --build%"),
+		};
+	}
 };
 
 } // namespace duckdb

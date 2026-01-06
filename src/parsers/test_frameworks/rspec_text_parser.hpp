@@ -26,6 +26,14 @@ public:
 	std::string getCategory() const override {
 		return "test_framework";
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Literal("rspec"),
+		    CommandPattern::Like("rspec %"),
+		    CommandPattern::Like("bundle exec rspec%"),
+		    CommandPattern::Regexp("(bundle exec )?rspec"),
+		};
+	}
 };
 
 } // namespace duckdb

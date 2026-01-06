@@ -25,6 +25,14 @@ public:
 	std::string getCategory() const override {
 		return "linting_tool";
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Literal("pylint"),
+		    CommandPattern::Like("pylint %"),
+		    CommandPattern::Like("python -m pylint%"),
+		    CommandPattern::Like("python3 -m pylint%"),
+		};
+	}
 
 private:
 	bool isValidPylintOutput(const std::string &content) const;

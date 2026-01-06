@@ -23,6 +23,7 @@ struct ParserInfo {
 	std::string category;
 	std::string required_extension;
 	int priority;
+	std::vector<CommandPattern> command_patterns;
 };
 
 /**

@@ -10,6 +10,29 @@
 namespace duckdb {
 
 /**
+ * Command pattern for format detection based on command string.
+ * Used by tools like BIRD and blq to auto-detect format from command.
+ */
+struct CommandPattern {
+	std::string pattern;      // The pattern to match against
+	std::string pattern_type; // "literal", "like", or "regexp"
+
+	CommandPattern(const std::string &p, const std::string &t) : pattern(p), pattern_type(t) {
+	}
+
+	// Convenience constructors
+	static CommandPattern Literal(const std::string &p) {
+		return CommandPattern(p, "literal");
+	}
+	static CommandPattern Like(const std::string &p) {
+		return CommandPattern(p, "like");
+	}
+	static CommandPattern Regexp(const std::string &p) {
+		return CommandPattern(p, "regexp");
+	}
+};
+
+/**
  * Base interface for all log/test result parsers.
  * Each parser implements format detection and parsing logic for a specific tool/format.
  *
@@ -110,6 +133,22 @@ public:
 	 */
 	virtual std::string getRequiredExtension() const {
 		return "";
+	}
+
+	/**
+	 * Get command patterns for format detection.
+	 * Used by tools like BIRD and blq to auto-detect format from command string.
+	 * Patterns match against the executable name (not full path).
+	 *
+	 * Pattern types:
+	 * - "literal": Exact match (e.g., "pytest" matches "pytest")
+	 * - "like": SQL LIKE pattern (e.g., "cargo test%" matches "cargo test --release")
+	 * - "regexp": Regular expression (e.g., "cargo\\s+test.*" for complex matching)
+	 *
+	 * Returns empty vector if no command patterns are defined.
+	 */
+	virtual std::vector<CommandPattern> getCommandPatterns() const {
+		return {};
 	}
 };
 

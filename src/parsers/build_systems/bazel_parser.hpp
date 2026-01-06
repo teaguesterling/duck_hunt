@@ -25,6 +25,14 @@ public:
 	std::string getCategory() const override {
 		return "build_system";
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Like("bazel build%"),
+		    CommandPattern::Like("bazel test%"),
+		    CommandPattern::Like("bazel run%"),
+		    CommandPattern::Regexp("bazel\\s+(build|test|run)"),
+		};
+	}
 };
 
 } // namespace duckdb

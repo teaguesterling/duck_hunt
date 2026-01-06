@@ -25,6 +25,14 @@ public:
 	std::string getCategory() const override {
 		return "linting_tool";
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Like("black --check%"),
+		    CommandPattern::Like("black --diff%"),
+		    CommandPattern::Like("python -m black%"),
+		    CommandPattern::Regexp("black\\s+(--check|--diff)"),
+		};
+	}
 
 private:
 	bool isValidBlackOutput(const std::string &content) const;

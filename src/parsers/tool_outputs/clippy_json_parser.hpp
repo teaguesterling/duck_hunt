@@ -24,6 +24,13 @@ public:
 	std::string getCategory() const override {
 		return "tool_output";
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Like("cargo clippy%--message-format=json%"),
+		    CommandPattern::Like("cargo clippy%--message-format json%"),
+		    CommandPattern::Regexp("cargo\\s+clippy.*--message-format[= ]?json"),
+		};
+	}
 
 private:
 	bool isValidClippyJSON(const std::string &content) const;

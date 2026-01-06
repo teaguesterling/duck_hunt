@@ -28,6 +28,14 @@ public:
 	std::string getCategory() const override {
 		return "build_system";
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Literal("make"),
+		    CommandPattern::Like("make %"),
+		    CommandPattern::Literal("gmake"),
+		    CommandPattern::Like("gmake %"),
+		};
+	}
 
 private:
 	bool isValidMakeError(const std::string &content) const;

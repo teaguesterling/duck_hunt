@@ -163,6 +163,7 @@ std::vector<ParserInfo> ParserRegistry::getAllFormats() const {
 		info.category = parser->getCategory();
 		info.required_extension = parser->getRequiredExtension();
 		info.priority = parser->getPriority();
+		info.command_patterns = parser->getCommandPatterns();
 		result.push_back(info);
 	}
 

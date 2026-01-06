@@ -25,6 +25,15 @@ public:
 	std::string getCategory() const override {
 		return "test_framework_json";
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Literal("pytest"),
+		    CommandPattern::Like("pytest %"),
+		    CommandPattern::Like("python -m pytest%"),
+		    CommandPattern::Like("python3 -m pytest%"),
+		    CommandPattern::Regexp("py\\.?test"),
+		};
+	}
 
 private:
 	bool isValidPytestJSON(const std::string &content) const;

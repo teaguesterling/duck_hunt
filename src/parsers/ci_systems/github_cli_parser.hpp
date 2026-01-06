@@ -24,6 +24,14 @@ public:
 	int getPriority() const override {
 		return 85;
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Like("gh run view%"),
+		    CommandPattern::Like("gh run list%"),
+		    CommandPattern::Like("gh workflow%"),
+		    CommandPattern::Regexp("gh\\s+(run|workflow)"),
+		};
+	}
 
 	bool canParse(const std::string &content) const override;
 	std::vector<ValidationEvent> parse(const std::string &content) const override;

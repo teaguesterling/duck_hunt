@@ -24,6 +24,13 @@ public:
 	int getPriority() const override {
 		return 90;
 	} // Higher priority than MyPy to be checked first
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Literal("clang-tidy"),
+		    CommandPattern::Like("clang-tidy %"),
+		    CommandPattern::Like("run-clang-tidy%"),
+		};
+	}
 
 	bool canParse(const std::string &content) const override;
 	std::vector<ValidationEvent> parse(const std::string &content) const override;

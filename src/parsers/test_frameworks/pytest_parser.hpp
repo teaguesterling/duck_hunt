@@ -24,6 +24,15 @@ public:
 	std::string getCategory() const override {
 		return "test_framework";
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Literal("pytest"),
+		    CommandPattern::Like("pytest %"),
+		    CommandPattern::Like("python -m pytest%"),
+		    CommandPattern::Like("python3 -m pytest%"),
+		    CommandPattern::Regexp("py\\.?test"),
+		};
+	}
 
 private:
 	void parseTestLine(const std::string &line, int64_t &event_id, std::vector<ValidationEvent> &events,

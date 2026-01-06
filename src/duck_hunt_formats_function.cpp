@@ -40,17 +40,25 @@ static bool CategorySupportsWorkflow(const std::string &category) {
 
 static unique_ptr<FunctionData> DuckHuntFormatsBind(ClientContext &context, TableFunctionBindInput &input,
                                                     vector<LogicalType> &return_types, vector<string> &names) {
+	// Define struct type for command patterns: STRUCT(pattern VARCHAR, pattern_type VARCHAR)
+	child_list_t<LogicalType> pattern_struct_children;
+	pattern_struct_children.push_back(make_pair("pattern", LogicalType::VARCHAR));
+	pattern_struct_children.push_back(make_pair("pattern_type", LogicalType::VARCHAR));
+	auto pattern_struct_type = LogicalType::STRUCT(std::move(pattern_struct_children));
+
 	// Define return schema
 	return_types = {
-	    LogicalType::VARCHAR, // format
-	    LogicalType::VARCHAR, // description
-	    LogicalType::VARCHAR, // category
-	    LogicalType::INTEGER, // priority
-	    LogicalType::VARCHAR, // requires_extension
-	    LogicalType::BOOLEAN  // supports_workflow
+	    LogicalType::VARCHAR,                            // format
+	    LogicalType::VARCHAR,                            // description
+	    LogicalType::VARCHAR,                            // category
+	    LogicalType::INTEGER,                            // priority
+	    LogicalType::VARCHAR,                            // requires_extension
+	    LogicalType::BOOLEAN,                            // supports_workflow
+	    LogicalType::LIST(std::move(pattern_struct_type)) // command_patterns
 	};
 
-	names = {"format", "description", "category", "priority", "requires_extension", "supports_workflow"};
+	names = {"format", "description", "category", "priority", "requires_extension", "supports_workflow",
+	         "command_patterns"};
 
 	return make_uniq<DuckHuntFormatsBindData>();
 }
@@ -76,6 +84,18 @@ static void DuckHuntFormatsFunction(ClientContext &context, TableFunctionInput &
 		output.SetValue(3, count, Value::INTEGER(fmt.priority));
 		output.SetValue(4, count, fmt.required_extension.empty() ? Value() : Value(fmt.required_extension));
 		output.SetValue(5, count, Value::BOOLEAN(CategorySupportsWorkflow(fmt.category)));
+
+		// Build command_patterns list
+		vector<Value> pattern_list;
+		for (const auto &cp : fmt.command_patterns) {
+			child_list_t<Value> struct_values;
+			struct_values.push_back(make_pair("pattern", Value(cp.pattern)));
+			struct_values.push_back(make_pair("pattern_type", Value(cp.pattern_type)));
+			pattern_list.push_back(Value::STRUCT(std::move(struct_values)));
+		}
+		output.SetValue(6, count, Value::LIST(LogicalType::STRUCT({{"pattern", LogicalType::VARCHAR},
+		                                                           {"pattern_type", LogicalType::VARCHAR}}),
+		                                      std::move(pattern_list)));
 
 		state.current_idx++;
 		count++;

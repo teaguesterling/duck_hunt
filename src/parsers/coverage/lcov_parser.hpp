@@ -52,6 +52,14 @@ public:
 	std::string getCategory() const override {
 		return "coverage";
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Literal("lcov"),
+		    CommandPattern::Like("lcov %"),
+		    CommandPattern::Literal("geninfo"),
+		    CommandPattern::Like("geninfo %"),
+		};
+	}
 };
 
 } // namespace duckdb

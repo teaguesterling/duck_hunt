@@ -22,6 +22,14 @@ public:
 	std::string getCategory() const override {
 		return "infrastructure_tools";
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Like("terraform plan%"),
+		    CommandPattern::Like("terraform apply%"),
+		    CommandPattern::Like("terraform validate%"),
+		    CommandPattern::Regexp("terraform\\s+(plan|apply|validate|destroy)"),
+		};
+	}
 
 private:
 	bool isValidTerraformText(const std::string &content) const;

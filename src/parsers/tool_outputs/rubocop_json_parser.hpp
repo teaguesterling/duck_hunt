@@ -24,6 +24,14 @@ public:
 	std::string getCategory() const override {
 		return "tool_output";
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Like("rubocop%-f json%"),
+		    CommandPattern::Like("rubocop%--format json%"),
+		    CommandPattern::Like("bundle exec rubocop%-f json%"),
+		    CommandPattern::Regexp("rubocop.*(-f|--format)[= ]?json"),
+		};
+	}
 
 private:
 	bool isValidRuboCopJSON(const std::string &content) const;

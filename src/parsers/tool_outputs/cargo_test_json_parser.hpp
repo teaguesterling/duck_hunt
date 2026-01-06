@@ -24,6 +24,13 @@ public:
 	std::string getCategory() const override {
 		return "tool_output";
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Like("cargo test%--format=json%"),
+		    CommandPattern::Like("cargo test%-- --format json%"),
+		    CommandPattern::Regexp("cargo\\s+test.*--format[= ]json"),
+		};
+	}
 
 private:
 	bool isValidCargoTestJSON(const std::string &content) const;

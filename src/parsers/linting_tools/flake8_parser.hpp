@@ -25,6 +25,14 @@ public:
 	std::string getCategory() const override {
 		return "linting_tool";
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Literal("flake8"),
+		    CommandPattern::Like("flake8 %"),
+		    CommandPattern::Like("python -m flake8%"),
+		    CommandPattern::Like("python3 -m flake8%"),
+		};
+	}
 
 private:
 	bool isValidFlake8Output(const std::string &content) const;

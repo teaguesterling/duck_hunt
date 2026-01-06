@@ -25,6 +25,15 @@ public:
 	std::string getCategory() const override {
 		return "linter_json";
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Like("eslint%-f json%"),
+		    CommandPattern::Like("eslint%--format json%"),
+		    CommandPattern::Like("npx eslint%-f json%"),
+		    CommandPattern::Like("npx eslint%--format json%"),
+		    CommandPattern::Regexp("eslint.*(-f|--format)[= ]?json"),
+		};
+	}
 
 private:
 	bool isValidESLintJSON(const std::string &content) const;

@@ -16,6 +16,7 @@
 #include "include/duck_hunt_formats_function.hpp"
 #include "include/duck_hunt_diagnose_function.hpp"
 #include "include/duck_hunt_detect_format_function.hpp"
+#include "include/duck_hunt_macros.hpp"
 #include "core/parser_registry.hpp" // Modular parser registry
 
 // Workflow engine interface for registry
@@ -59,6 +60,9 @@ static void LoadInternal(ExtensionLoader &loader) {
 	// Register format detection scalar function
 	auto duck_hunt_detect_format_function = GetDuckHuntDetectFormatFunction();
 	loader.RegisterFunction(duck_hunt_detect_format_function);
+
+	// Register table macros
+	RegisterDuckHuntMacros(loader);
 }
 
 void DuckHuntExtension::Load(ExtensionLoader &loader) {

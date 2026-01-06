@@ -22,6 +22,14 @@ public:
 	std::string getCategory() const override {
 		return "infrastructure_tools";
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Literal("ansible-playbook"),
+		    CommandPattern::Like("ansible-playbook %"),
+		    CommandPattern::Literal("ansible"),
+		    CommandPattern::Like("ansible %"),
+		};
+	}
 };
 
 } // namespace duckdb

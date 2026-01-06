@@ -33,6 +33,14 @@ public:
 	std::vector<std::string> getAliases() const override {
 		return {"gradle"};
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Literal("gradle"),
+		    CommandPattern::Like("gradle %"),
+		    CommandPattern::Like("./gradlew%"),
+		    CommandPattern::Regexp("(\\./)?gradlew?\\s+"),
+		};
+	}
 };
 
 } // namespace duckdb

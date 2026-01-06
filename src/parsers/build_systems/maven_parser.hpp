@@ -33,6 +33,14 @@ public:
 	std::vector<std::string> getAliases() const override {
 		return {"maven", "mvn"};
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Literal("mvn"),
+		    CommandPattern::Like("mvn %"),
+		    CommandPattern::Like("./mvnw%"),
+		    CommandPattern::Regexp("(\\./)?mvnw?\\s+"),
+		};
+	}
 };
 
 } // namespace duckdb

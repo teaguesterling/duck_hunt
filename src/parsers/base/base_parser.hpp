@@ -161,6 +161,10 @@ public:
 		return parser_.parse(content);
 	}
 
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return parser_.getCommandPatterns();
+	}
+
 private:
 	ParserT parser_;
 };

@@ -25,6 +25,13 @@ public:
 	std::string getCategory() const override {
 		return "linter_json";
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Like("hadolint%-f json%"),
+		    CommandPattern::Like("hadolint%--format json%"),
+		    CommandPattern::Regexp("hadolint.*(-f|--format)[= ]?json"),
+		};
+	}
 
 private:
 	bool isValidHadolintJSON(const std::string &content) const;

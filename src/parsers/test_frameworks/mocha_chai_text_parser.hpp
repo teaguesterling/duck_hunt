@@ -30,6 +30,15 @@ public:
 	std::string getCategory() const override {
 		return "test_framework";
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Literal("mocha"),
+		    CommandPattern::Like("mocha %"),
+		    CommandPattern::Like("npx mocha%"),
+		    CommandPattern::Like("npm test%"),
+		    CommandPattern::Like("yarn test%"),
+		};
+	}
 };
 
 } // namespace duckdb

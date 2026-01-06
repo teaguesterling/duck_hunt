@@ -24,6 +24,13 @@ public:
 	std::string getCategory() const override {
 		return "tool_output";
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Like("bandit%-f json%"),
+		    CommandPattern::Like("bandit%--format json%"),
+		    CommandPattern::Regexp("bandit.*(-f|--format)[= ]?json"),
+		};
+	}
 
 private:
 	bool isValidBanditJSON(const std::string &content) const;

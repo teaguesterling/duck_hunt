@@ -24,6 +24,15 @@ public:
 	std::string getCategory() const override {
 		return "security_tool";
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Like("trivy%-f json%"),
+		    CommandPattern::Like("trivy%--format json%"),
+		    CommandPattern::Like("trivy image%"),
+		    CommandPattern::Like("trivy fs%"),
+		    CommandPattern::Regexp("trivy.*(image|fs|config|repo)"),
+		};
+	}
 
 private:
 	bool isValidTrivyJSON(const std::string &content) const;

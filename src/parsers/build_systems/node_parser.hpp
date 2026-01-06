@@ -32,6 +32,16 @@ public:
 	std::vector<std::string> getAliases() const override {
 		return {"node", "npm", "yarn"};
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Like("npm run%"),
+		    CommandPattern::Like("npm install%"),
+		    CommandPattern::Like("npm ci%"),
+		    CommandPattern::Like("yarn %"),
+		    CommandPattern::Like("pnpm %"),
+		    CommandPattern::Regexp("(npm|yarn|pnpm)\\s+"),
+		};
+	}
 };
 
 } // namespace duckdb

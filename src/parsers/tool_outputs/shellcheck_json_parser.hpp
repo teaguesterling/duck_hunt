@@ -24,6 +24,14 @@ public:
 	std::string getCategory() const override {
 		return "tool_output";
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Like("shellcheck%-f json%"),
+		    CommandPattern::Like("shellcheck%--format=json%"),
+		    CommandPattern::Like("shellcheck%--format json%"),
+		    CommandPattern::Regexp("shellcheck.*(-f|--format)[= ]?json"),
+		};
+	}
 
 private:
 	bool isValidShellCheckJSON(const std::string &content) const;

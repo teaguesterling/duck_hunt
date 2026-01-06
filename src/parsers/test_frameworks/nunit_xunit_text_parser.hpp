@@ -26,6 +26,14 @@ public:
 	std::string getCategory() const override {
 		return "test_framework";
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Like("dotnet test%"),
+		    CommandPattern::Like("nunit-console%"),
+		    CommandPattern::Like("vstest.console%"),
+		    CommandPattern::Regexp("dotnet\\s+test"),
+		};
+	}
 };
 
 } // namespace duckdb

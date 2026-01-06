@@ -32,6 +32,14 @@ public:
 	std::vector<std::string> getAliases() const override {
 		return {"cargo", "rust"};
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Like("cargo build%"),
+		    CommandPattern::Like("cargo check%"),
+		    CommandPattern::Like("cargo run%"),
+		    CommandPattern::Regexp("cargo\\s+(build|check|run)"),
+		};
+	}
 };
 
 } // namespace duckdb
