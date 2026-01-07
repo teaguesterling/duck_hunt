@@ -5,11 +5,11 @@
 # Require statement will ensure this test is run with this extension loaded
 require duck_hunt
 
-# Test GitHub Actions parser
+# Test GitHub Actions parser (only meaningful events are emitted)
 query I
 SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_github_actions.log', 'github_actions');
 ----
-26
+11
 
 # Test GitLab CI parser
 query I
@@ -33,7 +33,7 @@ SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_docker.log', 'dock
 query I
 SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_github_actions.log', 'auto') WHERE workflow_type = 'github_actions';
 ----
-26
+11
 
 # Test auto-detection for GitLab CI
 query I
@@ -77,3 +77,42 @@ query I
 SELECT COUNT(DISTINCT "group") FROM read_duck_hunt_workflow_log('test/sample_jenkins.log', 'jenkins') WHERE "group" IS NOT NULL AND "group" != '';
 ----
 1
+
+# Test GitHub Actions workflow commands detection
+# Issue #35: Parser should detect ##[error], ##[warning], ##[notice] workflow commands
+
+# Test ##[error] is detected as severity=error
+query I
+SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_github_actions_workflow_commands.log', 'github_actions') WHERE severity = 'error' AND message LIKE '%##[error]%';
+----
+1
+
+# Test ##[warning] is detected as severity=warning
+query I
+SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_github_actions_workflow_commands.log', 'github_actions') WHERE severity = 'warning' AND message LIKE '%##[warning]%';
+----
+2
+
+# Test ##[notice] is detected as severity=info (notice maps to info)
+query I
+SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_github_actions_workflow_commands.log', 'github_actions') WHERE severity = 'info' AND message LIKE '%##[notice]%';
+----
+1
+
+# Test FAILED: keyword is still detected as error
+query I
+SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_github_actions_workflow_commands.log', 'github_actions') WHERE severity = 'error' AND message LIKE '%FAILED:%';
+----
+1
+
+# Test total error count (##[error] + FAILED:)
+query I
+SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_github_actions_workflow_commands.log', 'github_actions') WHERE severity = 'error';
+----
+2
+
+# Test total warning count
+query I
+SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_github_actions_workflow_commands.log', 'github_actions') WHERE severity = 'warning';
+----
+2

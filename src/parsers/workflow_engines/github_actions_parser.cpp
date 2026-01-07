@@ -36,14 +36,49 @@ std::vector<WorkflowEvent> GitHubActionsParser::parseWorkflowLog(const std::stri
 			if (line.empty())
 				continue;
 
+			// Determine if this is a group marker
+			bool is_group_start = line.find("##[group]") != std::string::npos;
+			bool is_group_end = line.find("##[endgroup]") != std::string::npos;
+
+			// Check for workflow commands
+			bool is_error_cmd = line.find("##[error]") != std::string::npos;
+			bool is_warning_cmd = line.find("##[warning]") != std::string::npos;
+			bool is_notice_cmd = line.find("##[notice]") != std::string::npos;
+
+			// Check for error/warning keywords
+			bool has_error_keyword = line.find("ERROR") != std::string::npos || line.find("FAIL") != std::string::npos;
+			bool has_warning_keyword = line.find("WARN") != std::string::npos;
+			bool has_pass_keyword = line.find("PASS") != std::string::npos || line.find("✓") != std::string::npos;
+
+			// Check for other meaningful patterns
+			bool is_action_ref = line.find("actions/") != std::string::npos;
+			bool is_job_info = line.find("Complete job name:") != std::string::npos;
+			bool is_run_step = line.find("##[group]Run ") != std::string::npos;
+
+			// Determine if this line is meaningful enough to emit as an event
+			bool is_meaningful = is_group_start || is_group_end || is_error_cmd || is_warning_cmd || is_notice_cmd ||
+			                     has_error_keyword || has_warning_keyword || has_pass_keyword || is_action_ref ||
+			                     is_job_info || is_run_step;
+
+			// Skip non-meaningful lines
+			if (!is_meaningful) {
+				// Still track step name from group markers even if we don't emit
+				if (is_group_start) {
+					size_t group_pos = line.find("##[group]");
+					if (group_pos != std::string::npos) {
+						current_step_name = line.substr(group_pos + 9);
+						if (current_step_name.empty()) {
+							current_step_name = "Step";
+						}
+					}
+				}
+				continue;
+			}
+
 			WorkflowEvent event;
 
 			// Extract timestamp if present
 			std::string timestamp = extractTimestamp(line);
-
-			// Determine if this is a group marker
-			bool is_group_start = line.find("##[group]") != std::string::npos;
-			bool is_group_end = line.find("##[endgroup]") != std::string::npos;
 
 			if (is_group_start) {
 				// Extract step name from group marker
@@ -79,13 +114,23 @@ std::vector<WorkflowEvent> GitHubActionsParser::parseWorkflowLog(const std::stri
 			}
 
 			// Determine severity based on content
-			if (line.find("ERROR") != std::string::npos || line.find("FAIL") != std::string::npos) {
+			// First check for GitHub Actions workflow commands (##[error], ##[warning], ##[notice])
+			if (is_error_cmd) {
 				event.base_event.status = ValidationEventStatus::ERROR;
 				event.base_event.severity = "error";
-			} else if (line.find("WARN") != std::string::npos) {
+			} else if (is_warning_cmd) {
 				event.base_event.status = ValidationEventStatus::WARNING;
 				event.base_event.severity = "warning";
-			} else if (line.find("PASS") != std::string::npos || line.find("✓") != std::string::npos) {
+			} else if (is_notice_cmd) {
+				event.base_event.status = ValidationEventStatus::INFO;
+				event.base_event.severity = "info";
+			} else if (has_error_keyword) {
+				event.base_event.status = ValidationEventStatus::ERROR;
+				event.base_event.severity = "error";
+			} else if (has_warning_keyword) {
+				event.base_event.status = ValidationEventStatus::WARNING;
+				event.base_event.severity = "warning";
+			} else if (has_pass_keyword) {
 				event.base_event.status = ValidationEventStatus::PASS;
 				event.base_event.severity = "info";
 			} else {

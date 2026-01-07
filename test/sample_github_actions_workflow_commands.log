@@ -1,0 +1,23 @@
+2023-10-15T14:30:15.1234567Z ##[group]Run actions/checkout@v3
+2023-10-15T14:30:15.2345678Z with:
+2023-10-15T14:30:15.3456789Z   repository: user/repo
+2023-10-15T14:30:15.4567890Z ##[endgroup]
+2023-10-15T14:30:16.1234567Z ##[group]Run npm ci
+2023-10-15T14:30:16.2345678Z npm ci
+2023-10-15T14:30:16.3456789Z shell: /bin/bash -e {0}
+2023-10-15T14:30:16.4567890Z ##[endgroup]
+2023-10-15T14:30:17.1234567Z ##[warning]The `set-output` command is deprecated and will be disabled soon. Please upgrade to using Environment Files.
+2023-10-15T14:30:18.1234567Z ##[group]Run npm test
+2023-10-15T14:30:18.2345678Z npm test
+2023-10-15T14:30:18.3456789Z ##[endgroup]
+2023-10-15T14:30:19.1234567Z PASS src/test.js
+2023-10-15T14:30:20.1234567Z ##[notice]Build completed successfully
+2023-10-15T14:30:21.1234567Z ##[group]Run make build
+2023-10-15T14:30:21.2345678Z make build
+2023-10-15T14:30:21.3456789Z ##[endgroup]
+2023-10-15T14:30:22.1234567Z make: *** [Makefile:10: build] Error 1
+2023-10-15T14:30:22.2345678Z ##[error]Process completed with exit code 2.
+2023-10-15T14:30:23.1234567Z test/sql/test.test:12: FAILED:
+2023-10-15T14:30:23.2345678Z explicitly with message:
+2023-10-15T14:30:23.3456789Z   Expected 0, got 1
+2023-10-15T14:30:24.1234567Z ##[warning]D:/src/file.cpp:117:13: warning: unused variable 'x' [-Wunused-variable]
