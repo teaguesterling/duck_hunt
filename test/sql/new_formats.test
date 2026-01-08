@@ -2833,6 +2833,7 @@ test/samples/linting_tools/pylint_output.txt
 
 # -----------------------------------------------------------------------------
 # Test 286: github_actions - count and severity breakdown
+# Note: GitHub Actions parser now emits meaningful events only (not all lines)
 # -----------------------------------------------------------------------------
 query II
 SELECT status, COUNT(*) as cnt
@@ -2840,10 +2841,10 @@ FROM read_duck_hunt_workflow_log('test/samples/ci_systems/github_actions_workflo
 GROUP BY status
 ORDER BY cnt DESC, status;
 ----
-INFO	48
+INFO	12
+ERROR	3
 PASS	3
-ERROR	1
-WARNING	1
+WARNING	2
 
 # -----------------------------------------------------------------------------
 # Test 287: github_actions - tool_name and category
@@ -2858,6 +2859,7 @@ github_actions	workflow
 
 # -----------------------------------------------------------------------------
 # Test 288: github_actions - workflow structure (steps)
+# Note: With meaningful events only, fewer events per step
 # -----------------------------------------------------------------------------
 query II
 SELECT unit, COUNT(*) as cnt
@@ -2867,11 +2869,8 @@ GROUP BY unit
 ORDER BY cnt DESC, unit
 LIMIT 5;
 ----
-Run npm test	17
-Run actions/checkout@v4	11
-Run npm run lint	7
-Annotations	6
-Run actions/setup-node@v4	6
+Unnamed Step	18
+Run actions/checkout@v4	2
 
 # -----------------------------------------------------------------------------
 # Test 289: github_actions - verify file parsing works

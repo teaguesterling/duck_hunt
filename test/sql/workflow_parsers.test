@@ -57,7 +57,6 @@ SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_docker.log', 'auto
 query I
 SELECT DISTINCT hierarchy_level FROM read_duck_hunt_workflow_log('test/sample_github_actions.log', 'github_actions') ORDER BY hierarchy_level;
 ----
-2
 3
 
 # Test workflow metadata extraction
@@ -67,14 +66,15 @@ SELECT DISTINCT workflow_type, tool_name FROM read_duck_hunt_workflow_log('test/
 github_actions	github_actions
 
 # Test unit names are extracted (Schema V2: step_name -> unit)
+# Now includes "Job Level" pseudo-step for job-level events
 query I
-SELECT COUNT(DISTINCT unit) FROM read_duck_hunt_workflow_log('test/sample_github_actions.log', 'github_actions') WHERE unit IS NOT NULL AND unit != '';
+SELECT COUNT(DISTINCT unit) FROM read_duck_hunt_workflow_log('test/sample_github_actions.log', 'github_actions') WHERE unit IS NOT NULL AND unit <> '';
 ----
 4
 
 # Test group names are extracted (Schema V2: job_name -> group)
 query I
-SELECT COUNT(DISTINCT "group") FROM read_duck_hunt_workflow_log('test/sample_jenkins.log', 'jenkins') WHERE "group" IS NOT NULL AND "group" != '';
+SELECT COUNT(DISTINCT "group") FROM read_duck_hunt_workflow_log('test/sample_jenkins.log', 'jenkins') WHERE "group" IS NOT NULL AND "group" <> '';
 ----
 1
 

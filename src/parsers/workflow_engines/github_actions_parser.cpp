@@ -1,5 +1,6 @@
 #include "github_actions_parser.hpp"
 #include "read_duck_hunt_workflow_log_function.hpp"
+#include "core/parser_registry.hpp"
 #include "duckdb/common/string_util.hpp"
 #include <sstream>
 
@@ -25,132 +26,13 @@ std::vector<WorkflowEvent> GitHubActionsParser::parseWorkflowLog(const std::stri
 			return events;
 		}
 
-		std::istringstream iss(content);
-		std::string line;
-		int event_id = 1;
-		int32_t current_line_num = 0;
-		std::string current_step_name = "unknown";
+		// Use structured parsing with delegation support
+		std::string workflow_name = extractWorkflowName(content);
+		std::string run_id = extractRunId(content);
+		std::vector<GitHubJob> jobs = parseJobs(content);
 
-		while (std::getline(iss, line)) {
-			current_line_num++;
-			if (line.empty())
-				continue;
-
-			// Determine if this is a group marker
-			bool is_group_start = line.find("##[group]") != std::string::npos;
-			bool is_group_end = line.find("##[endgroup]") != std::string::npos;
-
-			// Check for workflow commands
-			bool is_error_cmd = line.find("##[error]") != std::string::npos;
-			bool is_warning_cmd = line.find("##[warning]") != std::string::npos;
-			bool is_notice_cmd = line.find("##[notice]") != std::string::npos;
-
-			// Check for error/warning keywords
-			bool has_error_keyword = line.find("ERROR") != std::string::npos || line.find("FAIL") != std::string::npos;
-			bool has_warning_keyword = line.find("WARN") != std::string::npos;
-			bool has_pass_keyword = line.find("PASS") != std::string::npos || line.find("✓") != std::string::npos;
-
-			// Check for other meaningful patterns
-			bool is_action_ref = line.find("actions/") != std::string::npos;
-			bool is_job_info = line.find("Complete job name:") != std::string::npos;
-			bool is_run_step = line.find("##[group]Run ") != std::string::npos;
-
-			// Determine if this line is meaningful enough to emit as an event
-			bool is_meaningful = is_group_start || is_group_end || is_error_cmd || is_warning_cmd || is_notice_cmd ||
-			                     has_error_keyword || has_warning_keyword || has_pass_keyword || is_action_ref ||
-			                     is_job_info || is_run_step;
-
-			// Skip non-meaningful lines
-			if (!is_meaningful) {
-				// Still track step name from group markers even if we don't emit
-				if (is_group_start) {
-					size_t group_pos = line.find("##[group]");
-					if (group_pos != std::string::npos) {
-						current_step_name = line.substr(group_pos + 9);
-						if (current_step_name.empty()) {
-							current_step_name = "Step";
-						}
-					}
-				}
-				continue;
-			}
-
-			WorkflowEvent event;
-
-			// Extract timestamp if present
-			std::string timestamp = extractTimestamp(line);
-
-			if (is_group_start) {
-				// Extract step name from group marker
-				size_t group_pos = line.find("##[group]");
-				if (group_pos != std::string::npos) {
-					current_step_name = line.substr(group_pos + 9); // Skip "##[group]"
-					// Clean up the step name
-					if (current_step_name.empty()) {
-						current_step_name = "Step";
-					}
-				}
-			}
-
-			// Create base event with error handling
-			try {
-				event.base_event = createBaseEvent(line, "GitHub Actions Workflow", "build", current_step_name);
-			} catch (const std::exception &e) {
-				// If createBaseEvent fails, create minimal event
-				event.base_event.event_id = event_id;
-				event.base_event.tool_name = "github_actions";
-				event.base_event.message = line;
-				event.base_event.log_content = line;
-				event.base_event.event_type = ValidationEventType::SUMMARY;
-				event.base_event.status = ValidationEventStatus::INFO;
-			}
-
-			// Override/set specific fields
-			event.base_event.event_id = event_id++;
-			event.base_event.tool_name = "github_actions";
-
-			if (!timestamp.empty()) {
-				event.base_event.started_at = timestamp;
-			}
-
-			// Determine severity based on content
-			// First check for GitHub Actions workflow commands (##[error], ##[warning], ##[notice])
-			if (is_error_cmd) {
-				event.base_event.status = ValidationEventStatus::ERROR;
-				event.base_event.severity = "error";
-			} else if (is_warning_cmd) {
-				event.base_event.status = ValidationEventStatus::WARNING;
-				event.base_event.severity = "warning";
-			} else if (is_notice_cmd) {
-				event.base_event.status = ValidationEventStatus::INFO;
-				event.base_event.severity = "info";
-			} else if (has_error_keyword) {
-				event.base_event.status = ValidationEventStatus::ERROR;
-				event.base_event.severity = "error";
-			} else if (has_warning_keyword) {
-				event.base_event.status = ValidationEventStatus::WARNING;
-				event.base_event.severity = "warning";
-			} else if (has_pass_keyword) {
-				event.base_event.status = ValidationEventStatus::PASS;
-				event.base_event.severity = "info";
-			} else {
-				event.base_event.status = ValidationEventStatus::INFO;
-				event.base_event.severity = "info";
-			}
-
-			// Set workflow-specific fields
-			event.workflow_type = "github_actions";
-			if (is_group_start || is_group_end) {
-				event.hierarchy_level = 2; // Step level
-			} else {
-				event.hierarchy_level = 3; // Line level within step
-			}
-			event.parent_id = "job_1";
-			event.base_event.log_line_start = current_line_num;
-			event.base_event.log_line_end = current_line_num;
-
-			events.push_back(event);
-		}
+		// Convert to events (uses delegation when available)
+		events = convertToEvents(jobs, workflow_name, run_id);
 
 		// If no events were created but content exists, create a summary event
 		if (events.empty() && !content.empty()) {
@@ -289,6 +171,21 @@ std::string GitHubActionsParser::extractStatus(const std::string &line) const {
 	return "running";
 }
 
+std::string GitHubActionsParser::extractCommand(const std::string &step_name) const {
+	// Extract command from step names like "Run make release" or "Run pytest tests/"
+	if (step_name.find("Run ") == 0) {
+		std::string command = step_name.substr(4); // Skip "Run "
+		// Trim leading/trailing whitespace
+		size_t start = command.find_first_not_of(" \t\r\n");
+		size_t end = command.find_last_not_of(" \t\r\n");
+		if (start != std::string::npos && end != std::string::npos) {
+			return command.substr(start, end - start + 1);
+		}
+		return command;
+	}
+	return "";
+}
+
 std::vector<GitHubActionsParser::GitHubJob> GitHubActionsParser::parseJobs(const std::string &content) const {
 	std::vector<GitHubJob> jobs;
 	GitHubJob current_job;
@@ -330,6 +227,29 @@ std::vector<GitHubActionsParser::GitHubJob> GitHubActionsParser::parseJobs(const
 	// Handle remaining step if any
 	if (in_step && !current_step_lines.empty()) {
 		current_job.steps.push_back(parseStep(current_step_lines));
+	}
+
+	// Handle job-level lines that came after the last step (e.g., ##[error], FAILED:)
+	if (!in_step && !current_step_lines.empty()) {
+		GitHubStep job_level_step;
+		job_level_step.step_name = "Job Level";
+		job_level_step.step_id = "job_level";
+		job_level_step.status = "info";
+		job_level_step.output_lines = current_step_lines;
+
+		// Check status from content
+		for (const auto &line : current_step_lines) {
+			if (line.find("##[error]") != std::string::npos || line.find("FAIL") != std::string::npos) {
+				job_level_step.status = "failure";
+				break;
+			} else if (line.find("##[warning]") != std::string::npos) {
+				if (job_level_step.status != "failure") {
+					job_level_step.status = "warning";
+				}
+			}
+		}
+
+		current_job.steps.push_back(job_level_step);
 	}
 
 	// If no steps were found, create a default step
@@ -390,6 +310,46 @@ GitHubActionsParser::GitHubStep GitHubActionsParser::parseStep(const std::vector
 	}
 
 	step.output_lines = step_lines;
+
+	// Try to delegate parsing to a specialized parser based on command
+	step.detected_command = extractCommand(step.step_name);
+	if (!step.detected_command.empty()) {
+		auto &registry = ParserRegistry::getInstance();
+		IParser *delegated_parser = registry.findParserByCommand(step.detected_command);
+
+		if (delegated_parser) {
+			step.delegated_format = delegated_parser->getFormatName();
+
+			// Build content string from output lines (skip group markers)
+			std::string step_content;
+			for (size_t i = 1; i < step_lines.size(); i++) {
+				const auto &line = step_lines[i];
+				// Skip group end marker
+				if (line.find("##[endgroup]") != std::string::npos) {
+					continue;
+				}
+				// Strip timestamp prefix if present (2023-10-15T14:30:15.1234567Z )
+				size_t content_start = 0;
+				if (line.size() > 28 && line[4] == '-' && line[10] == 'T' && line[27] == 'Z') {
+					content_start = 29; // Skip "YYYY-MM-DDTHH:MM:SS.fffffffZ "
+				}
+				if (content_start < line.size()) {
+					step_content += line.substr(content_start) + "\n";
+				}
+			}
+
+			// Parse with delegated parser
+			if (!step_content.empty()) {
+				try {
+					step.delegated_events = delegated_parser->parse(step_content);
+				} catch (const std::exception &) {
+					// Delegation failed, will fall back to workflow-level parsing
+					step.delegated_events.clear();
+				}
+			}
+		}
+	}
+
 	return step;
 }
 
@@ -400,35 +360,105 @@ std::vector<WorkflowEvent> GitHubActionsParser::convertToEvents(const std::vecto
 
 	for (const auto &job : jobs) {
 		for (const auto &step : job.steps) {
-			for (const auto &output_line : step.output_lines) {
-				WorkflowEvent event;
+			// If we have delegated events, use those instead of raw output lines
+			if (!step.delegated_events.empty()) {
+				for (const auto &delegated_event : step.delegated_events) {
+					WorkflowEvent event;
+					event.base_event = delegated_event;
 
-				// Create base validation event
-				ValidationEvent base_event = createBaseEvent(output_line, workflow_name, job.job_name, step.step_name);
+					// Enrich with workflow context
+					event.base_event.scope = workflow_name;
+					event.base_event.group = job.job_name;
+					event.base_event.unit = step.step_name;
+					event.base_event.scope_id = run_id;
+					event.base_event.group_id = job.job_id;
+					event.base_event.unit_id = step.step_id;
+					event.base_event.scope_status = "running";
+					event.base_event.group_status = job.status;
+					event.base_event.unit_status = step.status;
+					if (event.base_event.started_at.empty()) {
+						event.base_event.started_at = step.started_at;
+					}
 
-				// Set the base_event
-				event.base_event = base_event;
+					// Mark as delegated
+					event.workflow_type = "github_actions";
+					event.hierarchy_level = 4; // Delegated tool event level
+					event.parent_id = step.step_id;
 
-				// Override specific fields in base_event (Schema V2)
-				event.base_event.status = ValidationEventStatus::INFO;
-				event.base_event.severity = determineSeverity(step.status, output_line);
-				event.base_event.scope = workflow_name;
-				event.base_event.group = job.job_name;
-				event.base_event.unit = step.step_name;
-				event.base_event.scope_id = run_id;
-				event.base_event.group_id = job.job_id;
-				event.base_event.unit_id = step.step_id;
-				event.base_event.scope_status = "running";
-				event.base_event.group_status = job.status;
-				event.base_event.unit_status = step.status;
-				event.base_event.started_at = step.started_at;
+					// Add delegation info to structured_data
+					if (!step.delegated_format.empty()) {
+						event.base_event.structured_data = step.delegated_format;
+					}
 
-				// Set workflow-specific fields
-				event.workflow_type = "github_actions";
-				event.hierarchy_level = 3; // Step level
-				event.parent_id = job.job_id;
+					events.push_back(event);
+				}
+			} else {
+				// No delegation - emit only meaningful workflow events
+				for (const auto &output_line : step.output_lines) {
+					// Filter to meaningful lines only
+					bool is_group_start = output_line.find("##[group]") != std::string::npos;
+					bool is_group_end = output_line.find("##[endgroup]") != std::string::npos;
+					bool is_error_cmd = output_line.find("##[error]") != std::string::npos;
+					bool is_warning_cmd = output_line.find("##[warning]") != std::string::npos;
+					bool is_notice_cmd = output_line.find("##[notice]") != std::string::npos;
+					bool has_error_keyword = output_line.find("ERROR") != std::string::npos ||
+					                         output_line.find("FAIL") != std::string::npos;
+					bool has_warning_keyword = output_line.find("WARN") != std::string::npos;
+					bool has_pass_keyword = output_line.find("PASS") != std::string::npos ||
+					                        output_line.find("✓") != std::string::npos;
+					bool is_action_ref = output_line.find("actions/") != std::string::npos;
+					bool is_job_info = output_line.find("Complete job name:") != std::string::npos;
 
-				events.push_back(event);
+					bool is_meaningful = is_group_start || is_group_end || is_error_cmd || is_warning_cmd ||
+					                     is_notice_cmd || has_error_keyword || has_warning_keyword ||
+					                     has_pass_keyword || is_action_ref || is_job_info;
+
+					if (!is_meaningful) {
+						continue;
+					}
+
+					WorkflowEvent event;
+
+					// Create base validation event
+					ValidationEvent base_event = createBaseEvent(output_line, workflow_name, job.job_name, step.step_name);
+
+					// Set the base_event
+					event.base_event = base_event;
+
+					// Determine severity from workflow commands and keywords
+					std::string severity = "info";
+					ValidationEventStatus status = ValidationEventStatus::INFO;
+					if (is_error_cmd || has_error_keyword) {
+						severity = "error";
+						status = ValidationEventStatus::ERROR;
+					} else if (is_warning_cmd || has_warning_keyword) {
+						severity = "warning";
+						status = ValidationEventStatus::WARNING;
+					} else if (has_pass_keyword) {
+						severity = "info";
+						status = ValidationEventStatus::PASS;
+					}
+
+					event.base_event.status = status;
+					event.base_event.severity = severity;
+					event.base_event.scope = workflow_name;
+					event.base_event.group = job.job_name;
+					event.base_event.unit = step.step_name;
+					event.base_event.scope_id = run_id;
+					event.base_event.group_id = job.job_id;
+					event.base_event.unit_id = step.step_id;
+					event.base_event.scope_status = "running";
+					event.base_event.group_status = job.status;
+					event.base_event.unit_status = step.status;
+					event.base_event.started_at = step.started_at;
+
+					// Set workflow-specific fields
+					event.workflow_type = "github_actions";
+					event.hierarchy_level = 3; // Step level
+					event.parent_id = job.job_id;
+
+					events.push_back(event);
+				}
 			}
 		}
 	}

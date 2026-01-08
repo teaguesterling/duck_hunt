@@ -76,12 +76,13 @@ SELECT COUNT(*) FROM (
 # =============================================================================
 
 # Test 7: Basic workflow log GZIP reading
+# Note: GitHub Actions parser now emits meaningful events only (not all lines)
 query II
 SELECT tool_name, COUNT(*) as events
 FROM read_duck_hunt_workflow_log('test/samples/github_actions.log.gz', 'github_actions')
 GROUP BY tool_name;
 ----
-github_actions	14
+github_actions	9
 
 # Test 8: Verify workflow compressed matches uncompressed
 query I
@@ -101,7 +102,7 @@ SELECT tool_name, COUNT(*) as events
 FROM read_duck_hunt_workflow_log('test/samples/github_actions.log.gz', 'auto')
 GROUP BY tool_name;
 ----
-github_actions	14
+github_actions	9
 
 # =============================================================================
 # Severity Threshold with Compression

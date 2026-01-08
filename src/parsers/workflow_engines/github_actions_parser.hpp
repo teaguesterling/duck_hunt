@@ -27,6 +27,9 @@ private:
 		std::string completed_at;
 		std::string status;
 		std::vector<std::string> output_lines;
+		std::string detected_command;                    // Command extracted from "Run <cmd>"
+		std::string delegated_format;                    // Format detected via command patterns
+		std::vector<ValidationEvent> delegated_events;   // Events from delegated parser
 	};
 
 	struct GitHubJob {
@@ -49,6 +52,7 @@ private:
 	std::string extractStepName(const std::string &line) const;
 	std::string extractTimestamp(const std::string &line) const;
 	std::string extractStatus(const std::string &line) const;
+	std::string extractCommand(const std::string &step_name) const;
 
 	// Parse hierarchical structure
 	std::vector<GitHubJob> parseJobs(const std::string &content) const;

@@ -48,6 +48,13 @@ public:
 	IParser *findParser(const std::string &content) const;
 
 	/**
+	 * Find parser by command string (matches against command_patterns).
+	 * Used for workflow delegation - e.g., "make release" -> make parser.
+	 * Returns nullptr if no match found.
+	 */
+	IParser *findParserByCommand(const std::string &command) const;
+
+	/**
 	 * Get all parsers in a category (sorted by priority).
 	 */
 	std::vector<IParser *> getParsersByCategory(const std::string &category) const;

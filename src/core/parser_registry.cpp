@@ -1,6 +1,7 @@
 #include "parser_registry.hpp"
 #include <algorithm>
 #include <mutex>
+#include <regex>
 
 // Parser tracing disabled - no-op macro
 #define PARSER_TRACE(msg)                                                                                              \
@@ -128,6 +129,97 @@ IParser *ParserRegistry::findParser(const std::string &content) const {
 	}
 
 	return nullptr;
+}
+
+// Helper for SQL LIKE pattern matching
+static bool matchLikePattern(const std::string &str, const std::string &pattern) {
+	// Convert SQL LIKE pattern to regex
+	// % matches any sequence, _ matches any single character
+	std::string regex_pattern;
+	regex_pattern.reserve(pattern.size() * 2);
+
+	for (char c : pattern) {
+		switch (c) {
+		case '%':
+			regex_pattern += ".*";
+			break;
+		case '_':
+			regex_pattern += ".";
+			break;
+		case '.':
+		case '^':
+		case '$':
+		case '+':
+		case '?':
+		case '(':
+		case ')':
+		case '[':
+		case ']':
+		case '{':
+		case '}':
+		case '|':
+		case '\\':
+			regex_pattern += '\\';
+			regex_pattern += c;
+			break;
+		default:
+			regex_pattern += c;
+			break;
+		}
+	}
+
+	try {
+		std::regex re(regex_pattern, std::regex::icase);
+		return std::regex_match(str, re);
+	} catch (const std::regex_error &) {
+		return false;
+	}
+}
+
+IParser *ParserRegistry::findParserByCommand(const std::string &command) const {
+	// Ensure parsers are initialized
+	InitializeAllParsers();
+
+	ensureSorted();
+
+	IParser *best_match = nullptr;
+	int best_priority = -1;
+
+	// Try parsers in priority order, find highest priority match
+	for (IParser *parser : sorted_parsers_) {
+		// Skip if we already have a better match
+		if (best_match && parser->getPriority() <= best_priority) {
+			continue;
+		}
+
+		const auto &patterns = parser->getCommandPatterns();
+		for (const auto &cp : patterns) {
+			bool matched = false;
+
+			if (cp.pattern_type == "literal") {
+				matched = (command == cp.pattern);
+			} else if (cp.pattern_type == "like") {
+				matched = matchLikePattern(command, cp.pattern);
+			} else if (cp.pattern_type == "regexp") {
+				try {
+					std::regex re(cp.pattern, std::regex::icase);
+					matched = std::regex_search(command, re);
+				} catch (const std::regex_error &) {
+					matched = false;
+				}
+			}
+
+			if (matched) {
+				if (parser->getPriority() > best_priority) {
+					best_match = parser;
+					best_priority = parser->getPriority();
+				}
+				break; // Found a match for this parser, no need to check other patterns
+			}
+		}
+	}
+
+	return best_match;
 }
 
 std::vector<IParser *> ParserRegistry::getParsersByCategory(const std::string &category) const {
