@@ -27,6 +27,10 @@ private:
 		std::string started_at;
 		std::string completed_at;
 		std::vector<std::string> output_lines;
+		// Delegation support
+		std::string detected_command;                  // Full command from RUN instruction
+		std::string delegated_format;                  // Format detected via command patterns
+		std::vector<ValidationEvent> delegated_events; // Events from delegated parser
 	};
 
 	struct DockerStage {
@@ -60,6 +64,7 @@ private:
 	std::string extractCommand(const std::string &line) const;
 	std::string extractLayerId(const std::string &line) const;
 	std::string extractStatus(const std::string &line) const;
+	std::string extractRunCommand(const std::string &line) const;
 
 	// Parse hierarchical structure
 	std::vector<DockerBuild> parseBuilds(const std::string &content) const;

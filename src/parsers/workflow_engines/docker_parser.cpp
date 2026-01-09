@@ -1,5 +1,6 @@
 #include "docker_parser.hpp"
 #include "read_duck_hunt_workflow_log_function.hpp"
+#include "core/parser_registry.hpp"
 #include "duckdb/common/string_util.hpp"
 #include <sstream>
 
@@ -172,6 +173,22 @@ std::string DockerParser::extractStatus(const std::string &line) const {
 	return "running";
 }
 
+std::string DockerParser::extractRunCommand(const std::string &line) const {
+	// Extract the full RUN command (what comes after "RUN ")
+	// Handles both "Step N/M : RUN command" and standalone "RUN command" formats
+	size_t run_pos = line.find("RUN ");
+	if (run_pos != std::string::npos) {
+		std::string command = line.substr(run_pos + 4);
+		// Trim trailing whitespace/newlines
+		size_t end = command.find_last_not_of(" \t\r\n");
+		if (end != std::string::npos) {
+			command = command.substr(0, end + 1);
+		}
+		return command;
+	}
+	return "";
+}
+
 std::vector<DockerParser::DockerBuild> DockerParser::parseBuilds(const std::string &content) const {
 	std::vector<DockerBuild> builds;
 	DockerBuild current_build;
@@ -305,6 +322,59 @@ DockerParser::DockerLayer DockerParser::parseLayer(const std::vector<std::string
 	}
 
 	layer.output_lines = layer_lines;
+
+	// Try to find command for delegation (only for RUN commands)
+	if (command == "RUN") {
+		for (const auto &line : layer_lines) {
+			std::string run_command = extractRunCommand(line);
+			if (!run_command.empty()) {
+				layer.detected_command = run_command;
+				break;
+			}
+		}
+
+		// Try to delegate parsing to a specialized parser based on command
+		if (!layer.detected_command.empty()) {
+			auto &registry = ParserRegistry::getInstance();
+			IParser *delegated_parser = registry.findParserByCommand(layer.detected_command);
+
+			if (delegated_parser) {
+				layer.delegated_format = delegated_parser->getFormatName();
+
+				// Build content string from output lines (skip the RUN line and metadata)
+				std::string layer_content;
+				bool found_run = false;
+				for (const auto &line : layer_lines) {
+					// Skip lines before and including the RUN command
+					if (!found_run) {
+						if (line.find("RUN ") != std::string::npos) {
+							found_run = true;
+						}
+						continue;
+					}
+					// Skip Docker metadata lines
+					if (line.find("---> ") != std::string::npos) {
+						continue;
+					}
+					if (line.find("Removing intermediate container") != std::string::npos) {
+						continue;
+					}
+					layer_content += line + "\n";
+				}
+
+				// Parse with delegated parser
+				if (!layer_content.empty()) {
+					try {
+						layer.delegated_events = delegated_parser->parse(layer_content);
+					} catch (const std::exception &) {
+						// Delegation failed, will fall back to workflow-level parsing
+						layer.delegated_events.clear();
+					}
+				}
+			}
+		}
+	}
+
 	return layer;
 }
 
@@ -314,38 +384,98 @@ std::vector<WorkflowEvent> DockerParser::convertToEvents(const std::vector<Docke
 	for (const auto &build : builds) {
 		for (const auto &stage : build.stages) {
 			for (const auto &layer : stage.layers) {
-				for (const auto &output_line : layer.output_lines) {
-					WorkflowEvent event;
+				// If we have delegated events, use those instead of raw output lines
+				if (!layer.delegated_events.empty()) {
+					for (const auto &delegated_event : layer.delegated_events) {
+						WorkflowEvent event;
+						event.base_event = delegated_event;
 
-					// Create base validation event
-					ValidationEvent base_event =
-					    createBaseEvent(output_line, "Docker Build", stage.stage_name, layer.command);
+						// Enrich with workflow context
+						event.base_event.scope = "Docker Build";
+						event.base_event.group = stage.stage_name;
+						event.base_event.unit = layer.command;
+						event.base_event.scope_id = build.build_id;
+						event.base_event.group_id = stage.stage_id;
+						event.base_event.unit_id = layer.layer_id;
+						event.base_event.scope_status = "running";
+						event.base_event.group_status = stage.status;
+						event.base_event.unit_status = layer.status;
+						if (event.base_event.started_at.empty()) {
+							event.base_event.started_at = layer.started_at;
+						}
+						event.base_event.origin = stage.base_image;
+						event.base_event.ref_file = build.dockerfile_path;
 
-					// Set the base_event
-					event.base_event = base_event;
+						// Mark as delegated
+						event.workflow_type = "docker_build";
+						event.hierarchy_level = 4; // Delegated tool event level
+						event.parent_id = layer.layer_id;
 
-					// Override specific fields in base_event (Schema V2)
-					event.base_event.status = ValidationEventStatus::INFO;
-					event.base_event.severity = determineSeverity(layer.status, output_line);
-					event.base_event.ref_file = build.dockerfile_path;
-					event.base_event.function_name = layer.command;
-					event.base_event.category = "docker_build";
-					event.base_event.scope = "Docker Build";
-					event.base_event.group = stage.stage_name;
-					event.base_event.unit = layer.command;
-					event.base_event.scope_id = build.build_id;
-					event.base_event.group_id = stage.stage_id;
-					event.base_event.unit_id = layer.layer_id;
-					event.base_event.scope_status = "running";
-					event.base_event.group_status = stage.status;
-					event.base_event.unit_status = layer.status;
-					event.base_event.started_at = layer.started_at;
-					event.base_event.origin = stage.base_image;
-					event.workflow_type = "docker_build";
-					event.hierarchy_level = 3; // Layer level (equivalent to step)
-					event.parent_id = stage.stage_id;
+						// Add delegation info to structured_data
+						if (!layer.delegated_format.empty()) {
+							event.base_event.structured_data = layer.delegated_format;
+						}
 
-					events.push_back(event);
+						events.push_back(event);
+					}
+				} else {
+					// No delegation - emit only meaningful workflow events
+					for (const auto &output_line : layer.output_lines) {
+						// Filter to meaningful lines only
+						bool is_docker_cmd = output_line.find("FROM ") != std::string::npos ||
+						                     output_line.find("RUN ") != std::string::npos ||
+						                     output_line.find("COPY ") != std::string::npos ||
+						                     output_line.find("ADD ") != std::string::npos ||
+						                     output_line.find("WORKDIR ") != std::string::npos;
+						bool is_step = output_line.find("Step ") != std::string::npos;
+						bool is_layer_id = output_line.find("---> ") != std::string::npos;
+						bool is_cache = output_line.find("Using cache") != std::string::npos;
+						bool is_complete = output_line.find("Successfully built") != std::string::npos ||
+						                   output_line.find("Successfully tagged") != std::string::npos;
+						bool has_error = output_line.find("ERROR") != std::string::npos ||
+						                 output_line.find("error:") != std::string::npos;
+						bool has_warning = output_line.find("WARNING") != std::string::npos ||
+						                   output_line.find("warning:") != std::string::npos;
+
+						bool is_meaningful = is_docker_cmd || is_step || is_layer_id || is_cache ||
+						                     is_complete || has_error || has_warning;
+
+						if (!is_meaningful) {
+							continue;
+						}
+
+						WorkflowEvent event;
+
+						// Create base validation event
+						ValidationEvent base_event =
+						    createBaseEvent(output_line, "Docker Build", stage.stage_name, layer.command);
+
+						// Set the base_event
+						event.base_event = base_event;
+
+						// Override specific fields in base_event (Schema V2)
+						event.base_event.status = ValidationEventStatus::INFO;
+						event.base_event.severity = determineSeverity(layer.status, output_line);
+						event.base_event.ref_file = build.dockerfile_path;
+						event.base_event.function_name = layer.command;
+						event.base_event.category = "docker_build";
+						event.base_event.scope = "Docker Build";
+						event.base_event.group = stage.stage_name;
+						event.base_event.unit = layer.command;
+						event.base_event.scope_id = build.build_id;
+						event.base_event.group_id = stage.stage_id;
+						event.base_event.unit_id = layer.layer_id;
+						event.base_event.scope_status = "running";
+						event.base_event.group_status = stage.status;
+						event.base_event.unit_status = layer.status;
+						event.base_event.started_at = layer.started_at;
+						event.base_event.origin = stage.base_image;
+						event.workflow_type = "docker_build";
+						event.hierarchy_level = 3; // Layer level (equivalent to step)
+						event.parent_id = stage.stage_id;
+
+						events.push_back(event);
+					}
 				}
 			}
 		}

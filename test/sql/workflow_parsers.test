@@ -11,23 +11,23 @@ SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_github_actions.log
 ----
 11
 
-# Test GitLab CI parser
+# Test GitLab CI parser (only meaningful events are emitted)
 query I
 SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_gitlab_ci.log', 'gitlab_ci');
 ----
-40
+8
 
-# Test Jenkins parser
+# Test Jenkins parser (only meaningful events are emitted)
 query I
 SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_jenkins.log', 'jenkins');
 ----
-31
+23
 
-# Test Docker parser
+# Test Docker parser (only meaningful events are emitted)
 query I
 SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_docker.log', 'docker_build');
 ----
-22
+21
 
 # Test auto-detection for GitHub Actions
 query I
@@ -39,19 +39,19 @@ SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_github_actions.log
 query I
 SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_gitlab_ci.log', 'auto') WHERE workflow_type = 'gitlab_ci';
 ----
-40
+8
 
 # Test auto-detection for Jenkins
 query I
 SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_jenkins.log', 'auto') WHERE workflow_type = 'jenkins';
 ----
-31
+23
 
 # Test auto-detection for Docker
 query I
 SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_docker.log', 'auto') WHERE workflow_type = 'docker_build';
 ----
-22
+21
 
 # Test workflow hierarchy levels
 query I

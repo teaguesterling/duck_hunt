@@ -1,5 +1,6 @@
 #include "gitlab_ci_parser.hpp"
 #include "read_duck_hunt_workflow_log_function.hpp"
+#include "core/parser_registry.hpp"
 #include "duckdb/common/string_util.hpp"
 #include <sstream>
 
@@ -149,6 +150,22 @@ std::string GitLabCIParser::extractStatus(const std::string &line) const {
 	return "running";
 }
 
+std::string GitLabCIParser::extractCommandFromLine(const std::string &line) const {
+	// GitLab CI shows commands being executed with $ prefix
+	// Pattern: "$ command args..."
+	std::string trimmed = line;
+	size_t start = trimmed.find_first_not_of(" \t");
+	if (start != std::string::npos) {
+		trimmed = trimmed.substr(start);
+	}
+
+	if (trimmed.find("$ ") == 0) {
+		return trimmed.substr(2);
+	}
+
+	return "";
+}
+
 std::vector<GitLabCIParser::GitLabJob> GitLabCIParser::parseJobs(const std::string &content) const {
 	std::vector<GitLabJob> jobs;
 	GitLabJob current_job;
@@ -237,6 +254,50 @@ GitLabCIParser::GitLabStage GitLabCIParser::parseStage(const std::vector<std::st
 	}
 
 	stage.output_lines = stage_lines;
+
+	// Try to find command for delegation
+	// Look for "$ command" lines to determine what tool is running
+	for (const auto &line : stage_lines) {
+		std::string command = extractCommandFromLine(line);
+		if (!command.empty()) {
+			stage.detected_command = command;
+			break;
+		}
+	}
+
+	// Try to delegate parsing to a specialized parser based on command
+	if (!stage.detected_command.empty()) {
+		auto &registry = ParserRegistry::getInstance();
+		IParser *delegated_parser = registry.findParserByCommand(stage.detected_command);
+
+		if (delegated_parser) {
+			stage.delegated_format = delegated_parser->getFormatName();
+
+			// Build content string from output lines (skip the command line itself)
+			std::string stage_content;
+			bool found_command = false;
+			for (const auto &line : stage_lines) {
+				if (!found_command && !extractCommandFromLine(line).empty()) {
+					found_command = true;
+					continue; // Skip the command line itself
+				}
+				if (found_command) {
+					stage_content += line + "\n";
+				}
+			}
+
+			// Parse with delegated parser
+			if (!stage_content.empty()) {
+				try {
+					stage.delegated_events = delegated_parser->parse(stage_content);
+				} catch (const std::exception &) {
+					// Delegation failed, will fall back to workflow-level parsing
+					stage.delegated_events.clear();
+				}
+			}
+		}
+	}
+
 	return stage;
 }
 
@@ -247,34 +308,90 @@ std::vector<WorkflowEvent> GitLabCIParser::convertToEvents(const std::vector<Git
 
 	for (const auto &job : jobs) {
 		for (const auto &stage : job.stages) {
-			for (const auto &output_line : stage.output_lines) {
-				WorkflowEvent event;
+			// If we have delegated events, use those instead of raw output lines
+			if (!stage.delegated_events.empty()) {
+				for (const auto &delegated_event : stage.delegated_events) {
+					WorkflowEvent event;
+					event.base_event = delegated_event;
 
-				// Create base validation event
-				ValidationEvent base_event =
-				    createBaseEvent(output_line, workflow_name, job.job_name, stage.stage_name);
+					// Enrich with workflow context
+					event.base_event.scope = workflow_name;
+					event.base_event.group = job.job_name;
+					event.base_event.unit = stage.stage_name;
+					event.base_event.scope_id = pipeline_id;
+					event.base_event.group_id = job.job_id;
+					event.base_event.unit_id = stage.stage_id;
+					event.base_event.scope_status = "running";
+					event.base_event.group_status = job.status;
+					event.base_event.unit_status = stage.status;
+					if (event.base_event.started_at.empty()) {
+						event.base_event.started_at = stage.started_at;
+					}
 
-				// Set the base_event
-				event.base_event = base_event;
+					// Mark as delegated
+					event.workflow_type = "gitlab_ci";
+					event.hierarchy_level = 4; // Delegated tool event level
+					event.parent_id = stage.stage_id;
 
-				// Override specific fields in base_event (Schema V2)
-				event.base_event.status = ValidationEventStatus::INFO;
-				event.base_event.severity = determineSeverity(stage.status, output_line);
-				event.base_event.scope = workflow_name;
-				event.base_event.group = job.job_name;
-				event.base_event.unit = stage.stage_name;
-				event.base_event.scope_id = pipeline_id;
-				event.base_event.group_id = job.job_id;
-				event.base_event.unit_id = stage.stage_id;
-				event.base_event.scope_status = "running";
-				event.base_event.group_status = job.status;
-				event.base_event.unit_status = stage.status;
-				event.base_event.started_at = stage.started_at;
-				event.workflow_type = "gitlab_ci";
-				event.hierarchy_level = 3; // Stage level (equivalent to step)
-				event.parent_id = job.job_id;
+					// Add delegation info to structured_data
+					if (!stage.delegated_format.empty()) {
+						event.base_event.structured_data = stage.delegated_format;
+					}
 
-				events.push_back(event);
+					events.push_back(event);
+				}
+			} else {
+				// No delegation - emit only meaningful workflow events
+				for (const auto &output_line : stage.output_lines) {
+					// Filter to meaningful lines only
+					bool is_command = output_line.find("$ ") != std::string::npos;
+					bool is_stage_marker = output_line.find("Executing \"") != std::string::npos;
+					bool is_runner_info = output_line.find("Running with gitlab-runner") != std::string::npos ||
+					                      output_line.find("on gitlab-runner") != std::string::npos;
+					bool has_error = output_line.find("ERROR") != std::string::npos ||
+					                 output_line.find("error:") != std::string::npos ||
+					                 output_line.find("Job failed") != std::string::npos;
+					bool has_warning = output_line.find("WARNING") != std::string::npos ||
+					                   output_line.find("warning:") != std::string::npos ||
+					                   output_line.find("deprecated") != std::string::npos;
+					bool is_status = output_line.find("Job succeeded") != std::string::npos ||
+					                 output_line.find("Pipeline #") != std::string::npos;
+
+					bool is_meaningful =
+					    is_command || is_stage_marker || is_runner_info || has_error || has_warning || is_status;
+
+					if (!is_meaningful) {
+						continue;
+					}
+
+					WorkflowEvent event;
+
+					// Create base validation event
+					ValidationEvent base_event =
+					    createBaseEvent(output_line, workflow_name, job.job_name, stage.stage_name);
+
+					// Set the base_event
+					event.base_event = base_event;
+
+					// Override specific fields in base_event (Schema V2)
+					event.base_event.status = ValidationEventStatus::INFO;
+					event.base_event.severity = determineSeverity(stage.status, output_line);
+					event.base_event.scope = workflow_name;
+					event.base_event.group = job.job_name;
+					event.base_event.unit = stage.stage_name;
+					event.base_event.scope_id = pipeline_id;
+					event.base_event.group_id = job.job_id;
+					event.base_event.unit_id = stage.stage_id;
+					event.base_event.scope_status = "running";
+					event.base_event.group_status = job.status;
+					event.base_event.unit_status = stage.status;
+					event.base_event.started_at = stage.started_at;
+					event.workflow_type = "gitlab_ci";
+					event.hierarchy_level = 3; // Stage level (equivalent to step)
+					event.parent_id = job.job_id;
+
+					events.push_back(event);
+				}
 			}
 		}
 	}

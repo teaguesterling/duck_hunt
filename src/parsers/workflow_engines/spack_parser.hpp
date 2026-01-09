@@ -27,6 +27,10 @@ private:
 		std::string status;
 		std::string started_at;
 		std::vector<std::string> output_lines;
+		// Delegation support
+		std::string detected_command;                  // Primary command for this phase
+		std::string delegated_format;                  // Format detected via command patterns
+		std::vector<ValidationEvent> delegated_events; // Events from delegated parser
 	};
 
 	struct SpackBuild {

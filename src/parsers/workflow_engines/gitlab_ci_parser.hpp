@@ -27,6 +27,10 @@ private:
 		std::string started_at;
 		std::string completed_at;
 		std::vector<std::string> output_lines;
+		// Delegation support
+		std::string detected_command;                  // Command extracted from script execution
+		std::string delegated_format;                  // Format detected via command patterns
+		std::vector<ValidationEvent> delegated_events; // Events from delegated parser
 	};
 
 	struct GitLabJob {
@@ -52,6 +56,7 @@ private:
 	std::string extractExecutor(const std::string &content) const;
 	std::string extractRunnerInfo(const std::string &line) const;
 	std::string extractStatus(const std::string &line) const;
+	std::string extractCommandFromLine(const std::string &line) const;
 
 	// Parse hierarchical structure
 	std::vector<GitLabJob> parseJobs(const std::string &content) const;

@@ -2883,6 +2883,7 @@ true
 
 # -----------------------------------------------------------------------------
 # Test 290: gitlab_ci - count and severity breakdown
+# Note: GitLab CI now emits only meaningful events
 # -----------------------------------------------------------------------------
 query II
 SELECT status, COUNT(*) as cnt
@@ -2890,7 +2891,7 @@ FROM read_duck_hunt_workflow_log('test/samples/ci_systems/gitlab_ci_output.txt',
 GROUP BY status
 ORDER BY cnt DESC, status;
 ----
-INFO	52
+INFO	5
 
 # -----------------------------------------------------------------------------
 # Test 291: gitlab_ci - tool_name
@@ -2901,7 +2902,7 @@ FROM read_duck_hunt_workflow_log('test/samples/ci_systems/gitlab_ci_output.txt',
 GROUP BY tool_name
 ORDER BY tool_name;
 ----
-gitlab_ci	52
+gitlab_ci	5
 
 # -----------------------------------------------------------------------------
 # Test 292: gitlab_ci - verify file parsing works
@@ -2914,6 +2915,7 @@ true
 
 # -----------------------------------------------------------------------------
 # Test 293: jenkins - count and severity breakdown
+# Note: Jenkins now emits only meaningful events
 # -----------------------------------------------------------------------------
 query II
 SELECT status, COUNT(*) as cnt
@@ -2921,7 +2923,7 @@ FROM read_duck_hunt_workflow_log('test/samples/ci_systems/jenkins_console_output
 GROUP BY status
 ORDER BY cnt DESC, status;
 ----
-INFO	68
+INFO	31
 
 # -----------------------------------------------------------------------------
 # Test 294: jenkins - tool_name
@@ -2932,7 +2934,7 @@ FROM read_duck_hunt_workflow_log('test/samples/ci_systems/jenkins_console_output
 GROUP BY tool_name
 ORDER BY tool_name;
 ----
-jenkins	68
+jenkins	31
 
 # -----------------------------------------------------------------------------
 # Test 295: jenkins - verify file parsing works
