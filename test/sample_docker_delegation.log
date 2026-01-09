@@ -1,0 +1,20 @@
+Sending build context to Docker daemon  2.048kB
+Step 1/4 : FROM ubuntu:22.04
+ ---> a1b2c3d4e5f6
+Step 2/4 : COPY . /app
+ ---> Using cache
+ ---> b2c3d4e5f6a7
+Step 3/4 : WORKDIR /app
+ ---> Using cache
+ ---> c3d4e5f6a7b8
+Step 4/4 : RUN make build
+ ---> Running in d4e5f6a7b8c9
+gcc -Wall -c -o app.o app.c
+app.c:25:10: warning: unused variable 'temp' [-Wunused-variable]
+   25 |     int temp = 0;
+      |          ^~~~
+gcc -o myapp app.o
+Removing intermediate container d4e5f6a7b8c9
+ ---> e5f6a7b8c9d0
+Successfully built e5f6a7b8c9d0
+Successfully tagged myapp:latest

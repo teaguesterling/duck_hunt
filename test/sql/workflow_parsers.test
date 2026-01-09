@@ -116,3 +116,106 @@ query I
 SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_github_actions_workflow_commands.log', 'github_actions') WHERE severity = 'warning';
 ----
 2
+
+# =============================================================================
+# WORKFLOW DELEGATION TESTS
+# Issue #36: Workflow parsers should delegate to specialized parsers
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# GitHub Actions Delegation
+# When a step runs "Run make release", the output should be parsed by make_error
+# -----------------------------------------------------------------------------
+
+# Test GitHub Actions delegation - delegated events have hierarchy_level = 4
+query I
+SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_github_actions_delegation.log', 'github_actions') WHERE hierarchy_level = 4;
+----
+2
+
+# Test GitHub Actions delegation - structured_data contains delegated format
+query I
+SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_github_actions_delegation.log', 'github_actions') WHERE structured_data = 'make_error';
+----
+2
+
+# Test GitHub Actions delegation - tool_name is from delegated parser
+query I
+SELECT COUNT(DISTINCT tool_name) FROM read_duck_hunt_workflow_log('test/sample_github_actions_delegation.log', 'github_actions') WHERE tool_name IN ('make', 'github_actions');
+----
+2
+
+# Test GitHub Actions delegation - delegated events preserve workflow context
+query I
+SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_github_actions_delegation.log', 'github_actions') WHERE hierarchy_level = 4 AND scope IS NOT NULL AND "group" IS NOT NULL;
+----
+2
+
+# -----------------------------------------------------------------------------
+# Jenkins Delegation
+# When a step runs "+ make release", the output should be parsed by make_error
+# -----------------------------------------------------------------------------
+
+# Test Jenkins delegation - delegated events have hierarchy_level = 4
+query I
+SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_jenkins_delegation.log', 'jenkins') WHERE hierarchy_level = 4;
+----
+3
+
+# Test Jenkins delegation - structured_data contains delegated format
+query I
+SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_jenkins_delegation.log', 'jenkins') WHERE structured_data = 'make_error';
+----
+3
+
+# Test Jenkins delegation - tool_name is from delegated parser
+query II
+SELECT tool_name, COUNT(*) as cnt FROM read_duck_hunt_workflow_log('test/sample_jenkins_delegation.log', 'jenkins') WHERE tool_name = 'make' GROUP BY tool_name;
+----
+make	3
+
+# -----------------------------------------------------------------------------
+# GitLab CI Delegation
+# When a stage runs "$ flake8 src/", the output should be parsed by flake8_text
+# -----------------------------------------------------------------------------
+
+# Test GitLab CI delegation - delegated events have hierarchy_level = 4
+query I
+SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_gitlab_ci_delegation.log', 'gitlab_ci') WHERE hierarchy_level = 4;
+----
+5
+
+# Test GitLab CI delegation - structured_data contains delegated format
+query I
+SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_gitlab_ci_delegation.log', 'gitlab_ci') WHERE structured_data = 'flake8_text';
+----
+5
+
+# Test GitLab CI delegation - tool_name is from delegated parser
+query II
+SELECT tool_name, COUNT(*) as cnt FROM read_duck_hunt_workflow_log('test/sample_gitlab_ci_delegation.log', 'gitlab_ci') WHERE tool_name = 'flake8' GROUP BY tool_name;
+----
+flake8	5
+
+# -----------------------------------------------------------------------------
+# Docker Delegation
+# When a RUN command runs "make build", the output should be parsed by make_error
+# -----------------------------------------------------------------------------
+
+# Test Docker delegation - delegated events have hierarchy_level = 4
+query I
+SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_docker_delegation.log', 'docker_build') WHERE hierarchy_level = 4;
+----
+1
+
+# Test Docker delegation - structured_data contains delegated format
+query I
+SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_docker_delegation.log', 'docker_build') WHERE structured_data = 'make_error';
+----
+1
+
+# Test Docker delegation - warning from make is captured
+query I
+SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_docker_delegation.log', 'docker_build') WHERE severity = 'warning' AND structured_data = 'make_error';
+----
+1

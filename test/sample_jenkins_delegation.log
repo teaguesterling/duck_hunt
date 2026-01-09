@@ -1,0 +1,17 @@
+Started by user admin
+Building in workspace /var/jenkins/workspace/test-project
+[Pipeline] stage
+[Pipeline] { (Build)
+[Pipeline] sh
++ make release
+gcc -Wall -c -o main.o main.c
+main.c:15:5: error: expected ';' before 'return'
+   15 |     return 0
+      |     ^~~~~~
+main.c:20:10: warning: unused variable 'temp' [-Wunused-variable]
+   20 |     int temp = 0;
+      |          ^~~~
+make: *** [Makefile:10: main.o] Error 1
+[Pipeline] }
+[Pipeline] // stage
+Finished: FAILURE

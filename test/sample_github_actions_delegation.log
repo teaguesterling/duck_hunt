@@ -1,0 +1,9 @@
+2024-01-15T10:00:00.0000000Z ##[group]Run make release
+2024-01-15T10:00:00.1000000Z make release
+2024-01-15T10:00:01.0000000Z gcc -c -o main.o main.c
+2024-01-15T10:00:02.0000000Z main.c:15:5: error: expected ';' before 'return'
+2024-01-15T10:00:02.1000000Z    15 |     return 0
+2024-01-15T10:00:02.2000000Z       |     ^~~~~~
+2024-01-15T10:00:03.0000000Z make: *** [Makefile:10: main.o] Error 1
+2024-01-15T10:00:03.1000000Z ##[endgroup]
+2024-01-15T10:00:04.0000000Z ##[error]Process completed with exit code 2.

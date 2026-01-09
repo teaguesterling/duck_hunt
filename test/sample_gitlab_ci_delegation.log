@@ -1,0 +1,13 @@
+Running with gitlab-runner 15.0.0
+Preparing the "docker" executor
+Using Docker executor with image python:3.10
+Pulling docker image python:3.10
+Getting source from Git repository
+Fetching changes with git depth set to 50
+Executing "script" stage of the job
+$ flake8 src/
+src/main.py:10:1: E302 expected 2 blank lines, found 1
+src/main.py:15:80: E501 line too long (95 > 79 characters)
+src/utils.py:5:1: W293 blank line contains whitespace
+src/utils.py:20:1: E303 too many blank lines (3)
+Job succeeded
