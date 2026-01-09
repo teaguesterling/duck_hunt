@@ -387,6 +387,86 @@ HAVING COUNT(*) FILTER (WHERE status = 'ERROR') > 0;
 
 ---
 
+## Workflow Delegation
+
+Workflow parsers can **delegate** parsing of tool output to specialized parsers. When a workflow step executes a command like `make release` or `pytest tests/`, the workflow parser detects the command and delegates output parsing to the appropriate tool parser (e.g., `make_error` or `pytest_text`).
+
+### How Delegation Works
+
+1. **Command Detection**: The workflow parser extracts commands from step/stage definitions
+   - GitHub Actions: From `##[group]Run <command>` lines
+   - Jenkins: From `+ <command>` or `$ <command>` lines
+   - GitLab CI: From `$ <command>` lines
+   - Docker: From `RUN <command>` instructions
+   - Spack: From `==> [timestamp] '<command>'` lines
+
+2. **Parser Matching**: The extracted command is matched against registered command patterns
+   - Patterns support literal, SQL LIKE, and regex matching
+   - Example: `make` matches `make_error`, `pytest` matches `pytest_text`
+
+3. **Delegated Parsing**: Output lines are parsed by the matched tool parser
+
+4. **Context Enrichment**: Delegated events inherit workflow context (scope, group, unit)
+
+### Delegated Event Fields
+
+Delegated events are distinguished by these field values:
+
+| Field | Value | Description |
+|-------|-------|-------------|
+| `hierarchy_level` | `4` | Indicates delegation (level 4 = subunit/delegated) |
+| `structured_data` | Format name | The delegated format (e.g., `make_error`, `flake8_text`) |
+| `tool_name` | Tool name | From delegated parser (e.g., `make`, `pytest`, `flake8`) |
+
+### Example Queries
+
+```sql
+-- Find all delegated events in a workflow
+SELECT tool_name, message, severity
+FROM read_duck_hunt_workflow_log('ci.log', 'github_actions')
+WHERE hierarchy_level = 4;
+
+-- Get compiler errors from a Jenkins make build
+SELECT ref_file, ref_line, message
+FROM read_duck_hunt_workflow_log('jenkins.log', 'jenkins')
+WHERE structured_data = 'make_error' AND severity = 'error';
+
+-- Count issues by delegated tool
+SELECT tool_name, COUNT(*) as issues
+FROM read_duck_hunt_workflow_log('ci.log', 'auto')
+WHERE hierarchy_level = 4
+GROUP BY tool_name;
+
+-- Find pytest failures in GitHub Actions
+SELECT test_name, message
+FROM read_duck_hunt_workflow_log('actions.log', 'github_actions')
+WHERE structured_data = 'pytest_text' AND severity = 'error';
+```
+
+### Supported Command Patterns
+
+Common commands automatically delegate to these parsers:
+
+| Command Pattern | Delegated Parser | Tool |
+|-----------------|------------------|------|
+| `make`, `gmake`, `make *` | `make_error` | Make/GCC |
+| `pytest`, `python -m pytest` | `pytest_text` | pytest |
+| `flake8` | `flake8_text` | Flake8 |
+| `mypy` | `mypy_text` | MyPy |
+| `eslint` | `eslint_json` | ESLint |
+| `cargo build`, `cargo test` | `cargo_build` | Cargo |
+
+### Meaningful Event Filtering
+
+When **not** delegating, workflow parsers emit only "meaningful" events to avoid noise:
+- Errors and warnings (severity = error/warning)
+- Status changes (job/step start/end)
+- GitHub Actions workflow commands (`##[error]`, `##[warning]`, `##[notice]`)
+
+When **delegating**, all events from the tool parser are included, providing detailed tool output within the workflow context.
+
+---
+
 ## Auto-Detection
 
 Use `'auto'` to automatically detect the workflow format:

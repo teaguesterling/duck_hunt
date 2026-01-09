@@ -15,7 +15,7 @@ All Duck Hunt parsers output a standardized `ValidationEvent` schema with 39 fie
 | Identity | `principal`, `origin`, `target`, `actor_type` |
 | Temporal | `started_at` |
 | Correlation | `external_id` |
-| Hierarchy | `scope`, `scope_id`, `scope_status`, `group`, `group_id`, `group_status`, `unit`, `unit_id`, `unit_status`, `subunit`, `subunit_id` |
+| Hierarchy | `hierarchy_level`, `scope`, `scope_id`, `scope_status`, `group`, `group_id`, `group_status`, `unit`, `unit_id`, `unit_status`, `subunit`, `subunit_id` |
 | Pattern Analysis | `fingerprint`, `similarity_score`, `pattern_id` |
 
 ---
@@ -98,7 +98,14 @@ A passing test has `status='PASS'` but `severity='info'`. A skipped test has `st
 | `message` | VARCHAR | Detailed error/warning message |
 | `suggestion` | VARCHAR | Suggested fix or improvement |
 | `log_content` | VARCHAR | Original raw log content for this event |
-| `structured_data` | VARCHAR | Additional JSON metadata |
+| `structured_data` | VARCHAR | Additional metadata (JSON or format name for delegated events) |
+
+### structured_data Usage
+
+The `structured_data` field serves multiple purposes:
+
+- **JSON Metadata**: Additional structured information from the parser (e.g., test configuration)
+- **Delegation Format**: For workflow delegation, contains the format name of the delegated parser (e.g., `make_error`, `pytest_text`). This allows filtering delegated events by tool type.
 
 ## Log Tracking Fields
 
@@ -148,6 +155,7 @@ Generic 4-level hierarchy that maps to any domain (CI/CD, K8s, cloud, tests).
 
 | Field | Type | Description |
 |-------|------|-------------|
+| `hierarchy_level` | INTEGER | Hierarchy depth: 1=scope, 2=group, 3=unit, 4=subunit/delegated |
 | `scope` | VARCHAR | Level 1: Broadest context (workflow, cluster, account, suite) |
 | `scope_id` | VARCHAR | Unique identifier for scope |
 | `scope_status` | VARCHAR | Status at scope level |
@@ -159,6 +167,19 @@ Generic 4-level hierarchy that maps to any domain (CI/CD, K8s, cloud, tests).
 | `unit_status` | VARCHAR | Status at unit level |
 | `subunit` | VARCHAR | Level 4: Sub-unit when needed (container, resource) |
 | `subunit_id` | VARCHAR | Unique identifier for subunit |
+
+### Hierarchy Level Values
+
+The `hierarchy_level` field indicates the depth of an event in the hierarchy:
+
+| Level | Name | CI/CD Example | Description |
+|-------|------|---------------|-------------|
+| 1 | Scope | Workflow | Top-level container |
+| 2 | Group | Job | Major grouping |
+| 3 | Unit | Step | Specific work unit |
+| 4 | Subunit/Delegated | Compiler error | Sub-unit or delegated parser output |
+
+**Workflow Delegation**: When workflow parsers delegate to tool parsers (e.g., `make_error`), the delegated events have `hierarchy_level = 4`. See [Workflow Delegation](workflow-formats.md#workflow-delegation) for details.
 
 **See [Field Mappings](field_mappings.md) for how these map to specific domains.**
 
