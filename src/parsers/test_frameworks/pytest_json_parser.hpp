@@ -26,13 +26,10 @@ public:
 		return "test_framework_json";
 	}
 	std::vector<CommandPattern> getCommandPatterns() const override {
-		return {
-		    CommandPattern::Literal("pytest"),
-		    CommandPattern::Like("pytest %"),
-		    CommandPattern::Like("python -m pytest%"),
-		    CommandPattern::Like("python3 -m pytest%"),
-		    CommandPattern::Regexp("py\\.?test"),
-		};
+		// No command patterns - pytest JSON output requires plugins like pytest-json-report
+		// and there's no standard command-line flag to request it. Let pytest_text handle
+		// command matching; pytest_json will be used via content detection (canParse).
+		return {};
 	}
 
 private:

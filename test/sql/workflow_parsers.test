@@ -219,3 +219,34 @@ query I
 SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_docker_delegation.log', 'docker_build') WHERE severity = 'warning' AND structured_data = 'make_error';
 ----
 1
+
+# -----------------------------------------------------------------------------
+# Pytest Delegation (verifies JSON/text priority fix)
+# When a step runs "Run pytest tests/", it should delegate to pytest_text
+# (not pytest_json which has higher priority but no command patterns)
+# -----------------------------------------------------------------------------
+
+# Test pytest delegation - delegated events have hierarchy_level = 4
+query I
+SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_github_actions_pytest.log', 'github_actions') WHERE hierarchy_level = 4;
+----
+4
+
+# Test pytest delegation - structured_data is pytest_text (not pytest_json)
+query I
+SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_github_actions_pytest.log', 'github_actions') WHERE structured_data = 'pytest_text';
+----
+4
+
+# Test pytest delegation - tool_name is from delegated parser
+query II
+SELECT tool_name, COUNT(*) as cnt FROM read_duck_hunt_workflow_log('test/sample_github_actions_pytest.log', 'github_actions') WHERE tool_name = 'pytest' GROUP BY tool_name;
+----
+pytest	4
+
+# Test pytest delegation - test results are captured with correct status
+query II
+SELECT severity, COUNT(*) as cnt FROM read_duck_hunt_workflow_log('test/sample_github_actions_pytest.log', 'github_actions') WHERE structured_data = 'pytest_text' GROUP BY severity ORDER BY severity;
+----
+error	2
+info	2

@@ -1,0 +1,12 @@
+2024-01-15T10:00:00.0000000Z ##[group]Run pytest tests/ -v
+2024-01-15T10:00:00.1000000Z pytest tests/ -v
+2024-01-15T10:00:01.0000000Z ============================= test session starts ==============================
+2024-01-15T10:00:01.1000000Z platform linux -- Python 3.10.0, pytest-7.4.0
+2024-01-15T10:00:01.2000000Z collected 3 items
+2024-01-15T10:00:02.0000000Z tests/test_math.py::test_add PASSED
+2024-01-15T10:00:02.1000000Z tests/test_math.py::test_subtract PASSED
+2024-01-15T10:00:02.2000000Z tests/test_math.py::test_divide FAILED
+2024-01-15T10:00:03.0000000Z FAILED tests/test_math.py::test_divide - ZeroDivisionError: division by zero
+2024-01-15T10:00:03.1000000Z ========================= 1 failed, 2 passed in 0.05s =========================
+2024-01-15T10:00:03.2000000Z ##[endgroup]
+2024-01-15T10:00:04.0000000Z ##[error]Process completed with exit code 1.
