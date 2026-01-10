@@ -1,0 +1,72 @@
+# name: test/sql/github_actions_zip.test
+# description: Test GitHub Actions ZIP archive parsing
+# group: [sql]
+
+require duck_hunt
+
+# Skip tests if zipfs is not available
+require zipfs
+
+# Test parsing all jobs from ZIP using github_actions_zip format
+query II
+SELECT DISTINCT job_order, job_name
+FROM read_duck_hunt_workflow_log('test/sample_workflow_run.zip', 'github_actions_zip')
+ORDER BY job_order;
+----
+0	Build
+1	Test
+
+# Test job_order and job_name are populated
+query I
+SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_workflow_run.zip', 'github_actions_zip')
+WHERE job_order >= 0 AND job_name IS NOT NULL;
+----
+8
+
+# Test events are parsed correctly from each job
+query II
+SELECT job_name, COUNT(*) as event_count
+FROM read_duck_hunt_workflow_log('test/sample_workflow_run.zip', 'github_actions_zip')
+GROUP BY job_name
+ORDER BY job_name;
+----
+Build	5
+Test	3
+
+# Test error detection in Build job
+query III
+SELECT job_name, severity, COUNT(*) as cnt
+FROM read_duck_hunt_workflow_log('test/sample_workflow_run.zip', 'github_actions_zip')
+WHERE severity = 'error'
+GROUP BY job_name, severity;
+----
+Build	error	2
+
+# Test step names are extracted
+query I
+SELECT COUNT(DISTINCT unit)
+FROM read_duck_hunt_workflow_log('test/sample_workflow_run.zip', 'github_actions_zip')
+WHERE unit IS NOT NULL AND unit <> '';
+----
+4
+
+# Test workflow_type is set correctly
+query I
+SELECT COUNT(DISTINCT workflow_type)
+FROM read_duck_hunt_workflow_log('test/sample_workflow_run.zip', 'github_actions_zip')
+WHERE workflow_type = 'github_actions';
+----
+1
+
+# Test reading single file from ZIP using zip:// path
+query I
+SELECT COUNT(*) FROM read_duck_hunt_workflow_log('zip://test/sample_workflow_run.zip/0_Build.txt', 'github_actions');
+----
+5
+
+# Test reading single file - verify error is detected
+query I
+SELECT COUNT(*) FROM read_duck_hunt_workflow_log('zip://test/sample_workflow_run.zip/0_Build.txt', 'github_actions')
+WHERE severity = 'error';
+----
+2

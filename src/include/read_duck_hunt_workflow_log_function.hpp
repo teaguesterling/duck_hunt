@@ -17,6 +17,7 @@ enum class WorkflowLogFormat : uint8_t {
 	JENKINS = 3,
 	DOCKER_BUILD = 4,
 	SPACK = 5,
+	GITHUB_ACTIONS_ZIP = 6, // GitHub Actions logs from ZIP archive
 	UNKNOWN = 255
 };
 
@@ -27,7 +28,11 @@ struct WorkflowEvent {
 	int32_t hierarchy_level;    // 0=workflow, 1=job, 2=step, 3=tool_output
 	std::string parent_id;      // ID of the parent element in hierarchy
 
-	WorkflowEvent() : hierarchy_level(0) {
+	// ZIP archive metadata (for github_actions_zip format)
+	int32_t job_order;    // Job execution order from {N}_ filename prefix (-1 if not from ZIP)
+	std::string job_name; // Job name extracted from ZIP filename
+
+	WorkflowEvent() : hierarchy_level(0), job_order(-1) {
 	}
 };
 

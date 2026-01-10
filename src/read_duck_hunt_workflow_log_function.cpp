@@ -4,6 +4,7 @@
 
 // Include parser implementations for static build
 #include "parsers/workflow_engines/github_actions_parser.hpp"
+#include "parsers/workflow_engines/github_actions_zip_parser.hpp"
 #include "parsers/workflow_engines/gitlab_ci_parser.hpp"
 #include "parsers/workflow_engines/jenkins_parser.hpp"
 #include "parsers/workflow_engines/docker_parser.hpp"
@@ -37,6 +38,8 @@ std::string WorkflowLogFormatToString(WorkflowLogFormat format) {
 		return "docker_build";
 	case WorkflowLogFormat::SPACK:
 		return "spack";
+	case WorkflowLogFormat::GITHUB_ACTIONS_ZIP:
+		return "github_actions_zip";
 	case WorkflowLogFormat::UNKNOWN:
 		return "unknown";
 	default:
@@ -60,6 +63,8 @@ WorkflowLogFormat StringToWorkflowLogFormat(const std::string &format_str) {
 		return WorkflowLogFormat::DOCKER_BUILD;
 	if (lower_format == "spack" || lower_format == "spack_build")
 		return WorkflowLogFormat::SPACK;
+	if (lower_format == "github_actions_zip")
+		return WorkflowLogFormat::GITHUB_ACTIONS_ZIP;
 
 	return WorkflowLogFormat::UNKNOWN;
 }
@@ -197,6 +202,9 @@ unique_ptr<FunctionData> ReadDuckHuntWorkflowLogBind(ClientContext &context, Tab
 	    LogicalType::VARCHAR, // workflow_type
 	    LogicalType::INTEGER, // hierarchy_level
 	    LogicalType::VARCHAR, // parent_id
+	    // ZIP archive metadata
+	    LogicalType::INTEGER, // job_order
+	    LogicalType::VARCHAR, // job_name
 	};
 
 	names = {// Core identification
@@ -223,7 +231,9 @@ unique_ptr<FunctionData> ReadDuckHuntWorkflowLogBind(ClientContext &context, Tab
 	         // Pattern analysis
 	         "fingerprint", "similarity_score", "pattern_id",
 	         // Workflow-specific
-	         "workflow_type", "hierarchy_level", "parent_id"};
+	         "workflow_type", "hierarchy_level", "parent_id",
+	         // ZIP archive metadata
+	         "job_order", "job_name"};
 
 	return std::move(bind_data);
 }
@@ -234,13 +244,36 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntWorkflowLogInitGlobal(ClientCon
 	auto &bind_data = input.bind_data->Cast<ReadDuckHuntWorkflowLogBindData>();
 	auto global_state = make_uniq<ReadDuckHuntWorkflowLogGlobalState>();
 
-	// Read source content
+	// Handle GITHUB_ACTIONS_ZIP format specially - it reads from ZIP archive
+	if (bind_data.format == WorkflowLogFormat::GITHUB_ACTIONS_ZIP) {
+		GitHubActionsZipParser zip_parser;
+		std::vector<WorkflowEvent> parsed_events = zip_parser.parseZipArchive(context, bind_data.source);
+		global_state->events = std::move(parsed_events);
+
+		// Apply severity threshold filtering
+		if (bind_data.severity_threshold != SeverityLevel::DEBUG) {
+			auto new_end = std::remove_if(
+			    global_state->events.begin(), global_state->events.end(), [&bind_data](const WorkflowEvent &event) {
+				    return !ShouldEmitEvent(event.base_event.severity, bind_data.severity_threshold);
+			    });
+			global_state->events.erase(new_end, global_state->events.end());
+		}
+
+		return std::move(global_state);
+	}
+
+	// Read source content for non-ZIP formats
 	std::string content;
 	auto &fs = FileSystem::GetFileSystem(context);
 
 	try {
+		// Check if source is a virtual path (zip://, s3://, http://, etc.)
+		// Virtual paths may not support FileExists but can still be read
+		bool is_virtual_path = (bind_data.source.find("://") != std::string::npos);
+
 		// Check if file exists first (this triggers proper path resolution in test framework)
-		bool file_exists = fs.FileExists(bind_data.source);
+		// Skip FileExists check for virtual paths - try to read directly
+		bool file_exists = is_virtual_path || fs.FileExists(bind_data.source);
 
 		if (file_exists) {
 			// Read file using DuckDB's FileSystem (respects UNITTEST_ROOT_DIRECTORY)
@@ -384,6 +417,9 @@ void ReadDuckHuntWorkflowLogFunction(ClientContext &context, TableFunctionInput 
 		output.SetValue(39, i, Value(event.workflow_type));
 		output.SetValue(40, i, Value::INTEGER(event.hierarchy_level));
 		output.SetValue(41, i, Value(event.parent_id));
+		// ZIP archive metadata
+		output.SetValue(42, i, event.job_order == -1 ? Value() : Value::INTEGER(event.job_order));
+		output.SetValue(43, i, event.job_name.empty() ? Value() : Value(event.job_name));
 	}
 
 	local_state.chunk_offset += rows_to_output;

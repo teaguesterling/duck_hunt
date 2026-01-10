@@ -17,6 +17,7 @@ set(EXTENSION_SOURCES
     # Core modular architecture
     src/core/parser_registry.cpp
     src/core/webbed_integration.cpp
+    src/core/zipfs_integration.cpp
 
     # New parser category registrations
     src/parsers/debugging/init.cpp
@@ -140,6 +141,7 @@ set(EXTENSION_SOURCES
     src/parse_duck_hunt_workflow_log_function.cpp
     src/workflow_engine_interface.cpp
     src/parsers/workflow_engines/github_actions_parser.cpp
+    src/parsers/workflow_engines/github_actions_zip_parser.cpp
     src/parsers/workflow_engines/gitlab_ci_parser.cpp
     src/parsers/workflow_engines/jenkins_parser.cpp
     src/parsers/workflow_engines/docker_parser.cpp
