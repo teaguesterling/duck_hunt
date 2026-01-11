@@ -116,8 +116,9 @@ struct ReadDuckHuntLogBindData : public TableFunctionData {
 	std::string format_name;          // Raw format name for registry-only formats (e.g., trivy_json)
 	std::string regexp_pattern;       // For REGEXP format: stores the user-provided pattern
 	SeverityLevel severity_threshold; // Minimum severity level to emit (default: DEBUG = include all)
+	bool ignore_errors;               // Continue processing when individual files fail (default: false)
 
-	ReadDuckHuntLogBindData() : format(TestResultFormat::AUTO), severity_threshold(SeverityLevel::DEBUG) {
+	ReadDuckHuntLogBindData() : format(TestResultFormat::AUTO), severity_threshold(SeverityLevel::DEBUG), ignore_errors(false) {
 	}
 };
 
@@ -151,7 +152,7 @@ bool IsValidJSON(const std::string &content);
 std::vector<std::string> GetFilesFromPattern(ClientContext &context, const std::string &pattern);
 std::vector<std::string> GetGlobFiles(ClientContext &context, const std::string &pattern);
 void ProcessMultipleFiles(ClientContext &context, const std::vector<std::string> &files, TestResultFormat format,
-                          std::vector<ValidationEvent> &events);
+                          std::vector<ValidationEvent> &events, bool ignore_errors = false);
 std::string ExtractBuildIdFromPath(const std::string &file_path);
 std::string ExtractEnvironmentFromPath(const std::string &file_path);
 

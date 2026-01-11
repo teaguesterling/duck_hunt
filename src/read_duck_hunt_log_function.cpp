@@ -1270,7 +1270,12 @@ unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFuncti
 		std::string threshold_str = threshold_param->second.ToString();
 		bind_data->severity_threshold = StringToSeverityLevel(threshold_str);
 	}
-	// Default is already set to WARNING in the constructor
+
+	// Handle ignore_errors named parameter
+	auto ignore_errors_param = input.named_parameters.find("ignore_errors");
+	if (ignore_errors_param != input.named_parameters.end()) {
+		bind_data->ignore_errors = ignore_errors_param->second.GetValue<bool>();
+	}
 
 	// Define return schema (Schema V2)
 	return_types = {
@@ -1371,12 +1376,14 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &co
 
 	if (files.size() > 1) {
 		// Multi-file processing path
-		ProcessMultipleFiles(context, files, bind_data.format, global_state->events);
+		ProcessMultipleFiles(context, files, bind_data.format, global_state->events, bind_data.ignore_errors);
 	} else {
 		// Single file processing path (original behavior)
+		// Use the matched file path if available, otherwise use the source directly
+		std::string source_path = files.size() == 1 ? files[0] : bind_data.source;
 		std::string content;
 		try {
-			content = ReadContentFromSource(context, bind_data.source);
+			content = ReadContentFromSource(context, source_path);
 		} catch (const IOException &) {
 			// If file reading fails, treat source as direct content
 			content = bind_data.source;
@@ -1588,7 +1595,12 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
 		std::string threshold_str = threshold_param->second.ToString();
 		bind_data->severity_threshold = StringToSeverityLevel(threshold_str);
 	}
-	// Default is already set to WARNING in the constructor
+
+	// Handle ignore_errors named parameter (note: parse_duck_hunt_log doesn't use files, but kept for API consistency)
+	auto ignore_errors_param = input.named_parameters.find("ignore_errors");
+	if (ignore_errors_param != input.named_parameters.end()) {
+		bind_data->ignore_errors = ignore_errors_param->second.GetValue<bool>();
+	}
 
 	// Define return schema (Schema V2 - same as read_duck_hunt_log)
 	return_types = {
@@ -1764,12 +1776,14 @@ TableFunctionSet GetReadDuckHuntLogFunction() {
 	TableFunction single_arg("read_duck_hunt_log", {LogicalType::VARCHAR}, ReadDuckHuntLogFunction, ReadDuckHuntLogBind,
 	                         ReadDuckHuntLogInitGlobal, ReadDuckHuntLogInitLocal);
 	single_arg.named_parameters["severity_threshold"] = LogicalType::VARCHAR;
+	single_arg.named_parameters["ignore_errors"] = LogicalType::BOOLEAN;
 	set.AddFunction(single_arg);
 
 	// Two argument version: read_duck_hunt_log(source, format)
 	TableFunction two_arg("read_duck_hunt_log", {LogicalType::VARCHAR, LogicalType::VARCHAR}, ReadDuckHuntLogFunction,
 	                      ReadDuckHuntLogBind, ReadDuckHuntLogInitGlobal, ReadDuckHuntLogInitLocal);
 	two_arg.named_parameters["severity_threshold"] = LogicalType::VARCHAR;
+	two_arg.named_parameters["ignore_errors"] = LogicalType::BOOLEAN;
 	set.AddFunction(two_arg);
 
 	return set;
@@ -1782,12 +1796,14 @@ TableFunctionSet GetParseDuckHuntLogFunction() {
 	TableFunction single_arg("parse_duck_hunt_log", {LogicalType::VARCHAR}, ParseDuckHuntLogFunction,
 	                         ParseDuckHuntLogBind, ParseDuckHuntLogInitGlobal, ParseDuckHuntLogInitLocal);
 	single_arg.named_parameters["severity_threshold"] = LogicalType::VARCHAR;
+	single_arg.named_parameters["ignore_errors"] = LogicalType::BOOLEAN;
 	set.AddFunction(single_arg);
 
 	// Two argument version: parse_duck_hunt_log(content, format)
 	TableFunction two_arg("parse_duck_hunt_log", {LogicalType::VARCHAR, LogicalType::VARCHAR}, ParseDuckHuntLogFunction,
 	                      ParseDuckHuntLogBind, ParseDuckHuntLogInitGlobal, ParseDuckHuntLogInitLocal);
 	two_arg.named_parameters["severity_threshold"] = LogicalType::VARCHAR;
+	two_arg.named_parameters["ignore_errors"] = LogicalType::BOOLEAN;
 	set.AddFunction(two_arg);
 
 	return set;
@@ -1879,7 +1895,7 @@ std::vector<std::string> GetGlobFiles(ClientContext &context, const std::string 
 }
 
 void ProcessMultipleFiles(ClientContext &context, const std::vector<std::string> &files, TestResultFormat format,
-                          std::vector<ValidationEvent> &events) {
+                          std::vector<ValidationEvent> &events, bool ignore_errors) {
 	for (size_t file_idx = 0; file_idx < files.size(); file_idx++) {
 		const auto &file_path = files[file_idx];
 
@@ -1916,8 +1932,14 @@ void ProcessMultipleFiles(ClientContext &context, const std::vector<std::string>
 			events.insert(events.end(), file_events.begin(), file_events.end());
 
 		} catch (const IOException &e) {
-			// Continue processing other files if one fails
+			// IOException (file not found, can't read, etc.) - always skip and continue
 			continue;
+		} catch (const std::exception &e) {
+			// Parsing errors - skip if ignore_errors, otherwise rethrow
+			if (ignore_errors) {
+				continue;
+			}
+			throw;
 		}
 	}
 }

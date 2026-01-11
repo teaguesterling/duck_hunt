@@ -144,7 +144,12 @@ unique_ptr<FunctionData> ReadDuckHuntWorkflowLogBind(ClientContext &context, Tab
 		std::string threshold_str = threshold_param->second.ToString();
 		bind_data->severity_threshold = StringToSeverityLevel(threshold_str);
 	}
-	// Default is already set to WARNING in the constructor
+
+	// Handle ignore_errors named parameter
+	auto ignore_errors_param = input.named_parameters.find("ignore_errors");
+	if (ignore_errors_param != input.named_parameters.end()) {
+		bind_data->ignore_errors = ignore_errors_param->second.GetValue<bool>();
+	}
 
 	// Define return schema (Schema V2) - includes all ValidationEvent fields plus workflow-specific ones
 	return_types = {
@@ -434,6 +439,7 @@ TableFunctionSet GetReadDuckHuntWorkflowLogFunction() {
 	                         ReadDuckHuntWorkflowLogBind, ReadDuckHuntWorkflowLogInitGlobal,
 	                         ReadDuckHuntWorkflowLogInitLocal);
 	single_arg.named_parameters["severity_threshold"] = LogicalType::VARCHAR;
+	single_arg.named_parameters["ignore_errors"] = LogicalType::BOOLEAN;
 	set.AddFunction(single_arg);
 
 	// Two argument version: read_duck_hunt_workflow_log(source, format)
@@ -441,6 +447,7 @@ TableFunctionSet GetReadDuckHuntWorkflowLogFunction() {
 	                      ReadDuckHuntWorkflowLogFunction, ReadDuckHuntWorkflowLogBind,
 	                      ReadDuckHuntWorkflowLogInitGlobal, ReadDuckHuntWorkflowLogInitLocal);
 	two_arg.named_parameters["severity_threshold"] = LogicalType::VARCHAR;
+	two_arg.named_parameters["ignore_errors"] = LogicalType::BOOLEAN;
 	set.AddFunction(two_arg);
 
 	return set;

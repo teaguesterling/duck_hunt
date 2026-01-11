@@ -1,0 +1,48 @@
+# name: test/sql/ignore_errors.test
+# description: Test ignore_errors parameter for robust batch processing
+# group: [sql]
+
+require duck_hunt
+
+# Test ignore_errors with glob pattern containing good files
+# Default behavior: should succeed when all files can be parsed
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('test/samples/*.json');
+----
+11
+
+# Test ignore_errors=true returns same results when all files are good
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('test/samples/*.json', ignore_errors := true);
+----
+11
+
+# Test ignore_errors=false (explicit default)
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('test/samples/*.json', ignore_errors := false);
+----
+11
+
+# Test combined with severity_threshold and ignore_errors
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('test/samples/*.json', ignore_errors := true, severity_threshold := 'error');
+----
+4
+
+# Test ignore_errors on workflow log function (single file - parameter accepted)
+query I
+SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_github_actions.log', 'github_actions', ignore_errors := true);
+----
+11
+
+# Test parse_duck_hunt_log also accepts ignore_errors (for API consistency)
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log('{"tests":[{"nodeid":"test_pass","outcome":"passed"}]}', 'pytest_json', ignore_errors := true);
+----
+1
+
+# Test that ignore_errors works with auto format detection on multiple files
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('test/samples/pytest*.json', 'auto', ignore_errors := true);
+----
+4

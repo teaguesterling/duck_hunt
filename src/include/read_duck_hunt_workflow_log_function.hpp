@@ -54,8 +54,9 @@ struct ReadDuckHuntWorkflowLogBindData : public TableFunctionData {
 	std::string source;
 	WorkflowLogFormat format;
 	SeverityLevel severity_threshold; // Minimum severity level to emit (default: DEBUG = include all)
+	bool ignore_errors;               // Continue processing when individual files fail (default: false)
 
-	ReadDuckHuntWorkflowLogBindData() : severity_threshold(SeverityLevel::DEBUG) {
+	ReadDuckHuntWorkflowLogBindData() : severity_threshold(SeverityLevel::DEBUG), ignore_errors(false) {
 	}
 };
 
