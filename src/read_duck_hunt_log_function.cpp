@@ -1277,6 +1277,33 @@ unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFuncti
 		bind_data->ignore_errors = ignore_errors_param->second.GetValue<bool>();
 	}
 
+	// Handle content named parameter (controls log_content truncation)
+	auto content_param = input.named_parameters.find("content");
+	if (content_param != input.named_parameters.end()) {
+		auto &val = content_param->second;
+		if (val.type().id() == LogicalTypeId::INTEGER || val.type().id() == LogicalTypeId::BIGINT) {
+			int32_t limit = val.GetValue<int32_t>();
+			if (limit <= 0) {
+				bind_data->content_mode = ContentMode::NONE;
+			} else {
+				bind_data->content_mode = ContentMode::LIMIT;
+				bind_data->content_limit = limit;
+			}
+		} else {
+			std::string mode_str = StringUtil::Lower(val.ToString());
+			if (mode_str == "full") {
+				bind_data->content_mode = ContentMode::FULL;
+			} else if (mode_str == "none") {
+				bind_data->content_mode = ContentMode::NONE;
+			} else if (mode_str == "smart") {
+				bind_data->content_mode = ContentMode::SMART;
+			} else {
+				throw BinderException("Invalid content mode: '" + mode_str +
+				                      "'. Use integer (char limit), 'full', 'none', or 'smart'.");
+			}
+		}
+	}
+
 	// Define return schema (Schema V2)
 	return_types = {
 	    // Core identification
@@ -1468,18 +1495,82 @@ unique_ptr<LocalTableFunctionState> ReadDuckHuntLogInitLocal(ExecutionContext &c
 }
 
 void ReadDuckHuntLogFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output) {
+	auto &bind_data = data_p.bind_data->Cast<ReadDuckHuntLogBindData>();
 	auto &global_state = data_p.global_state->Cast<ReadDuckHuntLogGlobalState>();
 	auto &local_state = data_p.local_state->Cast<ReadDuckHuntLogLocalState>();
 
-	// Populate output chunk
-	PopulateDataChunkFromEvents(output, global_state.events, local_state.chunk_offset, STANDARD_VECTOR_SIZE);
+	// Populate output chunk with content truncation settings
+	PopulateDataChunkFromEvents(output, global_state.events, local_state.chunk_offset, STANDARD_VECTOR_SIZE,
+	                            bind_data.content_mode, bind_data.content_limit);
 
 	// Update offset for next chunk
 	local_state.chunk_offset += output.size();
 }
 
+std::string TruncateLogContent(const std::string &content, ContentMode mode, int32_t limit, int32_t event_line_start,
+                               int32_t event_line_end) {
+	switch (mode) {
+	case ContentMode::FULL:
+		return content;
+
+	case ContentMode::NONE:
+		return ""; // Will be converted to NULL in output
+
+	case ContentMode::LIMIT:
+		if (content.length() <= static_cast<size_t>(limit)) {
+			return content;
+		}
+		return content.substr(0, limit) + "...";
+
+	case ContentMode::SMART: {
+		// Smart truncation: try to preserve context around event lines
+		if (content.length() <= static_cast<size_t>(limit)) {
+			return content;
+		}
+
+		// If we have line info, try to extract around those lines
+		if (event_line_start > 0) {
+			std::vector<std::string> lines;
+			std::istringstream stream(content);
+			std::string line;
+			while (std::getline(stream, line)) {
+				lines.push_back(line);
+			}
+
+			// Calculate which lines to include
+			int32_t start_line = std::max(0, event_line_start - 2);
+			int32_t end_line = std::min(static_cast<int32_t>(lines.size()),
+			                            (event_line_end > 0 ? event_line_end : event_line_start) + 2);
+
+			std::string result;
+			if (start_line > 0) {
+				result = "...\n";
+			}
+			for (int32_t i = start_line; i < end_line && i < static_cast<int32_t>(lines.size()); i++) {
+				result += lines[i] + "\n";
+			}
+			if (end_line < static_cast<int32_t>(lines.size())) {
+				result += "...";
+			}
+
+			// If still too long, fall back to simple truncation
+			if (result.length() > static_cast<size_t>(limit)) {
+				return result.substr(0, limit) + "...";
+			}
+			return result;
+		}
+
+		// No line info, fall back to simple truncation
+		return content.substr(0, limit) + "...";
+	}
+
+	default:
+		return content;
+	}
+}
+
 void PopulateDataChunkFromEvents(DataChunk &output, const std::vector<ValidationEvent> &events, idx_t start_offset,
-                                 idx_t chunk_size) {
+                                 idx_t chunk_size, ContentMode content_mode, int32_t content_limit) {
 	idx_t events_remaining = events.size() > start_offset ? events.size() - start_offset : 0;
 	idx_t output_size = std::min(chunk_size, events_remaining);
 
@@ -1511,7 +1602,15 @@ void PopulateDataChunkFromEvents(DataChunk &output, const std::vector<Validation
 		// Content
 		output.SetValue(col++, i, Value(event.message));
 		output.SetValue(col++, i, Value(event.suggestion));
-		output.SetValue(col++, i, Value(event.log_content));
+
+		// Apply content truncation to log_content
+		if (content_mode == ContentMode::NONE) {
+			output.SetValue(col++, i, Value());
+		} else {
+			std::string truncated =
+			    TruncateLogContent(event.log_content, content_mode, content_limit, event.log_line_start, event.log_line_end);
+			output.SetValue(col++, i, truncated.empty() ? Value() : Value(truncated));
+		}
 		output.SetValue(col++, i, Value(event.structured_data));
 		// Log tracking
 		output.SetValue(col++, i, event.log_line_start == -1 ? Value() : Value::INTEGER(event.log_line_start));
@@ -1600,6 +1699,33 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
 	auto ignore_errors_param = input.named_parameters.find("ignore_errors");
 	if (ignore_errors_param != input.named_parameters.end()) {
 		bind_data->ignore_errors = ignore_errors_param->second.GetValue<bool>();
+	}
+
+	// Handle content named parameter (controls log_content truncation)
+	auto content_param = input.named_parameters.find("content");
+	if (content_param != input.named_parameters.end()) {
+		auto &val = content_param->second;
+		if (val.type().id() == LogicalTypeId::INTEGER || val.type().id() == LogicalTypeId::BIGINT) {
+			int32_t limit = val.GetValue<int32_t>();
+			if (limit <= 0) {
+				bind_data->content_mode = ContentMode::NONE;
+			} else {
+				bind_data->content_mode = ContentMode::LIMIT;
+				bind_data->content_limit = limit;
+			}
+		} else {
+			std::string mode_str = StringUtil::Lower(val.ToString());
+			if (mode_str == "full") {
+				bind_data->content_mode = ContentMode::FULL;
+			} else if (mode_str == "none") {
+				bind_data->content_mode = ContentMode::NONE;
+			} else if (mode_str == "smart") {
+				bind_data->content_mode = ContentMode::SMART;
+			} else {
+				throw BinderException("Invalid content mode: '" + mode_str +
+				                      "'. Use integer (char limit), 'full', 'none', or 'smart'.");
+			}
+		}
 	}
 
 	// Define return schema (Schema V2 - same as read_duck_hunt_log)
@@ -1759,11 +1885,13 @@ unique_ptr<LocalTableFunctionState> ParseDuckHuntLogInitLocal(ExecutionContext &
 }
 
 void ParseDuckHuntLogFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output) {
+	auto &bind_data = data_p.bind_data->Cast<ReadDuckHuntLogBindData>();
 	auto &global_state = data_p.global_state->Cast<ReadDuckHuntLogGlobalState>();
 	auto &local_state = data_p.local_state->Cast<ReadDuckHuntLogLocalState>();
 
-	// Populate output chunk (same logic as read_duck_hunt_log)
-	PopulateDataChunkFromEvents(output, global_state.events, local_state.chunk_offset, STANDARD_VECTOR_SIZE);
+	// Populate output chunk with content truncation settings
+	PopulateDataChunkFromEvents(output, global_state.events, local_state.chunk_offset, STANDARD_VECTOR_SIZE,
+	                            bind_data.content_mode, bind_data.content_limit);
 
 	// Update offset for next chunk
 	local_state.chunk_offset += output.size();
@@ -1777,6 +1905,7 @@ TableFunctionSet GetReadDuckHuntLogFunction() {
 	                         ReadDuckHuntLogInitGlobal, ReadDuckHuntLogInitLocal);
 	single_arg.named_parameters["severity_threshold"] = LogicalType::VARCHAR;
 	single_arg.named_parameters["ignore_errors"] = LogicalType::BOOLEAN;
+	single_arg.named_parameters["content"] = LogicalType::ANY;
 	set.AddFunction(single_arg);
 
 	// Two argument version: read_duck_hunt_log(source, format)
@@ -1784,6 +1913,7 @@ TableFunctionSet GetReadDuckHuntLogFunction() {
 	                      ReadDuckHuntLogBind, ReadDuckHuntLogInitGlobal, ReadDuckHuntLogInitLocal);
 	two_arg.named_parameters["severity_threshold"] = LogicalType::VARCHAR;
 	two_arg.named_parameters["ignore_errors"] = LogicalType::BOOLEAN;
+	two_arg.named_parameters["content"] = LogicalType::ANY;
 	set.AddFunction(two_arg);
 
 	return set;
@@ -1797,6 +1927,7 @@ TableFunctionSet GetParseDuckHuntLogFunction() {
 	                         ParseDuckHuntLogBind, ParseDuckHuntLogInitGlobal, ParseDuckHuntLogInitLocal);
 	single_arg.named_parameters["severity_threshold"] = LogicalType::VARCHAR;
 	single_arg.named_parameters["ignore_errors"] = LogicalType::BOOLEAN;
+	single_arg.named_parameters["content"] = LogicalType::ANY;
 	set.AddFunction(single_arg);
 
 	// Two argument version: parse_duck_hunt_log(content, format)
@@ -1804,6 +1935,7 @@ TableFunctionSet GetParseDuckHuntLogFunction() {
 	                      ParseDuckHuntLogBind, ParseDuckHuntLogInitGlobal, ParseDuckHuntLogInitLocal);
 	two_arg.named_parameters["severity_threshold"] = LogicalType::VARCHAR;
 	two_arg.named_parameters["ignore_errors"] = LogicalType::BOOLEAN;
+	two_arg.named_parameters["content"] = LogicalType::ANY;
 	set.AddFunction(two_arg);
 
 	return set;

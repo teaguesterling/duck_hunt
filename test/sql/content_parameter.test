@@ -1,0 +1,53 @@
+# name: test/sql/content_parameter.test
+# description: Test content parameter for log_content truncation
+# group: [sql]
+
+require duck_hunt
+
+# Test that content parameter is accepted with integer value
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('test/samples/*.json', content := 100);
+----
+11
+
+# Test that content parameter is accepted with string 'full'
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('test/samples/*.json', content := 'full');
+----
+11
+
+# Test that content parameter is accepted with string 'none'
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('test/samples/*.json', content := 'none');
+----
+11
+
+# Test that content parameter is accepted with string 'smart'
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('test/samples/*.json', content := 'smart');
+----
+11
+
+# Test that content := 0 is accepted (same as 'none')
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('test/samples/*.json', content := 0);
+----
+11
+
+# Test content with parse_duck_hunt_log
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log('{"tests":[{"nodeid":"test_pass","outcome":"passed"}]}', 'pytest_json', content := 50);
+----
+1
+
+# Test content with severity_threshold combined
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('test/samples/*.json', content := 100, severity_threshold := 'error');
+----
+4
+
+# Test invalid content mode throws error
+statement error
+SELECT * FROM read_duck_hunt_log('test/samples/*.json', content := 'invalid_mode');
+----
+Invalid content mode

@@ -6,6 +6,14 @@
 
 namespace duckdb {
 
+// Content mode for log_content column truncation
+enum class ContentMode : uint8_t {
+	FULL = 0,   // Full content (default)
+	NONE = 1,   // NULL/omit entirely
+	LIMIT = 2,  // Limit to N characters
+	SMART = 3   // Intelligent truncation around event
+};
+
 // Enum for test result format detection
 enum class TestResultFormat : uint8_t {
 	UNKNOWN = 0,
@@ -117,8 +125,12 @@ struct ReadDuckHuntLogBindData : public TableFunctionData {
 	std::string regexp_pattern;       // For REGEXP format: stores the user-provided pattern
 	SeverityLevel severity_threshold; // Minimum severity level to emit (default: DEBUG = include all)
 	bool ignore_errors;               // Continue processing when individual files fail (default: false)
+	ContentMode content_mode;         // How to handle log_content column (default: FULL)
+	int32_t content_limit;            // Character limit when content_mode is LIMIT (default: 200 for SMART)
 
-	ReadDuckHuntLogBindData() : format(TestResultFormat::AUTO), severity_threshold(SeverityLevel::DEBUG), ignore_errors(false) {
+	ReadDuckHuntLogBindData()
+	    : format(TestResultFormat::AUTO), severity_threshold(SeverityLevel::DEBUG), ignore_errors(false),
+	      content_mode(ContentMode::FULL), content_limit(200) {
 	}
 };
 
@@ -184,7 +196,12 @@ void ParseDuckHuntLogFunction(ClientContext &context, TableFunctionInput &data_p
 
 // Helper function to populate DataChunk from ValidationEvents
 void PopulateDataChunkFromEvents(DataChunk &output, const std::vector<ValidationEvent> &events, idx_t start_offset,
-                                 idx_t chunk_size);
+                                 idx_t chunk_size, ContentMode content_mode = ContentMode::FULL,
+                                 int32_t content_limit = 200);
+
+// Helper to truncate log_content based on content mode
+std::string TruncateLogContent(const std::string &content, ContentMode mode, int32_t limit,
+                               int32_t event_line_start = -1, int32_t event_line_end = -1);
 
 // Dynamic regexp parser
 void ParseWithRegexp(const std::string &content, const std::string &pattern, std::vector<ValidationEvent> &events);
