@@ -42,8 +42,8 @@ public:
 private:
 	// Job metadata extracted from ZIP filename
 	struct JobMetadata {
-		int32_t job_order;    // From {N}_ prefix
-		std::string job_name; // From filename (without prefix and extension)
+		int32_t job_order;     // From {N}_ prefix
+		std::string job_name;  // From filename (without prefix and extension)
 		std::string file_path; // Full path within ZIP
 	};
 

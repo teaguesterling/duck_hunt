@@ -8,10 +8,10 @@ namespace duckdb {
 
 // Content mode for log_content column truncation
 enum class ContentMode : uint8_t {
-	FULL = 0,   // Full content (default)
-	NONE = 1,   // NULL/omit entirely
-	LIMIT = 2,  // Limit to N characters
-	SMART = 3   // Intelligent truncation around event
+	FULL = 0,  // Full content (default)
+	NONE = 1,  // NULL/omit entirely
+	LIMIT = 2, // Limit to N characters
+	SMART = 3  // Intelligent truncation around event
 };
 
 // Enum for test result format detection

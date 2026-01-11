@@ -32,11 +32,8 @@ public:
 	}
 	std::vector<CommandPattern> getCommandPatterns() const override {
 		return {
-		    CommandPattern::Literal("mocha"),
-		    CommandPattern::Like("mocha %"),
-		    CommandPattern::Like("npx mocha%"),
-		    CommandPattern::Like("npm test%"),
-		    CommandPattern::Like("yarn test%"),
+		    CommandPattern::Literal("mocha"),  CommandPattern::Like("mocha %"),    CommandPattern::Like("npx mocha%"),
+		    CommandPattern::Like("npm test%"), CommandPattern::Like("yarn test%"),
 		};
 	}
 };

@@ -34,12 +34,9 @@ public:
 	}
 	std::vector<CommandPattern> getCommandPatterns() const override {
 		return {
-		    CommandPattern::Like("npm run%"),
-		    CommandPattern::Like("npm install%"),
-		    CommandPattern::Like("npm ci%"),
-		    CommandPattern::Like("yarn %"),
-		    CommandPattern::Like("pnpm %"),
-		    CommandPattern::Regexp("(npm|yarn|pnpm)\\s+"),
+		    CommandPattern::Like("npm run%"), CommandPattern::Like("npm install%"),
+		    CommandPattern::Like("npm ci%"),  CommandPattern::Like("yarn %"),
+		    CommandPattern::Like("pnpm %"),   CommandPattern::Regexp("(npm|yarn|pnpm)\\s+"),
 		};
 	}
 };

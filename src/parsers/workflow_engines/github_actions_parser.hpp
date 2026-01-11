@@ -27,9 +27,9 @@ private:
 		std::string completed_at;
 		std::string status;
 		std::vector<std::string> output_lines;
-		std::string detected_command;                    // Command extracted from "Run <cmd>"
-		std::string delegated_format;                    // Format detected via command patterns
-		std::vector<ValidationEvent> delegated_events;   // Events from delegated parser
+		std::string detected_command;                  // Command extracted from "Run <cmd>"
+		std::string delegated_format;                  // Format detected via command patterns
+		std::vector<ValidationEvent> delegated_events; // Events from delegated parser
 	};
 
 	struct GitHubJob {

@@ -1607,8 +1607,8 @@ void PopulateDataChunkFromEvents(DataChunk &output, const std::vector<Validation
 		if (content_mode == ContentMode::NONE) {
 			output.SetValue(col++, i, Value());
 		} else {
-			std::string truncated =
-			    TruncateLogContent(event.log_content, content_mode, content_limit, event.log_line_start, event.log_line_end);
+			std::string truncated = TruncateLogContent(event.log_content, content_mode, content_limit,
+			                                           event.log_line_start, event.log_line_end);
 			output.SetValue(col++, i, truncated.empty() ? Value() : Value(truncated));
 		}
 		output.SetValue(col++, i, Value(event.structured_data));

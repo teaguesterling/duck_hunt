@@ -370,8 +370,8 @@ std::vector<WorkflowEvent> JenkinsParser::convertToEvents(const std::vector<Jenk
 				// No delegation - emit only meaningful workflow events
 				for (const auto &output_line : step.output_lines) {
 					// Filter to meaningful lines only
-					bool is_command = output_line.find("+ ") != std::string::npos ||
-					                  output_line.find("$ ") != std::string::npos;
+					bool is_command =
+					    output_line.find("+ ") != std::string::npos || output_line.find("$ ") != std::string::npos;
 					bool is_pipeline = output_line.find("[Pipeline]") != std::string::npos;
 					bool has_error = output_line.find("ERROR") != std::string::npos ||
 					                 output_line.find("FAILED") != std::string::npos ||
@@ -383,8 +383,7 @@ std::vector<WorkflowEvent> JenkinsParser::convertToEvents(const std::vector<Jenk
 					                 output_line.find("Started by") != std::string::npos ||
 					                 output_line.find("Building in workspace") != std::string::npos;
 
-					bool is_meaningful =
-					    is_command || is_pipeline || has_error || has_warning || is_status;
+					bool is_meaningful = is_command || is_pipeline || has_error || has_warning || is_status;
 
 					if (!is_meaningful) {
 						continue;

@@ -127,7 +127,7 @@ std::vector<WorkflowEvent> GitHubActionsZipParser::parseWorkflowLog(const std::s
 }
 
 std::vector<WorkflowEvent> GitHubActionsZipParser::parseZipArchive(ClientContext &context,
-                                                                    const std::string &zip_path) const {
+                                                                   const std::string &zip_path) const {
 	std::vector<WorkflowEvent> all_events;
 
 	// Get list of job log files in ZIP

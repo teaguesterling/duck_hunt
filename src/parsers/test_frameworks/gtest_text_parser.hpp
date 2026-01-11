@@ -32,9 +32,9 @@ public:
 	}
 	std::vector<CommandPattern> getCommandPatterns() const override {
 		return {
-		    CommandPattern::Regexp(".*_test$"),       // Common gtest binary naming
+		    CommandPattern::Regexp(".*_test$"), // Common gtest binary naming
 		    CommandPattern::Regexp(".*_tests$"),
-		    CommandPattern::Like("%--gtest_%"),       // gtest flags
+		    CommandPattern::Like("%--gtest_%"), // gtest flags
 		};
 	}
 };

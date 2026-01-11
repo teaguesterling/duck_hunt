@@ -1,6 +1,6 @@
 # name: test/sql/ci_parsers.test
 # description: Tests for CI system parsers (drone_ci, github_cli, terraform_text, ansible_text)
-# group: [duck_hunt]
+# group: [sql]
 
 require duck_hunt
 

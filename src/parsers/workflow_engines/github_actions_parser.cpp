@@ -401,11 +401,11 @@ std::vector<WorkflowEvent> GitHubActionsParser::convertToEvents(const std::vecto
 					bool is_error_cmd = output_line.find("##[error]") != std::string::npos;
 					bool is_warning_cmd = output_line.find("##[warning]") != std::string::npos;
 					bool is_notice_cmd = output_line.find("##[notice]") != std::string::npos;
-					bool has_error_keyword = output_line.find("ERROR") != std::string::npos ||
-					                         output_line.find("FAIL") != std::string::npos;
+					bool has_error_keyword =
+					    output_line.find("ERROR") != std::string::npos || output_line.find("FAIL") != std::string::npos;
 					bool has_warning_keyword = output_line.find("WARN") != std::string::npos;
-					bool has_pass_keyword = output_line.find("PASS") != std::string::npos ||
-					                        output_line.find("✓") != std::string::npos;
+					bool has_pass_keyword =
+					    output_line.find("PASS") != std::string::npos || output_line.find("✓") != std::string::npos;
 					bool is_action_ref = output_line.find("actions/") != std::string::npos;
 					bool is_job_info = output_line.find("Complete job name:") != std::string::npos;
 
@@ -420,7 +420,8 @@ std::vector<WorkflowEvent> GitHubActionsParser::convertToEvents(const std::vecto
 					WorkflowEvent event;
 
 					// Create base validation event
-					ValidationEvent base_event = createBaseEvent(output_line, workflow_name, job.job_name, step.step_name);
+					ValidationEvent base_event =
+					    createBaseEvent(output_line, workflow_name, job.job_name, step.step_name);
 
 					// Set the base_event
 					event.base_event = base_event;

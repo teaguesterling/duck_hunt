@@ -437,8 +437,8 @@ std::vector<WorkflowEvent> DockerParser::convertToEvents(const std::vector<Docke
 						bool has_warning = output_line.find("WARNING") != std::string::npos ||
 						                   output_line.find("warning:") != std::string::npos;
 
-						bool is_meaningful = is_docker_cmd || is_step || is_layer_id || is_cache ||
-						                     is_complete || has_error || has_warning;
+						bool is_meaningful = is_docker_cmd || is_step || is_layer_id || is_cache || is_complete ||
+						                     has_error || has_warning;
 
 						if (!is_meaningful) {
 							continue;

@@ -26,10 +26,8 @@ public:
 	}
 	std::vector<CommandPattern> getCommandPatterns() const override {
 		return {
-		    CommandPattern::Literal("pytest"),
-		    CommandPattern::Like("pytest %"),
-		    CommandPattern::Like("python -m pytest%"),
-		    CommandPattern::Like("python3 -m pytest%"),
+		    CommandPattern::Literal("pytest"),         CommandPattern::Like("pytest %"),
+		    CommandPattern::Like("python -m pytest%"), CommandPattern::Like("python3 -m pytest%"),
 		    CommandPattern::Regexp("py\\.?test"),
 		};
 	}
