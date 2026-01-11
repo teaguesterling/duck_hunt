@@ -226,6 +226,22 @@ ORDER BY occurrences DESC;
 
 ---
 
+## Workflow-Specific Fields
+
+The `read_duck_hunt_workflow_log()` function outputs additional fields beyond the standard schema:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `workflow_type` | VARCHAR | Workflow system: `github_actions`, `gitlab_ci`, `jenkins`, `docker_build`, `spack` |
+| `hierarchy_level` | INTEGER | Depth: 1=workflow, 2=job, 3=step, 4=delegated |
+| `parent_id` | VARCHAR | ID of parent element in hierarchy |
+| `job_order` | INTEGER | Job execution order (ZIP format only, -1 otherwise) |
+| `job_name` | VARCHAR | Job name from ZIP filename (ZIP format only) |
+
+The `job_order` and `job_name` fields are populated when using `github_actions_zip` format to parse downloaded workflow run ZIP archives. See [Workflow Formats](workflow-formats.md#github_actions_zip) for details.
+
+---
+
 ## Event Types
 
 | Event Type | Description |

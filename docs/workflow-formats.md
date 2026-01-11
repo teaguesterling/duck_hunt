@@ -26,6 +26,20 @@ Use `read_duck_hunt_log()` when you need to:
 - Parse compiler/linter output within CI logs
 - Count specific error types
 
+## Function Parameters
+
+```sql
+read_duck_hunt_workflow_log(source, format, severity_threshold, ignore_errors)
+parse_duck_hunt_workflow_log(text, format, severity_threshold)
+```
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `source` / `text` | VARCHAR | required | File path/glob or content string |
+| `format` | VARCHAR | `'auto'` | Workflow format (see below) |
+| `severity_threshold` | VARCHAR | `'all'` | Minimum severity to include |
+| `ignore_errors` | BOOLEAN | `false` | Continue if files fail to parse |
+
 ## Quick Start
 
 ```sql
@@ -331,6 +345,61 @@ WHERE started_at IS NOT NULL;
 SELECT message
 FROM read_duck_hunt_workflow_log('spack.log', 'spack')
 WHERE message LIKE 'checking %';
+```
+
+---
+
+### github_actions_zip
+
+Parses GitHub Actions workflow logs from downloaded ZIP archives. When you download logs from a GitHub Actions workflow run, they come as a ZIP file containing individual job logs.
+
+**Requirements:**
+```sql
+-- Install and load zipfs extension first
+INSTALL zipfs FROM community;
+LOAD zipfs;
+```
+
+**ZIP File Structure:**
+```
+workflow_run.zip/
+├── 0_Build.txt           # Job 0: "Build"
+├── 1_Test.txt            # Job 1: "Test"
+├── 2_Deploy.txt          # Job 2: "Deploy"
+└── Build/
+    └── system.txt        # (ignored - metadata)
+```
+
+**Usage:**
+```sql
+-- Parse all jobs from the ZIP
+SELECT job_order, job_name, unit as step, severity, message
+FROM read_duck_hunt_workflow_log('workflow_run.zip', 'github_actions_zip')
+WHERE severity = 'error';
+
+-- Find failed jobs
+SELECT DISTINCT job_name, job_order
+FROM read_duck_hunt_workflow_log('workflow_run.zip', 'github_actions_zip')
+WHERE severity = 'error'
+ORDER BY job_order;
+```
+
+**Additional Columns:**
+
+| Field | Description |
+|-------|-------------|
+| `job_order` | Execution order from filename prefix (0, 1, 2...) |
+| `job_name` | Job name extracted from filename |
+
+**Reading Single Files from ZIP:**
+
+You can also read individual job logs using the `zip://` protocol with the standard `github_actions` format:
+
+```sql
+SELECT * FROM read_duck_hunt_workflow_log(
+    'zip://workflow_run.zip/0_Build.txt',
+    'github_actions'
+);
 ```
 
 ---

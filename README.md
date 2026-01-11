@@ -9,15 +9,30 @@ A DuckDB extension for parsing test results, build outputs, and CI/CD logs from 
 ### Table Functions
 
 ```sql
-read_duck_hunt_log(file_path, format := 'auto', severity_threshold := 'all')
-parse_duck_hunt_log(content, format := 'auto', severity_threshold := 'all')
-read_duck_hunt_workflow_log(file_path, format := 'auto', severity_threshold := 'all')
-parse_duck_hunt_workflow_log(content, format := 'auto', severity_threshold := 'all')
+read_duck_hunt_log(source, format, severity_threshold, ignore_errors, content)
+parse_duck_hunt_log(text, format, severity_threshold, content)
+read_duck_hunt_workflow_log(source, format, severity_threshold, ignore_errors)
+parse_duck_hunt_workflow_log(text, format, severity_threshold)
 duck_hunt_formats()                               -- List all supported formats
 ```
 
-- `format` - Parser format or `'auto'` for auto-detection
-- `severity_threshold` - Minimum severity to include: `'all'`, `'info'`, `'warning'`, `'error'`, `'critical'`
+**Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `format` | VARCHAR | `'auto'` | Parser format or `'auto'` for auto-detection |
+| `severity_threshold` | VARCHAR | `'all'` | Minimum severity: `'all'`, `'info'`, `'warning'`, `'error'`, `'critical'` |
+| `ignore_errors` | BOOLEAN | `false` | Continue processing when files fail to parse |
+| `content` | ANY | `'full'` | Control `log_content` size (see below) |
+
+**Content modes** for memory optimization:
+
+| Mode | Description |
+|------|-------------|
+| `content := 200` | Limit to 200 characters |
+| `content := 'smart'` | Intelligent truncation around event |
+| `content := 'none'` or `0` | Omit entirely (NULL) |
+| `content := 'full'` | Full content (default) |
 
 ### Scalar Functions
 
@@ -57,6 +72,12 @@ WHERE status = 'ERROR';
 SELECT test_name, status, execution_time
 FROM read_duck_hunt_log('pytest.json', 'pytest_json', severity_threshold := 'warning')
 WHERE status = 'FAIL';
+
+-- Process multiple files, skip failures
+SELECT * FROM read_duck_hunt_log('logs/*.json', ignore_errors := true);
+
+-- Limit log_content for memory efficiency
+SELECT * FROM read_duck_hunt_log('huge.log', content := 200);
 
 -- Debug format detection
 SELECT format, can_parse, events_produced, is_selected
@@ -126,6 +147,32 @@ SELECT * FROM read_duck_hunt_log('logs/**/*.log.gz', 'auto');
 |-----------|--------|---------|
 | `.gz`, `.gzip` | GZIP | Built-in (always available) |
 | `.zst`, `.zstd` | ZSTD | Requires `LOAD parquet` first |
+
+## ZIP Archive Support
+
+Read GitHub Actions workflow logs directly from downloaded ZIP archives:
+
+```sql
+-- Install and load the zipfs extension
+INSTALL zipfs FROM community;
+LOAD zipfs;
+
+-- Parse all jobs from a GitHub Actions workflow run ZIP
+SELECT job_name, job_order, severity, message
+FROM read_duck_hunt_workflow_log('workflow_run.zip', 'github_actions_zip')
+WHERE severity = 'error';
+
+-- Read a single file from inside the ZIP
+SELECT * FROM read_duck_hunt_workflow_log(
+    'zip://workflow_run.zip/0_Build.txt',
+    'github_actions'
+);
+```
+
+The `github_actions_zip` format:
+- Automatically extracts all job logs (`{N}_{job_name}.txt` files)
+- Adds `job_order` and `job_name` columns from filenames
+- Delegates parsing to the standard `github_actions` parser
 
 ## Documentation
 
