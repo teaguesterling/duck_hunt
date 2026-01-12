@@ -90,6 +90,27 @@ SELECT status_badge(
 ) FROM read_duck_hunt_log('build.log', 'auto');
 ```
 
+## Format Groups
+
+Instead of specifying an exact format, use a **format group** to auto-detect among related tools:
+
+```sql
+-- Try all Python parsers (pytest, mypy, pylint, flake8, etc.)
+SELECT * FROM parse_duck_hunt_log(content, 'python');
+
+-- Try all C/C++ parsers (gtest, make, cmake, valgrind, etc.)
+SELECT * FROM parse_duck_hunt_log(content, 'c_cpp');
+```
+
+| Group | Tools |
+|-------|-------|
+| `python` | pytest, mypy, pylint, flake8, black, isort, coverage |
+| `c_cpp` | gtest, make, cmake, valgrind, gdb, strace, clang-tidy |
+| `java` | junit, maven, gradle, bazel |
+| `rust` | cargo |
+| `javascript` | mocha, node/npm |
+| `ci` | drone, github-cli, terraform |
+
 ## Common Formats
 
 | Format | Tool | Example |
