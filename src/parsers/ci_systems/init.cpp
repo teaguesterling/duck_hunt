@@ -16,6 +16,7 @@ public:
 	                 ParserPriority::HIGH) {
 		addAlias("drone");
 		addAlias("drone_ci");
+		addGroup("ci");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -40,6 +41,8 @@ public:
 	                 ParserPriority::HIGH) {
 		addAlias("terraform");
 		addAlias("tf");
+		addGroup("ci");
+		addGroup("infrastructure");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -63,6 +66,7 @@ public:
 	    : BaseParser("github_cli", "GitHub CLI Parser", ParserCategory::CI_SYSTEM, "GitHub CLI (gh) command output",
 	                 ParserPriority::HIGH) {
 		addAlias("gh");
+		addGroup("ci");
 	}
 
 	bool canParse(const std::string &content) const override {

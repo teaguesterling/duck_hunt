@@ -1131,6 +1131,7 @@ TestResultFormat StringToTestResultFormat(const std::string &str) {
 /**
  * Try parsing with the new modular parser registry using a format name string.
  * This overload allows direct lookup for registry-only formats.
+ * Also supports format groups (e.g., "python", "rust") which try all parsers in the group.
  */
 bool TryNewParserRegistryByName(ClientContext &context, const std::string &format_name, const std::string &content,
                                 std::vector<ValidationEvent> &events) {
@@ -1140,6 +1141,32 @@ bool TryNewParserRegistryByName(ClientContext &context, const std::string &forma
 
 	// Check new parser registry
 	auto &registry = ParserRegistry::getInstance();
+
+	// First check if this is a format group (e.g., "python", "rust", "ci")
+	if (registry.isGroup(format_name)) {
+		// Get all parsers in this group, sorted by priority
+		auto group_parsers = registry.getParsersByGroup(format_name);
+
+		// Try each parser in priority order until one produces events
+		for (auto *parser : group_parsers) {
+			if (parser->canParse(content)) {
+				size_t events_before = events.size();
+				if (parser->requiresContext()) {
+					auto parsed_events = parser->parseWithContext(context, content);
+					events.insert(events.end(), parsed_events.begin(), parsed_events.end());
+				} else {
+					auto parsed_events = parser->parse(content);
+					events.insert(events.end(), parsed_events.begin(), parsed_events.end());
+				}
+				if (events.size() > events_before) {
+					return true; // Found a parser that produced events
+				}
+			}
+		}
+		return false; // No parser in group could parse this content
+	}
+
+	// Not a group - try direct format lookup
 	auto *parser = registry.getParser(format_name);
 
 	if (!parser) {
@@ -1240,15 +1267,15 @@ unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFuncti
 		bind_data->format_name = format_str; // Store raw format name for registry lookup
 		bind_data->format = StringToTestResultFormat(format_str);
 
-		// Check for unknown format - but allow registry-only formats
+		// Check for unknown format - but allow registry-only formats and format groups
 		if (bind_data->format == TestResultFormat::UNKNOWN) {
-			// Check if this format exists in the new parser registry
+			// Check if this format exists in the new parser registry or is a format group
 			auto &registry = ParserRegistry::getInstance();
-			if (!registry.hasFormat(format_str)) {
+			if (!registry.hasFormat(format_str) && !registry.isGroup(format_str)) {
 				throw BinderException("Unknown format: '" + format_str +
 				                      "'. Use 'auto' for auto-detection or see docs/formats.md for supported formats.");
 			}
-			// Format exists in registry, keep UNKNOWN enum but format_name has the string
+			// Format exists in registry or is a group, keep UNKNOWN enum but format_name has the string
 		}
 
 		// For REGEXP format, extract the pattern after the "regexp:" prefix
@@ -1664,15 +1691,15 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
 		bind_data->format_name = format_str; // Store raw format name for registry lookup
 		bind_data->format = StringToTestResultFormat(format_str);
 
-		// Check for unknown format - but allow registry-only formats
+		// Check for unknown format - but allow registry-only formats and format groups
 		if (bind_data->format == TestResultFormat::UNKNOWN) {
-			// Check if this format exists in the new parser registry
+			// Check if this format exists in the new parser registry or is a format group
 			auto &registry = ParserRegistry::getInstance();
-			if (!registry.hasFormat(format_str)) {
+			if (!registry.hasFormat(format_str) && !registry.isGroup(format_str)) {
 				throw BinderException("Unknown format: '" + format_str +
 				                      "'. Use 'auto' for auto-detection or see docs/formats.md for supported formats.");
 			}
-			// Format exists in registry, keep UNKNOWN enum but format_name has the string
+			// Format exists in registry or is a group, keep UNKNOWN enum but format_name has the string
 		}
 
 		// For REGEXP format, extract the pattern after the "regexp:" prefix

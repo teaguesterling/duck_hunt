@@ -1,0 +1,84 @@
+# name: test/sql/format_groups.test
+# description: Test format groups for language-based format selection
+# group: [sql]
+
+require duck_hunt
+
+# Test that duck_hunt_formats() includes the groups column
+query I
+SELECT COUNT(*) FROM duck_hunt_formats() WHERE groups IS NOT NULL;
+----
+91
+
+# Test that groups column contains lists
+query I
+SELECT COUNT(*) FROM duck_hunt_formats() WHERE len(groups) > 0;
+----
+34
+
+# Test that 'python' group exists with expected formats
+query I
+SELECT COUNT(*) FROM duck_hunt_formats() WHERE list_contains(groups, 'python');
+----
+12
+
+# Test that 'c_cpp' group exists
+query I
+SELECT COUNT(*) FROM duck_hunt_formats() WHERE list_contains(groups, 'c_cpp');
+----
+9
+
+# Test that 'java' group exists
+query I
+SELECT COUNT(*) FROM duck_hunt_formats() WHERE list_contains(groups, 'java');
+----
+5
+
+# Test that 'rust' group exists
+query I
+SELECT COUNT(*) FROM duck_hunt_formats() WHERE list_contains(groups, 'rust');
+----
+1
+
+# Test that 'javascript' group exists
+query I
+SELECT COUNT(*) FROM duck_hunt_formats() WHERE list_contains(groups, 'javascript');
+----
+2
+
+# Test that 'ci' group exists
+query I
+SELECT COUNT(*) FROM duck_hunt_formats() WHERE list_contains(groups, 'ci');
+----
+3
+
+# Test format group as format specifier - python group parses pytest output
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log('{"tests":[{"nodeid":"test_pass","outcome":"passed"}]}', 'python');
+----
+1
+
+# Test format group with mypy-style output (also in python group)
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log('main.py:10: error: Name "foo" is not defined', 'python');
+----
+1
+
+# Verify tool_name shows which tool produced the output
+query I
+SELECT tool_name FROM parse_duck_hunt_log('{"tests":[{"nodeid":"test_pass","outcome":"passed"}]}', 'python');
+----
+pytest
+
+# Test that using specific format still works (tool_name is still "pytest", not "pytest_json")
+query I
+SELECT tool_name FROM parse_duck_hunt_log('{"tests":[{"nodeid":"test_pass","outcome":"passed"}]}', 'pytest_json');
+----
+pytest
+
+# Test that group returns empty when no parser matches
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log('this is not valid python output', 'python');
+----
+0
+

@@ -15,6 +15,8 @@ public:
 	StraceParserImpl()
 	    : BaseParser("strace", "strace Parser", ParserCategory::DEBUGGING, "strace system call trace output",
 	                 ParserPriority::HIGH) {
+		addGroup("c_cpp");
+		addGroup("shell");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -36,6 +38,7 @@ public:
 	ValgrindParserImpl()
 	    : BaseParser("valgrind", "Valgrind Parser", ParserCategory::DEBUGGING, "Valgrind memory analysis output",
 	                 ParserPriority::HIGH) {
+		addGroup("c_cpp");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -64,6 +67,7 @@ public:
 	                 ParserPriority::HIGH) {
 		addAlias("gdb");
 		addAlias("lldb");
+		addGroup("c_cpp");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -105,6 +109,7 @@ public:
 	    : BaseParser("coverage_text", "Coverage Parser", ParserCategory::TEST_FRAMEWORK, "Code coverage report output",
 	                 ParserPriority::HIGH) {
 		addAlias("coverage");
+		addGroup("python");
 	}
 
 	bool canParse(const std::string &content) const override {

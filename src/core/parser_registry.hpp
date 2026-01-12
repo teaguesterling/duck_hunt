@@ -24,6 +24,7 @@ struct ParserInfo {
 	std::string required_extension;
 	int priority;
 	std::vector<CommandPattern> command_patterns;
+	std::vector<std::string> groups;
 };
 
 /**
@@ -58,6 +59,22 @@ public:
 	 * Get all parsers in a category (sorted by priority).
 	 */
 	std::vector<IParser *> getParsersByCategory(const std::string &category) const;
+
+	/**
+	 * Get all parsers in a format group (sorted by priority).
+	 * Groups are language/ecosystem hints like "python", "rust", "ci".
+	 */
+	std::vector<IParser *> getParsersByGroup(const std::string &group) const;
+
+	/**
+	 * Check if a name is a registered format group.
+	 */
+	bool isGroup(const std::string &name) const;
+
+	/**
+	 * Get all unique format groups.
+	 */
+	std::vector<std::string> getGroups() const;
 
 	/**
 	 * Get all registered format names (for formats table function).

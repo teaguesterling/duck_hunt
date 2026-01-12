@@ -150,6 +150,15 @@ public:
 	virtual std::vector<CommandPattern> getCommandPatterns() const {
 		return {};
 	}
+
+	/**
+	 * Get format groups this parser belongs to (e.g., "python", "rust", "ci").
+	 * Groups allow users to specify a language/ecosystem hint instead of exact format.
+	 * Returns empty vector if no groups are defined.
+	 */
+	virtual std::vector<std::string> getGroups() const {
+		return {};
+	}
 };
 
 /**

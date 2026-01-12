@@ -241,6 +241,59 @@ std::vector<IParser *> ParserRegistry::getParsersByCategory(const std::string &c
 	return result;
 }
 
+std::vector<IParser *> ParserRegistry::getParsersByGroup(const std::string &group) const {
+	// Ensure parsers are registered (call_once ensures this only runs once)
+	InitializeAllParsers();
+
+	std::vector<IParser *> result;
+
+	for (const auto &parser : parsers_) {
+		const auto &groups = parser->getGroups();
+		if (std::find(groups.begin(), groups.end(), group) != groups.end()) {
+			result.push_back(parser.get());
+		}
+	}
+
+	// Sort by priority within group (stable for determinism)
+	std::stable_sort(result.begin(), result.end(),
+	                 [](IParser *a, IParser *b) { return a->getPriority() > b->getPriority(); });
+
+	return result;
+}
+
+bool ParserRegistry::isGroup(const std::string &name) const {
+	// Ensure parsers are registered (call_once ensures this only runs once)
+	InitializeAllParsers();
+
+	for (const auto &parser : parsers_) {
+		const auto &groups = parser->getGroups();
+		if (std::find(groups.begin(), groups.end(), name) != groups.end()) {
+			return true;
+		}
+	}
+	return false;
+}
+
+std::vector<std::string> ParserRegistry::getGroups() const {
+	// Ensure parsers are registered (call_once ensures this only runs once)
+	InitializeAllParsers();
+
+	std::vector<std::string> groups;
+	std::unordered_map<std::string, bool> seen;
+
+	for (const auto &parser : parsers_) {
+		for (const auto &group : parser->getGroups()) {
+			if (!seen[group]) {
+				groups.push_back(group);
+				seen[group] = true;
+			}
+		}
+	}
+
+	std::sort(groups.begin(), groups.end());
+	return groups;
+}
+
 std::vector<ParserInfo> ParserRegistry::getAllFormats() const {
 	// Ensure parsers are registered (call_once ensures this only runs once)
 	InitializeAllParsers();
@@ -256,6 +309,7 @@ std::vector<ParserInfo> ParserRegistry::getAllFormats() const {
 		info.required_extension = parser->getRequiredExtension();
 		info.priority = parser->getPriority();
 		info.command_patterns = parser->getCommandPatterns();
+		info.groups = parser->getGroups();
 		result.push_back(info);
 	}
 

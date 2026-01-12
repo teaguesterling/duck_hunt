@@ -59,6 +59,9 @@ public:
 	std::string getRequiredExtension() const override {
 		return required_extension_;
 	}
+	std::vector<std::string> getGroups() const override {
+		return groups_;
+	}
 
 protected:
 	// Subclasses can set these in constructor
@@ -67,6 +70,12 @@ protected:
 	}
 	void setRequiredExtension(const std::string &ext) {
 		required_extension_ = ext;
+	}
+	void addGroup(const std::string &group) {
+		groups_.push_back(group);
+	}
+	void setGroups(const std::vector<std::string> &groups) {
+		groups_ = groups;
 	}
 
 	// Helper to create a basic event with common fields pre-filled
@@ -85,6 +94,7 @@ private:
 	int priority_;
 	std::vector<std::string> aliases_;
 	std::string required_extension_;
+	std::vector<std::string> groups_;
 };
 
 /**
@@ -146,10 +156,13 @@ public:
 	 * Explicit constructor - allows overriding parser metadata.
 	 */
 	DelegatingParser(std::string format_name, std::string name, std::string category, std::string description,
-	                 int priority = 50, std::vector<std::string> aliases = {})
+	                 int priority = 50, std::vector<std::string> aliases = {}, std::vector<std::string> groups = {})
 	    : BaseParser(std::move(format_name), std::move(name), std::move(category), std::move(description), priority) {
 		for (const auto &alias : aliases) {
 			addAlias(alias);
+		}
+		for (const auto &group : groups) {
+			addGroup(group);
 		}
 	}
 

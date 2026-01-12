@@ -54,11 +54,12 @@ static unique_ptr<FunctionData> DuckHuntFormatsBind(ClientContext &context, Tabl
 	    LogicalType::INTEGER,                             // priority
 	    LogicalType::VARCHAR,                             // requires_extension
 	    LogicalType::BOOLEAN,                             // supports_workflow
-	    LogicalType::LIST(std::move(pattern_struct_type)) // command_patterns
+	    LogicalType::LIST(std::move(pattern_struct_type)), // command_patterns
+	    LogicalType::LIST(LogicalType::VARCHAR)           // groups
 	};
 
-	names = {"format",          "description", "category", "priority", "requires_extension", "supports_workflow",
-	         "command_patterns"};
+	names = {"format",          "description", "category",         "priority", "requires_extension",
+	         "supports_workflow", "command_patterns", "groups"};
 
 	return make_uniq<DuckHuntFormatsBindData>();
 }
@@ -97,6 +98,13 @@ static void DuckHuntFormatsFunction(ClientContext &context, TableFunctionInput &
 		                Value::LIST(LogicalType::STRUCT(
 		                                {{"pattern", LogicalType::VARCHAR}, {"pattern_type", LogicalType::VARCHAR}}),
 		                            std::move(pattern_list)));
+
+		// Build groups list
+		vector<Value> groups_list;
+		for (const auto &group : fmt.groups) {
+			groups_list.push_back(Value(group));
+		}
+		output.SetValue(7, count, Value::LIST(LogicalType::VARCHAR, std::move(groups_list)));
 
 		state.current_idx++;
 		count++;
