@@ -21,35 +21,35 @@ void RegisterLintingToolsParsers(ParserRegistry &registry) {
 	// Format: format_name, display_name, category, description, priority, aliases, groups
 	registry.registerParser(make_uniq<DelegatingParser<PylintParser>>(
 	    "pylint_text", "Pylint Parser", ParserCategory::LINTING, "Python Pylint code quality output",
-	    ParserPriority::HIGH, std::vector<std::string> {"pylint"}, std::vector<std::string> {"python"}));
+	    ParserPriority::HIGH, std::vector<std::string> {"pylint"}, std::vector<std::string> {"python", "lint"}));
 
 	registry.registerParser(make_uniq<DelegatingParser<MypyParser>>(
 	    "mypy_text", "Mypy Parser", ParserCategory::LINTING, "Python Mypy type checker output", ParserPriority::HIGH,
-	    std::vector<std::string> {"mypy"}, std::vector<std::string> {"python"}));
+	    std::vector<std::string> {"mypy"}, std::vector<std::string> {"python", "lint"}));
 
 	registry.registerParser(make_uniq<DelegatingParser<Flake8Parser>>(
 	    "flake8_text", "Flake8 Parser", ParserCategory::LINTING, "Python Flake8 style checker output",
-	    ParserPriority::HIGH, std::vector<std::string> {"flake8"}, std::vector<std::string> {"python"}));
+	    ParserPriority::HIGH, std::vector<std::string> {"flake8"}, std::vector<std::string> {"python", "lint"}));
 
 	registry.registerParser(make_uniq<DelegatingParser<BlackParser>>(
 	    "black_text", "Black Parser", ParserCategory::LINTING, "Python Black formatter output", ParserPriority::MEDIUM,
-	    std::vector<std::string> {"black"}, std::vector<std::string> {"python"}));
+	    std::vector<std::string> {"black"}, std::vector<std::string> {"python", "lint"}));
 
 	registry.registerParser(make_uniq<DelegatingParser<YapfTextParser>>(
 	    "yapf_text", "YAPF Parser", ParserCategory::LINTING, "Python YAPF formatter output", ParserPriority::VERY_HIGH,
-	    std::vector<std::string> {"yapf"}, std::vector<std::string> {"python"}));
+	    std::vector<std::string> {"yapf"}, std::vector<std::string> {"python", "lint"}));
 
 	registry.registerParser(make_uniq<DelegatingParser<ClangTidyParser>>(
 	    "clang_tidy_text", "Clang-Tidy Parser", ParserCategory::LINTING, "LLVM Clang-Tidy C++ linter output",
-	    ParserPriority::HIGH, std::vector<std::string> {"clang_tidy", "clang-tidy"}, std::vector<std::string> {"c_cpp"}));
+	    ParserPriority::HIGH, std::vector<std::string> {"clang_tidy", "clang-tidy"}, std::vector<std::string> {"c_cpp", "lint"}));
 
 	registry.registerParser(make_uniq<DelegatingParser<Autopep8TextParser>>(
 	    "autopep8_text", "Autopep8 Parser", ParserCategory::LINTING, "Python autopep8 formatter output",
-	    ParserPriority::HIGH, std::vector<std::string> {"autopep8"}, std::vector<std::string> {"python"}));
+	    ParserPriority::HIGH, std::vector<std::string> {"autopep8"}, std::vector<std::string> {"python", "lint"}));
 
 	registry.registerParser(make_uniq<DelegatingParser<IsortParser>>(
 	    "isort_text", "isort Parser", ParserCategory::LINTING, "Python isort import sorter output",
-	    ParserPriority::HIGH, std::vector<std::string> {"isort"}, std::vector<std::string> {"python"}));
+	    ParserPriority::HIGH, std::vector<std::string> {"isort"}, std::vector<std::string> {"python", "lint"}));
 }
 
 // Auto-register this category

@@ -15,6 +15,7 @@ public:
 	                 ParserPriority::MEDIUM) { // Generic format - lower priority than specific JSON loggers
 		addAlias("ndjson");
 		addAlias("json_lines");
+		addGroup("logging");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -37,6 +38,7 @@ public:
 	LogfmtParserImpl()
 	    : BaseParser("logfmt", "Logfmt Parser", ParserCategory::STRUCTURED_LOG, "Logfmt key=value log format",
 	                 ParserPriority::MEDIUM) {
+		addGroup("logging");
 	} // Generic format - lower priority than specific logfmt loggers
 
 	bool canParse(const std::string &content) const override {

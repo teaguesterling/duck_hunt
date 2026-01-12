@@ -18,6 +18,8 @@ public:
 	    : BaseParser("hdfs", "HDFS Parser", ParserCategory::DISTRIBUTED_SYSTEMS, "Hadoop HDFS log output",
 	                 ParserPriority::HIGH) {
 		addAlias("hadoop_hdfs");
+		addGroup("distributed");
+		addGroup("java");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -41,6 +43,8 @@ public:
 	    : BaseParser("spark", "Spark Parser", ParserCategory::DISTRIBUTED_SYSTEMS, "Apache Spark log output",
 	                 ParserPriority::HIGH) {
 		addAlias("apache_spark");
+		addGroup("distributed");
+		addGroup("java");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -65,6 +69,8 @@ public:
 	                 ParserPriority::HIGH) {
 		addAlias("logcat");
 		addAlias("android_logcat");
+		addGroup("distributed");
+		addGroup("mobile");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -89,6 +95,8 @@ public:
 	                 "Apache Zookeeper log output", ParserPriority::HIGH) {
 		addAlias("zk");
 		addAlias("apache_zookeeper");
+		addGroup("distributed");
+		addGroup("java");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -114,6 +122,9 @@ public:
 		addAlias("nova");
 		addAlias("neutron");
 		addAlias("cinder");
+		addGroup("distributed");
+		addGroup("cloud");
+		addGroup("python");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -138,6 +149,7 @@ public:
 	                 ParserPriority::HIGH) {
 		addAlias("bluegene");
 		addAlias("blue_gene_l");
+		addGroup("distributed");
 	}
 
 	bool canParse(const std::string &content) const override {

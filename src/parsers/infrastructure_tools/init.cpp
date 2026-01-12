@@ -13,6 +13,9 @@ public:
 	    : BaseParser("ansible_text", "Ansible Parser", ParserCategory::CI_SYSTEM, "Ansible playbook output",
 	                 ParserPriority::HIGH) {
 		addAlias("ansible");
+		addGroup("infrastructure");
+		addGroup("ci");
+		addGroup("python");
 	}
 
 	bool canParse(const std::string &content) const override {

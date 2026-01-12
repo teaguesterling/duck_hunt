@@ -19,6 +19,8 @@ public:
 	IptablesParserImpl()
 	    : BaseParser("iptables", "Iptables Parser", ParserCategory::INFRASTRUCTURE, "Linux iptables firewall log",
 	                 ParserPriority::HIGH) {
+		addGroup("infrastructure");
+		addGroup("security");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -42,6 +44,8 @@ public:
 	    : BaseParser("pf", "PF Parser", ParserCategory::INFRASTRUCTURE, "BSD PF (Packet Filter) firewall log",
 	                 ParserPriority::HIGH) {
 		addAlias("pf_firewall");
+		addGroup("infrastructure");
+		addGroup("security");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -65,6 +69,8 @@ public:
 	    : BaseParser("cisco_asa", "Cisco ASA Parser", ParserCategory::INFRASTRUCTURE, "Cisco ASA firewall log",
 	                 ParserPriority::HIGH) {
 		addAlias("asa");
+		addGroup("infrastructure");
+		addGroup("security");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -88,6 +94,8 @@ public:
 	    : BaseParser("vpc_flow", "VPC Flow Parser", ParserCategory::INFRASTRUCTURE, "AWS/GCP VPC flow log",
 	                 ParserPriority::HIGH) {
 		addAlias("vpc_flow_log");
+		addGroup("infrastructure");
+		addGroup("cloud");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -111,6 +119,8 @@ public:
 	    : BaseParser("kubernetes", "Kubernetes Parser", ParserCategory::INFRASTRUCTURE, "Kubernetes container/pod log",
 	                 ParserPriority::HIGH) {
 		addAlias("k8s");
+		addGroup("infrastructure");
+		addGroup("cloud");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -135,6 +145,8 @@ public:
 	                 ParserPriority::HIGH) {
 		addAlias("windows");
 		addAlias("eventlog");
+		addGroup("infrastructure");
+		addGroup("security");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -158,6 +170,8 @@ public:
 	    : BaseParser("auditd", "Auditd Parser", ParserCategory::INFRASTRUCTURE, "Linux auditd audit log",
 	                 ParserPriority::HIGH) {
 		addAlias("audit");
+		addGroup("infrastructure");
+		addGroup("security");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -181,6 +195,8 @@ public:
 	    : BaseParser("s3_access", "S3 Access Parser", ParserCategory::INFRASTRUCTURE, "AWS S3 bucket access log",
 	                 ParserPriority::HIGH) {
 		addAlias("s3_access_log");
+		addGroup("infrastructure");
+		addGroup("cloud");
 	}
 
 	bool canParse(const std::string &content) const override {

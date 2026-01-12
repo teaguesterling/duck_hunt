@@ -14,43 +14,81 @@ SELECT COUNT(*) FROM duck_hunt_formats() WHERE groups IS NOT NULL;
 query I
 SELECT COUNT(*) FROM duck_hunt_formats() WHERE len(groups) > 0;
 ----
-34
+90
 
 # Test that 'python' group exists with expected formats
 query I
 SELECT COUNT(*) FROM duck_hunt_formats() WHERE list_contains(groups, 'python');
 ----
-12
+16
 
 # Test that 'c_cpp' group exists
 query I
 SELECT COUNT(*) FROM duck_hunt_formats() WHERE list_contains(groups, 'c_cpp');
 ----
-9
+10
 
 # Test that 'java' group exists
 query I
 SELECT COUNT(*) FROM duck_hunt_formats() WHERE list_contains(groups, 'java');
 ----
-5
+11
 
 # Test that 'rust' group exists
 query I
 SELECT COUNT(*) FROM duck_hunt_formats() WHERE list_contains(groups, 'rust');
 ----
-1
+3
 
 # Test that 'javascript' group exists
 query I
 SELECT COUNT(*) FROM duck_hunt_formats() WHERE list_contains(groups, 'javascript');
 ----
-2
+7
 
 # Test that 'ci' group exists
 query I
 SELECT COUNT(*) FROM duck_hunt_formats() WHERE list_contains(groups, 'ci');
 ----
-3
+4
+
+# Test tool-type groups
+
+# Test that 'lint' group exists
+query I
+SELECT COUNT(*) FROM duck_hunt_formats() WHERE list_contains(groups, 'lint');
+----
+26
+
+# Test that 'test' group exists
+query I
+SELECT COUNT(*) FROM duck_hunt_formats() WHERE list_contains(groups, 'test');
+----
+12
+
+# Test that 'build' group exists
+query I
+SELECT COUNT(*) FROM duck_hunt_formats() WHERE list_contains(groups, 'build');
+----
+9
+
+# Test that 'security' group exists
+query I
+SELECT COUNT(*) FROM duck_hunt_formats() WHERE list_contains(groups, 'security');
+----
+10
+
+# Test that 'infrastructure' group exists
+query I
+SELECT COUNT(*) FROM duck_hunt_formats() WHERE list_contains(groups, 'infrastructure');
+----
+15
+
+# Test that 'logging' group exists
+query I
+SELECT COUNT(*) FROM duck_hunt_formats() WHERE list_contains(groups, 'logging');
+----
+13
 
 # Test format group as format specifier - python group parses pytest output
 query I

@@ -24,6 +24,7 @@ public:
 	                 ParserPriority::VERY_HIGH) {
 		setRequiredExtension("webbed");
 		addGroup("java");
+		addGroup("test");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -56,40 +57,40 @@ void RegisterTestFrameworksParsers(ParserRegistry &registry) {
 	// Format: format_name, display_name, category, description, priority, aliases, groups
 	registry.registerParser(make_uniq<DelegatingParser<PytestParser>>(
 	    "pytest_text", "Pytest Text Parser", ParserCategory::TEST_FRAMEWORK, "Python pytest text output",
-	    ParserPriority::HIGH, std::vector<std::string> {"pytest"}, std::vector<std::string> {"python"}));
+	    ParserPriority::HIGH, std::vector<std::string> {"pytest"}, std::vector<std::string> {"python", "test"}));
 
 	registry.registerParser(make_uniq<DelegatingParser<PytestJSONParser>>(
 	    "pytest_json", "Pytest JSON Parser", ParserCategory::TEST_FRAMEWORK, "Python pytest JSON report output",
-	    ParserPriority::VERY_HIGH, std::vector<std::string> {}, std::vector<std::string> {"python"}));
+	    ParserPriority::VERY_HIGH, std::vector<std::string> {}, std::vector<std::string> {"python", "test"}));
 
 	registry.registerParser(make_uniq<DelegatingParser<JUnitTextParser>>(
 	    "junit_text", "JUnit Text Parser", ParserCategory::TEST_FRAMEWORK, "JUnit/Maven test output in text format",
-	    ParserPriority::HIGH, std::vector<std::string> {"junit"}, std::vector<std::string> {"java"}));
+	    ParserPriority::HIGH, std::vector<std::string> {"junit"}, std::vector<std::string> {"java", "test"}));
 
 	registry.registerParser(make_uniq<DelegatingParser<GTestTextParser>>(
 	    "gtest_text", "Google Test Parser", ParserCategory::TEST_FRAMEWORK, "Google Test (gtest) output format",
-	    ParserPriority::HIGH, std::vector<std::string> {"gtest", "googletest"}, std::vector<std::string> {"c_cpp"}));
+	    ParserPriority::HIGH, std::vector<std::string> {"gtest", "googletest"}, std::vector<std::string> {"c_cpp", "test"}));
 
 	registry.registerParser(make_uniq<DelegatingParser<RSpecTextParser>>(
 	    "rspec_text", "RSpec Parser", ParserCategory::TEST_FRAMEWORK, "Ruby RSpec test output format",
-	    ParserPriority::HIGH, std::vector<std::string> {"rspec"}, std::vector<std::string> {"ruby"}));
+	    ParserPriority::HIGH, std::vector<std::string> {"rspec"}, std::vector<std::string> {"ruby", "test"}));
 
 	registry.registerParser(make_uniq<DelegatingParser<MochaChaiTextParser>>(
 	    "mocha_chai_text", "Mocha/Chai Parser", ParserCategory::TEST_FRAMEWORK, "Mocha/Chai JavaScript test output",
-	    ParserPriority::HIGH, std::vector<std::string> {"mocha", "chai"}, std::vector<std::string> {"javascript"}));
+	    ParserPriority::HIGH, std::vector<std::string> {"mocha", "chai"}, std::vector<std::string> {"javascript", "test"}));
 
 	registry.registerParser(make_uniq<DelegatingParser<NUnitXUnitTextParser>>(
 	    "nunit_xunit_text", "NUnit/xUnit Parser", ParserCategory::TEST_FRAMEWORK, ".NET NUnit/xUnit test output",
-	    ParserPriority::HIGH, std::vector<std::string> {"nunit", "xunit"}, std::vector<std::string> {"dotnet"}));
+	    ParserPriority::HIGH, std::vector<std::string> {"nunit", "xunit"}, std::vector<std::string> {"dotnet", "test"}));
 
 	registry.registerParser(make_uniq<DelegatingParser<DuckDBTestParser>>(
 	    "duckdb_test", "DuckDB Test Parser", ParserCategory::TEST_FRAMEWORK, "DuckDB unittest output format",
-	    ParserPriority::HIGH, std::vector<std::string> {}, std::vector<std::string> {"c_cpp"}));
+	    ParserPriority::HIGH, std::vector<std::string> {}, std::vector<std::string> {"c_cpp", "test"}));
 
 	registry.registerParser(make_uniq<DelegatingParser<PytestCovTextParser>>(
 	    "pytest_cov_text", "Pytest Coverage Parser", ParserCategory::TEST_FRAMEWORK,
 	    "Python pytest-cov text output with coverage", ParserPriority::HIGH,
-	    std::vector<std::string> {"pytest_cov", "pytest-cov"}, std::vector<std::string> {"python"}));
+	    std::vector<std::string> {"pytest_cov", "pytest-cov"}, std::vector<std::string> {"python", "test", "coverage"}));
 
 	// JUnit XML requires special handling (context for XML parsing)
 	registry.registerParser(make_uniq<JUnitXmlParserImpl>());

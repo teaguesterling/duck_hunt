@@ -17,6 +17,7 @@ public:
 	                 ParserPriority::HIGH) {
 		addGroup("c_cpp");
 		addGroup("shell");
+		addGroup("debug");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -39,6 +40,7 @@ public:
 	    : BaseParser("valgrind", "Valgrind Parser", ParserCategory::DEBUGGING, "Valgrind memory analysis output",
 	                 ParserPriority::HIGH) {
 		addGroup("c_cpp");
+		addGroup("debug");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -68,6 +70,7 @@ public:
 		addAlias("gdb");
 		addAlias("lldb");
 		addGroup("c_cpp");
+		addGroup("debug");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -110,6 +113,7 @@ public:
 	                 ParserPriority::HIGH) {
 		addAlias("coverage");
 		addGroup("python");
+		addGroup("coverage");
 	}
 
 	bool canParse(const std::string &content) const override {

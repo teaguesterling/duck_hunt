@@ -15,6 +15,8 @@ public:
 	    : BaseParser("aws_cloudtrail", "AWS CloudTrail Parser", ParserCategory::CLOUD_AUDIT,
 	                 "AWS CloudTrail audit logs", ParserPriority::HIGH) {
 		addAlias("cloudtrail");
+		addGroup("cloud");
+		addGroup("security");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -39,6 +41,7 @@ public:
 	                 "Google Cloud Logging (Stackdriver) logs", ParserPriority::HIGH) {
 		addAlias("stackdriver");
 		addAlias("gcp_logging");
+		addGroup("cloud");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -62,6 +65,7 @@ public:
 	    : BaseParser("azure_activity", "Azure Activity Parser", ParserCategory::CLOUD_AUDIT,
 	                 "Azure Activity/Audit logs", ParserPriority::HIGH) {
 		addAlias("azure");
+		addGroup("cloud");
 	}
 
 	bool canParse(const std::string &content) const override {

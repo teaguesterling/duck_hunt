@@ -14,6 +14,8 @@ public:
 	SyslogParserImpl()
 	    : BaseParser("syslog", "Syslog Parser", ParserCategory::SYSTEM_LOG, "Unix/Linux syslog format",
 	                 ParserPriority::HIGH) {
+		addGroup("web");
+		addGroup("logging");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -37,6 +39,7 @@ public:
 	    : BaseParser("apache_access", "Apache Access Parser", ParserCategory::WEB_ACCESS,
 	                 "Apache HTTP Server access log", ParserPriority::HIGH) {
 		addAlias("apache");
+		addGroup("web");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -60,6 +63,7 @@ public:
 	    : BaseParser("nginx_access", "Nginx Access Parser", ParserCategory::WEB_ACCESS, "Nginx HTTP Server access log",
 	                 ParserPriority::HIGH) {
 		addAlias("nginx");
+		addGroup("web");
 	}
 
 	bool canParse(const std::string &content) const override {

@@ -21,6 +21,8 @@ public:
 	PythonLoggingParserImpl()
 	    : BaseParser("python_logging", "Python Logging Parser", ParserCategory::APP_LOGGING,
 	                 "Python standard logging module output", ParserPriority::HIGH) {
+		addGroup("python");
+		addGroup("logging");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -44,6 +46,8 @@ public:
 	    : BaseParser("log4j", "Log4j Parser", ParserCategory::APP_LOGGING, "Java Log4j/Log4j2 log output",
 	                 ParserPriority::HIGH) {
 		addAlias("log4j2");
+		addGroup("java");
+		addGroup("logging");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -66,6 +70,8 @@ public:
 	LogrusParserImpl()
 	    : BaseParser("logrus", "Logrus Parser", ParserCategory::APP_LOGGING, "Go Logrus structured logging output",
 	                 ParserPriority::HIGH) {
+		addGroup("go");
+		addGroup("logging");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -88,6 +94,8 @@ public:
 	WinstonParserImpl()
 	    : BaseParser("winston", "Winston Parser", ParserCategory::APP_LOGGING, "Node.js Winston logger output",
 	                 ParserPriority::HIGH) {
+		addGroup("javascript");
+		addGroup("logging");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -110,6 +118,8 @@ public:
 	PinoParserImpl()
 	    : BaseParser("pino", "Pino Parser", ParserCategory::APP_LOGGING, "Node.js Pino logger output",
 	                 ParserPriority::HIGH) {
+		addGroup("javascript");
+		addGroup("logging");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -132,6 +142,8 @@ public:
 	BunyanParserImpl()
 	    : BaseParser("bunyan", "Bunyan Parser", ParserCategory::APP_LOGGING, "Node.js Bunyan logger output",
 	                 ParserPriority::HIGH) {
+		addGroup("javascript");
+		addGroup("logging");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -154,6 +166,8 @@ public:
 	SerilogParserImpl()
 	    : BaseParser("serilog", "Serilog Parser", ParserCategory::APP_LOGGING, ".NET Serilog structured logging output",
 	                 ParserPriority::HIGH) {
+		addGroup("dotnet");
+		addGroup("logging");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -176,6 +190,8 @@ public:
 	NLogParserImpl()
 	    : BaseParser("nlog", "NLog Parser", ParserCategory::APP_LOGGING, ".NET NLog logger output",
 	                 ParserPriority::HIGH) {
+		addGroup("dotnet");
+		addGroup("logging");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -198,6 +214,8 @@ public:
 	RubyLoggerParserImpl()
 	    : BaseParser("ruby_logger", "Ruby Logger Parser", ParserCategory::APP_LOGGING, "Ruby standard Logger output",
 	                 ParserPriority::HIGH) {
+		addGroup("ruby");
+		addGroup("logging");
 	}
 
 	bool canParse(const std::string &content) const override {
@@ -221,6 +239,9 @@ public:
 	    : BaseParser("rails_log", "Rails Log Parser", ParserCategory::APP_LOGGING,
 	                 "Ruby on Rails application log output", ParserPriority::HIGH) {
 		addAlias("rails");
+		addGroup("ruby");
+		addGroup("logging");
+		addGroup("web");
 	}
 
 	bool canParse(const std::string &content) const override {

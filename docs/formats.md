@@ -16,18 +16,39 @@ SELECT * FROM parse_duck_hunt_log(content, 'python');
 SELECT * FROM parse_duck_hunt_log(content, 'ci');
 ```
 
-| Group | Description | Formats |
-|-------|-------------|---------|
-| `python` | Python tools | pytest_json, pytest_text, pytest_cov_text, pylint_text, mypy_text, flake8_text, black_text, isort_text, autopep8_text, yapf_text, coverage_text, python_build |
-| `c_cpp` | C/C++ tools | gtest_text, make_error, cmake_build, bazel_build, clang_tidy_text, valgrind, gdb_lldb, strace, duckdb_test |
-| `java` | Java/JVM tools | junit_text, junit_xml, maven_build, gradle_build, bazel_build |
-| `rust` | Rust tools | cargo_build |
-| `javascript` | JavaScript/Node.js tools | mocha_chai_text, node_build |
-| `ruby` | Ruby tools | rspec_text |
-| `dotnet` | .NET tools | nunit_xunit_text, msbuild |
-| `ci` | CI/CD systems | drone_ci_text, github_cli, terraform_text |
-| `infrastructure` | Infrastructure tools | terraform_text |
-| `shell` | Shell/system tools | strace |
+### Language Groups
+
+| Group | Description | Count |
+|-------|-------------|-------|
+| `python` | Python tools (pytest, pylint, mypy, flake8, bandit, etc.) | 16 |
+| `java` | Java/JVM tools (junit, maven, gradle, spotbugs, etc.) | 11 |
+| `c_cpp` | C/C++ tools (gtest, make, cmake, valgrind, etc.) | 10 |
+| `javascript` | JavaScript/Node.js tools (eslint, mocha, winston, pino, etc.) | 7 |
+| `ruby` | Ruby tools (rspec, rubocop, ruby_logger, rails) | 4 |
+| `dotnet` | .NET tools (nunit, msbuild, serilog, nlog) | 4 |
+| `rust` | Rust tools (cargo_build, clippy, cargo_test) | 3 |
+| `go` | Go tools (gotest, logrus) | 2 |
+| `shell` | Shell tools (shellcheck, strace) | 2 |
+| `swift` | Swift tools (swiftlint) | 1 |
+| `php` | PHP tools (phpstan) | 1 |
+| `mobile` | Mobile platforms (android) | 1 |
+
+### Tool-Type Groups
+
+| Group | Description | Count |
+|-------|-------------|-------|
+| `lint` | Linting & static analysis tools | 26 |
+| `infrastructure` | Infrastructure & DevOps tools | 15 |
+| `logging` | Logging frameworks & formats | 13 |
+| `test` | Test frameworks & runners | 12 |
+| `security` | Security scanning & audit tools | 10 |
+| `build` | Build systems & compilers | 9 |
+| `cloud` | Cloud platform logs & services | 7 |
+| `distributed` | Distributed systems logs | 6 |
+| `ci` | CI/CD systems | 4 |
+| `web` | Web server & access logs | 4 |
+| `coverage` | Code coverage tools | 3 |
+| `debug` | Debugging tools | 3 |
 
 ## Notes
 
@@ -70,90 +91,90 @@ The function analyzes content patterns and returns the best-matching format stri
 
 | Format String | Tool | Groups | Sample File |
 |---------------|------|--------|-------------|
-| `pytest_json` | pytest (JSON) | python | [pytest_json_failures.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/test_frameworks/pytest_json_failures.json) |
-| `pytest_text` | pytest (text) | python | [pytest_failures.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/test_frameworks/pytest_failures.txt) |
-| `gotest_json` | Go test | - | [gotest_failures.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/test_frameworks/gotest_failures.json) |
-| `cargo_test_json` | Cargo test (Rust) | - | [cargo_test_output.jsonl](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/test_frameworks/cargo_test_output.jsonl) |
-| `junit_text` | JUnit/TestNG/Surefire | java | - |
-| `junit_xml` | JUnit XML | java | [junit_xml_failures.xml](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/test_frameworks/junit_xml_failures.xml) |
-| `rspec_text` | RSpec (Ruby) | ruby | [rspec_failures.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/test_frameworks/rspec_failures.txt) |
-| `mocha_chai_text` | Mocha/Chai (JS) | javascript | [mocha_failures.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/test_frameworks/mocha_failures.txt) |
-| `gtest_text` | Google Test (C++) | c_cpp | [gtest_failures.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/test_frameworks/gtest_failures.txt) |
-| `nunit_xunit_text` | NUnit/xUnit (.NET) | dotnet | [nunit_xml_failures.xml](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/test_frameworks/nunit_xml_failures.xml) |
-| `duckdb_test` | DuckDB test runner | c_cpp | - |
-| `pytest_cov_text` | pytest-cov | python | - |
+| `pytest_json` | pytest (JSON) | python, test | [pytest_json_failures.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/test_frameworks/pytest_json_failures.json) |
+| `pytest_text` | pytest (text) | python, test | [pytest_failures.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/test_frameworks/pytest_failures.txt) |
+| `gotest_json` | Go test | go, test | [gotest_failures.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/test_frameworks/gotest_failures.json) |
+| `cargo_test_json` | Cargo test (Rust) | rust, test | [cargo_test_output.jsonl](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/test_frameworks/cargo_test_output.jsonl) |
+| `junit_text` | JUnit/TestNG/Surefire | java, test | - |
+| `junit_xml` | JUnit XML | java, test | [junit_xml_failures.xml](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/test_frameworks/junit_xml_failures.xml) |
+| `rspec_text` | RSpec (Ruby) | ruby, test | [rspec_failures.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/test_frameworks/rspec_failures.txt) |
+| `mocha_chai_text` | Mocha/Chai (JS) | javascript, test | [mocha_failures.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/test_frameworks/mocha_failures.txt) |
+| `gtest_text` | Google Test (C++) | c_cpp, test | [gtest_failures.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/test_frameworks/gtest_failures.txt) |
+| `nunit_xunit_text` | NUnit/xUnit (.NET) | dotnet, test | [nunit_xml_failures.xml](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/test_frameworks/nunit_xml_failures.xml) |
+| `duckdb_test` | DuckDB test runner | c_cpp, test | - |
+| `pytest_cov_text` | pytest-cov | python, coverage | - |
 
 ### Linting & Static Analysis
 
 | Format String | Tool | Groups | Sample File |
 |---------------|------|--------|-------------|
-| `eslint_json` | ESLint | - | [eslint_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/eslint_output.json) |
-| `pylint_text` | Pylint | python | [pylint_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/pylint_output.txt) |
-| `flake8_text` | Flake8 | python | [flake8_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/flake8_output.txt) |
-| `mypy_text` | MyPy | python | [mypy_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/mypy_output.txt) |
-| `black_text` | Black | python | [black_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/python_tools/black_output.txt) |
-| `bandit_json` | Bandit (security) | - | [bandit_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/bandit_output.json) |
-| `rubocop_json` | RuboCop | - | [rubocop_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/rubocop_output.json) |
-| `swiftlint_json` | SwiftLint | - | [swiftlint_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/swiftlint_output.json) |
-| `phpstan_json` | PHPStan | - | [phpstan_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/phpstan_output.json) |
-| `shellcheck_json` | Shellcheck | - | [shellcheck_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/shellcheck_output.json) |
-| `stylelint_json` | Stylelint | - | [stylelint_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/stylelint_output.json) |
-| `clippy_json` | Clippy (Rust) | - | [clippy_output.jsonl](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/clippy_output.jsonl) |
-| `markdownlint_json` | Markdownlint | - | [markdownlint_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/markdownlint_output.json) |
-| `yamllint_json` | yamllint | - | [yamllint_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/yamllint_output.json) |
-| `spotbugs_json` | SpotBugs | - | [spotbugs_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/spotbugs_output.json) |
-| `ktlint_json` | ktlint | - | [ktlint_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/ktlint_output.json) |
-| `hadolint_json` | Hadolint | - | [hadolint_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/hadolint_output.json) |
-| `lintr_json` | lintr (R) | - | [lintr_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/lintr_output.json) |
-| `sqlfluff_json` | sqlfluff | - | [sqlfluff_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/sqlfluff_output.json) |
-| `clang_tidy_text` | clang-tidy | c_cpp | [clang_tidy_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/clang_tidy_output.txt) |
-| `isort_text` | isort | python | [isort_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/python_tools/isort_output.txt) |
-| `autopep8_text` | autopep8 | python | - |
-| `yapf_text` | YAPF | python | - |
-| `generic_lint` | Generic format | - | - |
+| `eslint_json` | ESLint | javascript, lint | [eslint_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/eslint_output.json) |
+| `pylint_text` | Pylint | python, lint | [pylint_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/pylint_output.txt) |
+| `flake8_text` | Flake8 | python, lint | [flake8_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/flake8_output.txt) |
+| `mypy_text` | MyPy | python, lint | [mypy_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/mypy_output.txt) |
+| `black_text` | Black | python, lint | [black_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/python_tools/black_output.txt) |
+| `bandit_json` | Bandit (security) | python, security, lint | [bandit_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/bandit_output.json) |
+| `rubocop_json` | RuboCop | ruby, lint | [rubocop_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/rubocop_output.json) |
+| `swiftlint_json` | SwiftLint | swift, lint | [swiftlint_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/swiftlint_output.json) |
+| `phpstan_json` | PHPStan | php, lint | [phpstan_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/phpstan_output.json) |
+| `shellcheck_json` | Shellcheck | shell, lint | [shellcheck_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/shellcheck_output.json) |
+| `stylelint_json` | Stylelint | javascript, lint | [stylelint_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/stylelint_output.json) |
+| `clippy_json` | Clippy (Rust) | rust, lint | [clippy_output.jsonl](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/clippy_output.jsonl) |
+| `markdownlint_json` | Markdownlint | lint | [markdownlint_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/markdownlint_output.json) |
+| `yamllint_json` | yamllint | lint | [yamllint_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/yamllint_output.json) |
+| `spotbugs_json` | SpotBugs | java, lint, security | [spotbugs_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/spotbugs_output.json) |
+| `ktlint_json` | ktlint | java, lint | [ktlint_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/ktlint_output.json) |
+| `hadolint_json` | Hadolint | infrastructure, lint | [hadolint_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/hadolint_output.json) |
+| `lintr_json` | lintr (R) | lint | [lintr_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/lintr_output.json) |
+| `sqlfluff_json` | sqlfluff | lint | [sqlfluff_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/sqlfluff_output.json) |
+| `clang_tidy_text` | clang-tidy | c_cpp, lint | [clang_tidy_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/clang_tidy_output.txt) |
+| `isort_text` | isort | python, lint | [isort_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/python_tools/isort_output.txt) |
+| `autopep8_text` | autopep8 | python, lint | - |
+| `yapf_text` | YAPF | python, lint | - |
+| `generic_lint` | Generic format | lint | - |
 
 ### Build Systems
 
 | Format String | Tool | Groups | Sample File |
 |---------------|------|--------|-------------|
-| `make_error` | GNU Make | c_cpp | [make_errors.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/build_systems/make_errors.txt) |
-| `cmake_build` | CMake | c_cpp | [cmake_build_errors.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/build_systems/cmake_build_errors.txt) |
-| `python_build` | pip/setuptools | python | [pip_install_errors.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/build_systems/pip_install_errors.txt) |
-| `node_build` | npm/yarn/webpack | javascript | [npm_build_errors.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/build_systems/npm_build_errors.txt) |
-| `cargo_build` | Cargo (Rust) | rust | [cargo_build_errors.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/build_systems/cargo_build_errors.txt) |
-| `maven_build` | Maven | java | [maven_build_failures.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/build_systems/maven_build_failures.txt) |
-| `gradle_build` | Gradle | java | [gradle_build_failures.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/build_systems/gradle_build_failures.txt) |
-| `msbuild` | MSBuild (.NET) | dotnet | [msbuild_errors.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/build_systems/msbuild_errors.txt) |
-| `bazel_build` | Bazel | c_cpp, java | [bazel_build_errors.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/build_systems/bazel_build_errors.txt) |
-| `docker_build` | Docker | - | [docker_logs.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/infrastructure/docker_logs.txt) |
+| `make_error` | GNU Make | c_cpp, build | [make_errors.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/build_systems/make_errors.txt) |
+| `cmake_build` | CMake | c_cpp, build | [cmake_build_errors.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/build_systems/cmake_build_errors.txt) |
+| `python_build` | pip/setuptools | python, build | [pip_install_errors.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/build_systems/pip_install_errors.txt) |
+| `node_build` | npm/yarn/webpack | javascript, build | [npm_build_errors.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/build_systems/npm_build_errors.txt) |
+| `cargo_build` | Cargo (Rust) | rust, build | [cargo_build_errors.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/build_systems/cargo_build_errors.txt) |
+| `maven_build` | Maven | java, build | [maven_build_failures.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/build_systems/maven_build_failures.txt) |
+| `gradle_build` | Gradle | java, build | [gradle_build_failures.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/build_systems/gradle_build_failures.txt) |
+| `msbuild` | MSBuild (.NET) | dotnet, build | [msbuild_errors.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/build_systems/msbuild_errors.txt) |
+| `bazel_build` | Bazel | c_cpp, java, build | [bazel_build_errors.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/build_systems/bazel_build_errors.txt) |
+| `docker_build` | Docker | infrastructure, build | [docker_logs.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/infrastructure/docker_logs.txt) |
 
 ### Infrastructure & Security
 
 | Format String | Tool | Groups | Sample File |
 |---------------|------|--------|-------------|
-| `tflint_json` | tflint | - | [tflint_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/infrastructure/tflint_output.json) |
-| `kube_score_json` | kube-score | - | [kube_score_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/infrastructure/kube_score_output.json) |
-| `trivy_json` | Trivy (security) | - | [trivy_scan.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/security_tools/trivy_scan.json) |
-| `tfsec_json` | tfsec (security) | - | [tfsec_scan.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/security_tools/tfsec_scan.json) |
-| `kubernetes` | Kubernetes events | - | [kubernetes_events.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/infrastructure/kubernetes_events.json) |
-| `vpc_flow` | VPC Flow Logs | - | [vpc_flow_logs.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/infrastructure/vpc_flow_logs.txt) |
-| `s3_access` | S3 Access Logs | - | [s3_access_logs.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/infrastructure/s3_access_logs.txt) |
-| `pf` | BSD Packet Filter | - | [pf_firewall.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/infrastructure/pf_firewall.txt) |
-| `iptables` | iptables/netfilter | - | - |
-| `cisco_asa` | Cisco ASA | - | - |
-| `windows_event` | Windows Event Log | - | - |
-| `auditd` | Linux auditd | - | - |
+| `tflint_json` | tflint | infrastructure, lint | [tflint_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/infrastructure/tflint_output.json) |
+| `kube_score_json` | kube-score | infrastructure, lint | [kube_score_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/infrastructure/kube_score_output.json) |
+| `trivy_json` | Trivy (security) | infrastructure, security | [trivy_scan.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/security_tools/trivy_scan.json) |
+| `tfsec_json` | tfsec (security) | infrastructure, security | [tfsec_scan.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/security_tools/tfsec_scan.json) |
+| `kubernetes` | Kubernetes events | infrastructure, cloud | [kubernetes_events.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/infrastructure/kubernetes_events.json) |
+| `vpc_flow` | VPC Flow Logs | infrastructure, cloud | [vpc_flow_logs.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/infrastructure/vpc_flow_logs.txt) |
+| `s3_access` | S3 Access Logs | infrastructure, cloud | [s3_access_logs.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/infrastructure/s3_access_logs.txt) |
+| `pf` | BSD Packet Filter | infrastructure, security | [pf_firewall.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/infrastructure/pf_firewall.txt) |
+| `iptables` | iptables/netfilter | infrastructure, security | - |
+| `cisco_asa` | Cisco ASA | infrastructure, security | - |
+| `windows_event` | Windows Event Log | infrastructure, security | - |
+| `auditd` | Linux auditd | infrastructure, security | - |
 
 ### Debugging & Coverage
 
 | Format String | Tool | Groups | Sample File |
 |---------------|------|--------|-------------|
-| `valgrind` | Valgrind | c_cpp | [valgrind_memcheck.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/debugging_tools/valgrind_memcheck.txt) |
-| `gdb_lldb` | GDB/LLDB | c_cpp | [gdb_session.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/debugging_tools/gdb_session.txt) |
-| `strace` | strace | c_cpp, shell | [strace_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/debugging_tools/strace_output.txt) |
-| `lcov` | LCOV/gcov | - | [lcov_coverage.info](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/coverage/lcov_coverage.info) |
-| `coverage_text` | Coverage.py | python | [coverage_xml.xml](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/coverage/coverage_xml.xml) |
-| `pytest_cov_text` | pytest-cov | python | - |
+| `valgrind` | Valgrind | c_cpp, debug | [valgrind_memcheck.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/debugging_tools/valgrind_memcheck.txt) |
+| `gdb_lldb` | GDB/LLDB | c_cpp, debug | [gdb_session.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/debugging_tools/gdb_session.txt) |
+| `strace` | strace | c_cpp, shell, debug | [strace_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/debugging_tools/strace_output.txt) |
+| `lcov` | LCOV/gcov | c_cpp, coverage | [lcov_coverage.info](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/coverage/lcov_coverage.info) |
+| `coverage_text` | Coverage.py | python, coverage | [coverage_xml.xml](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/coverage/coverage_xml.xml) |
+| `pytest_cov_text` | pytest-cov | python, coverage | - |
 
 ### CI/CD Systems
 
@@ -162,64 +183,64 @@ The function analyzes content patterns and returns the best-matching format stri
 
 | Format String | Tool | Groups | Function | Sample File |
 |---------------|------|--------|----------|-------------|
-| `github_actions` | GitHub Actions | - | workflow | [github_actions_workflow.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/ci_systems/github_actions_workflow.txt) |
-| `gitlab_ci` | GitLab CI | - | workflow | [gitlab_ci_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/ci_systems/gitlab_ci_output.txt) |
-| `jenkins` | Jenkins | - | workflow | [jenkins_console_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/ci_systems/jenkins_console_output.txt) |
-| `docker_build` | Docker | - | workflow | [docker_logs.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/infrastructure/docker_logs.txt) |
+| `github_actions` | GitHub Actions | ci | workflow | [github_actions_workflow.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/ci_systems/github_actions_workflow.txt) |
+| `gitlab_ci` | GitLab CI | ci | workflow | [gitlab_ci_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/ci_systems/gitlab_ci_output.txt) |
+| `jenkins` | Jenkins | ci | workflow | [jenkins_console_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/ci_systems/jenkins_console_output.txt) |
+| `docker_build` | Docker | infrastructure, build | workflow | [docker_logs.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/infrastructure/docker_logs.txt) |
 | `github_cli` | GitHub CLI | ci | log | - |
 | `drone_ci_text` | Drone CI | ci | log | - |
 | `terraform_text` | Terraform | ci, infrastructure | log | - |
-| `ansible_text` | Ansible | - | log | - |
-| `spack` | Spack | - | workflow | [spack_build.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/ci_systems/spack_build.txt) |
+| `ansible_text` | Ansible | infrastructure, ci, python | log | - |
+| `spack` | Spack | build | workflow | [spack_build.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/ci_systems/spack_build.txt) |
 
 ### Cloud Logging
 
 | Format String | Tool | Groups | Sample File |
 |---------------|------|--------|-------------|
-| `aws_cloudtrail` | AWS CloudTrail | - | [aws_cloudtrail_events.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/cloud_audit/aws_cloudtrail_events.json) |
-| `gcp_cloud_logging` | GCP Cloud Logging | - | [gcp_cloud_logging.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/cloud_audit/gcp_cloud_logging.json) |
-| `azure_activity` | Azure Activity Log | - | [azure_activity_log.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/cloud_audit/azure_activity_log.json) |
+| `aws_cloudtrail` | AWS CloudTrail | cloud, security | [aws_cloudtrail_events.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/cloud_audit/aws_cloudtrail_events.json) |
+| `gcp_cloud_logging` | GCP Cloud Logging | cloud, security | [gcp_cloud_logging.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/cloud_audit/gcp_cloud_logging.json) |
+| `azure_activity` | Azure Activity Log | cloud, security | [azure_activity_log.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/cloud_audit/azure_activity_log.json) |
 
 ### Application Logging
 
 | Format String | Tool | Groups | Sample File |
 |---------------|------|--------|-------------|
-| `python_logging` | Python logging | - | [python_logging_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/app_logging/python_logging_output.txt) |
-| `log4j` | Log4j/Log4j2 | - | [log4j_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/app_logging/log4j_output.txt) |
-| `logrus` | Logrus (Go) | - | [logrus_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/app_logging/logrus_output.txt) |
-| `winston` | Winston (Node.js) | - | [winston_logs.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/app_logging/winston_logs.json) |
-| `pino` | Pino (Node.js) | - | [pino_output.jsonl](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/app_logging/pino_output.jsonl) |
-| `bunyan` | Bunyan (Node.js) | - | [bunyan_logs.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/app_logging/bunyan_logs.json) |
-| `serilog` | Serilog (.NET) | - | [serilog_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/app_logging/serilog_output.txt) |
-| `nlog` | NLog (.NET) | - | [nlog_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/app_logging/nlog_output.txt) |
-| `ruby_logger` | Ruby Logger | - | [ruby_logger_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/app_logging/ruby_logger_output.txt) |
-| `rails_log` | Rails Log | - | [rails_log_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/app_logging/rails_log_output.txt) |
+| `python_logging` | Python logging | python, logging | [python_logging_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/app_logging/python_logging_output.txt) |
+| `log4j` | Log4j/Log4j2 | java, logging | [log4j_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/app_logging/log4j_output.txt) |
+| `logrus` | Logrus (Go) | go, logging | [logrus_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/app_logging/logrus_output.txt) |
+| `winston` | Winston (Node.js) | javascript, logging | [winston_logs.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/app_logging/winston_logs.json) |
+| `pino` | Pino (Node.js) | javascript, logging | [pino_output.jsonl](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/app_logging/pino_output.jsonl) |
+| `bunyan` | Bunyan (Node.js) | javascript, logging | [bunyan_logs.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/app_logging/bunyan_logs.json) |
+| `serilog` | Serilog (.NET) | dotnet, logging | [serilog_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/app_logging/serilog_output.txt) |
+| `nlog` | NLog (.NET) | dotnet, logging | [nlog_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/app_logging/nlog_output.txt) |
+| `ruby_logger` | Ruby Logger | ruby, logging | [ruby_logger_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/app_logging/ruby_logger_output.txt) |
+| `rails_log` | Rails Log | ruby, logging, web | [rails_log_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/app_logging/rails_log_output.txt) |
 
 ### Web Access Logs
 
 | Format String | Tool | Groups | Sample File |
 |---------------|------|--------|-------------|
-| `syslog` | Syslog | - | [syslog_messages.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/structured_logs/syslog_messages.txt) |
-| `apache_access` | Apache Access Log | - | - |
-| `nginx_access` | Nginx Access Log | - | - |
+| `syslog` | Syslog | web, logging | [syslog_messages.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/structured_logs/syslog_messages.txt) |
+| `apache_access` | Apache Access Log | web | - |
+| `nginx_access` | Nginx Access Log | web | - |
 
 ### Distributed Systems
 
 | Format String | Tool | Groups | Sample File |
 |---------------|------|--------|-------------|
-| `hdfs` | Hadoop HDFS | - | [HDFS_2k.log](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/loghub/HDFS/HDFS_2k.log) |
-| `spark` | Apache Spark | - | [Spark_2k.log](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/loghub/Spark/Spark_2k.log) |
-| `android` | Android logcat | - | [Android_2k.log](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/loghub/Android/Android_2k.log) |
-| `zookeeper` | Apache Zookeeper | - | [Zookeeper_2k.log](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/loghub/Zookeeper/Zookeeper_2k.log) |
-| `openstack` | OpenStack services | - | [OpenStack_2k.log](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/loghub/OpenStack/OpenStack_2k.log) |
-| `bgl` | Blue Gene/L | - | [BGL_2k.log](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/loghub/BGL/BGL_2k.log) |
+| `hdfs` | Hadoop HDFS | distributed, java | [HDFS_2k.log](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/loghub/HDFS/HDFS_2k.log) |
+| `spark` | Apache Spark | distributed, java | [Spark_2k.log](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/loghub/Spark/Spark_2k.log) |
+| `android` | Android logcat | distributed, mobile | [Android_2k.log](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/loghub/Android/Android_2k.log) |
+| `zookeeper` | Apache Zookeeper | distributed, java | [Zookeeper_2k.log](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/loghub/Zookeeper/Zookeeper_2k.log) |
+| `openstack` | OpenStack services | distributed, cloud, python | [OpenStack_2k.log](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/loghub/OpenStack/OpenStack_2k.log) |
+| `bgl` | Blue Gene/L | distributed | [BGL_2k.log](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/loghub/BGL/BGL_2k.log) |
 
 ### Structured Logs
 
 | Format String | Tool | Groups | Sample File |
 |---------------|------|--------|-------------|
-| `jsonl` | JSON Lines | - | [jsonl_logs.jsonl](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/structured_logs/jsonl_logs.jsonl) |
-| `logfmt` | logfmt | - | [logfmt_logs.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/structured_logs/logfmt_logs.txt) |
+| `jsonl` | JSON Lines | logging | [jsonl_logs.jsonl](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/structured_logs/jsonl_logs.jsonl) |
+| `logfmt` | logfmt | logging | [logfmt_logs.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/structured_logs/logfmt_logs.txt) |
 
 ---
 

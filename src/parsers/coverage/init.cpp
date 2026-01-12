@@ -14,6 +14,8 @@ public:
 	                 ParserPriority::HIGH) {
 		addAlias("gcov");
 		addAlias("lcov_info");
+		addGroup("c_cpp");
+		addGroup("coverage");
 	}
 
 	bool canParse(const std::string &content) const override {

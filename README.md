@@ -98,18 +98,36 @@ Instead of specifying an exact format, use a **format group** to auto-detect amo
 -- Try all Python parsers (pytest, mypy, pylint, flake8, etc.)
 SELECT * FROM parse_duck_hunt_log(content, 'python');
 
--- Try all C/C++ parsers (gtest, make, cmake, valgrind, etc.)
-SELECT * FROM parse_duck_hunt_log(content, 'c_cpp');
+-- Try all linting tools (eslint, pylint, clippy, etc.)
+SELECT * FROM parse_duck_hunt_log(content, 'lint');
+
+-- Try all test frameworks (pytest, junit, gtest, etc.)
+SELECT * FROM parse_duck_hunt_log(content, 'test');
 ```
+
+**Language Groups:**
 
 | Group | Tools |
 |-------|-------|
-| `python` | pytest, mypy, pylint, flake8, black, isort, coverage |
+| `python` | pytest, mypy, pylint, flake8, black, isort, bandit, coverage |
+| `java` | junit, maven, gradle, spotbugs, ktlint, hdfs, spark, zookeeper |
 | `c_cpp` | gtest, make, cmake, valgrind, gdb, strace, clang-tidy |
-| `java` | junit, maven, gradle, bazel |
-| `rust` | cargo |
-| `javascript` | mocha, node/npm |
-| `ci` | drone, github-cli, terraform |
+| `javascript` | eslint, stylelint, mocha, winston, pino, bunyan, node |
+| `rust` | cargo, clippy, cargo_test |
+| `go` | gotest, logrus |
+| `dotnet` | nunit, msbuild, serilog, nlog |
+| `ruby` | rspec, rubocop, ruby_logger, rails |
+
+**Tool-Type Groups:**
+
+| Group | Tools |
+|-------|-------|
+| `lint` | eslint, pylint, mypy, flake8, clippy, rubocop, hadolint, tflint, etc. (26 tools) |
+| `test` | pytest, junit, gtest, rspec, mocha, gotest, cargo_test, etc. (12 tools) |
+| `build` | make, cmake, maven, gradle, cargo, msbuild, bazel, etc. (9 tools) |
+| `security` | bandit, trivy, tfsec, spotbugs, cloudtrail, etc. (10 tools) |
+| `infrastructure` | kubernetes, terraform, ansible, hadolint, etc. (15 tools) |
+| `logging` | log4j, winston, serilog, logrus, pino, jsonl, etc. (13 tools) |
 
 ## Common Formats
 
