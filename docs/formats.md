@@ -198,8 +198,8 @@ The function analyzes content patterns and returns the best-matching format stri
 | Format String | Tool | Groups | Sample File |
 |---------------|------|--------|-------------|
 | `aws_cloudtrail` | AWS CloudTrail | cloud, security | [aws_cloudtrail_events.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/cloud_audit/aws_cloudtrail_events.json) |
-| `gcp_cloud_logging` | GCP Cloud Logging | cloud, security | [gcp_cloud_logging.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/cloud_audit/gcp_cloud_logging.json) |
-| `azure_activity` | Azure Activity Log | cloud, security | [azure_activity_log.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/cloud_audit/azure_activity_log.json) |
+| `gcp_cloud_logging` | GCP Cloud Logging | cloud | [gcp_cloud_logging.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/cloud_audit/gcp_cloud_logging.json) |
+| `azure_activity` | Azure Activity Log | cloud | [azure_activity_log.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/cloud_audit/azure_activity_log.json) |
 
 ### Application Logging
 

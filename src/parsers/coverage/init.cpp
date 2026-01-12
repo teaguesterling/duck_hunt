@@ -4,31 +4,9 @@
 
 namespace duckdb {
 
-/**
- * LCOV coverage parser wrapper.
- */
-class LcovParserImpl : public BaseParser {
-public:
-	LcovParserImpl()
-	    : BaseParser("lcov", "LCOV Parser", ParserCategory::COVERAGE, "LCOV/gcov code coverage format",
-	                 ParserPriority::HIGH) {
-		addAlias("gcov");
-		addAlias("lcov_info");
-		addGroup("c_cpp");
-		addGroup("coverage");
-	}
-
-	bool canParse(const std::string &content) const override {
-		return parser_.canParse(content);
-	}
-
-	std::vector<ValidationEvent> parse(const std::string &content) const override {
-		return parser_.parse(content);
-	}
-
-private:
-	LcovParser parser_;
-};
+// Alias for convenience
+template <typename T>
+using P = DelegatingParser<T>;
 
 /**
  * Register all coverage parsers with the registry.
@@ -36,7 +14,9 @@ private:
 DECLARE_PARSER_CATEGORY(Coverage);
 
 void RegisterCoverageParsers(ParserRegistry &registry) {
-	registry.registerParser(make_uniq<LcovParserImpl>());
+	registry.registerParser(make_uniq<P<LcovParser>>(
+	    "lcov", "LCOV Parser", ParserCategory::COVERAGE, "LCOV/gcov code coverage format", ParserPriority::HIGH,
+	    std::vector<std::string> {"gcov", "lcov_info"}, std::vector<std::string> {"c_cpp", "coverage"}));
 }
 
 // Auto-register this category

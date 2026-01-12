@@ -5,53 +5,9 @@
 
 namespace duckdb {
 
-/**
- * JSONL (JSON Lines) parser wrapper.
- */
-class JSONLParserImpl : public BaseParser {
-public:
-	JSONLParserImpl()
-	    : BaseParser("jsonl", "JSONL Parser", ParserCategory::STRUCTURED_LOG, "JSON Lines (JSONL/NDJSON) log format",
-	                 ParserPriority::MEDIUM) { // Generic format - lower priority than specific JSON loggers
-		addAlias("ndjson");
-		addAlias("json_lines");
-		addGroup("logging");
-	}
-
-	bool canParse(const std::string &content) const override {
-		return parser_.canParse(content);
-	}
-
-	std::vector<ValidationEvent> parse(const std::string &content) const override {
-		return parser_.parse(content);
-	}
-
-private:
-	JSONLParser parser_;
-};
-
-/**
- * Logfmt parser wrapper.
- */
-class LogfmtParserImpl : public BaseParser {
-public:
-	LogfmtParserImpl()
-	    : BaseParser("logfmt", "Logfmt Parser", ParserCategory::STRUCTURED_LOG, "Logfmt key=value log format",
-	                 ParserPriority::MEDIUM) {
-		addGroup("logging");
-	} // Generic format - lower priority than specific logfmt loggers
-
-	bool canParse(const std::string &content) const override {
-		return parser_.canParse(content);
-	}
-
-	std::vector<ValidationEvent> parse(const std::string &content) const override {
-		return parser_.parse(content);
-	}
-
-private:
-	LogfmtParser parser_;
-};
+// Alias for convenience
+template <typename T>
+using P = DelegatingParser<T>;
 
 /**
  * Register all structured log parsers with the registry.
@@ -59,8 +15,14 @@ private:
 DECLARE_PARSER_CATEGORY(StructuredLogs);
 
 void RegisterStructuredLogsParsers(ParserRegistry &registry) {
-	registry.registerParser(make_uniq<JSONLParserImpl>());
-	registry.registerParser(make_uniq<LogfmtParserImpl>());
+	// Generic formats - lower priority than specific JSON/logfmt loggers
+	registry.registerParser(make_uniq<P<JSONLParser>>(
+	    "jsonl", "JSONL Parser", ParserCategory::STRUCTURED_LOG, "JSON Lines (JSONL/NDJSON) log format",
+	    ParserPriority::MEDIUM, std::vector<std::string> {"ndjson", "json_lines"}, std::vector<std::string> {"logging"}));
+
+	registry.registerParser(make_uniq<P<LogfmtParser>>("logfmt", "Logfmt Parser", ParserCategory::STRUCTURED_LOG,
+	                                                   "Logfmt key=value log format", ParserPriority::MEDIUM,
+	                                                   std::vector<std::string> {}, std::vector<std::string> {"logging"}));
 }
 
 // Auto-register this category

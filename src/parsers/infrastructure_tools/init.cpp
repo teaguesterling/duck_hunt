@@ -4,31 +4,9 @@
 
 namespace duckdb {
 
-/**
- * Ansible parser wrapper.
- */
-class AnsibleParserImpl : public BaseParser {
-public:
-	AnsibleParserImpl()
-	    : BaseParser("ansible_text", "Ansible Parser", ParserCategory::CI_SYSTEM, "Ansible playbook output",
-	                 ParserPriority::HIGH) {
-		addAlias("ansible");
-		addGroup("infrastructure");
-		addGroup("ci");
-		addGroup("python");
-	}
-
-	bool canParse(const std::string &content) const override {
-		return parser_.canParse(content);
-	}
-
-	std::vector<ValidationEvent> parse(const std::string &content) const override {
-		return parser_.parse(content);
-	}
-
-private:
-	AnsibleTextParser parser_;
-};
+// Alias for convenience
+template <typename T>
+using P = DelegatingParser<T>;
 
 /**
  * Register all infrastructure tools parsers with the registry.
@@ -36,7 +14,9 @@ private:
 DECLARE_PARSER_CATEGORY(InfrastructureTools);
 
 void RegisterInfrastructureToolsParsers(ParserRegistry &registry) {
-	registry.registerParser(make_uniq<AnsibleParserImpl>());
+	registry.registerParser(make_uniq<P<AnsibleTextParser>>(
+	    "ansible_text", "Ansible Parser", ParserCategory::CI_SYSTEM, "Ansible playbook output", ParserPriority::HIGH,
+	    std::vector<std::string> {"ansible"}, std::vector<std::string> {"infrastructure", "ci", "python"}));
 }
 
 // Auto-register this category

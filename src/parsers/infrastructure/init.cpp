@@ -11,205 +11,9 @@
 
 namespace duckdb {
 
-/**
- * Iptables parser wrapper.
- */
-class IptablesParserImpl : public BaseParser {
-public:
-	IptablesParserImpl()
-	    : BaseParser("iptables", "Iptables Parser", ParserCategory::INFRASTRUCTURE, "Linux iptables firewall log",
-	                 ParserPriority::HIGH) {
-		addGroup("infrastructure");
-		addGroup("security");
-	}
-
-	bool canParse(const std::string &content) const override {
-		return parser_.canParse(content);
-	}
-
-	std::vector<ValidationEvent> parse(const std::string &content) const override {
-		return parser_.parse(content);
-	}
-
-private:
-	IptablesParser parser_;
-};
-
-/**
- * PF firewall parser wrapper.
- */
-class PfParserImpl : public BaseParser {
-public:
-	PfParserImpl()
-	    : BaseParser("pf", "PF Parser", ParserCategory::INFRASTRUCTURE, "BSD PF (Packet Filter) firewall log",
-	                 ParserPriority::HIGH) {
-		addAlias("pf_firewall");
-		addGroup("infrastructure");
-		addGroup("security");
-	}
-
-	bool canParse(const std::string &content) const override {
-		return parser_.canParse(content);
-	}
-
-	std::vector<ValidationEvent> parse(const std::string &content) const override {
-		return parser_.parse(content);
-	}
-
-private:
-	PfParser parser_;
-};
-
-/**
- * Cisco ASA parser wrapper.
- */
-class CiscoAsaParserImpl : public BaseParser {
-public:
-	CiscoAsaParserImpl()
-	    : BaseParser("cisco_asa", "Cisco ASA Parser", ParserCategory::INFRASTRUCTURE, "Cisco ASA firewall log",
-	                 ParserPriority::HIGH) {
-		addAlias("asa");
-		addGroup("infrastructure");
-		addGroup("security");
-	}
-
-	bool canParse(const std::string &content) const override {
-		return parser_.canParse(content);
-	}
-
-	std::vector<ValidationEvent> parse(const std::string &content) const override {
-		return parser_.parse(content);
-	}
-
-private:
-	CiscoAsaParser parser_;
-};
-
-/**
- * VPC Flow log parser wrapper.
- */
-class VpcFlowParserImpl : public BaseParser {
-public:
-	VpcFlowParserImpl()
-	    : BaseParser("vpc_flow", "VPC Flow Parser", ParserCategory::INFRASTRUCTURE, "AWS/GCP VPC flow log",
-	                 ParserPriority::HIGH) {
-		addAlias("vpc_flow_log");
-		addGroup("infrastructure");
-		addGroup("cloud");
-	}
-
-	bool canParse(const std::string &content) const override {
-		return parser_.canParse(content);
-	}
-
-	std::vector<ValidationEvent> parse(const std::string &content) const override {
-		return parser_.parse(content);
-	}
-
-private:
-	VpcFlowParser parser_;
-};
-
-/**
- * Kubernetes parser wrapper.
- */
-class KubernetesParserImpl : public BaseParser {
-public:
-	KubernetesParserImpl()
-	    : BaseParser("kubernetes", "Kubernetes Parser", ParserCategory::INFRASTRUCTURE, "Kubernetes container/pod log",
-	                 ParserPriority::HIGH) {
-		addAlias("k8s");
-		addGroup("infrastructure");
-		addGroup("cloud");
-	}
-
-	bool canParse(const std::string &content) const override {
-		return parser_.canParse(content);
-	}
-
-	std::vector<ValidationEvent> parse(const std::string &content) const override {
-		return parser_.parse(content);
-	}
-
-private:
-	KubernetesParser parser_;
-};
-
-/**
- * Windows Event parser wrapper.
- */
-class WindowsEventParserImpl : public BaseParser {
-public:
-	WindowsEventParserImpl()
-	    : BaseParser("windows_event", "Windows Event Parser", ParserCategory::INFRASTRUCTURE, "Windows Event Log",
-	                 ParserPriority::HIGH) {
-		addAlias("windows");
-		addAlias("eventlog");
-		addGroup("infrastructure");
-		addGroup("security");
-	}
-
-	bool canParse(const std::string &content) const override {
-		return parser_.canParse(content);
-	}
-
-	std::vector<ValidationEvent> parse(const std::string &content) const override {
-		return parser_.parse(content);
-	}
-
-private:
-	WindowsEventParser parser_;
-};
-
-/**
- * Auditd parser wrapper.
- */
-class AuditdParserImpl : public BaseParser {
-public:
-	AuditdParserImpl()
-	    : BaseParser("auditd", "Auditd Parser", ParserCategory::INFRASTRUCTURE, "Linux auditd audit log",
-	                 ParserPriority::HIGH) {
-		addAlias("audit");
-		addGroup("infrastructure");
-		addGroup("security");
-	}
-
-	bool canParse(const std::string &content) const override {
-		return parser_.canParse(content);
-	}
-
-	std::vector<ValidationEvent> parse(const std::string &content) const override {
-		return parser_.parse(content);
-	}
-
-private:
-	AuditdParser parser_;
-};
-
-/**
- * S3 Access parser wrapper.
- */
-class S3AccessParserImpl : public BaseParser {
-public:
-	S3AccessParserImpl()
-	    : BaseParser("s3_access", "S3 Access Parser", ParserCategory::INFRASTRUCTURE, "AWS S3 bucket access log",
-	                 ParserPriority::HIGH) {
-		addAlias("s3_access_log");
-		addGroup("infrastructure");
-		addGroup("cloud");
-	}
-
-	bool canParse(const std::string &content) const override {
-		return parser_.canParse(content);
-	}
-
-	std::vector<ValidationEvent> parse(const std::string &content) const override {
-		return parser_.parse(content);
-	}
-
-private:
-	S3AccessParser parser_;
-};
+// Alias for convenience
+template <typename T>
+using P = DelegatingParser<T>;
 
 /**
  * Register all infrastructure parsers with the registry.
@@ -217,14 +21,39 @@ private:
 DECLARE_PARSER_CATEGORY(Infrastructure);
 
 void RegisterInfrastructureParsers(ParserRegistry &registry) {
-	registry.registerParser(make_uniq<IptablesParserImpl>());
-	registry.registerParser(make_uniq<PfParserImpl>());
-	registry.registerParser(make_uniq<CiscoAsaParserImpl>());
-	registry.registerParser(make_uniq<VpcFlowParserImpl>());
-	registry.registerParser(make_uniq<KubernetesParserImpl>());
-	registry.registerParser(make_uniq<WindowsEventParserImpl>());
-	registry.registerParser(make_uniq<AuditdParserImpl>());
-	registry.registerParser(make_uniq<S3AccessParserImpl>());
+	registry.registerParser(make_uniq<P<IptablesParser>>(
+	    "iptables", "Iptables Parser", ParserCategory::INFRASTRUCTURE, "Linux iptables firewall log",
+	    ParserPriority::HIGH, std::vector<std::string> {}, std::vector<std::string> {"infrastructure", "security"}));
+
+	registry.registerParser(make_uniq<P<PfParser>>(
+	    "pf", "PF Parser", ParserCategory::INFRASTRUCTURE, "BSD PF (Packet Filter) firewall log", ParserPriority::HIGH,
+	    std::vector<std::string> {"pf_firewall"}, std::vector<std::string> {"infrastructure", "security"}));
+
+	registry.registerParser(make_uniq<P<CiscoAsaParser>>(
+	    "cisco_asa", "Cisco ASA Parser", ParserCategory::INFRASTRUCTURE, "Cisco ASA firewall log", ParserPriority::HIGH,
+	    std::vector<std::string> {"asa"}, std::vector<std::string> {"infrastructure", "security"}));
+
+	registry.registerParser(make_uniq<P<VpcFlowParser>>(
+	    "vpc_flow", "VPC Flow Parser", ParserCategory::INFRASTRUCTURE, "AWS/GCP VPC flow log", ParserPriority::HIGH,
+	    std::vector<std::string> {"vpc_flow_log"}, std::vector<std::string> {"infrastructure", "cloud"}));
+
+	registry.registerParser(make_uniq<P<KubernetesParser>>(
+	    "kubernetes", "Kubernetes Parser", ParserCategory::INFRASTRUCTURE, "Kubernetes container/pod log",
+	    ParserPriority::HIGH, std::vector<std::string> {"k8s"}, std::vector<std::string> {"infrastructure", "cloud"}));
+
+	registry.registerParser(make_uniq<P<WindowsEventParser>>(
+	    "windows_event", "Windows Event Parser", ParserCategory::INFRASTRUCTURE, "Windows Event Log",
+	    ParserPriority::HIGH, std::vector<std::string> {"windows", "eventlog"},
+	    std::vector<std::string> {"infrastructure", "security"}));
+
+	registry.registerParser(make_uniq<P<AuditdParser>>(
+	    "auditd", "Auditd Parser", ParserCategory::INFRASTRUCTURE, "Linux auditd audit log", ParserPriority::HIGH,
+	    std::vector<std::string> {"audit"}, std::vector<std::string> {"infrastructure", "security"}));
+
+	registry.registerParser(make_uniq<P<S3AccessParser>>(
+	    "s3_access", "S3 Access Parser", ParserCategory::INFRASTRUCTURE, "AWS S3 bucket access log",
+	    ParserPriority::HIGH, std::vector<std::string> {"s3_access_log"},
+	    std::vector<std::string> {"infrastructure", "cloud"}));
 }
 
 // Auto-register this category

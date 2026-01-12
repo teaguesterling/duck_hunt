@@ -9,160 +9,9 @@
 
 namespace duckdb {
 
-/**
- * HDFS parser wrapper.
- */
-class HdfsParserImpl : public BaseParser {
-public:
-	HdfsParserImpl()
-	    : BaseParser("hdfs", "HDFS Parser", ParserCategory::DISTRIBUTED_SYSTEMS, "Hadoop HDFS log output",
-	                 ParserPriority::HIGH) {
-		addAlias("hadoop_hdfs");
-		addGroup("distributed");
-		addGroup("java");
-	}
-
-	bool canParse(const std::string &content) const override {
-		return parser_.canParse(content);
-	}
-
-	std::vector<ValidationEvent> parse(const std::string &content) const override {
-		return parser_.parse(content);
-	}
-
-private:
-	HdfsParser parser_;
-};
-
-/**
- * Spark parser wrapper.
- */
-class SparkParserImpl : public BaseParser {
-public:
-	SparkParserImpl()
-	    : BaseParser("spark", "Spark Parser", ParserCategory::DISTRIBUTED_SYSTEMS, "Apache Spark log output",
-	                 ParserPriority::HIGH) {
-		addAlias("apache_spark");
-		addGroup("distributed");
-		addGroup("java");
-	}
-
-	bool canParse(const std::string &content) const override {
-		return parser_.canParse(content);
-	}
-
-	std::vector<ValidationEvent> parse(const std::string &content) const override {
-		return parser_.parse(content);
-	}
-
-private:
-	SparkParser parser_;
-};
-
-/**
- * Android logcat parser wrapper.
- */
-class AndroidParserImpl : public BaseParser {
-public:
-	AndroidParserImpl()
-	    : BaseParser("android", "Android Parser", ParserCategory::DISTRIBUTED_SYSTEMS, "Android logcat output",
-	                 ParserPriority::HIGH) {
-		addAlias("logcat");
-		addAlias("android_logcat");
-		addGroup("distributed");
-		addGroup("mobile");
-	}
-
-	bool canParse(const std::string &content) const override {
-		return parser_.canParse(content);
-	}
-
-	std::vector<ValidationEvent> parse(const std::string &content) const override {
-		return parser_.parse(content);
-	}
-
-private:
-	AndroidParser parser_;
-};
-
-/**
- * Zookeeper parser wrapper.
- */
-class ZookeeperParserImpl : public BaseParser {
-public:
-	ZookeeperParserImpl()
-	    : BaseParser("zookeeper", "Zookeeper Parser", ParserCategory::DISTRIBUTED_SYSTEMS,
-	                 "Apache Zookeeper log output", ParserPriority::HIGH) {
-		addAlias("zk");
-		addAlias("apache_zookeeper");
-		addGroup("distributed");
-		addGroup("java");
-	}
-
-	bool canParse(const std::string &content) const override {
-		return parser_.canParse(content);
-	}
-
-	std::vector<ValidationEvent> parse(const std::string &content) const override {
-		return parser_.parse(content);
-	}
-
-private:
-	ZookeeperParser parser_;
-};
-
-/**
- * OpenStack parser wrapper.
- */
-class OpenStackParserImpl : public BaseParser {
-public:
-	OpenStackParserImpl()
-	    : BaseParser("openstack", "OpenStack Parser", ParserCategory::DISTRIBUTED_SYSTEMS,
-	                 "OpenStack service log output", ParserPriority::HIGH) {
-		addAlias("nova");
-		addAlias("neutron");
-		addAlias("cinder");
-		addGroup("distributed");
-		addGroup("cloud");
-		addGroup("python");
-	}
-
-	bool canParse(const std::string &content) const override {
-		return parser_.canParse(content);
-	}
-
-	std::vector<ValidationEvent> parse(const std::string &content) const override {
-		return parser_.parse(content);
-	}
-
-private:
-	OpenStackParser parser_;
-};
-
-/**
- * BGL (Blue Gene/L) parser wrapper.
- */
-class BglParserImpl : public BaseParser {
-public:
-	BglParserImpl()
-	    : BaseParser("bgl", "BGL Parser", ParserCategory::DISTRIBUTED_SYSTEMS, "Blue Gene/L supercomputer log output",
-	                 ParserPriority::HIGH) {
-		addAlias("bluegene");
-		addAlias("blue_gene_l");
-		addGroup("distributed");
-	}
-
-	bool canParse(const std::string &content) const override {
-		return parser_.canParse(content);
-	}
-
-	std::vector<ValidationEvent> parse(const std::string &content) const override {
-		return parser_.parse(content);
-	}
-
-private:
-	BglParser parser_;
-};
+// Alias for convenience
+template <typename T>
+using P = DelegatingParser<T>;
 
 /**
  * Register all distributed systems parsers with the registry.
@@ -170,12 +19,32 @@ private:
 DECLARE_PARSER_CATEGORY(DistributedSystems);
 
 void RegisterDistributedSystemsParsers(ParserRegistry &registry) {
-	registry.registerParser(make_uniq<HdfsParserImpl>());
-	registry.registerParser(make_uniq<SparkParserImpl>());
-	registry.registerParser(make_uniq<AndroidParserImpl>());
-	registry.registerParser(make_uniq<ZookeeperParserImpl>());
-	registry.registerParser(make_uniq<OpenStackParserImpl>());
-	registry.registerParser(make_uniq<BglParserImpl>());
+	registry.registerParser(make_uniq<P<HdfsParser>>(
+	    "hdfs", "HDFS Parser", ParserCategory::DISTRIBUTED_SYSTEMS, "Hadoop HDFS log output", ParserPriority::HIGH,
+	    std::vector<std::string> {"hadoop_hdfs"}, std::vector<std::string> {"distributed", "java"}));
+
+	registry.registerParser(make_uniq<P<SparkParser>>(
+	    "spark", "Spark Parser", ParserCategory::DISTRIBUTED_SYSTEMS, "Apache Spark log output", ParserPriority::HIGH,
+	    std::vector<std::string> {"apache_spark"}, std::vector<std::string> {"distributed", "java"}));
+
+	registry.registerParser(make_uniq<P<AndroidParser>>(
+	    "android", "Android Parser", ParserCategory::DISTRIBUTED_SYSTEMS, "Android logcat output", ParserPriority::HIGH,
+	    std::vector<std::string> {"logcat", "android_logcat"}, std::vector<std::string> {"distributed", "mobile"}));
+
+	registry.registerParser(make_uniq<P<ZookeeperParser>>(
+	    "zookeeper", "Zookeeper Parser", ParserCategory::DISTRIBUTED_SYSTEMS, "Apache Zookeeper log output",
+	    ParserPriority::HIGH, std::vector<std::string> {"zk", "apache_zookeeper"},
+	    std::vector<std::string> {"distributed", "java"}));
+
+	registry.registerParser(make_uniq<P<OpenStackParser>>(
+	    "openstack", "OpenStack Parser", ParserCategory::DISTRIBUTED_SYSTEMS, "OpenStack service log output",
+	    ParserPriority::HIGH, std::vector<std::string> {"nova", "neutron", "cinder"},
+	    std::vector<std::string> {"distributed", "cloud", "python"}));
+
+	registry.registerParser(make_uniq<P<BglParser>>(
+	    "bgl", "BGL Parser", ParserCategory::DISTRIBUTED_SYSTEMS, "Blue Gene/L supercomputer log output",
+	    ParserPriority::HIGH, std::vector<std::string> {"bluegene", "blue_gene_l"},
+	    std::vector<std::string> {"distributed"}));
 }
 
 // Auto-register this category

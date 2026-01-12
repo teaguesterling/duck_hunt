@@ -6,77 +6,9 @@
 
 namespace duckdb {
 
-/**
- * Syslog parser wrapper.
- */
-class SyslogParserImpl : public BaseParser {
-public:
-	SyslogParserImpl()
-	    : BaseParser("syslog", "Syslog Parser", ParserCategory::SYSTEM_LOG, "Unix/Linux syslog format",
-	                 ParserPriority::HIGH) {
-		addGroup("web");
-		addGroup("logging");
-	}
-
-	bool canParse(const std::string &content) const override {
-		return parser_.canParse(content);
-	}
-
-	std::vector<ValidationEvent> parse(const std::string &content) const override {
-		return parser_.parse(content);
-	}
-
-private:
-	SyslogParser parser_;
-};
-
-/**
- * Apache access log parser wrapper.
- */
-class ApacheAccessParserImpl : public BaseParser {
-public:
-	ApacheAccessParserImpl()
-	    : BaseParser("apache_access", "Apache Access Parser", ParserCategory::WEB_ACCESS,
-	                 "Apache HTTP Server access log", ParserPriority::HIGH) {
-		addAlias("apache");
-		addGroup("web");
-	}
-
-	bool canParse(const std::string &content) const override {
-		return parser_.canParse(content);
-	}
-
-	std::vector<ValidationEvent> parse(const std::string &content) const override {
-		return parser_.parse(content);
-	}
-
-private:
-	ApacheAccessParser parser_;
-};
-
-/**
- * Nginx access log parser wrapper.
- */
-class NginxAccessParserImpl : public BaseParser {
-public:
-	NginxAccessParserImpl()
-	    : BaseParser("nginx_access", "Nginx Access Parser", ParserCategory::WEB_ACCESS, "Nginx HTTP Server access log",
-	                 ParserPriority::HIGH) {
-		addAlias("nginx");
-		addGroup("web");
-	}
-
-	bool canParse(const std::string &content) const override {
-		return parser_.canParse(content);
-	}
-
-	std::vector<ValidationEvent> parse(const std::string &content) const override {
-		return parser_.parse(content);
-	}
-
-private:
-	NginxAccessParser parser_;
-};
+// Alias for convenience
+template <typename T>
+using P = DelegatingParser<T>;
 
 /**
  * Register all web access parsers with the registry.
@@ -84,9 +16,18 @@ private:
 DECLARE_PARSER_CATEGORY(WebAccess);
 
 void RegisterWebAccessParsers(ParserRegistry &registry) {
-	registry.registerParser(make_uniq<SyslogParserImpl>());
-	registry.registerParser(make_uniq<ApacheAccessParserImpl>());
-	registry.registerParser(make_uniq<NginxAccessParserImpl>());
+	registry.registerParser(make_uniq<P<SyslogParser>>("syslog", "Syslog Parser", ParserCategory::SYSTEM_LOG,
+	                                                   "Unix/Linux syslog format", ParserPriority::HIGH,
+	                                                   std::vector<std::string> {},
+	                                                   std::vector<std::string> {"web", "logging"}));
+
+	registry.registerParser(make_uniq<P<ApacheAccessParser>>(
+	    "apache_access", "Apache Access Parser", ParserCategory::WEB_ACCESS, "Apache HTTP Server access log",
+	    ParserPriority::HIGH, std::vector<std::string> {"apache"}, std::vector<std::string> {"web"}));
+
+	registry.registerParser(make_uniq<P<NginxAccessParser>>(
+	    "nginx_access", "Nginx Access Parser", ParserCategory::WEB_ACCESS, "Nginx HTTP Server access log",
+	    ParserPriority::HIGH, std::vector<std::string> {"nginx"}, std::vector<std::string> {"web"}));
 }
 
 // Auto-register this category
