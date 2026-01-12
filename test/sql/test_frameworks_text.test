@@ -1,0 +1,255 @@
+# name: test/sql/test_frameworks_text.test
+# description: test junit_text and nunit_xunit_text parsers
+# group: [sql]
+
+require duck_hunt
+
+# =============================================================================
+# junit_text Parser Tests - JUnit/Maven/Gradle text output
+# =============================================================================
+
+# Test 1: JUnit 4 class summary
+query III
+SELECT tool_name, severity, category
+FROM parse_duck_hunt_log('Running com.example.AppTest
+Tests run: 5, Failures: 1, Errors: 0, Skipped: 1, Time elapsed: 2.5 sec', 'junit_text')
+WHERE category = 'test_summary';
+----
+junit4	error	test_summary
+
+# Test 2: JUnit 4 passing tests summary
+query III
+SELECT tool_name, severity, category
+FROM parse_duck_hunt_log('Running com.example.AppTest
+Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.0 sec', 'junit_text')
+WHERE category = 'test_summary';
+----
+junit4	info	test_summary
+
+# Test 3: Individual JUnit 4 test pass
+query III
+SELECT tool_name, severity, message
+FROM parse_duck_hunt_log('Running com.example.AppTest
+testMethod(com.example.AppTest) Time elapsed: 0.05 sec <<< PASSED!', 'junit_text')
+WHERE category = 'test_success';
+----
+junit4	info	Test passed
+
+# Test 4: Individual JUnit 4 test failure
+query III
+SELECT tool_name, severity, message
+FROM parse_duck_hunt_log('Running com.example.AppTest
+testMethod(com.example.AppTest) Time elapsed: 0.1 sec <<< FAILURE!', 'junit_text')
+WHERE category = 'test_failure';
+----
+junit4	error	Test failed
+
+# Test 5: Individual JUnit 4 test error
+query III
+SELECT tool_name, severity, message
+FROM parse_duck_hunt_log('Running com.example.AppTest
+testMethod(com.example.AppTest) Time elapsed: 0.1 sec <<< ERROR!', 'junit_text')
+WHERE category = 'test_error';
+----
+junit4	error	Test error
+
+# Test 6: JUnit 5 header detection
+query II
+SELECT tool_name, message LIKE '%JUnit Jupiter%'
+FROM parse_duck_hunt_log('JUnit Jupiter 5.9.0', 'junit_text')
+WHERE category = 'test_framework';
+----
+junit5	true
+
+# Test 7: Maven Surefire class execution
+query II
+SELECT tool_name, category
+FROM parse_duck_hunt_log('[INFO] Running com.example.AppTest
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0', 'junit_text')
+WHERE category = 'test_summary';
+----
+surefire	test_summary
+
+# Test 8: Gradle test pass
+query III
+SELECT tool_name, severity, message
+FROM parse_duck_hunt_log('AppTest > testMethod PASSED', 'junit_text')
+WHERE category = 'test_success';
+----
+gradle-test	info	Test passed
+
+# Test 9: Gradle test fail
+query III
+SELECT tool_name, severity, message
+FROM parse_duck_hunt_log('AppTest > testMethod FAILED', 'junit_text')
+WHERE category = 'test_failure';
+----
+gradle-test	error	Test failed
+
+# Test 10: Gradle test summary
+query III
+SELECT tool_name, severity, message LIKE '%failed%'
+FROM parse_duck_hunt_log('10 tests completed, 2 failed, 1 skipped', 'junit_text')
+WHERE category = 'test_summary';
+----
+gradle-test	error	true
+
+# Test 11: junit_text appears in formats list
+query II
+SELECT format, category
+FROM duck_hunt_formats()
+WHERE format = 'junit_text';
+----
+junit_text	test_framework
+
+# Test 12: Empty input returns no rows for junit_text
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('', 'junit_text');
+----
+0
+
+# =============================================================================
+# nunit_xunit_text Parser Tests - NUnit and xUnit text output
+# =============================================================================
+
+# Test 13: NUnit header detection
+query II
+SELECT tool_name, message LIKE '%NUnit version%'
+FROM parse_duck_hunt_log('NUnit 3.13.3', 'nunit_xunit_text');
+----
+nunit	true
+
+# Test 14: NUnit test summary with failures
+query III
+SELECT tool_name, severity, category
+FROM parse_duck_hunt_log('Test Count: 10, Passed: 8, Failed: 1, Warnings: 0, Inconclusive: 0, Skipped: 1', 'nunit_xunit_text');
+----
+nunit	error	nunit_xunit_text
+
+# Test 15: NUnit test summary - all pass
+query III
+SELECT tool_name, severity, category
+FROM parse_duck_hunt_log('Test Count: 10, Passed: 10, Failed: 0, Warnings: 0, Inconclusive: 0, Skipped: 0', 'nunit_xunit_text');
+----
+nunit	info	nunit_xunit_text
+
+# Test 16: NUnit overall result - Passed
+query III
+SELECT tool_name, severity, message
+FROM parse_duck_hunt_log('Overall result: Passed', 'nunit_xunit_text');
+----
+nunit	info	Overall test result: Passed
+
+# Test 17: NUnit overall result - Failed
+query III
+SELECT tool_name, severity, message
+FROM parse_duck_hunt_log('Overall result: Failed', 'nunit_xunit_text');
+----
+nunit	error	Overall test result: Failed
+
+# Test 18: NUnit duration parsing
+query III
+SELECT tool_name, category, execution_time > 0
+FROM parse_duck_hunt_log('Duration: 2.345 seconds', 'nunit_xunit_text');
+----
+nunit	nunit_xunit_text	true
+
+# Test 19: xUnit header detection
+query II
+SELECT tool_name, message LIKE '%xUnit.net%'
+FROM parse_duck_hunt_log('xUnit.net VSTest Adapter v2.4.5', 'nunit_xunit_text');
+----
+xunit	true
+
+# Test 20: xUnit test pass
+query III
+SELECT tool_name, severity, message LIKE '%passed%'
+FROM parse_duck_hunt_log('  MyNamespace.MyTest.TestMethod [PASS]', 'nunit_xunit_text');
+----
+xunit	info	true
+
+# Test 21: xUnit test fail
+query III
+SELECT tool_name, severity, message LIKE '%failed%'
+FROM parse_duck_hunt_log('  MyNamespace.MyTest.TestMethod [FAIL]', 'nunit_xunit_text');
+----
+xunit	error	true
+
+# Test 22: xUnit test skip
+query III
+SELECT tool_name, severity, message LIKE '%skipped%'
+FROM parse_duck_hunt_log('  MyNamespace.MyTest.TestMethod [SKIP]', 'nunit_xunit_text');
+----
+xunit	warning	true
+
+# Test 23: xUnit test suite start
+query II
+SELECT tool_name, message LIKE '%Starting%'
+FROM parse_duck_hunt_log('Starting: MyProject.Tests', 'nunit_xunit_text');
+----
+xunit	true
+
+# Test 24: xUnit test suite finish
+query II
+SELECT tool_name, message LIKE '%Finished%'
+FROM parse_duck_hunt_log('Finished: MyProject.Tests', 'nunit_xunit_text');
+----
+xunit	true
+
+# Test 25: xUnit total tests summary
+query II
+SELECT tool_name, message LIKE '%Total tests%'
+FROM parse_duck_hunt_log('Total tests: 50', 'nunit_xunit_text');
+----
+xunit	true
+
+# Test 26: xUnit time summary
+query III
+SELECT tool_name, category, execution_time > 0
+FROM parse_duck_hunt_log('Time: 5.5s', 'nunit_xunit_text');
+----
+xunit	nunit_xunit_text	true
+
+# Test 27: nunit_xunit_text appears in formats list
+query II
+SELECT format, category
+FROM duck_hunt_formats()
+WHERE format = 'nunit_xunit_text';
+----
+nunit_xunit_text	test_framework
+
+# Test 28: Empty input returns no rows for nunit_xunit_text
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('', 'nunit_xunit_text');
+----
+0
+
+# Test 29: nunit alias works
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('Overall result: Passed', 'nunit');
+----
+1
+
+# Test 30: xunit alias works
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('Overall result: Passed', 'xunit');
+----
+1
+
+# =============================================================================
+# Both formats in test group
+# =============================================================================
+
+# Test 31: Both formats are in 'test' group
+query I
+SELECT COUNT(*)
+FROM duck_hunt_formats()
+WHERE format IN ('junit_text', 'nunit_xunit_text')
+AND list_contains(groups, 'test');
+----
+2
+

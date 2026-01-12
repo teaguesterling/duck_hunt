@@ -18,11 +18,11 @@ This document describes the maturity levels for formats used with `read_duck_hun
 
 | Maturity | Count | Percentage |
 |----------|-------|------------|
-| Production ⭐⭐⭐⭐⭐ | 8 | 9% |
+| Production ⭐⭐⭐⭐⭐ | 22 | 24% |
 | Stable ⭐⭐⭐⭐ | 28 | 31% |
 | Beta ⭐⭐⭐ | 38 | 42% |
-| Alpha ⭐⭐ | 9 | 10% |
-| Experimental ⭐ | 7 | 8% |
+| Alpha ⭐⭐ | 1 | 1% |
+| Experimental ⭐ | 1 | 1% |
 
 **Total: 90 log formats** (plus 5 workflow formats)
 
@@ -34,14 +34,28 @@ These formats have extensive test coverage and are recommended for production us
 
 | Format | Tests | Sample | Description |
 |--------|-------|--------|-------------|
-| `logfmt` | 12 | ✓ | logfmt structured logs |
+| `autopep8_text` | 12 | - | autopep8 Python formatter |
+| `aws_cloudtrail` | 13 | ✓ | AWS CloudTrail |
+| `azure_activity` | 13 | ✓ | Azure Activity Log |
+| `bunyan` | 10 | ✓ | Bunyan (Node.js) logging |
+| `coverage_text` | 15 | ✓ | Coverage.py text output |
+| `gcp_cloud_logging` | 13 | ✓ | GCP Cloud Logging |
+| `gotest_json` | 10 | ✓ | Go test JSON output |
+| `jsonl` | 15 | ✓ | JSON Lines |
+| `junit_text` | 12 | - | JUnit text output |
 | `lcov` | 16 | ✓ | LCOV/gcov code coverage |
+| `log4j` | 12 | ✓ | Log4j/Log4j2 (Java) logging |
+| `logfmt` | 12 | ✓ | logfmt structured logs |
 | `logrus` | 16 | ✓ | Logrus (Go) logging |
 | `nlog` | 14 | ✓ | NLog (.NET) logging |
+| `nunit_xunit_text` | 18 | ✓ | NUnit/xUnit text output |
+| `pytest_cov_text` | 13 | - | pytest-cov coverage output |
 | `rails_log` | 14 | ✓ | Rails application logs |
+| `s3_access` | 10 | ✓ | S3 Access Logs |
 | `serilog` | 11 | ✓ | Serilog (.NET) logging |
 | `strace` | 11 | ✓ | strace system call tracing |
 | `syslog` | 10 | ✓ | Syslog format |
+| `yapf_text` | 14 | - | YAPF Python formatter |
 
 ## Stable ⭐⭐⭐⭐
 
@@ -129,15 +143,7 @@ These formats have limited test coverage. Use with caution.
 
 | Format | Tests | Sample | Description |
 |--------|-------|--------|-------------|
-| `aws_cloudtrail` | 1 | ✓ | AWS CloudTrail |
-| `azure_activity` | 1 | ✓ | Azure Activity Log |
-| `bunyan` | 1 | ✓ | Bunyan (Node.js) logging |
-| `gcp_cloud_logging` | 1 | ✓ | GCP Cloud Logging |
-| `gotest_json` | 1 | ✓ | Go test JSON output |
-| `jsonl` | 1 | ✓ | JSON Lines |
-| `log4j` | 1 | ✓ | Log4j/Log4j2 (Java) logging |
 | `python_build` | 3 | ✓ | pip/setuptools errors |
-| `s3_access` | 3 | ✓ | S3 Access Logs |
 
 ## Experimental ⭐
 
@@ -145,13 +151,7 @@ These formats have sample files but no dedicated tests. They may work but are no
 
 | Format | Sample | Description |
 |--------|--------|-------------|
-| `autopep8_text` | - | autopep8 Python formatter |
-| `coverage_text` | ✓ | Coverage.py text output |
 | `duckdb_test` | - | DuckDB test runner |
-| `junit_text` | - | JUnit text output |
-| `nunit_xunit_text` | ✓ | NUnit/xUnit text output |
-| `pytest_cov_text` | - | pytest-cov coverage output |
-| `yapf_text` | - | YAPF Python formatter |
 
 ---
 

@@ -1,0 +1,140 @@
+# name: test/sql/coverage_text.test
+# description: test coverage_text (coverage.py) parser
+# group: [sql]
+
+require duck_hunt
+
+# =============================================================================
+# coverage_text Parser Tests - coverage.py text output
+# =============================================================================
+
+# Test 1: Basic coverage table - returns report header and file coverage entries
+# Note: TOTAL is currently matched as line_coverage instead of total_coverage
+query II
+SELECT tool_name, category
+FROM parse_duck_hunt_log('Name      Stmts   Miss  Cover
+---------------------------------------
+module.py     100     10    90%
+---------------------------------------
+TOTAL         100     10    90%', 'coverage_text');
+----
+coverage	report_header
+coverage	line_coverage
+coverage	line_coverage
+
+# Test 2: High coverage file (90%+) has info severity
+query III
+SELECT tool_name, severity, ref_file
+FROM parse_duck_hunt_log('Name      Stmts   Miss  Cover
+module.py     100      5    95%', 'coverage_text')
+WHERE category = 'line_coverage';
+----
+coverage	info	module.py
+
+# Test 3: Medium coverage file (70-89%) has warning severity
+query III
+SELECT tool_name, severity, ref_file
+FROM parse_duck_hunt_log('Name      Stmts   Miss  Cover
+module.py     100     25    75%', 'coverage_text')
+WHERE category = 'line_coverage';
+----
+coverage	warning	module.py
+
+# Test 4: Low coverage file (<70%) has error severity
+query III
+SELECT tool_name, severity, ref_file
+FROM parse_duck_hunt_log('Name      Stmts   Miss  Cover
+module.py     100     50    50%', 'coverage_text')
+WHERE category = 'line_coverage';
+----
+coverage	error	module.py
+
+# Test 5: Total line coverage summary (TOTAL matched as line_coverage)
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('Name      Stmts   Miss  Cover
+---------------------------------------
+TOTAL         200     20    90%', 'coverage_text')
+WHERE category = 'line_coverage';
+----
+1
+
+# Test 6: Coverage failure threshold
+query III
+SELECT tool_name, severity, category
+FROM parse_duck_hunt_log('Coverage failure: total of 75% is below --fail-under=80%', 'coverage_text');
+----
+coverage	error	threshold
+
+# Test 7: No data warning
+query III
+SELECT tool_name, severity, category
+FROM parse_duck_hunt_log('coverage: No data to report.', 'coverage_text');
+----
+coverage	warning	no_data
+
+# Test 8: Coverage run command
+query II
+SELECT category, message LIKE '%Coverage run%'
+FROM parse_duck_hunt_log('coverage run --source=src tests/', 'coverage_text');
+----
+command	true
+
+# Test 9: HTML report generation
+query II
+SELECT category, message LIKE '%HTML%'
+FROM parse_duck_hunt_log('Wrote HTML report to htmlcov/index.html', 'coverage_text');
+----
+output	true
+
+# Test 10: XML report generation
+query II
+SELECT category, message LIKE '%XML%'
+FROM parse_duck_hunt_log('Wrote XML report to coverage.xml', 'coverage_text');
+----
+output	true
+
+# Test 11: Report generation with timing
+query II
+SELECT category, execution_time > 0
+FROM parse_duck_hunt_log('Coverage report generated in 0.5 seconds', 'coverage_text');
+----
+performance	true
+
+# Test 12: Branch coverage header
+query II
+SELECT category, message LIKE '%Branch coverage%'
+FROM parse_duck_hunt_log('Name      Stmts   Miss  Branch  BrPart  Cover
+module.py     100     10      50      5     85%', 'coverage_text')
+WHERE category = 'report_header';
+----
+report_header	true
+
+# Test 13: coverage_text appears in formats list
+query II
+SELECT format, category
+FROM duck_hunt_formats()
+WHERE format = 'coverage_text';
+----
+coverage_text	test_framework
+
+# Test 14: Empty input returns no rows
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('', 'coverage_text');
+----
+0
+
+# Test 15: Multiple files in coverage report
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('Name      Stmts   Miss  Cover
+---------------------------------------
+src/app.py       100     10    90%
+src/util.py       50      5    90%
+src/model.py      75     15    80%
+---------------------------------------
+TOTAL            225     30    87%', 'coverage_text');
+----
+5
+

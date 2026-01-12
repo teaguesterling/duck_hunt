@@ -1,0 +1,326 @@
+# name: test/sql/python_formatters.test
+# description: test autopep8_text, yapf_text, and pytest_cov_text parsers
+# group: [sql]
+
+require duck_hunt
+
+# =============================================================================
+# autopep8_text Parser Tests
+# =============================================================================
+
+# Test 1: Basic diff output parsing
+query III
+SELECT tool_name, severity, message
+FROM parse_duck_hunt_log('--- original/app.py
++++ fixed/app.py', 'autopep8_text');
+----
+autopep8	info	File formatting changes detected
+
+# Test 2: Error pattern parsing (syntax error)
+query IIII
+SELECT tool_name, severity, ref_file, error_code
+FROM parse_duck_hunt_log('ERROR: bad_syntax.py:10:5: E999 SyntaxError: invalid syntax', 'autopep8_text');
+----
+autopep8	error	bad_syntax.py	E999
+
+# Test 3: Warning pattern parsing
+query IIII
+SELECT tool_name, severity, ref_line, error_code
+FROM parse_duck_hunt_log('WARNING: long_lines.py:42:1: E501 line too long (120 > 79 characters)', 'autopep8_text');
+----
+autopep8	warning	42	E501
+
+# Test 4: Fixed file notification
+query III
+SELECT tool_name, category, message
+FROM parse_duck_hunt_log('fixed mymodule.py', 'autopep8_text');
+----
+autopep8	formatting	File formatting applied
+
+# Test 5: Summary statistics parsing - files processed
+query II
+SELECT category, message
+FROM parse_duck_hunt_log('Files processed: 15', 'autopep8_text');
+----
+summary	Files processed: 15
+
+# Test 6: Summary statistics parsing - files modified
+query II
+SELECT category, message
+FROM parse_duck_hunt_log('Files modified: 5', 'autopep8_text');
+----
+summary	Files modified: 5
+
+# Test 7: Command line parsing
+query II
+SELECT category, message LIKE '%autopep8%'
+FROM parse_duck_hunt_log('autopep8 --in-place --aggressive src/', 'autopep8_text');
+----
+configuration	true
+
+# Test 8: Already formatted file
+query III
+SELECT tool_name, category, message
+FROM parse_duck_hunt_log('INFO: clean_code.py: already formatted correctly', 'autopep8_text');
+----
+autopep8	formatting	already formatted correctly
+
+# Test 9: Encoding warning
+query III
+SELECT tool_name, severity, message
+FROM parse_duck_hunt_log('WARNING: binary_file.py: could not determine file encoding', 'autopep8_text');
+----
+autopep8	warning	Could not determine file encoding
+
+# Test 10: Complete autopep8 session
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('autopep8 --diff --aggressive src/
+--- original/module.py
++++ fixed/module.py
+fixed module.py
+Files processed: 3
+Files modified: 1', 'autopep8_text');
+----
+5
+
+# Test 11: autopep8_text appears in formats list
+query II
+SELECT format, category
+FROM duck_hunt_formats()
+WHERE format = 'autopep8_text';
+----
+autopep8_text	linting_tool
+
+# Test 12: Empty input returns no rows
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('', 'autopep8_text');
+----
+0
+
+# =============================================================================
+# yapf_text Parser Tests
+# =============================================================================
+
+# Test 13: Basic YAPF diff output
+query III
+SELECT tool_name, severity, message
+FROM parse_duck_hunt_log('--- a/main.py (original)
++++ b/main.py (reformatted)', 'yapf_text');
+----
+yapf	info	File formatting changes detected
+
+# Test 14: Reformatted file notification
+query III
+SELECT tool_name, category, message
+FROM parse_duck_hunt_log('Reformatted src/utils.py', 'yapf_text');
+----
+yapf	formatting	File reformatted
+
+# Test 15: YAPF command parsing
+query II
+SELECT category, message LIKE '%yapf%'
+FROM parse_duck_hunt_log('yapf --in-place --recursive src/', 'yapf_text');
+----
+configuration	true
+
+# Test 16: Check mode error
+query III
+SELECT tool_name, severity, category
+FROM parse_duck_hunt_log('ERROR: Files would be reformatted but yapf was run with --check', 'yapf_text');
+----
+yapf	error	check_mode
+
+# Test 17: YAPF error message
+query III
+SELECT tool_name, severity, category
+FROM parse_duck_hunt_log('yapf: error: no such file or directory', 'yapf_text');
+----
+yapf	error	command_error
+
+# Test 18: Style configuration
+query II
+SELECT category, message
+FROM parse_duck_hunt_log('Style configuration: pep8', 'yapf_text');
+----
+configuration	Style configuration: pep8
+
+# Test 19: Line length configuration
+query II
+SELECT category, message
+FROM parse_duck_hunt_log('Line length: 100', 'yapf_text');
+----
+configuration	Line length: 100
+
+# Test 20: Files reformatted summary
+query II
+SELECT category, message
+FROM parse_duck_hunt_log('Files reformatted: 10', 'yapf_text');
+----
+summary	Files reformatted: 10
+
+# Test 21: Combined summary with files left unchanged
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('5 files reformatted, 3 files left unchanged.', 'yapf_text');
+----
+2
+
+# Test 22: No changes needed
+query III
+SELECT tool_name, category, message
+FROM parse_duck_hunt_log('INFO: perfect.py: no changes needed', 'yapf_text');
+----
+yapf	formatting	No changes needed
+
+# Test 23: Encoding warning
+query III
+SELECT tool_name, severity, message
+FROM parse_duck_hunt_log('WARNING: weird.py: cannot determine encoding', 'yapf_text');
+----
+yapf	warning	Cannot determine encoding
+
+# Test 24: Verbose processing
+query III
+SELECT tool_name, category, ref_file
+FROM parse_duck_hunt_log('Processing myproject/module.py', 'yapf_text');
+----
+yapf	processing	myproject/module.py
+
+# Test 25: yapf_text appears in formats list
+query II
+SELECT format, category
+FROM duck_hunt_formats()
+WHERE format = 'yapf_text';
+----
+yapf_text	linting_tool
+
+# Test 26: Empty input returns no rows for yapf
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('', 'yapf_text');
+----
+0
+
+# =============================================================================
+# pytest_cov_text Parser Tests
+# =============================================================================
+
+# Test 27: Coverage section header
+query III
+SELECT tool_name, category, message LIKE '%Coverage analysis%'
+FROM parse_duck_hunt_log('----------- coverage: platform linux, python 3.11.0 -----------', 'pytest_cov_text');
+----
+pytest-cov	coverage_section	true
+
+# Test 28: Total coverage parsing - returns multiple events
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('----------- coverage: platform linux, python 3.11.0 -----------
+Name      Stmts   Miss  Cover
+TOTAL       100     15    85%', 'pytest_cov_text');
+----
+2
+
+# Test 29: File coverage with missing lines
+query IIII
+SELECT tool_name, category, severity, ref_file
+FROM parse_duck_hunt_log('----------- coverage: platform linux, python 3.11.0 -----------
+Name      Stmts   Miss  Cover
+src/app.py     50     10    80%', 'pytest_cov_text')
+WHERE category = 'file_coverage';
+----
+pytest-cov	file_coverage	warning	src/app.py
+
+# Test 30: High coverage (90%+) marked as info
+# Note: TOTAL lines are currently matched as file_coverage entries
+query II
+SELECT severity, category
+FROM parse_duck_hunt_log('----------- coverage: platform linux, python 3.11.0 -----------
+Name      Stmts   Miss  Cover
+TOTAL       100      5    95%', 'pytest_cov_text')
+WHERE category = 'file_coverage';
+----
+info	file_coverage
+
+# Test 31: Low coverage (< 75%) marked as error
+query II
+SELECT severity, category
+FROM parse_duck_hunt_log('----------- coverage: platform linux, python 3.11.0 -----------
+Name      Stmts   Miss  Cover
+TOTAL       100     40    60%', 'pytest_cov_text')
+WHERE category = 'file_coverage';
+----
+error	file_coverage
+
+# Test 32: Coverage threshold failure
+query III
+SELECT tool_name, severity, category
+FROM parse_duck_hunt_log('Coverage threshold check failed. Expected: >= 80%, got: 75%', 'pytest_cov_text');
+----
+pytest-cov	error	coverage_threshold
+
+# Test 33: Required coverage not met
+query III
+SELECT tool_name, severity, category
+FROM parse_duck_hunt_log('Required test coverage of 90% not met. Total coverage: 85%', 'pytest_cov_text');
+----
+pytest-cov	error	coverage_threshold
+
+# Test 34: Coverage XML report written
+query II
+SELECT category, message LIKE '%XML%'
+FROM parse_duck_hunt_log('Coverage XML written to coverage.xml', 'pytest_cov_text');
+----
+report_generation	true
+
+# Test 35: Coverage HTML report written
+query II
+SELECT category, message LIKE '%HTML%'
+FROM parse_duck_hunt_log('Coverage HTML written to dir htmlcov/', 'pytest_cov_text');
+----
+report_generation	true
+
+# Test 36: pytest_cov_text appears in formats list
+query II
+SELECT format, category
+FROM duck_hunt_formats()
+WHERE format = 'pytest_cov_text';
+----
+pytest_cov_text	test_framework
+
+# Test 37: Empty input returns no rows for pytest_cov
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('', 'pytest_cov_text');
+----
+0
+
+# Test 38: Module never imported warning
+query III
+SELECT tool_name, severity, category
+FROM parse_duck_hunt_log('pytest-cov: Module ''mymodule'' was never imported.', 'pytest_cov_text');
+----
+pytest-cov	warning	configuration
+
+# Test 39: Coverage data not found
+query III
+SELECT tool_name, severity, category
+FROM parse_duck_hunt_log('pytest-cov: Coverage data was not found for source ''src/''', 'pytest_cov_text');
+----
+pytest-cov	warning	configuration
+
+# =============================================================================
+# Multi-format group check
+# =============================================================================
+
+# Test 40: All three formats are in 'python' group
+query I
+SELECT COUNT(*)
+FROM duck_hunt_formats()
+WHERE format IN ('autopep8_text', 'yapf_text', 'pytest_cov_text')
+AND list_contains(groups, 'python');
+----
+3
+
