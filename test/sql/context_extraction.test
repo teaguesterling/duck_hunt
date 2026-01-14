@@ -1,0 +1,146 @@
+# name: test/sql/context_extraction.test
+# description: test context extraction parameter for parse_duck_hunt_log and read_duck_hunt_log
+# group: [sql]
+
+require duck_hunt
+
+# =============================================================================
+# Context Parameter Basic Tests
+# =============================================================================
+
+# Test 1: Context column appears when context parameter is provided
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('main.c:5:10: error: test error', 'make_error', context := 3)
+WHERE context IS NOT NULL;
+----
+1
+
+# Test 2: Context column does not appear without context parameter (verify schema)
+query I
+SELECT COUNT(*)
+FROM (
+  SELECT column_name
+  FROM (DESCRIBE SELECT * FROM parse_duck_hunt_log('main.c:5:10: error: test error', 'make_error'))
+  WHERE column_name = 'context'
+);
+----
+0
+
+# Test 3: Context column appears with context parameter (verify schema)
+query I
+SELECT COUNT(*)
+FROM (
+  SELECT column_name
+  FROM (DESCRIBE SELECT * FROM parse_duck_hunt_log('main.c:5:10: error: test error', 'make_error', context := 3))
+  WHERE column_name = 'context'
+);
+----
+1
+
+# Test 4: Context struct has correct fields
+query III
+SELECT
+  context.event_start >= 0 AS has_event_start,
+  context.event_end >= 0 AS has_event_end,
+  len(context.lines) > 0 AS has_lines
+FROM parse_duck_hunt_log('line 1
+line 2
+main.c:3:1: error: test error
+line 4
+line 5', 'make_error', context := 2)
+WHERE log_line_start IS NOT NULL;
+----
+true	true	true
+
+# Test 5: Context lines include surrounding context
+query I
+SELECT len(context.lines)
+FROM parse_duck_hunt_log('line 1
+line 2
+main.c:3:1: error: test
+line 4
+line 5', 'make_error', context := 2)
+WHERE log_line_start = 3;
+----
+5
+
+# Test 6: Event lines are marked with is_event = true
+query I
+SELECT list_count(list_filter(context.lines, x -> x.is_event))
+FROM parse_duck_hunt_log('line 1
+line 2
+main.c:3:1: error: test
+line 4
+line 5', 'make_error', context := 2)
+WHERE log_line_start = 3;
+----
+1
+
+# Test 7: Context respects the context line count parameter
+query I
+SELECT len(context.lines)
+FROM parse_duck_hunt_log('line 1
+line 2
+line 3
+main.c:4:1: error: test
+line 5
+line 6
+line 7', 'make_error', context := 1)
+WHERE log_line_start = 4;
+----
+3
+
+# Test 8: Context works with JSONL format (which does track line numbers)
+query I
+SELECT context IS NOT NULL
+FROM parse_duck_hunt_log('{"severity": "error", "message": "test"}', 'jsonl', context := 3);
+----
+true
+
+# Test 9: Context works with context := 0 (no context column added)
+query I
+SELECT COUNT(*)
+FROM (
+  SELECT column_name
+  FROM (DESCRIBE SELECT * FROM parse_duck_hunt_log('main.c:5:10: error: test', 'make_error', context := 0))
+  WHERE column_name = 'context'
+);
+----
+0
+
+# Test 10: Context lines have correct line numbers
+query I
+SELECT context.lines[1].line_number
+FROM parse_duck_hunt_log('line 1
+line 2
+main.c:3:1: error: test
+line 4
+line 5', 'make_error', context := 2)
+WHERE log_line_start = 3;
+----
+1
+
+# Test 11: Context content matches original lines
+query I
+SELECT context.lines[1].content
+FROM parse_duck_hunt_log('first line
+second line
+main.c:3:1: error: test
+fourth line', 'make_error', context := 2)
+WHERE log_line_start = 3;
+----
+first line
+
+# Test 12: event_start and event_end indices are correct
+query II
+SELECT context.event_start, context.event_end
+FROM parse_duck_hunt_log('line 1
+line 2
+main.c:3:1: error: test
+line 4
+line 5', 'make_error', context := 2)
+WHERE log_line_start = 3;
+----
+2	2
+
