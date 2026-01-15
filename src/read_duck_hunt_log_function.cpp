@@ -1626,7 +1626,7 @@ std::string TruncateLogContent(const std::string &content, ContentMode mode, int
 	}
 }
 
-// Get the LogicalType for the context column struct
+// Get the LogicalType for the context column: LIST(STRUCT(line_number, content, is_event))
 LogicalType GetContextColumnType() {
 	// Context line struct: {line_number: INTEGER, content: VARCHAR, is_event: BOOLEAN}
 	child_list_t<LogicalType> line_struct_children;
@@ -1635,16 +1635,11 @@ LogicalType GetContextColumnType() {
 	line_struct_children.push_back(make_pair("is_event", LogicalType::BOOLEAN));
 	auto line_struct_type = LogicalType::STRUCT(std::move(line_struct_children));
 
-	// Context struct: {lines: LIST<line_struct>, event_start: INTEGER, event_end: INTEGER}
-	child_list_t<LogicalType> context_children;
-	context_children.push_back(make_pair("lines", LogicalType::LIST(line_struct_type)));
-	context_children.push_back(make_pair("event_start", LogicalType::INTEGER));
-	context_children.push_back(make_pair("event_end", LogicalType::INTEGER));
-
-	return LogicalType::STRUCT(std::move(context_children));
+	// Return LIST of line structs directly (no wrapper struct)
+	return LogicalType::LIST(line_struct_type);
 }
 
-// Extract context lines around an event
+// Extract context lines around an event - returns LIST(STRUCT(line_number, content, is_event))
 Value ExtractContext(const std::vector<std::string> &log_lines, int32_t event_line_start, int32_t event_line_end,
                      int32_t context_lines) {
 	// If no line information, return NULL
@@ -1660,7 +1655,7 @@ Value ExtractContext(const std::vector<std::string> &log_lines, int32_t event_li
 	int32_t context_start = std::max(0, start_idx - context_lines);
 	int32_t context_end = std::min(static_cast<int32_t>(log_lines.size()) - 1, end_idx + context_lines);
 
-	// Build the lines list
+	// Build the lines list directly (no wrapper struct)
 	vector<Value> lines_list;
 	for (int32_t i = context_start; i <= context_end; i++) {
 		// Determine if this line is part of the event
@@ -1675,17 +1670,8 @@ Value ExtractContext(const std::vector<std::string> &log_lines, int32_t event_li
 		lines_list.push_back(Value::STRUCT(std::move(line_values)));
 	}
 
-	// Calculate event_start and event_end indices within the lines list
-	int32_t event_start_in_list = start_idx - context_start;
-	int32_t event_end_in_list = end_idx - context_start;
-
-	// Build context struct
-	child_list_t<Value> context_values;
-	context_values.push_back(make_pair("lines", Value::LIST(std::move(lines_list))));
-	context_values.push_back(make_pair("event_start", Value::INTEGER(event_start_in_list)));
-	context_values.push_back(make_pair("event_end", Value::INTEGER(event_end_in_list)));
-
-	return Value::STRUCT(std::move(context_values));
+	// Return the list directly
+	return Value::LIST(std::move(lines_list));
 }
 
 void PopulateDataChunkFromEvents(DataChunk &output, const std::vector<ValidationEvent> &events, idx_t start_offset,

@@ -38,12 +38,12 @@ FROM (
 ----
 1
 
-# Test 4: Context struct has correct fields
+# Test 4: Context is a list with struct elements containing correct fields
 query III
 SELECT
-  context.event_start >= 0 AS has_event_start,
-  context.event_end >= 0 AS has_event_end,
-  len(context.lines) > 0 AS has_lines
+  len(context) > 0 AS has_lines,
+  context[1].line_number IS NOT NULL AS has_line_number,
+  context[1].is_event IS NOT NULL AS has_is_event
 FROM parse_duck_hunt_log('line 1
 line 2
 main.c:3:1: error: test error
@@ -55,7 +55,7 @@ true	true	true
 
 # Test 5: Context lines include surrounding context
 query I
-SELECT len(context.lines)
+SELECT len(context)
 FROM parse_duck_hunt_log('line 1
 line 2
 main.c:3:1: error: test
@@ -67,7 +67,7 @@ WHERE log_line_start = 3;
 
 # Test 6: Event lines are marked with is_event = true
 query I
-SELECT list_count(list_filter(context.lines, x -> x.is_event))
+SELECT list_count(list_filter(context, x -> x.is_event))
 FROM parse_duck_hunt_log('line 1
 line 2
 main.c:3:1: error: test
@@ -79,7 +79,7 @@ WHERE log_line_start = 3;
 
 # Test 7: Context respects the context line count parameter
 query I
-SELECT len(context.lines)
+SELECT len(context)
 FROM parse_duck_hunt_log('line 1
 line 2
 line 3
@@ -111,7 +111,7 @@ FROM (
 
 # Test 10: Context lines have correct line numbers
 query I
-SELECT context.lines[1].line_number
+SELECT context[1].line_number
 FROM parse_duck_hunt_log('line 1
 line 2
 main.c:3:1: error: test
@@ -123,7 +123,7 @@ WHERE log_line_start = 3;
 
 # Test 11: Context content matches original lines
 query I
-SELECT context.lines[1].content
+SELECT context[1].content
 FROM parse_duck_hunt_log('first line
 second line
 main.c:3:1: error: test
@@ -132,9 +132,9 @@ WHERE log_line_start = 3;
 ----
 first line
 
-# Test 12: event_start and event_end indices are correct
-query II
-SELECT context.event_start, context.event_end
+# Test 12: is_event correctly identifies the event line (context[3] is the event at line 3)
+query I
+SELECT context[3].is_event
 FROM parse_duck_hunt_log('line 1
 line 2
 main.c:3:1: error: test
@@ -142,5 +142,5 @@ line 4
 line 5', 'make_error', context := 2)
 WHERE log_line_start = 3;
 ----
-2	2
+true
 
