@@ -237,6 +237,59 @@ FROM parse_duck_hunt_log(
 
 ---
 
+## Context Extraction
+
+View surrounding log lines for each event to understand the context of errors.
+
+**Input:**
+```
+Starting build process
+Compiling main.c
+src/main.c:15:5: error: 'ptr' undeclared
+Compilation failed
+Build terminated
+```
+
+**Query:**
+```sql
+SELECT
+    ref_file,
+    message,
+    context
+FROM parse_duck_hunt_log(
+  'Starting build process
+Compiling main.c
+src/main.c:15:5: error: ''ptr'' undeclared
+Compilation failed
+Build terminated',
+  'make_error',
+  context := 2
+);
+```
+
+**Result:**
+| ref_file | message | context |
+|----------|---------|---------|
+| src/main.c | 'ptr' undeclared | [{line_number: 1, content: Starting build process, is_event: false}, {line_number: 2, content: Compiling main.c, is_event: false}, {line_number: 3, content: src/main.c:15:5: error: 'ptr' undeclared, is_event: true}, {line_number: 4, content: Compilation failed, is_event: false}, {line_number: 5, content: Build terminated, is_event: false}] |
+
+### Accessing Context Data
+
+```sql
+-- Get line numbers of context
+SELECT context[1].line_number, context[1].content
+FROM parse_duck_hunt_log(log_text, 'make_error', context := 2);
+
+-- Find just the event lines within context
+SELECT list_filter(context, x -> x.is_event) as event_only
+FROM read_duck_hunt_log('build.log', context := 3);
+
+-- Count how many lines of context we got
+SELECT len(context) as context_size
+FROM read_duck_hunt_log('build.log', context := 5);
+```
+
+---
+
 ## Pipeline Integration
 
 ### Bash: Real-time Analysis
