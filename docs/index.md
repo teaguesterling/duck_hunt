@@ -15,8 +15,8 @@ LOAD duck_hunt;
 ### Table Functions
 
 ```sql
-read_duck_hunt_log(file_path, format := 'auto', severity_threshold := 'all')
-parse_duck_hunt_log(content, format := 'auto', severity_threshold := 'all')
+read_duck_hunt_log(file_path, format := 'auto', severity_threshold := 'all', context := 0)
+parse_duck_hunt_log(content, format := 'auto', severity_threshold := 'all', context := 0)
 read_duck_hunt_workflow_log(file_path, format := 'auto', severity_threshold := 'all')
 parse_duck_hunt_workflow_log(content, format := 'auto', severity_threshold := 'all')
 duck_hunt_formats()                               -- List all supported formats
@@ -26,6 +26,7 @@ duck_hunt_formats()                               -- List all supported formats
 
 - `format` - Parser format or `'auto'` for auto-detection
 - `severity_threshold` - Minimum severity to include: `'all'`, `'info'`, `'warning'`, `'error'`, `'critical'`
+- `context` - Number of surrounding log lines to include (adds `context` column when > 0)
 
 ### Scalar Functions
 

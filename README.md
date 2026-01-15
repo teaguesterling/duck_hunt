@@ -9,8 +9,8 @@ A DuckDB extension for parsing test results, build outputs, and CI/CD logs from 
 ### Table Functions
 
 ```sql
-read_duck_hunt_log(source, format, severity_threshold, ignore_errors, content)
-parse_duck_hunt_log(text, format, severity_threshold, content)
+read_duck_hunt_log(source, format, severity_threshold, ignore_errors, content, context)
+parse_duck_hunt_log(text, format, severity_threshold, content, context)
 read_duck_hunt_workflow_log(source, format, severity_threshold, ignore_errors)
 parse_duck_hunt_workflow_log(text, format, severity_threshold)
 duck_hunt_formats()                               -- List all supported formats
@@ -24,6 +24,7 @@ duck_hunt_formats()                               -- List all supported formats
 | `severity_threshold` | VARCHAR | `'all'` | Minimum severity: `'all'`, `'info'`, `'warning'`, `'error'`, `'critical'` |
 | `ignore_errors` | BOOLEAN | `false` | Continue processing when files fail to parse |
 | `content` | ANY | `'full'` | Control `log_content` size (see below) |
+| `context` | INTEGER | `0` | Include N surrounding log lines (adds `context` column) |
 
 **Content modes** for memory optimization:
 
@@ -33,6 +34,27 @@ duck_hunt_formats()                               -- List all supported formats
 | `content := 'smart'` | Intelligent truncation around event |
 | `content := 'none'` or `0` | Omit entirely (NULL) |
 | `content := 'full'` | Full content (default) |
+
+**Context extraction** for viewing surrounding log lines:
+
+```sql
+-- Include 3 lines before/after each event
+SELECT ref_file, message, context
+FROM read_duck_hunt_log('build.log', 'make_error', context := 3);
+
+-- Access context line details
+SELECT
+    context[1].line_number,    -- Line number in original file
+    context[1].content,        -- Line content
+    context[1].is_event        -- TRUE if this line is part of the event
+FROM parse_duck_hunt_log(content, 'make_error', context := 2);
+
+-- Filter to just event lines within context
+SELECT list_filter(context, x -> x.is_event) as event_lines
+FROM read_duck_hunt_log('build.log', context := 3);
+```
+
+The `context` column is a `LIST(STRUCT(line_number INT, content VARCHAR, is_event BOOL))`.
 
 ### Scalar Functions
 

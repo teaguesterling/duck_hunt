@@ -119,6 +119,42 @@ Track where each event originated within the source log file.
 
 **Note:** `ref_line` refers to source code line (e.g., line 15 in `main.c`), while `log_line_start`/`log_line_end` track position within the log file itself.
 
+### Context Extraction
+
+When using `context := N` parameter, an additional `context` column is added containing surrounding log lines:
+
+```sql
+-- Include 3 lines before/after each event
+SELECT ref_file, message, context
+FROM read_duck_hunt_log('build.log', 'make_error', context := 3);
+```
+
+**Context column type:** `LIST(STRUCT(line_number INT, content VARCHAR, is_event BOOL))`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `line_number` | INTEGER | 1-indexed line number in original log file |
+| `content` | VARCHAR | The line content |
+| `is_event` | BOOLEAN | TRUE if this line is part of the parsed event |
+
+**Example usage:**
+
+```sql
+-- Access individual context lines
+SELECT context[1].line_number, context[1].content
+FROM parse_duck_hunt_log(log_text, 'make_error', context := 2);
+
+-- Filter to just the event lines
+SELECT list_filter(context, x -> x.is_event) as event_lines
+FROM read_duck_hunt_log('build.log', context := 3);
+
+-- Count context lines
+SELECT len(context) as total_context_lines
+FROM read_duck_hunt_log('build.log', context := 5);
+```
+
+**Note:** The `context` column is only added when `context > 0`. By default (`context := 0`), the column is not present.
+
 ## Test Fields
 
 | Field | Type | Description |

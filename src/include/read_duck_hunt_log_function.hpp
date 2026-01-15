@@ -127,10 +127,11 @@ struct ReadDuckHuntLogBindData : public TableFunctionData {
 	bool ignore_errors;               // Continue processing when individual files fail (default: false)
 	ContentMode content_mode;         // How to handle log_content column (default: FULL)
 	int32_t content_limit;            // Character limit when content_mode is LIMIT (default: 200 for SMART)
+	int32_t context_lines;            // Number of context lines to include (0 = no context column)
 
 	ReadDuckHuntLogBindData()
 	    : format(TestResultFormat::AUTO), severity_threshold(SeverityLevel::DEBUG), ignore_errors(false),
-	      content_mode(ContentMode::FULL), content_limit(200) {
+	      content_mode(ContentMode::FULL), content_limit(200), context_lines(0) {
 	}
 };
 
@@ -138,6 +139,8 @@ struct ReadDuckHuntLogBindData : public TableFunctionData {
 struct ReadDuckHuntLogGlobalState : public GlobalTableFunctionState {
 	std::vector<ValidationEvent> events;
 	idx_t max_threads;
+	// For context extraction: store log content split by lines per file
+	std::unordered_map<std::string, std::vector<std::string>> log_lines_by_file;
 
 	ReadDuckHuntLogGlobalState() : max_threads(1) {
 	}
@@ -197,11 +200,19 @@ void ParseDuckHuntLogFunction(ClientContext &context, TableFunctionInput &data_p
 // Helper function to populate DataChunk from ValidationEvents
 void PopulateDataChunkFromEvents(DataChunk &output, const std::vector<ValidationEvent> &events, idx_t start_offset,
                                  idx_t chunk_size, ContentMode content_mode = ContentMode::FULL,
-                                 int32_t content_limit = 200);
+                                 int32_t content_limit = 200, int32_t context_lines = 0,
+                                 const std::unordered_map<std::string, std::vector<std::string>> *log_lines_by_file = nullptr);
 
 // Helper to truncate log_content based on content mode
 std::string TruncateLogContent(const std::string &content, ContentMode mode, int32_t limit,
                                int32_t event_line_start = -1, int32_t event_line_end = -1);
+
+// Helper to extract context lines around an event
+Value ExtractContext(const std::vector<std::string> &log_lines, int32_t event_line_start, int32_t event_line_end,
+                     int32_t context_lines);
+
+// Get the LogicalType for the context column struct
+LogicalType GetContextColumnType();
 
 // Dynamic regexp parser
 void ParseWithRegexp(const std::string &content, const std::string &pattern, std::vector<ValidationEvent> &events);

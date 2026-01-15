@@ -1331,6 +1331,17 @@ unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFuncti
 		}
 	}
 
+	// Handle context named parameter (number of context lines around events)
+	auto context_param = input.named_parameters.find("context");
+	if (context_param != input.named_parameters.end()) {
+		int32_t ctx_lines = context_param->second.GetValue<int32_t>();
+		if (ctx_lines < 0) {
+			throw BinderException("context must be a non-negative integer");
+		}
+		// Cap at reasonable maximum
+		bind_data->context_lines = std::min(ctx_lines, static_cast<int32_t>(50));
+	}
+
 	// Define return schema (Schema V2)
 	return_types = {
 	    // Core identification
@@ -1409,6 +1420,12 @@ unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFuncti
 	         "subunit", "subunit_id",
 	         // Pattern analysis
 	         "fingerprint", "similarity_score", "pattern_id"};
+
+	// Add context column if requested
+	if (bind_data->context_lines > 0) {
+		return_types.push_back(GetContextColumnType());
+		names.push_back("context");
+	}
 
 	return std::move(bind_data);
 }
@@ -1498,6 +1515,18 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &co
 				}
 			}
 		}
+
+		// Store log lines for context extraction if requested (single file mode)
+		if (bind_data.context_lines > 0) {
+			std::vector<std::string> lines;
+			std::istringstream stream(content);
+			std::string line;
+			while (std::getline(stream, line)) {
+				lines.push_back(line);
+			}
+			// Use source_path as file key
+			global_state->log_lines_by_file[source_path] = std::move(lines);
+		}
 	}
 
 	// Phase 3B: Process error patterns for intelligent categorization
@@ -1526,9 +1555,10 @@ void ReadDuckHuntLogFunction(ClientContext &context, TableFunctionInput &data_p,
 	auto &global_state = data_p.global_state->Cast<ReadDuckHuntLogGlobalState>();
 	auto &local_state = data_p.local_state->Cast<ReadDuckHuntLogLocalState>();
 
-	// Populate output chunk with content truncation settings
+	// Populate output chunk with content truncation and context settings
 	PopulateDataChunkFromEvents(output, global_state.events, local_state.chunk_offset, STANDARD_VECTOR_SIZE,
-	                            bind_data.content_mode, bind_data.content_limit);
+	                            bind_data.content_mode, bind_data.content_limit, bind_data.context_lines,
+	                            bind_data.context_lines > 0 ? &global_state.log_lines_by_file : nullptr);
 
 	// Update offset for next chunk
 	local_state.chunk_offset += output.size();
@@ -1596,8 +1626,58 @@ std::string TruncateLogContent(const std::string &content, ContentMode mode, int
 	}
 }
 
+// Get the LogicalType for the context column: LIST(STRUCT(line_number, content, is_event))
+LogicalType GetContextColumnType() {
+	// Context line struct: {line_number: INTEGER, content: VARCHAR, is_event: BOOLEAN}
+	child_list_t<LogicalType> line_struct_children;
+	line_struct_children.push_back(make_pair("line_number", LogicalType::INTEGER));
+	line_struct_children.push_back(make_pair("content", LogicalType::VARCHAR));
+	line_struct_children.push_back(make_pair("is_event", LogicalType::BOOLEAN));
+	auto line_struct_type = LogicalType::STRUCT(std::move(line_struct_children));
+
+	// Return LIST of line structs directly (no wrapper struct)
+	return LogicalType::LIST(line_struct_type);
+}
+
+// Extract context lines around an event - returns LIST(STRUCT(line_number, content, is_event))
+Value ExtractContext(const std::vector<std::string> &log_lines, int32_t event_line_start, int32_t event_line_end,
+                     int32_t context_lines) {
+	// If no line information, return NULL
+	if (event_line_start <= 0 || log_lines.empty()) {
+		return Value();
+	}
+
+	// Convert 1-indexed line numbers to 0-indexed
+	int32_t start_idx = event_line_start - 1;
+	int32_t end_idx = (event_line_end > 0 ? event_line_end : event_line_start) - 1;
+
+	// Calculate context window (clamped to valid range)
+	int32_t context_start = std::max(0, start_idx - context_lines);
+	int32_t context_end = std::min(static_cast<int32_t>(log_lines.size()) - 1, end_idx + context_lines);
+
+	// Build the lines list directly (no wrapper struct)
+	vector<Value> lines_list;
+	for (int32_t i = context_start; i <= context_end; i++) {
+		// Determine if this line is part of the event
+		bool is_event_line = (i >= start_idx && i <= end_idx);
+
+		// Create line struct: {line_number, content, is_event}
+		child_list_t<Value> line_values;
+		line_values.push_back(make_pair("line_number", Value::INTEGER(i + 1))); // 1-indexed
+		line_values.push_back(make_pair("content", Value(log_lines[i])));
+		line_values.push_back(make_pair("is_event", Value::BOOLEAN(is_event_line)));
+
+		lines_list.push_back(Value::STRUCT(std::move(line_values)));
+	}
+
+	// Return the list directly
+	return Value::LIST(std::move(lines_list));
+}
+
 void PopulateDataChunkFromEvents(DataChunk &output, const std::vector<ValidationEvent> &events, idx_t start_offset,
-                                 idx_t chunk_size, ContentMode content_mode, int32_t content_limit) {
+                                 idx_t chunk_size, ContentMode content_mode, int32_t content_limit,
+                                 int32_t context_lines,
+                                 const std::unordered_map<std::string, std::vector<std::string>> *log_lines_by_file) {
 	idx_t events_remaining = events.size() > start_offset ? events.size() - start_offset : 0;
 	idx_t output_size = std::min(chunk_size, events_remaining);
 
@@ -1671,6 +1751,19 @@ void PopulateDataChunkFromEvents(DataChunk &output, const std::vector<Validation
 		output.SetValue(col++, i, event.fingerprint.empty() ? Value() : Value(event.fingerprint));
 		output.SetValue(col++, i, event.similarity_score == 0.0 ? Value() : Value::DOUBLE(event.similarity_score));
 		output.SetValue(col++, i, event.pattern_id == -1 ? Value() : Value::BIGINT(event.pattern_id));
+
+		// Context column (if requested)
+		if (context_lines > 0 && log_lines_by_file != nullptr) {
+			// Find the log lines for this event's file
+			std::string file_key = event.log_file.empty() ? "" : event.log_file;
+			auto it = log_lines_by_file->find(file_key);
+			if (it != log_lines_by_file->end()) {
+				output.SetValue(col++, i,
+				                ExtractContext(it->second, event.log_line_start, event.log_line_end, context_lines));
+			} else {
+				output.SetValue(col++, i, Value()); // NULL if no lines available
+			}
+		}
 	}
 }
 
@@ -1755,6 +1848,17 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
 		}
 	}
 
+	// Handle context named parameter (number of context lines around events)
+	auto context_param = input.named_parameters.find("context");
+	if (context_param != input.named_parameters.end()) {
+		int32_t ctx_lines = context_param->second.GetValue<int32_t>();
+		if (ctx_lines < 0) {
+			throw BinderException("context must be a non-negative integer");
+		}
+		// Cap at reasonable maximum
+		bind_data->context_lines = std::min(ctx_lines, static_cast<int32_t>(50));
+	}
+
 	// Define return schema (Schema V2 - same as read_duck_hunt_log)
 	return_types = {
 	    // Core identification
@@ -1834,6 +1938,12 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
 	         // Pattern analysis
 	         "fingerprint", "similarity_score", "pattern_id"};
 
+	// Add context column if requested
+	if (bind_data->context_lines > 0) {
+		return_types.push_back(GetContextColumnType());
+		names.push_back("context");
+	}
+
 	return std::move(bind_data);
 }
 
@@ -1903,6 +2013,18 @@ unique_ptr<GlobalTableFunctionState> ParseDuckHuntLogInitGlobal(ClientContext &c
 		global_state->events.erase(new_end, global_state->events.end());
 	}
 
+	// Store log lines for context extraction if requested
+	if (bind_data.context_lines > 0) {
+		std::vector<std::string> lines;
+		std::istringstream stream(content);
+		std::string line;
+		while (std::getline(stream, line)) {
+			lines.push_back(line);
+		}
+		// For parse_duck_hunt_log, use empty string as file key (no file)
+		global_state->log_lines_by_file[""] = std::move(lines);
+	}
+
 	return std::move(global_state);
 }
 
@@ -1916,9 +2038,10 @@ void ParseDuckHuntLogFunction(ClientContext &context, TableFunctionInput &data_p
 	auto &global_state = data_p.global_state->Cast<ReadDuckHuntLogGlobalState>();
 	auto &local_state = data_p.local_state->Cast<ReadDuckHuntLogLocalState>();
 
-	// Populate output chunk with content truncation settings
+	// Populate output chunk with content truncation and context settings
 	PopulateDataChunkFromEvents(output, global_state.events, local_state.chunk_offset, STANDARD_VECTOR_SIZE,
-	                            bind_data.content_mode, bind_data.content_limit);
+	                            bind_data.content_mode, bind_data.content_limit, bind_data.context_lines,
+	                            bind_data.context_lines > 0 ? &global_state.log_lines_by_file : nullptr);
 
 	// Update offset for next chunk
 	local_state.chunk_offset += output.size();
@@ -1933,6 +2056,7 @@ TableFunctionSet GetReadDuckHuntLogFunction() {
 	single_arg.named_parameters["severity_threshold"] = LogicalType::VARCHAR;
 	single_arg.named_parameters["ignore_errors"] = LogicalType::BOOLEAN;
 	single_arg.named_parameters["content"] = LogicalType::ANY;
+	single_arg.named_parameters["context"] = LogicalType::INTEGER;
 	set.AddFunction(single_arg);
 
 	// Two argument version: read_duck_hunt_log(source, format)
@@ -1941,6 +2065,7 @@ TableFunctionSet GetReadDuckHuntLogFunction() {
 	two_arg.named_parameters["severity_threshold"] = LogicalType::VARCHAR;
 	two_arg.named_parameters["ignore_errors"] = LogicalType::BOOLEAN;
 	two_arg.named_parameters["content"] = LogicalType::ANY;
+	two_arg.named_parameters["context"] = LogicalType::INTEGER;
 	set.AddFunction(two_arg);
 
 	return set;
@@ -1955,6 +2080,7 @@ TableFunctionSet GetParseDuckHuntLogFunction() {
 	single_arg.named_parameters["severity_threshold"] = LogicalType::VARCHAR;
 	single_arg.named_parameters["ignore_errors"] = LogicalType::BOOLEAN;
 	single_arg.named_parameters["content"] = LogicalType::ANY;
+	single_arg.named_parameters["context"] = LogicalType::INTEGER;
 	set.AddFunction(single_arg);
 
 	// Two argument version: parse_duck_hunt_log(content, format)
@@ -1963,6 +2089,7 @@ TableFunctionSet GetParseDuckHuntLogFunction() {
 	two_arg.named_parameters["severity_threshold"] = LogicalType::VARCHAR;
 	two_arg.named_parameters["ignore_errors"] = LogicalType::BOOLEAN;
 	two_arg.named_parameters["content"] = LogicalType::ANY;
+	two_arg.named_parameters["context"] = LogicalType::INTEGER;
 	set.AddFunction(two_arg);
 
 	return set;
