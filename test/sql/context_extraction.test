@@ -144,3 +144,159 @@ WHERE log_line_start = 3;
 ----
 true
 
+# =============================================================================
+# Edge Cases
+# =============================================================================
+
+# Test 13: Event at start of file - context bounded at beginning
+query I
+SELECT len(context)
+FROM parse_duck_hunt_log('main.c:1:1: error: test
+line 2
+line 3', 'make_error', context := 5)
+WHERE log_line_start = 1;
+----
+3
+
+# Test 14: Event at end of file - context bounded at end
+query I
+SELECT len(context)
+FROM parse_duck_hunt_log('line 1
+line 2
+main.c:3:1: error: test', 'make_error', context := 5)
+WHERE log_line_start = 3;
+----
+3
+
+# Test 15: Context larger than file - returns all lines
+query I
+SELECT len(context)
+FROM parse_duck_hunt_log('main.c:1:1: error: test', 'make_error', context := 100)
+WHERE log_line_start = 1;
+----
+1
+
+# Test 16: Multiple events each get their own context
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('main.c:1:1: error: first
+main.c:2:1: error: second
+main.c:3:1: error: third', 'make_error', context := 1)
+WHERE context IS NOT NULL;
+----
+3
+
+# Test 17: Each event's context has correct first line number
+query III
+SELECT
+  (SELECT context[1].line_number FROM parse_duck_hunt_log('main.c:1:1: error: first
+main.c:2:1: error: second
+main.c:3:1: error: third', 'make_error', context := 1) WHERE log_line_start = 1),
+  (SELECT context[1].line_number FROM parse_duck_hunt_log('main.c:1:1: error: first
+main.c:2:1: error: second
+main.c:3:1: error: third', 'make_error', context := 1) WHERE log_line_start = 2),
+  (SELECT context[1].line_number FROM parse_duck_hunt_log('main.c:1:1: error: first
+main.c:2:1: error: second
+main.c:3:1: error: third', 'make_error', context := 1) WHERE log_line_start = 3);
+----
+1	1	2
+
+# =============================================================================
+# Different Formats
+# =============================================================================
+
+# Test 18: Context works with pylint_text format
+query I
+SELECT len(context) > 0
+FROM parse_duck_hunt_log('************* Module test
+test.py:1:0: C0114: Missing module docstring (missing-module-docstring)
+test.py:3:0: W0611: Unused import os (unused-import)', 'pylint_text', context := 1)
+WHERE context IS NOT NULL
+LIMIT 1;
+----
+true
+
+# Test 19: Context works with flake8_text format
+query I
+SELECT context IS NOT NULL
+FROM parse_duck_hunt_log('test.py:1:1: E302 expected 2 blank lines, found 1', 'flake8_text', context := 2)
+WHERE log_line_start IS NOT NULL;
+----
+true
+
+# Test 20: Context works with mypy_text format
+query I
+SELECT context IS NOT NULL
+FROM parse_duck_hunt_log('test.py:10: error: Incompatible types [arg-type]', 'mypy_text', context := 2);
+----
+true
+
+# =============================================================================
+# Parameter Combinations
+# =============================================================================
+
+# Test 21: Context combined with severity_threshold
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('main.c:1:1: warning: unused variable
+main.c:2:1: error: undefined reference', 'make_error', severity_threshold := 'error', context := 2)
+WHERE context IS NOT NULL;
+----
+1
+
+# Test 22: Context combined with content parameter
+query II
+SELECT context IS NOT NULL, log_content IS NULL
+FROM parse_duck_hunt_log('main.c:1:1: error: test error', 'make_error', content := 'none', context := 2);
+----
+true	true
+
+# Test 23: All parameters combined
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('main.c:1:1: warning: unused
+main.c:2:1: error: undefined', 'make_error', severity_threshold := 'error', content := 'none', context := 1)
+WHERE context IS NOT NULL AND log_content IS NULL;
+----
+1
+
+# =============================================================================
+# Context Content Verification
+# =============================================================================
+
+# Test 24: Non-event lines have is_event = false
+query I
+SELECT list_count(list_filter(context, x -> NOT x.is_event))
+FROM parse_duck_hunt_log('line 1
+line 2
+main.c:3:1: error: test
+line 4
+line 5', 'make_error', context := 2)
+WHERE log_line_start = 3;
+----
+4
+
+# Test 25: Last context line has correct line number
+query I
+SELECT context[len(context)].line_number
+FROM parse_duck_hunt_log('line 1
+line 2
+main.c:3:1: error: test
+line 4
+line 5', 'make_error', context := 2)
+WHERE log_line_start = 3;
+----
+5
+
+# Test 26: Context with context := 1 has exactly 3 lines (1 before + event + 1 after)
+query I
+SELECT len(context)
+FROM parse_duck_hunt_log('line 1
+line 2
+main.c:3:1: error: test
+line 4
+line 5', 'make_error', context := 1)
+WHERE log_line_start = 3;
+----
+3
+
