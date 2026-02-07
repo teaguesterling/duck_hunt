@@ -25,8 +25,8 @@ void RegisterBuildSystemsParsers(ParserRegistry &registry) {
 	    ParserPriority::HIGH, std::vector<std::string> {"make"}, std::vector<std::string> {"c_cpp", "build"}));
 
 	registry.registerParser(make_uniq<DelegatingParser<CMakeParser>>(
-	    "cmake_build", "CMake Parser", ParserCategory::BUILD_SYSTEM, "CMake build system output",
-	    ParserPriority::HIGH, std::vector<std::string> {"cmake"}, std::vector<std::string> {"c_cpp", "build"}));
+	    "cmake_build", "CMake Parser", ParserCategory::BUILD_SYSTEM, "CMake build system output", ParserPriority::HIGH,
+	    std::vector<std::string> {"cmake"}, std::vector<std::string> {"c_cpp", "build"}));
 
 	registry.registerParser(make_uniq<DelegatingParser<BazelParser>>(
 	    "bazel_build", "Bazel Parser", ParserCategory::BUILD_SYSTEM, "Google Bazel build system output",
@@ -34,8 +34,8 @@ void RegisterBuildSystemsParsers(ParserRegistry &registry) {
 
 	// Java/JVM build systems
 	registry.registerParser(make_uniq<DelegatingParser<MavenParser>>(
-	    "maven_build", "Maven Parser", ParserCategory::BUILD_SYSTEM, "Apache Maven build output",
-	    ParserPriority::HIGH, std::vector<std::string> {"maven", "mvn"}, std::vector<std::string> {"java", "build"}));
+	    "maven_build", "Maven Parser", ParserCategory::BUILD_SYSTEM, "Apache Maven build output", ParserPriority::HIGH,
+	    std::vector<std::string> {"maven", "mvn"}, std::vector<std::string> {"java", "build"}));
 
 	registry.registerParser(make_uniq<DelegatingParser<GradleParser>>(
 	    "gradle_build", "Gradle Parser", ParserCategory::BUILD_SYSTEM, "Gradle build system output",
@@ -43,17 +43,17 @@ void RegisterBuildSystemsParsers(ParserRegistry &registry) {
 
 	// Microsoft build systems
 	registry.registerParser(make_uniq<DelegatingParser<MSBuildParser>>(
-	    "msbuild", "MSBuild Parser", ParserCategory::BUILD_SYSTEM, "Microsoft MSBuild output",
-	    ParserPriority::HIGH, std::vector<std::string> {}, std::vector<std::string> {"dotnet", "build"}));
+	    "msbuild", "MSBuild Parser", ParserCategory::BUILD_SYSTEM, "Microsoft MSBuild output", ParserPriority::HIGH,
+	    std::vector<std::string> {}, std::vector<std::string> {"dotnet", "build"}));
 
 	// Language-specific build systems
 	registry.registerParser(make_uniq<DelegatingParser<CargoParser>>(
-	    "cargo_build", "Cargo Parser", ParserCategory::BUILD_SYSTEM, "Rust Cargo build output",
-	    ParserPriority::HIGH, std::vector<std::string> {"cargo"}, std::vector<std::string> {"rust", "build"}));
+	    "cargo_build", "Cargo Parser", ParserCategory::BUILD_SYSTEM, "Rust Cargo build output", ParserPriority::HIGH,
+	    std::vector<std::string> {"cargo"}, std::vector<std::string> {"rust", "build"}));
 
 	registry.registerParser(make_uniq<DelegatingParser<NodeParser>>(
-	    "node_build", "Node.js Parser", ParserCategory::BUILD_SYSTEM, "Node.js/npm build output",
-	    ParserPriority::HIGH, std::vector<std::string> {"node", "npm"}, std::vector<std::string> {"javascript", "build"}));
+	    "node_build", "Node.js Parser", ParserCategory::BUILD_SYSTEM, "Node.js/npm build output", ParserPriority::HIGH,
+	    std::vector<std::string> {"node", "npm"}, std::vector<std::string> {"javascript", "build"}));
 
 	registry.registerParser(make_uniq<DelegatingParser<PythonBuildParser>>(
 	    "python_build", "Python Build Parser", ParserCategory::BUILD_SYSTEM, "Python build/setup.py output",

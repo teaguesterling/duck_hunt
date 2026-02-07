@@ -198,10 +198,10 @@ unique_ptr<LocalTableFunctionState> ParseDuckHuntLogInitLocal(ExecutionContext &
 void ParseDuckHuntLogFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output);
 
 // Helper function to populate DataChunk from ValidationEvents
-void PopulateDataChunkFromEvents(DataChunk &output, const std::vector<ValidationEvent> &events, idx_t start_offset,
-                                 idx_t chunk_size, ContentMode content_mode = ContentMode::FULL,
-                                 int32_t content_limit = 200, int32_t context_lines = 0,
-                                 const std::unordered_map<std::string, std::vector<std::string>> *log_lines_by_file = nullptr);
+void PopulateDataChunkFromEvents(
+    DataChunk &output, const std::vector<ValidationEvent> &events, idx_t start_offset, idx_t chunk_size,
+    ContentMode content_mode = ContentMode::FULL, int32_t content_limit = 200, int32_t context_lines = 0,
+    const std::unordered_map<std::string, std::vector<std::string>> *log_lines_by_file = nullptr);
 
 // Helper to truncate log_content based on content mode
 std::string TruncateLogContent(const std::string &content, ContentMode mode, int32_t limit,

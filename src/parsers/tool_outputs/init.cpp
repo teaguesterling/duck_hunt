@@ -38,11 +38,13 @@ void RegisterToolOutputsParsers(ParserRegistry &registry) {
 	// Linting tools - JavaScript/TypeScript
 	registry.registerParser(make_uniq<P<ESLintJSONParser>>(
 	    "eslint_json", "ESLint JSON Parser", ParserCategory::LINTING, "ESLint JavaScript/TypeScript linter JSON output",
-	    ParserPriority::VERY_HIGH, std::vector<std::string> {"eslint"}, std::vector<std::string> {"javascript", "lint"}));
+	    ParserPriority::VERY_HIGH, std::vector<std::string> {"eslint"},
+	    std::vector<std::string> {"javascript", "lint"}));
 
 	registry.registerParser(make_uniq<P<StylelintJSONParser>>(
 	    "stylelint_json", "Stylelint JSON Parser", ParserCategory::LINTING, "Stylelint CSS linter JSON output",
-	    ParserPriority::VERY_HIGH, std::vector<std::string> {"stylelint"}, std::vector<std::string> {"javascript", "lint"}));
+	    ParserPriority::VERY_HIGH, std::vector<std::string> {"stylelint"},
+	    std::vector<std::string> {"javascript", "lint"}));
 
 	// Linting tools - Ruby
 	registry.registerParser(make_uniq<P<RuboCopJSONParser>>(
@@ -60,21 +62,21 @@ void RegisterToolOutputsParsers(ParserRegistry &registry) {
 	    ParserPriority::VERY_HIGH, std::vector<std::string> {"phpstan"}, std::vector<std::string> {"php", "lint"}));
 
 	// Linting tools - Shell
-	registry.registerParser(
-	    make_uniq<P<ShellCheckJSONParser>>("shellcheck_json", "ShellCheck JSON Parser", ParserCategory::LINTING,
-	                                       "ShellCheck shell script linter JSON output", ParserPriority::VERY_HIGH,
-	                                       std::vector<std::string> {"shellcheck"}, std::vector<std::string> {"shell", "lint"}));
+	registry.registerParser(make_uniq<P<ShellCheckJSONParser>>(
+	    "shellcheck_json", "ShellCheck JSON Parser", ParserCategory::LINTING,
+	    "ShellCheck shell script linter JSON output", ParserPriority::VERY_HIGH,
+	    std::vector<std::string> {"shellcheck"}, std::vector<std::string> {"shell", "lint"}));
 
 	// Linting tools - Rust
-	registry.registerParser(make_uniq<P<ClippyJSONParser>>("clippy_json", "Clippy JSON Parser", ParserCategory::LINTING,
-	                                                       "Rust Clippy linter JSON output", ParserPriority::VERY_HIGH,
-	                                                       std::vector<std::string> {"clippy"}, std::vector<std::string> {"rust", "lint"}));
+	registry.registerParser(make_uniq<P<ClippyJSONParser>>(
+	    "clippy_json", "Clippy JSON Parser", ParserCategory::LINTING, "Rust Clippy linter JSON output",
+	    ParserPriority::VERY_HIGH, std::vector<std::string> {"clippy"}, std::vector<std::string> {"rust", "lint"}));
 
 	// Linting tools - Config files
-	registry.registerParser(
-	    make_uniq<P<MarkdownlintJSONParser>>("markdownlint_json", "Markdownlint JSON Parser", ParserCategory::LINTING,
-	                                         "Markdownlint markdown linter JSON output", ParserPriority::VERY_HIGH,
-	                                         std::vector<std::string> {"markdownlint"}, std::vector<std::string> {"lint"}));
+	registry.registerParser(make_uniq<P<MarkdownlintJSONParser>>(
+	    "markdownlint_json", "Markdownlint JSON Parser", ParserCategory::LINTING,
+	    "Markdownlint markdown linter JSON output", ParserPriority::VERY_HIGH,
+	    std::vector<std::string> {"markdownlint"}, std::vector<std::string> {"lint"}));
 
 	registry.registerParser(make_uniq<P<YamllintJSONParser>>(
 	    "yamllint_json", "Yamllint JSON Parser", ParserCategory::LINTING, "Yamllint YAML linter JSON output",
@@ -83,7 +85,8 @@ void RegisterToolOutputsParsers(ParserRegistry &registry) {
 	// Linting tools - Java/JVM
 	registry.registerParser(make_uniq<P<SpotBugsJSONParser>>(
 	    "spotbugs_json", "SpotBugs JSON Parser", ParserCategory::LINTING, "SpotBugs Java static analysis JSON output",
-	    ParserPriority::VERY_HIGH, std::vector<std::string> {"spotbugs"}, std::vector<std::string> {"java", "lint", "security"}));
+	    ParserPriority::VERY_HIGH, std::vector<std::string> {"spotbugs"},
+	    std::vector<std::string> {"java", "lint", "security"}));
 
 	registry.registerParser(make_uniq<P<KtlintJSONParser>>(
 	    "ktlint_json", "Ktlint JSON Parser", ParserCategory::LINTING, "Ktlint Kotlin linter JSON output",
@@ -92,12 +95,13 @@ void RegisterToolOutputsParsers(ParserRegistry &registry) {
 	// Linting tools - Docker
 	registry.registerParser(make_uniq<P<HadolintJSONParser>>(
 	    "hadolint_json", "Hadolint JSON Parser", ParserCategory::LINTING, "Hadolint Dockerfile linter JSON output",
-	    ParserPriority::VERY_HIGH, std::vector<std::string> {"hadolint"}, std::vector<std::string> {"infrastructure", "lint"}));
+	    ParserPriority::VERY_HIGH, std::vector<std::string> {"hadolint"},
+	    std::vector<std::string> {"infrastructure", "lint"}));
 
 	// Linting tools - R
-	registry.registerParser(make_uniq<P<LintrJSONParser>>("lintr_json", "Lintr JSON Parser", ParserCategory::LINTING,
-	                                                      "Lintr R linter JSON output", ParserPriority::VERY_HIGH,
-	                                                      std::vector<std::string> {"lintr"}, std::vector<std::string> {"lint"}));
+	registry.registerParser(make_uniq<P<LintrJSONParser>>(
+	    "lintr_json", "Lintr JSON Parser", ParserCategory::LINTING, "Lintr R linter JSON output",
+	    ParserPriority::VERY_HIGH, std::vector<std::string> {"lintr"}, std::vector<std::string> {"lint"}));
 
 	// Linting tools - SQL
 	registry.registerParser(make_uniq<P<SqlfluffJSONParser>>(
@@ -107,7 +111,8 @@ void RegisterToolOutputsParsers(ParserRegistry &registry) {
 	// Linting tools - Infrastructure
 	registry.registerParser(make_uniq<P<TflintJSONParser>>(
 	    "tflint_json", "TFLint JSON Parser", ParserCategory::LINTING, "Terraform TFLint linter JSON output",
-	    ParserPriority::VERY_HIGH, std::vector<std::string> {"tflint"}, std::vector<std::string> {"infrastructure", "lint"}));
+	    ParserPriority::VERY_HIGH, std::vector<std::string> {"tflint"},
+	    std::vector<std::string> {"infrastructure", "lint"}));
 
 	registry.registerParser(make_uniq<P<KubeScoreJSONParser>>(
 	    "kube_score_json", "Kube-score JSON Parser", ParserCategory::LINTING,
@@ -117,30 +122,34 @@ void RegisterToolOutputsParsers(ParserRegistry &registry) {
 	// Security tools
 	registry.registerParser(make_uniq<P<BanditJSONParser>>(
 	    "bandit_json", "Bandit JSON Parser", ParserCategory::SECURITY_TOOL, "Bandit Python security linter JSON output",
-	    ParserPriority::VERY_HIGH, std::vector<std::string> {"bandit"}, std::vector<std::string> {"python", "security", "lint"}));
+	    ParserPriority::VERY_HIGH, std::vector<std::string> {"bandit"},
+	    std::vector<std::string> {"python", "security", "lint"}));
 
-	registry.registerParser(
-	    make_uniq<P<TrivyJSONParser>>("trivy_json", "Trivy JSON Parser", ParserCategory::SECURITY_TOOL,
-	                                  "Trivy container/dependency vulnerability scanner JSON output",
-	                                  ParserPriority::VERY_HIGH, std::vector<std::string> {"trivy"}, std::vector<std::string> {"infrastructure", "security"}));
+	registry.registerParser(make_uniq<P<TrivyJSONParser>>(
+	    "trivy_json", "Trivy JSON Parser", ParserCategory::SECURITY_TOOL,
+	    "Trivy container/dependency vulnerability scanner JSON output", ParserPriority::VERY_HIGH,
+	    std::vector<std::string> {"trivy"}, std::vector<std::string> {"infrastructure", "security"}));
 
 	registry.registerParser(make_uniq<P<TfsecJSONParser>>(
 	    "tfsec_json", "tfsec JSON Parser", ParserCategory::SECURITY_TOOL,
-	    "tfsec Terraform security scanner JSON output", ParserPriority::VERY_HIGH, std::vector<std::string> {"tfsec"}, std::vector<std::string> {"infrastructure", "security"}));
+	    "tfsec Terraform security scanner JSON output", ParserPriority::VERY_HIGH, std::vector<std::string> {"tfsec"},
+	    std::vector<std::string> {"infrastructure", "security"}));
 
 	// Test frameworks
 	registry.registerParser(make_uniq<P<GoTestJSONParser>>(
 	    "gotest_json", "Go Test JSON Parser", ParserCategory::TEST_FRAMEWORK, "Go test JSON output (go test -json)",
-	    ParserPriority::VERY_HIGH, std::vector<std::string> {"gotest", "go_test"}, std::vector<std::string> {"go", "test"}));
+	    ParserPriority::VERY_HIGH, std::vector<std::string> {"gotest", "go_test"},
+	    std::vector<std::string> {"go", "test"}));
 
 	registry.registerParser(make_uniq<P<CargoTestJSONParser>>(
 	    "cargo_test_json", "Cargo Test JSON Parser", ParserCategory::TEST_FRAMEWORK, "Rust cargo test JSON output",
 	    ParserPriority::VERY_HIGH, std::vector<std::string> {"cargo_test"}, std::vector<std::string> {"rust", "test"}));
 
 	// Generic fallback (low priority)
-	registry.registerParser(make_uniq<P<GenericLintParser>>(
-	    "generic_lint", "Generic Lint Parser", ParserCategory::LINTING,
-	    "Generic lint format (file:line:col: level: message)", ParserPriority::LOW, std::vector<std::string> {"lint"}, std::vector<std::string> {"lint"}));
+	registry.registerParser(
+	    make_uniq<P<GenericLintParser>>("generic_lint", "Generic Lint Parser", ParserCategory::LINTING,
+	                                    "Generic lint format (file:line:col: level: message)", ParserPriority::LOW,
+	                                    std::vector<std::string> {"lint"}, std::vector<std::string> {"lint"}));
 }
 
 // Auto-register this category

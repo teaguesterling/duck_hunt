@@ -69,7 +69,8 @@ void RegisterTestFrameworksParsers(ParserRegistry &registry) {
 
 	registry.registerParser(make_uniq<DelegatingParser<GTestTextParser>>(
 	    "gtest_text", "Google Test Parser", ParserCategory::TEST_FRAMEWORK, "Google Test (gtest) output format",
-	    ParserPriority::HIGH, std::vector<std::string> {"gtest", "googletest"}, std::vector<std::string> {"c_cpp", "test"}));
+	    ParserPriority::HIGH, std::vector<std::string> {"gtest", "googletest"},
+	    std::vector<std::string> {"c_cpp", "test"}));
 
 	registry.registerParser(make_uniq<DelegatingParser<RSpecTextParser>>(
 	    "rspec_text", "RSpec Parser", ParserCategory::TEST_FRAMEWORK, "Ruby RSpec test output format",
@@ -77,11 +78,13 @@ void RegisterTestFrameworksParsers(ParserRegistry &registry) {
 
 	registry.registerParser(make_uniq<DelegatingParser<MochaChaiTextParser>>(
 	    "mocha_chai_text", "Mocha/Chai Parser", ParserCategory::TEST_FRAMEWORK, "Mocha/Chai JavaScript test output",
-	    ParserPriority::HIGH, std::vector<std::string> {"mocha", "chai"}, std::vector<std::string> {"javascript", "test"}));
+	    ParserPriority::HIGH, std::vector<std::string> {"mocha", "chai"},
+	    std::vector<std::string> {"javascript", "test"}));
 
 	registry.registerParser(make_uniq<DelegatingParser<NUnitXUnitTextParser>>(
 	    "nunit_xunit_text", "NUnit/xUnit Parser", ParserCategory::TEST_FRAMEWORK, ".NET NUnit/xUnit test output",
-	    ParserPriority::HIGH, std::vector<std::string> {"nunit", "xunit"}, std::vector<std::string> {"dotnet", "test"}));
+	    ParserPriority::HIGH, std::vector<std::string> {"nunit", "xunit"},
+	    std::vector<std::string> {"dotnet", "test"}));
 
 	registry.registerParser(make_uniq<DelegatingParser<DuckDBTestParser>>(
 	    "duckdb_test", "DuckDB Test Parser", ParserCategory::TEST_FRAMEWORK, "DuckDB unittest output format",
@@ -90,7 +93,8 @@ void RegisterTestFrameworksParsers(ParserRegistry &registry) {
 	registry.registerParser(make_uniq<DelegatingParser<PytestCovTextParser>>(
 	    "pytest_cov_text", "Pytest Coverage Parser", ParserCategory::TEST_FRAMEWORK,
 	    "Python pytest-cov text output with coverage", ParserPriority::HIGH,
-	    std::vector<std::string> {"pytest_cov", "pytest-cov"}, std::vector<std::string> {"python", "test", "coverage"}));
+	    std::vector<std::string> {"pytest_cov", "pytest-cov"},
+	    std::vector<std::string> {"python", "test", "coverage"}));
 
 	// JUnit XML requires special handling (context for XML parsing)
 	registry.registerParser(make_uniq<JUnitXmlParserImpl>());

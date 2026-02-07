@@ -16,10 +16,9 @@ using P = DelegatingParser<T>;
 DECLARE_PARSER_CATEGORY(WebAccess);
 
 void RegisterWebAccessParsers(ParserRegistry &registry) {
-	registry.registerParser(make_uniq<P<SyslogParser>>("syslog", "Syslog Parser", ParserCategory::SYSTEM_LOG,
-	                                                   "Unix/Linux syslog format", ParserPriority::HIGH,
-	                                                   std::vector<std::string> {},
-	                                                   std::vector<std::string> {"web", "logging"}));
+	registry.registerParser(make_uniq<P<SyslogParser>>(
+	    "syslog", "Syslog Parser", ParserCategory::SYSTEM_LOG, "Unix/Linux syslog format", ParserPriority::HIGH,
+	    std::vector<std::string> {}, std::vector<std::string> {"web", "logging"}));
 
 	registry.registerParser(make_uniq<P<ApacheAccessParser>>(
 	    "apache_access", "Apache Access Parser", ParserCategory::WEB_ACCESS, "Apache HTTP Server access log",

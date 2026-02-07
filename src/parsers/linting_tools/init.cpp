@@ -41,7 +41,8 @@ void RegisterLintingToolsParsers(ParserRegistry &registry) {
 
 	registry.registerParser(make_uniq<DelegatingParser<ClangTidyParser>>(
 	    "clang_tidy_text", "Clang-Tidy Parser", ParserCategory::LINTING, "LLVM Clang-Tidy C++ linter output",
-	    ParserPriority::HIGH, std::vector<std::string> {"clang_tidy", "clang-tidy"}, std::vector<std::string> {"c_cpp", "lint"}));
+	    ParserPriority::HIGH, std::vector<std::string> {"clang_tidy", "clang-tidy"},
+	    std::vector<std::string> {"c_cpp", "lint"}));
 
 	registry.registerParser(make_uniq<DelegatingParser<Autopep8TextParser>>(
 	    "autopep8_text", "Autopep8 Parser", ParserCategory::LINTING, "Python autopep8 formatter output",

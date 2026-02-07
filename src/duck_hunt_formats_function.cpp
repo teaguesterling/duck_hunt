@@ -48,18 +48,18 @@ static unique_ptr<FunctionData> DuckHuntFormatsBind(ClientContext &context, Tabl
 
 	// Define return schema
 	return_types = {
-	    LogicalType::VARCHAR,                             // format
-	    LogicalType::VARCHAR,                             // description
-	    LogicalType::VARCHAR,                             // category
-	    LogicalType::INTEGER,                             // priority
-	    LogicalType::VARCHAR,                             // requires_extension
-	    LogicalType::BOOLEAN,                             // supports_workflow
+	    LogicalType::VARCHAR,                              // format
+	    LogicalType::VARCHAR,                              // description
+	    LogicalType::VARCHAR,                              // category
+	    LogicalType::INTEGER,                              // priority
+	    LogicalType::VARCHAR,                              // requires_extension
+	    LogicalType::BOOLEAN,                              // supports_workflow
 	    LogicalType::LIST(std::move(pattern_struct_type)), // command_patterns
-	    LogicalType::LIST(LogicalType::VARCHAR)           // groups
+	    LogicalType::LIST(LogicalType::VARCHAR)            // groups
 	};
 
-	names = {"format",          "description", "category",         "priority", "requires_extension",
-	         "supports_workflow", "command_patterns", "groups"};
+	names = {"format",           "description", "category", "priority", "requires_extension", "supports_workflow",
+	         "command_patterns", "groups"};
 
 	return make_uniq<DuckHuntFormatsBindData>();
 }

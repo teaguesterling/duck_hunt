@@ -41,10 +41,10 @@ void RegisterDistributedSystemsParsers(ParserRegistry &registry) {
 	    ParserPriority::HIGH, std::vector<std::string> {"nova", "neutron", "cinder"},
 	    std::vector<std::string> {"distributed", "cloud", "python"}));
 
-	registry.registerParser(make_uniq<P<BglParser>>(
-	    "bgl", "BGL Parser", ParserCategory::DISTRIBUTED_SYSTEMS, "Blue Gene/L supercomputer log output",
-	    ParserPriority::HIGH, std::vector<std::string> {"bluegene", "blue_gene_l"},
-	    std::vector<std::string> {"distributed"}));
+	registry.registerParser(make_uniq<P<BglParser>>("bgl", "BGL Parser", ParserCategory::DISTRIBUTED_SYSTEMS,
+	                                                "Blue Gene/L supercomputer log output", ParserPriority::HIGH,
+	                                                std::vector<std::string> {"bluegene", "blue_gene_l"},
+	                                                std::vector<std::string> {"distributed"}));
 }
 
 // Auto-register this category
