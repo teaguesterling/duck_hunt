@@ -1,6 +1,6 @@
 # Supported Formats
 
-Duck Hunt supports 90+ format strings for parsing development tool outputs. Use these with `read_duck_hunt_log()` or `parse_duck_hunt_log()`.
+Duck Hunt supports 100 format strings for parsing development tool outputs. Use these with `read_duck_hunt_log()` or `parse_duck_hunt_log()`.
 
 > **See also:** [Format Maturity Levels](format-maturity.md) for test coverage and stability ratings.
 
@@ -20,10 +20,10 @@ SELECT * FROM parse_duck_hunt_log(content, 'ci');
 
 | Group | Description | Count |
 |-------|-------------|-------|
-| `python` | Python tools (pytest, pylint, mypy, flake8, bandit, etc.) | 16 |
+| `python` | Python tools (pytest, pylint, mypy, flake8, ruff, bandit, etc.) | 18 |
 | `java` | Java/JVM tools (junit, maven, gradle, spotbugs, etc.) | 11 |
 | `c_cpp` | C/C++ tools (gtest, make, cmake, valgrind, etc.) | 10 |
-| `javascript` | JavaScript/Node.js tools (eslint, mocha, winston, pino, etc.) | 7 |
+| `javascript` | JavaScript/Node.js tools (eslint, mocha, playwright, winston, pino, etc.) | 9 |
 | `ruby` | Ruby tools (rspec, rubocop, ruby_logger, rails) | 4 |
 | `dotnet` | .NET tools (nunit, msbuild, serilog, nlog) | 4 |
 | `rust` | Rust tools (cargo_build, clippy, cargo_test) | 3 |
@@ -37,15 +37,15 @@ SELECT * FROM parse_duck_hunt_log(content, 'ci');
 
 | Group | Description | Count |
 |-------|-------------|-------|
-| `lint` | Linting & static analysis tools | 26 |
-| `infrastructure` | Infrastructure & DevOps tools | 15 |
+| `lint` | Linting & static analysis tools | 28 |
+| `infrastructure` | Infrastructure & DevOps tools | 16 |
+| `test` | Test frameworks & runners | 14 |
 | `logging` | Logging frameworks & formats | 13 |
-| `test` | Test frameworks & runners | 12 |
-| `security` | Security scanning & audit tools | 10 |
-| `build` | Build systems & compilers | 9 |
+| `security` | Security scanning & audit tools | 11 |
+| `build` | Build systems & compilers | 10 |
 | `cloud` | Cloud platform logs & services | 7 |
+| `ci` | CI/CD systems | 7 |
 | `distributed` | Distributed systems logs | 6 |
-| `ci` | CI/CD systems | 4 |
 | `web` | Web server & access logs | 4 |
 | `coverage` | Code coverage tools | 3 |
 | `debug` | Debugging tools | 3 |
@@ -131,6 +131,8 @@ The function analyzes content patterns and returns the best-matching format stri
 | `isort_text` | isort | python, lint | [isort_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/python_tools/isort_output.txt) |
 | `autopep8_text` | autopep8 | python, lint | - |
 | `yapf_text` | YAPF | python, lint | - |
+| `ruff_text` | Ruff | python, lint | - |
+| `bandit_text` | Bandit (text) | python, security, lint | - |
 | `generic_lint` | Generic format | lint | - |
 
 ### Build Systems

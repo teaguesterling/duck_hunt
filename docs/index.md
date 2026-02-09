@@ -1,6 +1,6 @@
 # Duck Hunt
 
-A DuckDB extension for parsing test results, build outputs, and CI/CD logs from 90+ development tools.
+A DuckDB extension for parsing test results, build outputs, and CI/CD logs from 100 development tools.
 
 ## Installation
 
@@ -100,7 +100,7 @@ SELECT status_badge(
 | `valgrind` | Valgrind | Memory checker output |
 | `generic_lint` | Generic | `file:line:col: severity: message` |
 
-See [Supported Formats](formats.md) for the complete list of 90+ formats.
+See [Supported Formats](formats.md) for the complete list of 100 formats.
 
 ## Compression Support
 
@@ -142,7 +142,7 @@ See [Schema Reference](schema.md) for complete field documentation.
 
 ## Next Steps
 
-- **[Supported Formats](formats.md)** - All 90+ supported formats with examples
+- **[Supported Formats](formats.md)** - All 100 supported formats with examples
 - **[Workflow Formats](workflow-formats.md)** - CI/CD workflow parsing (GitHub Actions, GitLab CI, Jenkins)
 - **[Usage Examples](examples.md)** - Detailed examples for common scenarios
 - **[Schema Reference](schema.md)** - Complete field documentation

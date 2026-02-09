@@ -4,37 +4,48 @@
 
 The codebase currently has two parallel systems for format detection:
 1. **Legacy**: `DetectTestResultFormat()` function with 55 hardcoded format detections
-2. **Modular**: `ParserRegistry` with 91 registered parser classes using `canParse()` methods
+2. **Modular**: `ParserRegistry` with 100 registered parser classes using `canParse()` methods
 
 This duplication creates maintenance burden and inconsistency. The goal is to fully migrate to the modular registry and remove the legacy detection code.
 
-## Current State
+## Current State (Updated Feb 2026)
 
 ### Legacy Detection (`DetectTestResultFormat`)
 - Location: `src/read_duck_hunt_log_function.cpp` (lines ~280-833)
 - 55 unique format detections using string matching
 - Returns `TestResultFormat` enum values
 - Used when `format="auto"` is specified
+- **Status**: Still in use, checked before modular registry
 
 ### Modular Registry (`ParserRegistry`)
 - Location: `src/parsers/*/init.cpp` files
-- 91 registered parser classes
+- **100 registered parser classes** (was 91, now includes all legacy formats)
 - Each parser has `canParse()` for detection and `parse()` for extraction
 - Priority-based selection (VERY_HIGH=100, HIGH=80, MEDIUM=50, LOW=30, VERY_LOW=10)
 
 ## Migration Tasks
 
-### Phase 1: Audit and Verify Coverage
-- [ ] Create mapping of legacy formats to modular parsers
-- [ ] Identify any legacy formats without modular equivalents
-- [ ] Verify `canParse()` methods are selective enough (avoid false positives)
-- [ ] Add test files for each format to ensure detection works
+### Phase 1: Audit and Verify Coverage ✅ COMPLETE
+- [x] Create mapping of legacy formats to modular parsers
+- [x] Identify any legacy formats without modular equivalents
+- [x] Verify `canParse()` methods are selective enough (avoid false positives)
+- [x] Add test files for each format to ensure detection works
 
-### Phase 2: Unify Detection Path
-- [ ] Modify `format="auto"` to use `ParserRegistry::detectParser()` instead of `DetectTestResultFormat()`
-- [ ] Keep legacy enum for explicit format specification (e.g., `format="pytest_json"`)
-- [ ] Add fallback to `GenericErrorParser` when no parser matches
+**Completed work:**
+- Added 5 missing parsers to achieve parity with legacy 55 formats
+- Added parsers: `github_actions_text`, `gitlab_ci_text`, `jenkins_text`, `docker_build`, `bandit_text`
+- Added `ruff_text` parser (new Python linter format)
+- Improved `pytest_text` parser to extract ref_line from FAILURES section
+- Total: 100 modular parsers (95 log + 5 workflow)
+
+### Phase 2: Unify Detection Path 🔄 IN PROGRESS
+- [ ] Modify `format="auto"` to use `ParserRegistry::detectParser()` **before** `DetectTestResultFormat()`
+- [x] Keep legacy enum for explicit format specification (e.g., `format="pytest_json"`)
+- [x] Add fallback to `GenericErrorParser` when no parser matches
 - [ ] Ensure parser priority ordering matches expected behavior
+- [ ] Address conflict where flake8 matches before ruff (need registry-first detection)
+
+**Current issue:** `duck_hunt_detect_format()` tries legacy detection FIRST, then falls back to modular registry. This causes newer modular parsers (like ruff) to be masked by legacy parsers (flake8).
 
 ### Phase 3: Clean Up Legacy Code
 - [ ] Remove `DetectTestResultFormat()` function
@@ -43,9 +54,9 @@ This duplication creates maintenance burden and inconsistency. The goal is to fu
 - [ ] Remove redundant format detection code paths
 
 ### Phase 4: Testing and Validation
-- [ ] Run all existing tests to ensure no regressions
+- [x] Run all existing tests to ensure no regressions (39 tests pass)
 - [ ] Test auto-detection with sample logs from each category
-- [ ] Verify explicit format specification still works
+- [x] Verify explicit format specification still works
 - [ ] Test edge cases (empty files, mixed formats, ambiguous content)
 
 ## Guidance
