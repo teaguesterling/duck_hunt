@@ -1,8 +1,17 @@
 #include "pytest_parser.hpp"
 #include <sstream>
 #include <regex>
+#include <unordered_map>
 
 namespace duckdb {
+
+// Structure to hold failure location info extracted from FAILURES section
+struct FailureInfo {
+	std::string file;
+	int32_t line;
+	std::string error_type;
+	std::string error_message;
+};
 
 bool PytestParser::canParse(const std::string &content) const {
 	// Check for pytest text patterns (file.py::test_name with PASSED/FAILED/SKIPPED)
@@ -11,12 +20,88 @@ bool PytestParser::canParse(const std::string &content) const {
 	        content.find("SKIPPED") != std::string::npos);
 }
 
+// Extract failure info from the FAILURES section
+// Returns a map from test_name -> FailureInfo
+static std::unordered_map<std::string, FailureInfo> extractFailureInfo(const std::string &content) {
+	std::unordered_map<std::string, FailureInfo> failures;
+	std::istringstream stream(content);
+	std::string line;
+
+	// Regex patterns
+	// Failure block header: "_____ test_name _____" or "_____ test_name[param] _____"
+	static const std::regex header_regex(R"(^_+\s+(\S+)\s+_+$)");
+	// Error location: "file.py:line: ErrorType" or "file.py:line:col: ErrorType"
+	static const std::regex location_regex(R"(^(\S+\.py):(\d+)(?::\d+)?:\s*(.+)$)");
+	// E line with error message: "E       AssertionError: message"
+	static const std::regex error_line_regex(R"(^E\s+(.+)$)");
+
+	bool in_failures_section = false;
+	std::string current_test_name;
+	std::string current_error_message;
+
+	while (std::getline(stream, line)) {
+		// Check for FAILURES section start
+		if (line.find("= FAILURES =") != std::string::npos ||
+		    line.find("=FAILURES=") != std::string::npos ||
+		    (line.find("FAILURES") != std::string::npos && line.find("===") != std::string::npos)) {
+			in_failures_section = true;
+			continue;
+		}
+
+		// Check for end of FAILURES section (short test summary or final summary)
+		if (in_failures_section &&
+		    (line.find("short test summary") != std::string::npos ||
+		     line.find("passed") != std::string::npos && line.find("===") != std::string::npos)) {
+			in_failures_section = false;
+			continue;
+		}
+
+		if (!in_failures_section) {
+			continue;
+		}
+
+		std::smatch match;
+
+		// Check for failure block header
+		if (std::regex_search(line, match, header_regex)) {
+			current_test_name = match[1].str();
+			current_error_message.clear();
+			continue;
+		}
+
+		// Capture error message from E lines
+		if (std::regex_search(line, match, error_line_regex)) {
+			if (current_error_message.empty()) {
+				current_error_message = match[1].str();
+			}
+			continue;
+		}
+
+		// Check for error location line
+		if (!current_test_name.empty() && std::regex_search(line, match, location_regex)) {
+			FailureInfo info;
+			info.file = match[1].str();
+			info.line = std::stoi(match[2].str());
+			info.error_type = match[3].str();
+			info.error_message = current_error_message;
+			failures[current_test_name] = info;
+			// Don't clear current_test_name - there might be multiple location lines
+			// but we want the last one (closest to the actual failure)
+		}
+	}
+
+	return failures;
+}
+
 std::vector<ValidationEvent> PytestParser::parse(const std::string &content) const {
 	std::vector<ValidationEvent> events;
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
 	int32_t current_line_num = 0;
+
+	// First, extract failure info from FAILURES section
+	auto failure_info = extractFailureInfo(content);
 
 	// Regex for pytest summary line: ===== N passed, N failed, N skipped in X.XXs =====
 	static const std::regex summary_regex(
@@ -75,7 +160,7 @@ std::vector<ValidationEvent> PytestParser::parse(const std::string &content) con
 
 		// Look for pytest text output patterns: "file.py::test_name STATUS"
 		if (line.find("::") != std::string::npos) {
-			parseTestLine(line, event_id, events, current_line_num);
+			parseTestLine(line, event_id, events, current_line_num, failure_info);
 		}
 	}
 
@@ -83,7 +168,8 @@ std::vector<ValidationEvent> PytestParser::parse(const std::string &content) con
 }
 
 void PytestParser::parseTestLine(const std::string &line, int64_t &event_id, std::vector<ValidationEvent> &events,
-                                 int32_t log_line_num) const {
+                                 int32_t log_line_num,
+                                 const std::unordered_map<std::string, FailureInfo> &failure_info) const {
 	// Parse pytest test result line using simple string parsing
 	// Format 1: "file.py::test_name STATUS" or "file.py::test_name STATUS [extra]"
 	// Format 2: "STATUS file.py::test_name - message" (short test summary)
@@ -174,6 +260,22 @@ void PytestParser::parseTestLine(const std::string &line, int64_t &event_id, std
 			// No recognized status - skip this line
 			event_id--; // Undo the increment
 			return;
+		}
+	}
+
+	// Look up failure info to get line number for failed tests
+	if (event.status == ValidationEventStatus::FAIL || event.status == ValidationEventStatus::ERROR) {
+		auto it = failure_info.find(event.test_name);
+		if (it != failure_info.end()) {
+			event.ref_line = it->second.line;
+			// Update ref_file from failure info if it's more specific
+			if (!it->second.file.empty()) {
+				event.ref_file = it->second.file;
+			}
+			// Enhance message with error details if available
+			if (!it->second.error_message.empty() && event.message == "Test failed") {
+				event.message = it->second.error_message;
+			}
 		}
 	}
 

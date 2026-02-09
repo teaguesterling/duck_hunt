@@ -98,13 +98,14 @@ GROUP BY tool_name;
 
 # Test 10: pytest short summary format field validation
 # The "FAILED file.py::test - message" format should parse correctly
+# Both entries now get the error message from the FAILURES section
 query IIII
 SELECT ref_file, test_name, status, message LIKE '%assert%' as has_assert_msg
 FROM read_duck_hunt_log('workspace/ci-logs/staging/pytest-results.txt', 'pytest_text')
 WHERE status = 'FAIL'
 ORDER BY event_id;
 ----
-test_user_auth.py	test_invalid_login	FAIL	false
+test_user_auth.py	test_invalid_login	FAIL	true
 test_user_auth.py	test_invalid_login	FAIL	true
 
 # Test 11: pytest standard format parsing
@@ -128,6 +129,19 @@ ORDER BY log_line_start;
 5	5
 6	6
 17	17
+
+# Test 12b: pytest ref_line extraction from FAILURES section
+# Failed tests should have ref_line extracted from the traceback location
+query III
+SELECT test_name, ref_line, status
+FROM read_duck_hunt_log('workspace/ci-logs/staging/pytest-results.txt', 'pytest_text')
+WHERE event_type = 'test_result'
+ORDER BY event_id;
+----
+test_login	NULL	PASS
+test_logout	NULL	PASS
+test_invalid_login	15	FAIL
+test_invalid_login	15	FAIL
 
 # Test 13: Regression test for catastrophic regex backtracking (issue: paths with many colons)
 # This file contains spack build output with very long paths containing many colons.

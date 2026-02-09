@@ -1,12 +1,17 @@
 #pragma once
 
 #include "parsers/base/parser_interface.hpp"
+#include <unordered_map>
 
 namespace duckdb {
+
+// Forward declaration for internal failure info structure
+struct FailureInfo;
 
 /**
  * Parser for pytest text output.
  * Handles format: "file.py::test_name STATUS"
+ * Extracts line numbers from FAILURES section for failed tests.
  */
 class PytestParser : public IParser {
 public:
@@ -34,7 +39,8 @@ public:
 
 private:
 	void parseTestLine(const std::string &line, int64_t &event_id, std::vector<ValidationEvent> &events,
-	                   int32_t log_line_num) const;
+	                   int32_t log_line_num,
+	                   const std::unordered_map<std::string, FailureInfo> &failure_info) const;
 };
 
 } // namespace duckdb
