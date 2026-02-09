@@ -4,7 +4,7 @@ This document lists all available log parsers in the Duck Hunt extension.
 
 ## Parser Categories
 
-### Test Frameworks (15 parsers)
+### Test Frameworks (16 parsers)
 
 | Parser | Format Name | Sample File | Tests |
 |--------|-------------|-------------|-------|
@@ -22,9 +22,10 @@ This document lists all available log parsers in the Duck Hunt extension.
 | playwright_json | `playwright_json` | - | Yes |
 | cargo_test_json | `cargo_test_json` | workspace/cargo_test_sample.json | Yes |
 | gotest_json | `gotest_json` | test/samples/gotest.json | Yes |
+| gotest_text | `gotest_text` | - | - |
 | generic_error | `generic_error` | - | Yes |
 
-### Linting Tools (10 parsers)
+### Linting Tools (14 parsers)
 
 | Parser | Format Name | Sample File | Tests |
 |--------|-------------|-------------|-------|
@@ -38,6 +39,10 @@ This document lists all available log parsers in the Duck Hunt extension.
 | isort | `isort_text` | - | Yes |
 | ruff | `ruff_text` | - | Inline |
 | bandit_text | `bandit_text` | - | Inline |
+| eslint_text | `eslint_text` | - | - |
+| rubocop_text | `rubocop_text` | - | - |
+| shellcheck_text | `shellcheck_text` | - | - |
+| hadolint_text | `hadolint_text` | - | - |
 
 ### Tool Outputs - JSON Linters (20 parsers)
 

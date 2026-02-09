@@ -1,6 +1,6 @@
 # Supported Formats
 
-Duck Hunt supports 100 format strings for parsing development tool outputs. Use these with `read_duck_hunt_log()` or `parse_duck_hunt_log()`.
+Duck Hunt supports 105 format strings for parsing development tool outputs. Use these with `read_duck_hunt_log()` or `parse_duck_hunt_log()`.
 
 > **See also:** [Format Maturity Levels](format-maturity.md) for test coverage and stability ratings.
 
@@ -23,12 +23,13 @@ SELECT * FROM parse_duck_hunt_log(content, 'ci');
 | `python` | Python tools (pytest, pylint, mypy, flake8, ruff, bandit, etc.) | 18 |
 | `java` | Java/JVM tools (junit, maven, gradle, spotbugs, etc.) | 11 |
 | `c_cpp` | C/C++ tools (gtest, make, cmake, valgrind, etc.) | 10 |
-| `javascript` | JavaScript/Node.js tools (eslint, mocha, playwright, winston, pino, etc.) | 9 |
-| `ruby` | Ruby tools (rspec, rubocop, ruby_logger, rails) | 4 |
+| `javascript` | JavaScript/Node.js tools (eslint, mocha, playwright, winston, pino, etc.) | 10 |
+| `ruby` | Ruby tools (rspec, rubocop, ruby_logger, rails) | 5 |
 | `dotnet` | .NET tools (nunit, msbuild, serilog, nlog) | 4 |
 | `rust` | Rust tools (cargo_build, clippy, cargo_test) | 3 |
-| `go` | Go tools (gotest, logrus) | 2 |
-| `shell` | Shell tools (shellcheck, strace) | 2 |
+| `go` | Go tools (gotest_json, gotest_text, logrus) | 3 |
+| `shell` | Shell tools (shellcheck_json, shellcheck_text, strace) | 3 |
+| `docker` | Docker/container tools (hadolint, docker_build) | 2 |
 | `swift` | Swift tools (swiftlint) | 1 |
 | `php` | PHP tools (phpstan) | 1 |
 | `mobile` | Mobile platforms (android) | 1 |
@@ -37,9 +38,9 @@ SELECT * FROM parse_duck_hunt_log(content, 'ci');
 
 | Group | Description | Count |
 |-------|-------------|-------|
-| `lint` | Linting & static analysis tools | 28 |
-| `infrastructure` | Infrastructure & DevOps tools | 16 |
-| `test` | Test frameworks & runners | 14 |
+| `lint` | Linting & static analysis tools | 32 |
+| `infrastructure` | Infrastructure & DevOps tools | 17 |
+| `test` | Test frameworks & runners | 15 |
 | `logging` | Logging frameworks & formats | 13 |
 | `security` | Security scanning & audit tools | 11 |
 | `build` | Build systems & compilers | 10 |
@@ -93,7 +94,8 @@ The function analyzes content patterns and returns the best-matching format stri
 |---------------|------|--------|-------------|
 | `pytest_json` | pytest (JSON) | python, test | [pytest_json_failures.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/test_frameworks/pytest_json_failures.json) |
 | `pytest_text` | pytest (text) | python, test | [pytest_failures.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/test_frameworks/pytest_failures.txt) |
-| `gotest_json` | Go test | go, test | [gotest_failures.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/test_frameworks/gotest_failures.json) |
+| `gotest_json` | Go test (JSON) | go, test | [gotest_failures.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/test_frameworks/gotest_failures.json) |
+| `gotest_text` | Go test (text) | go, test | - |
 | `cargo_test_json` | Cargo test (Rust) | rust, test | [cargo_test_output.jsonl](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/test_frameworks/cargo_test_output.jsonl) |
 | `junit_text` | JUnit/TestNG/Surefire | java, test | - |
 | `junit_xml` | JUnit XML | java, test | [junit_xml_failures.xml](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/test_frameworks/junit_xml_failures.xml) |
@@ -108,23 +110,27 @@ The function analyzes content patterns and returns the best-matching format stri
 
 | Format String | Tool | Groups | Sample File |
 |---------------|------|--------|-------------|
-| `eslint_json` | ESLint | javascript, lint | [eslint_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/eslint_output.json) |
+| `eslint_json` | ESLint (JSON) | javascript, lint | [eslint_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/eslint_output.json) |
+| `eslint_text` | ESLint (text) | javascript, lint | - |
 | `pylint_text` | Pylint | python, lint | [pylint_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/pylint_output.txt) |
 | `flake8_text` | Flake8 | python, lint | [flake8_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/flake8_output.txt) |
 | `mypy_text` | MyPy | python, lint | [mypy_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/mypy_output.txt) |
 | `black_text` | Black | python, lint | [black_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/python_tools/black_output.txt) |
 | `bandit_json` | Bandit (security) | python, security, lint | [bandit_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/bandit_output.json) |
-| `rubocop_json` | RuboCop | ruby, lint | [rubocop_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/rubocop_output.json) |
+| `rubocop_json` | RuboCop (JSON) | ruby, lint | [rubocop_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/rubocop_output.json) |
+| `rubocop_text` | RuboCop (text) | ruby, lint | - |
 | `swiftlint_json` | SwiftLint | swift, lint | [swiftlint_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/swiftlint_output.json) |
 | `phpstan_json` | PHPStan | php, lint | [phpstan_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/phpstan_output.json) |
-| `shellcheck_json` | Shellcheck | shell, lint | [shellcheck_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/shellcheck_output.json) |
+| `shellcheck_json` | ShellCheck (JSON) | shell, lint | [shellcheck_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/shellcheck_output.json) |
+| `shellcheck_text` | ShellCheck (text) | shell, lint | - |
 | `stylelint_json` | Stylelint | javascript, lint | [stylelint_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/stylelint_output.json) |
 | `clippy_json` | Clippy (Rust) | rust, lint | [clippy_output.jsonl](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/clippy_output.jsonl) |
 | `markdownlint_json` | Markdownlint | lint | [markdownlint_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/markdownlint_output.json) |
 | `yamllint_json` | yamllint | lint | [yamllint_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/yamllint_output.json) |
 | `spotbugs_json` | SpotBugs | java, lint, security | [spotbugs_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/spotbugs_output.json) |
 | `ktlint_json` | ktlint | java, lint | [ktlint_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/ktlint_output.json) |
-| `hadolint_json` | Hadolint | infrastructure, lint | [hadolint_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/hadolint_output.json) |
+| `hadolint_json` | Hadolint (JSON) | docker, infrastructure, lint | [hadolint_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/hadolint_output.json) |
+| `hadolint_text` | Hadolint (text) | docker, infrastructure, lint | - |
 | `lintr_json` | lintr (R) | lint | [lintr_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/lintr_output.json) |
 | `sqlfluff_json` | sqlfluff | lint | [sqlfluff_output.json](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/sqlfluff_output.json) |
 | `clang_tidy_text` | clang-tidy | c_cpp, lint | [clang_tidy_output.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/linting_tools/clang_tidy_output.txt) |

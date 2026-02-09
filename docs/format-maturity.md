@@ -20,11 +20,11 @@ This document describes the maturity levels for formats used with `read_duck_hun
 |----------|-------|------------|
 | Production ⭐⭐⭐⭐⭐ | 22 | 24% |
 | Stable ⭐⭐⭐⭐ | 28 | 31% |
-| Beta ⭐⭐⭐ | 38 | 42% |
+| Beta ⭐⭐⭐ | 43 | 43% |
 | Alpha ⭐⭐ | 1 | 1% |
 | Experimental ⭐ | 1 | 1% |
 
-**Total: 95 log formats** (plus 5 workflow formats = 100 total)
+**Total: 100 log formats** (plus 5 workflow formats = 105 total)
 
 ---
 
@@ -136,6 +136,11 @@ These formats have moderate test coverage and work for common scenarios.
 | `drone_ci_text` | 6 | - | Drone CI logs |
 | `github_cli` | 4 | - | GitHub CLI output |
 | `terraform_text` | 7 | - | Terraform output |
+| `eslint_text` | - | - | ESLint JavaScript/TypeScript linter (text) |
+| `rubocop_text` | - | - | RuboCop Ruby linter (text) |
+| `shellcheck_text` | - | - | ShellCheck shell script linter (text) |
+| `hadolint_text` | - | - | Hadolint Dockerfile linter (text) |
+| `gotest_text` | - | - | Go test (text) |
 
 ## Alpha ⭐⭐
 
