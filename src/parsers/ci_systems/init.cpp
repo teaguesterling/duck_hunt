@@ -3,6 +3,9 @@
 #include "drone_ci_text_parser.hpp"
 #include "terraform_text_parser.hpp"
 #include "github_cli_parser.hpp"
+#include "github_actions_text_parser.hpp"
+#include "gitlab_ci_text_parser.hpp"
+#include "jenkins_text_parser.hpp"
 
 namespace duckdb {
 
@@ -16,6 +19,18 @@ using P = DelegatingParser<T>;
 DECLARE_PARSER_CATEGORY(CISystems);
 
 void RegisterCISystemsParsers(ParserRegistry &registry) {
+	registry.registerParser(make_uniq<P<GitHubActionsTextParser>>(
+	    "github_actions_text", "GitHub Actions Parser", ParserCategory::CI_SYSTEM, "GitHub Actions workflow log output",
+	    ParserPriority::HIGH, std::vector<std::string> {"github_actions"}, std::vector<std::string> {"ci"}));
+
+	registry.registerParser(make_uniq<P<GitLabCITextParser>>(
+	    "gitlab_ci_text", "GitLab CI Parser", ParserCategory::CI_SYSTEM, "GitLab CI pipeline log output",
+	    ParserPriority::HIGH, std::vector<std::string> {"gitlab_ci", "gitlab"}, std::vector<std::string> {"ci"}));
+
+	registry.registerParser(make_uniq<P<JenkinsTextParser>>(
+	    "jenkins_text", "Jenkins Parser", ParserCategory::CI_SYSTEM, "Jenkins build log output", ParserPriority::HIGH,
+	    std::vector<std::string> {"jenkins"}, std::vector<std::string> {"ci"}));
+
 	registry.registerParser(make_uniq<P<DroneCITextParser>>(
 	    "drone_ci_text", "Drone CI Parser", ParserCategory::CI_SYSTEM, "Drone CI build output", ParserPriority::HIGH,
 	    std::vector<std::string> {"drone", "drone_ci"}, std::vector<std::string> {"ci"}));

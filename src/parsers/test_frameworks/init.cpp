@@ -106,7 +106,7 @@ void RegisterTestFrameworksParsers(ParserRegistry &registry) {
 
 	registry.registerParser(make_uniq<DelegatingParser<PlaywrightJSONParser>>(
 	    "playwright_json", "Playwright JSON Parser", ParserCategory::TEST_FRAMEWORK,
-	    "Playwright JSON reporter output", 135, // Higher than pytest_json (130)
+	    "Playwright JSON reporter output", ParserPriority::VERY_HIGH,
 	    std::vector<std::string> {}, std::vector<std::string> {"javascript", "test"}));
 
 	// JUnit XML requires special handling (context for XML parsing)

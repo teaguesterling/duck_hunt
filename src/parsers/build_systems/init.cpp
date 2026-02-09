@@ -9,6 +9,7 @@
 #include "node_parser.hpp"
 #include "python_parser.hpp"
 #include "bazel_parser.hpp"
+#include "docker_build_parser.hpp"
 
 namespace duckdb {
 
@@ -58,6 +59,10 @@ void RegisterBuildSystemsParsers(ParserRegistry &registry) {
 	registry.registerParser(make_uniq<DelegatingParser<PythonBuildParser>>(
 	    "python_build", "Python Build Parser", ParserCategory::BUILD_SYSTEM, "Python build/setup.py output",
 	    ParserPriority::HIGH, std::vector<std::string> {}, std::vector<std::string> {"python", "build"}));
+
+	registry.registerParser(make_uniq<DelegatingParser<DockerBuildParser>>(
+	    "docker_build", "Docker Parser", ParserCategory::BUILD_SYSTEM, "Docker build output", ParserPriority::HIGH,
+	    std::vector<std::string> {"docker"}, std::vector<std::string> {"build", "infrastructure"}));
 }
 
 // Auto-register this category
