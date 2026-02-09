@@ -213,6 +213,13 @@ set(EXTENSION_SOURCES
 
     # XML-based parsers (require webbed extension)
     src/parsers/test_frameworks/junit_xml_parser.cpp
+
+    # Playwright test framework parsers
+    src/parsers/test_frameworks/playwright_text_parser.cpp
+    src/parsers/test_frameworks/playwright_json_parser.cpp
+
+    # Generic error fallback parser
+    src/parsers/tool_outputs/generic_error_parser.cpp
 )
 
 build_static_extension(${TARGET_NAME} ${EXTENSION_SOURCES})

@@ -10,6 +10,8 @@
 #include "junit_xml_parser.hpp"
 #include "duckdb_test_parser.hpp"
 #include "pytest_cov_text_parser.hpp"
+#include "playwright_text_parser.hpp"
+#include "playwright_json_parser.hpp"
 
 namespace duckdb {
 
@@ -95,6 +97,17 @@ void RegisterTestFrameworksParsers(ParserRegistry &registry) {
 	    "Python pytest-cov text output with coverage", ParserPriority::HIGH,
 	    std::vector<std::string> {"pytest_cov", "pytest-cov"},
 	    std::vector<std::string> {"python", "test", "coverage"}));
+
+	// Playwright parsers
+	registry.registerParser(make_uniq<DelegatingParser<PlaywrightTextParser>>(
+	    "playwright_text", "Playwright Text Parser", ParserCategory::TEST_FRAMEWORK,
+	    "Playwright test runner text output (list/line reporter)", ParserPriority::HIGH,
+	    std::vector<std::string> {"playwright"}, std::vector<std::string> {"javascript", "test"}));
+
+	registry.registerParser(make_uniq<DelegatingParser<PlaywrightJSONParser>>(
+	    "playwright_json", "Playwright JSON Parser", ParserCategory::TEST_FRAMEWORK,
+	    "Playwright JSON reporter output", 135, // Higher than pytest_json (130)
+	    std::vector<std::string> {}, std::vector<std::string> {"javascript", "test"}));
 
 	// JUnit XML requires special handling (context for XML parsing)
 	registry.registerParser(make_uniq<JUnitXmlParserImpl>());

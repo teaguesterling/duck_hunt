@@ -27,3 +27,6 @@ Thumbs.db
 .vscode/
 *.code-workspace
 .build-logs/
+
+# blq database
+.lq/

@@ -285,7 +285,9 @@ TestResultFormat DetectTestResultFormat(const std::string &content) {
 	// First check if it's valid JSON
 	if (IsValidJSON(content)) {
 		// Check for specific JSON formats
-		if (content.find("\"tests\":") != std::string::npos) {
+		// pytest JSON: requires both tests array at root AND nodeid (pytest-specific)
+		// This prevents matching Playwright JSON which has nested tests arrays
+		if (content.find("\"tests\":") != std::string::npos && content.find("\"nodeid\":") != std::string::npos) {
 			return TestResultFormat::PYTEST_JSON;
 		}
 		if (content.find("\"Action\":") != std::string::npos && content.find("\"Package\":") != std::string::npos) {

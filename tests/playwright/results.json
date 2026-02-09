@@ -1,0 +1,121 @@
+{
+  "config": {
+    "configFile": "/home/user/project/playwright.config.js",
+    "rootDir": "/home/user/project/tests",
+    "version": "1.58.1"
+  },
+  "suites": [
+    {
+      "title": "app.spec.js",
+      "file": "app.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Authentication",
+          "file": "app.spec.js",
+          "line": 5,
+          "column": 6,
+          "specs": [
+            {
+              "title": "shows login form",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 438,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-02-09T03:14:45.108Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "test-1",
+              "file": "app.spec.js",
+              "line": 10,
+              "column": 3
+            },
+            {
+              "title": "validates credentials",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 7,
+                      "error": {
+                        "message": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: 2\nReceived: 1",
+                        "stack": "Error: expect(received).toBe(expected)\n    at /home/user/project/tests/app.spec.js:25:54",
+                        "location": {
+                          "file": "/home/user/project/tests/app.spec.js",
+                          "column": 54,
+                          "line": 25
+                        }
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/home/user/project/tests/app.spec.js",
+                            "column": 54,
+                            "line": 25
+                          },
+                          "message": "Error: expect(received).toBe(expected)"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-02-09T03:15:32.410Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "test-2",
+              "file": "app.spec.js",
+              "line": 25,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-02-09T03:14:43.342Z",
+    "duration": 2783.73,
+    "expected": 1,
+    "skipped": 0,
+    "unexpected": 1,
+    "flaky": 0
+  }
+}

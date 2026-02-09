@@ -6,10 +6,26 @@
 namespace duckdb {
 
 bool NUnitXUnitTextParser::canParse(const std::string &content) const {
-	return content.find("NUnit") != std::string::npos || content.find("xUnit.net") != std::string::npos ||
-	       content.find("[PASS]") != std::string::npos || content.find("[FAIL]") != std::string::npos ||
-	       content.find("[SKIP]") != std::string::npos || content.find("Test Count:") != std::string::npos ||
-	       content.find("Overall result:") != std::string::npos;
+	// Look for specific NUnit/xUnit markers
+	bool has_nunit_marker = content.find("NUnit") != std::string::npos;
+	bool has_xunit_marker = content.find("xUnit.net") != std::string::npos;
+	bool has_test_count = content.find("Test Count:") != std::string::npos;
+	bool has_overall_result = content.find("Overall result:") != std::string::npos;
+
+	// Require at least one definitive marker (NUnit/xUnit name or summary format)
+	// [PASS]/[FAIL]/[SKIP] alone are too generic
+	if (has_nunit_marker || has_xunit_marker || has_test_count || has_overall_result) {
+		return true;
+	}
+
+	// Only accept [PASS]/[FAIL]/[SKIP] if we also see dotnet-style test output patterns
+	bool has_pass_fail = content.find("[PASS]") != std::string::npos || content.find("[FAIL]") != std::string::npos ||
+	                     content.find("[SKIP]") != std::string::npos;
+	bool has_dotnet_pattern = content.find("Microsoft.") != std::string::npos ||
+	                          content.find(".Tests") != std::string::npos ||
+	                          content.find("dotnet test") != std::string::npos;
+
+	return has_pass_fail && has_dotnet_pattern;
 }
 
 // Forward declaration for implementation

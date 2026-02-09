@@ -22,6 +22,7 @@
 #include "trivy_json_parser.hpp"
 #include "tfsec_json_parser.hpp"
 #include "generic_lint_parser.hpp"
+#include "generic_error_parser.hpp"
 
 namespace duckdb {
 
@@ -145,11 +146,17 @@ void RegisterToolOutputsParsers(ParserRegistry &registry) {
 	    "cargo_test_json", "Cargo Test JSON Parser", ParserCategory::TEST_FRAMEWORK, "Rust cargo test JSON output",
 	    ParserPriority::VERY_HIGH, std::vector<std::string> {"cargo_test"}, std::vector<std::string> {"rust", "test"}));
 
-	// Generic fallback (low priority)
+	// Generic fallback parsers (low priority)
 	registry.registerParser(
 	    make_uniq<P<GenericLintParser>>("generic_lint", "Generic Lint Parser", ParserCategory::LINTING,
 	                                    "Generic lint format (file:line:col: level: message)", ParserPriority::LOW,
 	                                    std::vector<std::string> {"lint"}, std::vector<std::string> {"lint"}));
+
+	// Very low priority fallback for standalone error/warning messages
+	registry.registerParser(make_uniq<P<GenericErrorParser>>(
+	    "generic_error", "Generic Error Parser", ParserCategory::TOOL_OUTPUT,
+	    "Fallback parser for error:/warning:/[ERROR]/[FAIL] messages without file:line prefix",
+	    ParserPriority::VERY_LOW, std::vector<std::string> {"error", "fallback"}, std::vector<std::string> {}));
 }
 
 // Auto-register this category
