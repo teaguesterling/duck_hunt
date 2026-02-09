@@ -165,7 +165,7 @@ SELECT * FROM parse_duck_hunt_log(content, 'test');
 | `valgrind` | Valgrind | [sample](test/samples/debugging_tools/valgrind_memcheck.txt) |
 | `generic_lint` | Generic | `file:line:col: severity: message` |
 
-**[See all 100 formats →](docs/formats.md)** | **[Workflow formats →](docs/workflow-formats.md)**
+**[See all 105 formats →](docs/formats.md)** | **[Workflow formats →](docs/workflow-formats.md)**
 
 ## Output Schema
 
@@ -237,7 +237,7 @@ The `github_actions_zip` format:
 
 ## Documentation
 
-- **[Format Reference](docs/formats.md)** - All 100 supported formats with examples
+- **[Format Reference](docs/formats.md)** - All 105 supported formats with examples
 - **[Workflow Formats](docs/workflow-formats.md)** - CI/CD workflow parsing (GitHub Actions, GitLab CI, Jenkins)
 - **[Format Maturity](docs/format-maturity.md)** - Stability ratings and test coverage
 - **[Schema Reference](docs/schema.md)** - Complete field documentation

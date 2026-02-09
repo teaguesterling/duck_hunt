@@ -190,9 +190,9 @@ This document lists all available log parsers in the Duck Hunt extension.
 |--------|-------------|-------------|-------|
 | lcov | `lcov` | - | Yes |
 
-## Total: 100 formats
+## Total: 105 formats
 
-> 95 log formats + 5 workflow formats (github_actions, gitlab_ci, jenkins, docker, spack)
+> 100 log formats + 5 workflow formats (github_actions, gitlab_ci, jenkins, docker, spack)
 
 ## Usage
 
