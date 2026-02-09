@@ -136,6 +136,7 @@ set(EXTENSION_SOURCES
     src/parsers/linting_tools/yapf_text_parser.cpp
     src/parsers/linting_tools/isort_parser.cpp
     src/parsers/linting_tools/bandit_text_parser.cpp
+    src/parsers/linting_tools/ruff_parser.cpp
     src/parsers/build_systems/docker_build_parser.cpp
 
     # Phase 2 Final: Infrastructure Tools

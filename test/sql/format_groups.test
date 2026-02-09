@@ -8,19 +8,19 @@ require duck_hunt
 query I
 SELECT COUNT(*) FROM duck_hunt_formats() WHERE groups IS NOT NULL;
 ----
-99
+100
 
 # Test that groups column contains lists
 query I
 SELECT COUNT(*) FROM duck_hunt_formats() WHERE len(groups) > 0;
 ----
-97
+98
 
 # Test that 'python' group exists with expected formats
 query I
 SELECT COUNT(*) FROM duck_hunt_formats() WHERE list_contains(groups, 'python');
 ----
-17
+18
 
 # Test that 'c_cpp' group exists
 query I
@@ -58,7 +58,7 @@ SELECT COUNT(*) FROM duck_hunt_formats() WHERE list_contains(groups, 'ci');
 query I
 SELECT COUNT(*) FROM duck_hunt_formats() WHERE list_contains(groups, 'lint');
 ----
-27
+28
 
 # Test that 'test' group exists
 query I

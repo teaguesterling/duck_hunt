@@ -9,6 +9,7 @@
 #include "autopep8_text_parser.hpp"
 #include "isort_parser.hpp"
 #include "bandit_text_parser.hpp"
+#include "ruff_parser.hpp"
 
 namespace duckdb {
 
@@ -56,6 +57,10 @@ void RegisterLintingToolsParsers(ParserRegistry &registry) {
 	registry.registerParser(make_uniq<DelegatingParser<BanditTextParser>>(
 	    "bandit_text", "Bandit Parser", ParserCategory::LINTING, "Python Bandit security linter output",
 	    ParserPriority::HIGH, std::vector<std::string> {"bandit"}, std::vector<std::string> {"python", "lint", "security"}));
+
+	registry.registerParser(make_uniq<DelegatingParser<RuffParser>>(
+	    "ruff_text", "Ruff Parser", ParserCategory::LINTING, "Python Ruff linter output",
+	    ParserPriority::VERY_HIGH, std::vector<std::string> {"ruff"}, std::vector<std::string> {"python", "lint"}));
 }
 
 // Auto-register this category
