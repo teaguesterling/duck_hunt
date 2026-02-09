@@ -176,11 +176,36 @@ static bool matchLikePattern(const std::string &str, const std::string &pattern)
 	}
 }
 
+// Normalize command by stripping path prefix from the executable.
+// e.g., "/usr/bin/eslint ." -> "eslint ."
+//       "./node_modules/.bin/prettier --check" -> "prettier --check"
+static std::string normalizeCommand(const std::string &command) {
+	if (command.empty()) {
+		return command;
+	}
+
+	// Find the first space (end of executable name)
+	size_t first_space = command.find(' ');
+	std::string executable = (first_space == std::string::npos) ? command : command.substr(0, first_space);
+	std::string rest = (first_space == std::string::npos) ? "" : command.substr(first_space);
+
+	// Strip path prefix from executable (everything up to last /)
+	size_t last_slash = executable.rfind('/');
+	if (last_slash != std::string::npos) {
+		executable = executable.substr(last_slash + 1);
+	}
+
+	return executable + rest;
+}
+
 IParser *ParserRegistry::findParserByCommand(const std::string &command) const {
 	// Ensure parsers are initialized
 	InitializeAllParsers();
 
 	ensureSorted();
+
+	// Normalize command by stripping path prefix from executable
+	std::string normalized = normalizeCommand(command);
 
 	IParser *best_match = nullptr;
 	int best_priority = -1;
@@ -197,13 +222,13 @@ IParser *ParserRegistry::findParserByCommand(const std::string &command) const {
 			bool matched = false;
 
 			if (cp.pattern_type == "literal") {
-				matched = (command == cp.pattern);
+				matched = (normalized == cp.pattern);
 			} else if (cp.pattern_type == "like") {
-				matched = matchLikePattern(command, cp.pattern);
+				matched = matchLikePattern(normalized, cp.pattern);
 			} else if (cp.pattern_type == "regexp") {
 				try {
 					std::regex re(cp.pattern, std::regex::icase);
-					matched = std::regex_search(command, re);
+					matched = std::regex_search(normalized, re);
 				} catch (const std::regex_error &) {
 					matched = false;
 				}

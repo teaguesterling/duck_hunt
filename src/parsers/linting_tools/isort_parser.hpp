@@ -31,6 +31,15 @@ public:
 	std::string getCategory() const override {
 		return "linting_tool";
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Literal("isort"),
+		    CommandPattern::Like("isort %"),
+		    CommandPattern::Like("isort --check%"),
+		    CommandPattern::Like("isort --diff%"),
+		    CommandPattern::Like("python -m isort%"),
+		};
+	}
 };
 
 } // namespace duckdb

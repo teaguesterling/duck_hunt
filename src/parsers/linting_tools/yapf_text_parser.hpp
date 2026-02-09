@@ -21,6 +21,14 @@ public:
 	std::string getCategory() const override {
 		return "linting_tools";
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Literal("yapf"),
+		    CommandPattern::Like("yapf %"),
+		    CommandPattern::Like("yapf --diff%"),
+		    CommandPattern::Like("python -m yapf%"),
+		};
+	}
 };
 
 } // namespace duckdb

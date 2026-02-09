@@ -26,11 +26,11 @@ public:
 	}
 	std::vector<CommandPattern> getCommandPatterns() const override {
 		return {
+		    // Only match commands with explicit JSON format flag
 		    CommandPattern::Like("trivy%-f json%"),
 		    CommandPattern::Like("trivy%--format json%"),
-		    CommandPattern::Like("trivy image%"),
-		    CommandPattern::Like("trivy fs%"),
-		    CommandPattern::Regexp("trivy.*(image|fs|config|repo)"),
+		    CommandPattern::Like("trivy%--format=json%"),
+		    CommandPattern::Regexp("trivy.*(-f|--format)[= ]?json"),
 		};
 	}
 

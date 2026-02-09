@@ -12,6 +12,7 @@
 #include "pytest_cov_text_parser.hpp"
 #include "playwright_text_parser.hpp"
 #include "playwright_json_parser.hpp"
+#include "gotest_text_parser.hpp"
 
 namespace duckdb {
 
@@ -108,6 +109,11 @@ void RegisterTestFrameworksParsers(ParserRegistry &registry) {
 	    "playwright_json", "Playwright JSON Parser", ParserCategory::TEST_FRAMEWORK,
 	    "Playwright JSON reporter output", ParserPriority::VERY_HIGH,
 	    std::vector<std::string> {}, std::vector<std::string> {"javascript", "test"}));
+
+	// Go test text parser
+	registry.registerParser(make_uniq<DelegatingParser<GoTestTextParser>>(
+	    "gotest_text", "Go Test Text Parser", ParserCategory::TEST_FRAMEWORK, "Go test text output (default format)",
+	    ParserPriority::HIGH, std::vector<std::string> {"gotest"}, std::vector<std::string> {"go", "test"}));
 
 	// JUnit XML requires special handling (context for XML parsing)
 	registry.registerParser(make_uniq<JUnitXmlParserImpl>());

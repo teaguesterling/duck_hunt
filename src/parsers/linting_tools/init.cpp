@@ -10,6 +10,10 @@
 #include "isort_parser.hpp"
 #include "bandit_text_parser.hpp"
 #include "ruff_parser.hpp"
+#include "eslint_text_parser.hpp"
+#include "rubocop_text_parser.hpp"
+#include "shellcheck_text_parser.hpp"
+#include "hadolint_text_parser.hpp"
 
 namespace duckdb {
 
@@ -61,6 +65,22 @@ void RegisterLintingToolsParsers(ParserRegistry &registry) {
 	registry.registerParser(make_uniq<DelegatingParser<RuffParser>>(
 	    "ruff_text", "Ruff Parser", ParserCategory::LINTING, "Python Ruff linter output",
 	    ParserPriority::VERY_HIGH, std::vector<std::string> {"ruff"}, std::vector<std::string> {"python", "lint"}));
+
+	registry.registerParser(make_uniq<DelegatingParser<EslintTextParser>>(
+	    "eslint_text", "ESLint Text Parser", ParserCategory::LINTING, "ESLint JavaScript/TypeScript linter text output",
+	    ParserPriority::HIGH, std::vector<std::string> {}, std::vector<std::string> {"javascript", "lint"}));
+
+	registry.registerParser(make_uniq<DelegatingParser<RubocopTextParser>>(
+	    "rubocop_text", "RuboCop Text Parser", ParserCategory::LINTING, "RuboCop Ruby linter text output",
+	    ParserPriority::HIGH, std::vector<std::string> {}, std::vector<std::string> {"ruby", "lint"}));
+
+	registry.registerParser(make_uniq<DelegatingParser<ShellcheckTextParser>>(
+	    "shellcheck_text", "ShellCheck Text Parser", ParserCategory::LINTING, "ShellCheck shell script linter text output",
+	    ParserPriority::HIGH, std::vector<std::string> {}, std::vector<std::string> {"shell", "lint"}));
+
+	registry.registerParser(make_uniq<DelegatingParser<HadolintTextParser>>(
+	    "hadolint_text", "Hadolint Text Parser", ParserCategory::LINTING, "Hadolint Dockerfile linter text output",
+	    ParserPriority::HIGH, std::vector<std::string> {}, std::vector<std::string> {"docker", "lint", "infrastructure"}));
 }
 
 // Auto-register this category

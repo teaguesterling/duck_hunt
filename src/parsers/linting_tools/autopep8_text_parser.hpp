@@ -25,6 +25,14 @@ public:
 	std::string getCategory() const override {
 		return "formatter";
 	}
+	std::vector<CommandPattern> getCommandPatterns() const override {
+		return {
+		    CommandPattern::Literal("autopep8"),
+		    CommandPattern::Like("autopep8 %"),
+		    CommandPattern::Like("autopep8 --diff%"),
+		    CommandPattern::Like("python -m autopep8%"),
+		};
+	}
 };
 
 } // namespace duckdb

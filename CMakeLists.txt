@@ -137,6 +137,10 @@ set(EXTENSION_SOURCES
     src/parsers/linting_tools/isort_parser.cpp
     src/parsers/linting_tools/bandit_text_parser.cpp
     src/parsers/linting_tools/ruff_parser.cpp
+    src/parsers/linting_tools/eslint_text_parser.cpp
+    src/parsers/linting_tools/rubocop_text_parser.cpp
+    src/parsers/linting_tools/shellcheck_text_parser.cpp
+    src/parsers/linting_tools/hadolint_text_parser.cpp
     src/parsers/build_systems/docker_build_parser.cpp
 
     # Phase 2 Final: Infrastructure Tools
@@ -223,6 +227,9 @@ set(EXTENSION_SOURCES
     # Playwright test framework parsers
     src/parsers/test_frameworks/playwright_text_parser.cpp
     src/parsers/test_frameworks/playwright_json_parser.cpp
+
+    # Go test text parser
+    src/parsers/test_frameworks/gotest_text_parser.cpp
 
     # Generic error fallback parser
     src/parsers/tool_outputs/generic_error_parser.cpp
