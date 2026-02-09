@@ -37,7 +37,10 @@ public:
 		    CommandPattern::Like("cargo build%"),
 		    CommandPattern::Like("cargo check%"),
 		    CommandPattern::Like("cargo run%"),
-		    CommandPattern::Regexp("cargo\\s+(build|check|run)"),
+		    CommandPattern::Like("cargo test%"),
+		    CommandPattern::Like("cargo clippy%"),
+		    CommandPattern::Like("cargo fmt%"),
+		    CommandPattern::Regexp("cargo\\s+(build|check|run|test|clippy|fmt)"),
 		};
 	}
 };
