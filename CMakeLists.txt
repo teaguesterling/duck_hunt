@@ -18,6 +18,7 @@ set(EXTENSION_SOURCES
     src/core/parser_registry.cpp
     src/core/parse_content.cpp
     src/core/format_utils.cpp
+    src/core/error_patterns.cpp
     src/core/webbed_integration.cpp
     src/core/zipfs_integration.cpp
 
