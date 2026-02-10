@@ -30,3 +30,7 @@ Thumbs.db
 
 # blq database
 .lq/
+
+# External datasets (downloaded separately)
+test/samples/LogChunks/
+test/samples/__MACOSX/
