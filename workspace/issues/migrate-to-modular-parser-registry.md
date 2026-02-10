@@ -36,16 +36,20 @@ This duplication creates maintenance burden and inconsistency. The goal is to fu
 - Added parsers: `github_actions_text`, `gitlab_ci_text`, `jenkins_text`, `docker_build`, `bandit_text`
 - Added `ruff_text` parser (new Python linter format)
 - Improved `pytest_text` parser to extract ref_line from FAILURES section
-- Total: 100 modular parsers (95 log + 5 workflow)
+- Total: 105 modular parsers (100 log + 5 workflow)
 
-### Phase 2: Unify Detection Path 🔄 IN PROGRESS
-- [ ] Modify `format="auto"` to use `ParserRegistry::detectParser()` **before** `DetectTestResultFormat()`
+### Phase 2: Unify Detection Path ✅ COMPLETE
+- [x] Modify `format="auto"` to use `ParserRegistry::detectParser()` **before** `DetectTestResultFormat()`
 - [x] Keep legacy enum for explicit format specification (e.g., `format="pytest_json"`)
 - [x] Add fallback to `GenericErrorParser` when no parser matches
-- [ ] Ensure parser priority ordering matches expected behavior
-- [ ] Address conflict where flake8 matches before ruff (need registry-first detection)
+- [x] Ensure parser priority ordering matches expected behavior
+- [x] Address conflict where flake8 matches before ruff (registry-first detection resolves this)
 
-**Current issue:** `duck_hunt_detect_format()` tries legacy detection FIRST, then falls back to modular registry. This causes newer modular parsers (like ruff) to be masked by legacy parsers (flake8).
+**Completed work:**
+- Swapped detection order in `duck_hunt_detect_format()`, `read_duck_hunt_log()`, `parse_duck_hunt_log()`, and `ProcessMultipleFiles()`
+- Registry detection is now primary, legacy detection is fallback
+- Fixed shellcheck_json false positive on hadolint output using negative testing (reject DL codes)
+- All 39 tests pass with registry-first detection
 
 ### Phase 3: Clean Up Legacy Code
 - [ ] Remove `DetectTestResultFormat()` function
