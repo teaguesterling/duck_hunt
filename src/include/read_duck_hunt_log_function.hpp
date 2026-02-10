@@ -154,8 +154,7 @@ struct ReadDuckHuntLogLocalState : public LocalTableFunctionState {
 	}
 };
 
-// Format detection
-TestResultFormat DetectTestResultFormat(const std::string &content);
+// Format conversion utilities
 std::string TestResultFormatToString(TestResultFormat format);
 TestResultFormat StringToTestResultFormat(const std::string &str);
 
