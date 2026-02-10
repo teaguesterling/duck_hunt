@@ -1489,23 +1489,9 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &co
 			parsed = TryNewParserRegistry(context, format, content, global_state->events);
 		}
 
-		if (!parsed) {
-			// Legacy fallback for special cases not in modular registry
-			switch (format) {
-			case TestResultFormat::DUCKDB_TEST:
-				duckdb::DuckDBTestParser::ParseDuckDBTestOutput(content, global_state->events);
-				break;
-			case TestResultFormat::GENERIC_LINT:
-				duckdb::GenericLintParser::ParseGenericLint(content, global_state->events);
-				break;
-			case TestResultFormat::REGEXP:
-				// Dynamic regexp parser - uses user-provided pattern
-				duckdb::RegexpParser::ParseWithRegexp(content, bind_data.regexp_pattern, global_state->events);
-				break;
-			default:
-				// All formats now handled by modular registry above
-				break;
-			}
+		if (!parsed && format == TestResultFormat::REGEXP) {
+			// REGEXP is special - requires user-provided pattern, can't be in registry
+			duckdb::RegexpParser::ParseWithRegexp(content, bind_data.regexp_pattern, global_state->events);
 		}
 
 		// Set log_file on each event to track source file (single file mode)
@@ -1983,23 +1969,9 @@ unique_ptr<GlobalTableFunctionState> ParseDuckHuntLogInitGlobal(ClientContext &c
 		parsed = TryNewParserRegistry(context, format, content, global_state->events);
 	}
 
-	if (!parsed) {
-		// Legacy fallback for special cases not in modular registry
-		switch (format) {
-		case TestResultFormat::DUCKDB_TEST:
-			duckdb::DuckDBTestParser::ParseDuckDBTestOutput(content, global_state->events);
-			break;
-		case TestResultFormat::GENERIC_LINT:
-			duckdb::GenericLintParser::ParseGenericLint(content, global_state->events);
-			break;
-		case TestResultFormat::REGEXP:
-			// Dynamic regexp parser - uses user-provided pattern
-			duckdb::RegexpParser::ParseWithRegexp(content, bind_data.regexp_pattern, global_state->events);
-			break;
-		default:
-			// All formats now handled by modular registry above
-			break;
-		}
+	if (!parsed && format == TestResultFormat::REGEXP) {
+		// REGEXP is special - requires user-provided pattern, can't be in registry
+		duckdb::RegexpParser::ParseWithRegexp(content, bind_data.regexp_pattern, global_state->events);
 	}
 
 	// Phase 3B: Process error patterns for intelligent categorization
