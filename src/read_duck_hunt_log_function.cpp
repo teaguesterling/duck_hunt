@@ -1466,16 +1466,13 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &co
 		TestResultFormat format = bind_data.format;
 		std::string format_name = bind_data.format_name;
 		if (format == TestResultFormat::AUTO) {
-			// Step 1: Try modular parser registry auto-detection (priority-ordered)
+			// Use modular parser registry for auto-detection (priority-ordered)
 			auto *detected_parser = TryAutoDetectNewRegistry(content);
 			if (detected_parser) {
 				format_name = detected_parser->getFormatName();
 				format = TestResultFormat::UNKNOWN; // Use UNKNOWN so we use registry-based parsing below
-			} else {
-				// Step 2: Fallback to legacy format detection
-				format = DetectTestResultFormat(content);
-				format_name = TestResultFormatToString(format);
 			}
+			// If no parser found, format stays AUTO and nothing will be parsed
 		}
 
 		// Try new modular parser registry first
@@ -1946,16 +1943,13 @@ unique_ptr<GlobalTableFunctionState> ParseDuckHuntLogInitGlobal(ClientContext &c
 	TestResultFormat format = bind_data.format;
 	std::string format_name = bind_data.format_name;
 	if (format == TestResultFormat::AUTO) {
-		// Step 1: Try modular parser registry auto-detection (priority-ordered)
+		// Use modular parser registry for auto-detection (priority-ordered)
 		auto *detected_parser = TryAutoDetectNewRegistry(content);
 		if (detected_parser) {
 			format_name = detected_parser->getFormatName();
 			format = TestResultFormat::UNKNOWN; // Use UNKNOWN so we use registry-based parsing below
-		} else {
-			// Step 2: Fallback to legacy format detection
-			format = DetectTestResultFormat(content);
-			format_name = TestResultFormatToString(format);
 		}
+		// If no parser found, format stays AUTO and nothing will be parsed
 	}
 
 	// Try new modular parser registry first
@@ -2167,15 +2161,12 @@ void ProcessMultipleFiles(ClientContext &context, const std::vector<std::string>
 			TestResultFormat detected_format = format;
 			std::string detected_format_name;
 			if (format == TestResultFormat::AUTO) {
-				// Step 1: Try modular parser registry auto-detection (priority-ordered)
+				// Use modular parser registry for auto-detection (priority-ordered)
 				auto *detected_parser = TryAutoDetectNewRegistry(content);
 				if (detected_parser) {
 					detected_format_name = detected_parser->getFormatName();
-					// Keep detected_format as AUTO/UNKNOWN, we'll use by-name lookup
-				} else {
-					// Step 2: Fallback to legacy format detection
-					detected_format = DetectTestResultFormat(content);
 				}
+				// If no parser found, detected_format stays AUTO and file will be skipped
 			}
 
 			// Parse content using modular parser registry

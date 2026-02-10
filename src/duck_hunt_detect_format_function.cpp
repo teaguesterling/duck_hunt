@@ -25,20 +25,12 @@ static void DuckHuntDetectFormatFunction(DataChunk &args, ExpressionState &state
 			return StringVector::AddString(result, "unknown");
 		}
 
-		// Step 1: Try modular parser registry auto-detection (priority-ordered)
+		// Use modular parser registry for auto-detection (priority-ordered)
 		auto &registry = ParserRegistry::getInstance();
 		IParser *parser = registry.findParser(content);
 
 		if (parser) {
 			return StringVector::AddString(result, parser->getFormatName());
-		}
-
-		// Step 2: Fallback to legacy format detection for any formats not yet in registry
-		TestResultFormat format = DetectTestResultFormat(content);
-
-		if (format != TestResultFormat::UNKNOWN && format != TestResultFormat::AUTO) {
-			std::string format_name = TestResultFormatToString(format);
-			return StringVector::AddString(result, format_name);
 		}
 
 		// No format detected
