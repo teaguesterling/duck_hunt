@@ -1,0 +1,226 @@
+#include "../include/read_duck_hunt_log_function.hpp"
+#include "parse_content.hpp"
+#include "duckdb/common/file_system.hpp"
+#include "duckdb/common/string_util.hpp"
+#include "duckdb/common/enums/file_glob_options.hpp"
+#include "duckdb/common/enums/file_compression_type.hpp"
+#include <regex>
+
+namespace duckdb {
+
+std::string ReadContentFromSource(ClientContext &context, const std::string &source) {
+	// Use DuckDB's FileSystem to properly handle file paths including UNITTEST_ROOT_DIRECTORY
+	auto &fs = FileSystem::GetFileSystem(context);
+
+	// Open the file with automatic compression detection based on file extension
+	// This handles .gz, .zst, etc. transparently
+	auto flags = FileFlags::FILE_FLAGS_READ | FileCompressionType::AUTO_DETECT;
+	auto file_handle = fs.OpenFile(source, flags);
+
+	// Check compression type - for compressed files we can't seek or get size upfront
+	auto compression = file_handle->GetFileCompressionType();
+	bool can_get_size = (compression == FileCompressionType::UNCOMPRESSED) && file_handle->CanSeek();
+
+	if (can_get_size) {
+		// Uncompressed file - read using known size for efficiency
+		auto file_size = file_handle->GetFileSize();
+		if (file_size > 0) {
+			std::string content;
+			content.resize(static_cast<size_t>(file_size));
+			file_handle->Read((void *)content.data(), file_size);
+			return content;
+		}
+	}
+
+	// Compressed files, pipes, or empty files - read in chunks until EOF
+	std::string content;
+	constexpr size_t chunk_size = 8192;
+	char buffer[chunk_size];
+
+	while (true) {
+		auto bytes_read = file_handle->Read(buffer, chunk_size);
+		if (bytes_read == 0) {
+			break; // EOF
+		}
+		content.append(buffer, static_cast<size_t>(bytes_read));
+	}
+
+	return content;
+}
+
+bool IsValidJSON(const std::string &content) {
+	// Simple heuristic - starts with { or [
+	std::string trimmed = content;
+	StringUtil::Trim(trimmed);
+	return !trimmed.empty() && (trimmed[0] == '{' || trimmed[0] == '[');
+}
+
+std::vector<std::string> GetGlobFiles(ClientContext &context, const std::string &pattern) {
+	auto &fs = FileSystem::GetFileSystem(context);
+	std::vector<std::string> result;
+
+	// Don't bother if we can't identify a glob pattern
+	try {
+		bool has_glob = fs.HasGlob(pattern);
+		if (!has_glob) {
+			// For remote URLs, still try GlobFiles as it has better support
+			if (pattern.find("://") == std::string::npos || pattern.find("file://") == 0) {
+				return result;
+			}
+		}
+	} catch (const NotImplementedException &) {
+		// If HasGlob is not implemented, still try GlobFiles for remote URLs
+		if (pattern.find("://") == std::string::npos || pattern.find("file://") == 0) {
+			return result;
+		}
+	}
+
+	// Use GlobFiles which handles extension auto-loading and directory filtering
+	try {
+		auto glob_files = fs.GlobFiles(pattern, context, FileGlobOptions::ALLOW_EMPTY);
+		for (auto &file : glob_files) {
+			result.push_back(file.path);
+		}
+	} catch (const NotImplementedException &) {
+		// No glob support available
+		return result;
+	} catch (const IOException &) {
+		// Glob failed, return empty result
+		return result;
+	}
+
+	return result;
+}
+
+std::vector<std::string> GetFilesFromPattern(ClientContext &context, const std::string &pattern) {
+	auto &fs = FileSystem::GetFileSystem(context);
+	std::vector<std::string> result;
+
+	// Helper lambda to handle individual file paths (adapted from duckdb_yaml)
+	auto processPath = [&](const std::string &file_path) {
+		// First: check if we're dealing with just a single file that exists
+		if (fs.FileExists(file_path)) {
+			result.push_back(file_path);
+			return;
+		}
+
+		// Second: attempt to use the path as a glob
+		auto glob_files = GetGlobFiles(context, file_path);
+		if (glob_files.size() > 0) {
+			result.insert(result.end(), glob_files.begin(), glob_files.end());
+			return;
+		}
+
+		// Third: if it looks like a directory, try to glob common test result files
+		if (StringUtil::EndsWith(file_path, "/")) {
+			// Common test result file patterns
+			std::vector<std::string> patterns = {"*.xml", "*.json", "*.txt", "*.log", "*.out"};
+			for (const auto &ext_pattern : patterns) {
+				auto files = GetGlobFiles(context, fs.JoinPath(file_path, ext_pattern));
+				result.insert(result.end(), files.begin(), files.end());
+			}
+			return;
+		}
+
+		// If file doesn't exist and isn't a valid glob, throw error
+		throw IOException("File or directory does not exist: " + file_path);
+	};
+
+	processPath(pattern);
+	return result;
+}
+
+void ProcessMultipleFiles(ClientContext &context, const std::vector<std::string> &files, TestResultFormat format,
+                          const std::string &format_name, std::vector<ValidationEvent> &events, bool ignore_errors) {
+	for (size_t file_idx = 0; file_idx < files.size(); file_idx++) {
+		const auto &file_path = files[file_idx];
+
+		try {
+			// Read file content
+			std::string content = ReadContentFromSource(context, file_path);
+
+			// Detect format if AUTO, otherwise use provided format_name
+			std::string effective_format_name = format_name;
+			if (format == TestResultFormat::AUTO) {
+				effective_format_name = DetectFormat(content);
+				if (effective_format_name.empty()) {
+					continue; // No parser found, skip file
+				}
+			}
+
+			// Skip REGEXP format in multi-file mode (requires pattern)
+			if (format == TestResultFormat::REGEXP) {
+				continue;
+			}
+
+			// Parse content using core API
+			auto file_events = ParseContent(context, content, effective_format_name);
+			if (file_events.empty()) {
+				continue; // No events parsed, skip file
+			}
+
+			// Set log_file on each event to track source file
+			for (auto &event : file_events) {
+				event.log_file = file_path;
+			}
+
+			// Add events to main collection
+			events.insert(events.end(), file_events.begin(), file_events.end());
+
+		} catch (const IOException &e) {
+			// IOException (file not found, can't read, etc.) - always skip and continue
+			continue;
+		} catch (const std::exception &e) {
+			// Parsing errors - skip if ignore_errors, otherwise rethrow
+			if (ignore_errors) {
+				continue;
+			}
+			throw;
+		}
+	}
+}
+
+std::string ExtractBuildIdFromPath(const std::string &file_path) {
+	// Extract build ID from common patterns like:
+	// - /builds/build-123/results.xml -> "build-123"
+	// - /ci-logs/pipeline-456/test.log -> "pipeline-456"
+	// - /artifacts/20231201-142323/output.txt -> "20231201-142323"
+
+	std::regex build_patterns[] = {
+	    std::regex(R"(/(?:build|pipeline|run|job)-([^/\s]+)/)"), // build-123, pipeline-456
+	    std::regex(R"(/(\d{8}-\d{6})/)"),                        // 20231201-142323
+	    std::regex(R"(/(?:builds?|ci|artifacts)/([^/\s]+)/)"),   // builds/abc123, ci/def456
+	    std::regex(R"([_-](\w+\d+)[_-])"),                       // any_build123_ pattern
+	};
+
+	for (const auto &pattern : build_patterns) {
+		std::smatch match;
+		if (std::regex_search(file_path, match, pattern)) {
+			return match[1].str();
+		}
+	}
+
+	return ""; // No build ID found
+}
+
+std::string ExtractEnvironmentFromPath(const std::string &file_path) {
+	// Extract environment from common patterns like:
+	// - /environments/dev/results.xml -> "dev"
+	// - /staging/ci-logs/test.log -> "staging"
+	// - /prod/artifacts/output.txt -> "prod"
+
+	std::vector<std::string> environments = {"dev",  "development", "staging", "stage",
+	                                         "prod", "production",  "test",    "testing"};
+
+	for (const auto &env : environments) {
+		if (file_path.find("/" + env + "/") != std::string::npos ||
+		    file_path.find("-" + env + "-") != std::string::npos ||
+		    file_path.find("_" + env + "_") != std::string::npos) {
+			return env;
+		}
+	}
+
+	return ""; // No environment found
+}
+
+} // namespace duckdb
