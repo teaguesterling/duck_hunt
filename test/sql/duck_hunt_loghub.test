@@ -86,12 +86,16 @@ SELECT count(*) FROM read_duck_hunt_log('test/samples/loghub/HPC/HPC_2k.log');
 ----
 0
 
-# Apache - Apache httpd error logs (not access logs)
-# Format: [date] [level] message
-query I
-SELECT count(*) FROM read_duck_hunt_log('test/samples/loghub/Apache/Apache_2k.log');
+# Apache - Apache httpd error logs
+# Format: [Day Mon DD HH:MM:SS YYYY] [level] message
+query III
+SELECT tool_name, severity, count(*) as cnt
+FROM read_duck_hunt_log('test/samples/loghub/Apache/Apache_2k.log')
+GROUP BY tool_name, severity
+ORDER BY cnt DESC;
 ----
-0
+apache_error	info	1405
+apache_error	error	595
 
 # HealthApp - Custom Android health app logs (pipe-delimited)
 query I

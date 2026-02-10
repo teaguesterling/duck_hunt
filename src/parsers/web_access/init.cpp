@@ -2,6 +2,7 @@
 #include "parsers/base/base_parser.hpp"
 #include "syslog_parser.hpp"
 #include "apache_access_parser.hpp"
+#include "apache_error_parser.hpp"
 #include "nginx_access_parser.hpp"
 
 namespace duckdb {
@@ -23,6 +24,10 @@ void RegisterWebAccessParsers(ParserRegistry &registry) {
 	registry.registerParser(make_uniq<P<ApacheAccessParser>>(
 	    "apache_access", "Apache Access Parser", ParserCategory::WEB_ACCESS, "Apache HTTP Server access log",
 	    ParserPriority::HIGH, std::vector<std::string> {"apache"}, std::vector<std::string> {"web"}));
+
+	registry.registerParser(make_uniq<P<ApacheErrorParser>>(
+	    "apache_error", "Apache Error Parser", ParserCategory::WEB_ACCESS, "Apache HTTP Server error log",
+	    ParserPriority::HIGH, std::vector<std::string> {"apache_err"}, std::vector<std::string> {"web"}));
 
 	registry.registerParser(make_uniq<P<NginxAccessParser>>(
 	    "nginx_access", "Nginx Access Parser", ParserCategory::WEB_ACCESS, "Nginx HTTP Server access log",
