@@ -261,31 +261,60 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &co
 		// Use the matched file path if available, otherwise use the source directly
 		std::string source_path = files.size() == 1 ? files[0] : bind_data.source;
 		std::string content;
-		try {
-			content = ReadContentFromSource(context, source_path);
-		} catch (const IOException &) {
-			// If file reading fails, treat source as direct content
-			content = bind_data.source;
-		}
+		bool is_file = false;
+		bool format_detected = true;
 
-		// Auto-detect format if needed
+		// Auto-detect format if needed - use peek for format detection (CSV sniffer pattern)
 		TestResultFormat format = bind_data.format;
 		std::string format_name = bind_data.format_name;
+
 		if (format == TestResultFormat::AUTO) {
-			format_name = DetectFormat(content);
-			if (!format_name.empty()) {
-				format = TestResultFormat::UNKNOWN; // Use UNKNOWN so we use registry-based parsing below
+			// First try to peek the file for format detection
+			try {
+				std::string peek_content = PeekContentFromSource(context, source_path, SNIFF_BUFFER_SIZE);
+				is_file = true;
+				format_name = DetectFormat(peek_content);
+				if (format_name.empty()) {
+					// No format detected - don't read full file, skip to return empty result
+					format_detected = false;
+				} else {
+					format = TestResultFormat::UNKNOWN; // Use UNKNOWN so we use registry-based parsing below
+				}
+			} catch (const IOException &) {
+				// Not a file - treat source as direct content
+				format_name = DetectFormat(bind_data.source);
+				if (!format_name.empty()) {
+					format = TestResultFormat::UNKNOWN;
+				} else {
+					format_detected = false;
+				}
 			}
 		}
 
-		// Parse content using core API
-		if (format == TestResultFormat::REGEXP) {
-			// REGEXP is special - requires user-provided pattern
-			auto events = ParseContentRegexp(content, bind_data.regexp_pattern);
-			global_state->events.insert(global_state->events.end(), events.begin(), events.end());
-		} else if (!format_name.empty() && format_name != "unknown" && format_name != "auto") {
-			auto events = ParseContent(context, content, format_name);
-			global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+		// Only read full content if format was detected or explicitly specified
+		if (format_detected) {
+			if (is_file) {
+				try {
+					content = ReadContentFromSource(context, source_path);
+				} catch (const IOException &) {
+					// If file reading fails, treat source as direct content
+					content = bind_data.source;
+				}
+			} else {
+				content = bind_data.source;
+			}
+		}
+
+		// Parse content using core API (only if format was detected)
+		if (format_detected) {
+			if (format == TestResultFormat::REGEXP) {
+				// REGEXP is special - requires user-provided pattern
+				auto events = ParseContentRegexp(content, bind_data.regexp_pattern);
+				global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+			} else if (!format_name.empty() && format_name != "unknown" && format_name != "auto") {
+				auto events = ParseContent(context, content, format_name);
+				global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+			}
 		}
 
 		// Set log_file on each event to track source file (single file mode)
