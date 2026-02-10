@@ -1,6 +1,7 @@
 #include "include/read_duck_hunt_log_function.hpp"
 #include "include/validation_event_types.hpp"
-#include "core/parser_registry.hpp" // Modular parser registry
+#include "core/parser_registry.hpp"
+#include "core/parse_content.hpp"
 #include "parsers/test_frameworks/duckdb_test_parser.hpp"
 #include "parsers/test_frameworks/pytest_cov_text_parser.hpp"
 #include "parsers/tool_outputs/generic_lint_parser.hpp"
@@ -42,9 +43,6 @@
 namespace duckdb {
 
 using namespace duckdb_yyjson;
-
-// Forward declaration for auto-detection fallback
-IParser *TryAutoDetectNewRegistry(const std::string &content);
 
 // Phase 3B: Error Pattern Analysis Functions
 
@@ -564,84 +562,6 @@ std::string GetCanonicalFormatName(TestResultFormat format) {
 	return it != canonical_names.end() ? it->second : "";
 }
 
-/**
- * Try to parse content using the new modular parser registry.
- * Returns true if a parser was found and content was parsed.
- * Returns false if no parser found (caller should fall back to legacy switch).
- *
- * This dispatch function allows gradual migration: as parsers are added to
- * ParserRegistry, they will be used automatically without
- * needing to update the legacy switch statement.
- */
-/**
- * Try parsing with the new modular parser registry using a format name string.
- * This overload allows direct lookup for registry-only formats.
- * Also supports format groups (e.g., "python", "rust") which try all parsers in the group.
- */
-bool TryNewParserRegistryByName(ClientContext &context, const std::string &format_name, const std::string &content,
-                                std::vector<ValidationEvent> &events) {
-	if (format_name.empty() || format_name == "unknown" || format_name == "auto") {
-		return false; // Let legacy code handle these
-	}
-
-	// Check new parser registry
-	auto &registry = ParserRegistry::getInstance();
-
-	// First check if this is a format group (e.g., "python", "rust", "ci")
-	if (registry.isGroup(format_name)) {
-		// Get all parsers in this group, sorted by priority
-		auto group_parsers = registry.getParsersByGroup(format_name);
-
-		// Try each parser in priority order until one produces events
-		for (auto *parser : group_parsers) {
-			if (parser->canParse(content)) {
-				size_t events_before = events.size();
-				if (parser->requiresContext()) {
-					auto parsed_events = parser->parseWithContext(context, content);
-					events.insert(events.end(), parsed_events.begin(), parsed_events.end());
-				} else {
-					auto parsed_events = parser->parse(content);
-					events.insert(events.end(), parsed_events.begin(), parsed_events.end());
-				}
-				if (events.size() > events_before) {
-					return true; // Found a parser that produced events
-				}
-			}
-		}
-		return false; // No parser in group could parse this content
-	}
-
-	// Not a group - try direct format lookup
-	auto *parser = registry.getParser(format_name);
-
-	if (!parser) {
-		return false; // No parser in new registry, use legacy
-	}
-
-	// Parser found - use it
-	size_t events_before = events.size();
-	if (parser->requiresContext()) {
-		auto parsed_events = parser->parseWithContext(context, content);
-		events.insert(events.end(), parsed_events.begin(), parsed_events.end());
-	} else {
-		auto parsed_events = parser->parse(content);
-		events.insert(events.end(), parsed_events.begin(), parsed_events.end());
-	}
-
-	// Only return true if we actually parsed something
-	// This allows fallback to old registry if new parser produces no results
-	return events.size() > events_before;
-}
-
-/**
- * Try to auto-detect content format using the new modular parser registry.
- * Returns the parser if found, nullptr otherwise.
- */
-IParser *TryAutoDetectNewRegistry(const std::string &content) {
-	auto &registry = ParserRegistry::getInstance();
-	return registry.findParser(content);
-}
-
 std::string ReadContentFromSource(ClientContext &context, const std::string &source) {
 	// Use DuckDB's FileSystem to properly handle file paths including UNITTEST_ROOT_DIRECTORY
 	auto &fs = FileSystem::GetFileSystem(context);
@@ -911,24 +831,20 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &co
 		TestResultFormat format = bind_data.format;
 		std::string format_name = bind_data.format_name;
 		if (format == TestResultFormat::AUTO) {
-			// Use modular parser registry for auto-detection (priority-ordered)
-			auto *detected_parser = TryAutoDetectNewRegistry(content);
-			if (detected_parser) {
-				format_name = detected_parser->getFormatName();
+			format_name = DetectFormat(content);
+			if (!format_name.empty()) {
 				format = TestResultFormat::UNKNOWN; // Use UNKNOWN so we use registry-based parsing below
 			}
-			// If no parser found, format stays AUTO and nothing will be parsed
 		}
 
-		// Try modular parser registry using format_name directly
-		bool parsed = false;
-		if (!format_name.empty() && format_name != "unknown" && format_name != "auto") {
-			parsed = TryNewParserRegistryByName(context, format_name, content, global_state->events);
-		}
-
-		if (!parsed && format == TestResultFormat::REGEXP) {
-			// REGEXP is special - requires user-provided pattern, can't be in registry
-			duckdb::RegexpParser::ParseWithRegexp(content, bind_data.regexp_pattern, global_state->events);
+		// Parse content using core API
+		if (format == TestResultFormat::REGEXP) {
+			// REGEXP is special - requires user-provided pattern
+			auto events = ParseContentRegexp(content, bind_data.regexp_pattern);
+			global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+		} else if (!format_name.empty() && format_name != "unknown" && format_name != "auto") {
+			auto events = ParseContent(context, content, format_name);
+			global_state->events.insert(global_state->events.end(), events.begin(), events.end());
 		}
 
 		// Set log_file on each event to track source file (single file mode)
@@ -1391,24 +1307,20 @@ unique_ptr<GlobalTableFunctionState> ParseDuckHuntLogInitGlobal(ClientContext &c
 	TestResultFormat format = bind_data.format;
 	std::string format_name = bind_data.format_name;
 	if (format == TestResultFormat::AUTO) {
-		// Use modular parser registry for auto-detection (priority-ordered)
-		auto *detected_parser = TryAutoDetectNewRegistry(content);
-		if (detected_parser) {
-			format_name = detected_parser->getFormatName();
-			format = TestResultFormat::UNKNOWN; // Use UNKNOWN so we use registry-based parsing below
+		format_name = DetectFormat(content);
+		if (!format_name.empty()) {
+			format = TestResultFormat::UNKNOWN;
 		}
-		// If no parser found, format stays AUTO and nothing will be parsed
 	}
 
-	// Try modular parser registry using format_name directly
-	bool parsed = false;
-	if (!format_name.empty() && format_name != "unknown" && format_name != "auto") {
-		parsed = TryNewParserRegistryByName(context, format_name, content, global_state->events);
-	}
-
-	if (!parsed && format == TestResultFormat::REGEXP) {
-		// REGEXP is special - requires user-provided pattern, can't be in registry
-		duckdb::RegexpParser::ParseWithRegexp(content, bind_data.regexp_pattern, global_state->events);
+	// Parse content using core API
+	if (format == TestResultFormat::REGEXP) {
+		// REGEXP is special - requires user-provided pattern
+		auto events = ParseContentRegexp(content, bind_data.regexp_pattern);
+		global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+	} else if (!format_name.empty() && format_name != "unknown" && format_name != "auto") {
+		auto events = ParseContent(context, content, format_name);
+		global_state->events.insert(global_state->events.end(), events.begin(), events.end());
 	}
 
 	// Phase 3B: Process error patterns for intelligent categorization
@@ -1603,32 +1515,21 @@ void ProcessMultipleFiles(ClientContext &context, const std::vector<std::string>
 			// Detect format if AUTO, otherwise use provided format_name
 			std::string effective_format_name = format_name;
 			if (format == TestResultFormat::AUTO) {
-				// Use modular parser registry for auto-detection (priority-ordered)
-				auto *detected_parser = TryAutoDetectNewRegistry(content);
-				if (detected_parser) {
-					effective_format_name = detected_parser->getFormatName();
-				} else {
-					// No parser found, skip file
-					continue;
+				effective_format_name = DetectFormat(content);
+				if (effective_format_name.empty()) {
+					continue; // No parser found, skip file
 				}
 			}
-
-			// Parse content using modular parser registry
-			std::vector<ValidationEvent> file_events;
 
 			// Skip REGEXP format in multi-file mode (requires pattern)
 			if (format == TestResultFormat::REGEXP) {
 				continue;
 			}
 
-			// Use modular parser registry with format_name directly
-			bool parsed = false;
-			if (!effective_format_name.empty() && effective_format_name != "unknown" && effective_format_name != "auto") {
-				parsed = TryNewParserRegistryByName(context, effective_format_name, content, file_events);
-			}
-			if (!parsed) {
-				// No parser found for this format, skip file
-				continue;
+			// Parse content using core API
+			auto file_events = ParseContent(context, content, effective_format_name);
+			if (file_events.empty()) {
+				continue; // No events parsed, skip file
 			}
 
 			// Set log_file on each event to track source file

@@ -16,6 +16,7 @@ set(EXTENSION_SOURCES
     
     # Core modular architecture
     src/core/parser_registry.cpp
+    src/core/parse_content.cpp
     src/core/webbed_integration.cpp
     src/core/zipfs_integration.cpp
 
