@@ -9,6 +9,11 @@ bool ShellCheckJSONParser::canParse(const std::string &content) const {
 	// Quick checks for ShellCheck JSON patterns
 	if (content.find("\"file\"") != std::string::npos && content.find("\"level\"") != std::string::npos &&
 	    content.find("\"code\"") != std::string::npos && content.find("\"message\"") != std::string::npos) {
+		// Negative test: Reject if content has DL codes (Hadolint) or Dockerfile references
+		// ShellCheck only produces SC codes for shell scripts, not Dockerfiles
+		if (content.find("\"DL") != std::string::npos || content.find("Dockerfile") != std::string::npos) {
+			return false;
+		}
 		return isValidShellCheckJSON(content);
 	}
 	return false;

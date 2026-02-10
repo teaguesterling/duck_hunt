@@ -1466,15 +1466,15 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &co
 		TestResultFormat format = bind_data.format;
 		std::string format_name = bind_data.format_name;
 		if (format == TestResultFormat::AUTO) {
-			format = DetectTestResultFormat(content);
-			format_name = TestResultFormatToString(format);
-
-			// If legacy detection returned UNKNOWN, try new registry auto-detection
-			if (format == TestResultFormat::UNKNOWN) {
-				auto *detected_parser = TryAutoDetectNewRegistry(content);
-				if (detected_parser) {
-					format_name = detected_parser->getFormatName();
-				}
+			// Step 1: Try modular parser registry auto-detection (priority-ordered)
+			auto *detected_parser = TryAutoDetectNewRegistry(content);
+			if (detected_parser) {
+				format_name = detected_parser->getFormatName();
+				format = TestResultFormat::UNKNOWN; // Use UNKNOWN so we use registry-based parsing below
+			} else {
+				// Step 2: Fallback to legacy format detection
+				format = DetectTestResultFormat(content);
+				format_name = TestResultFormatToString(format);
 			}
 		}
 
@@ -1960,15 +1960,15 @@ unique_ptr<GlobalTableFunctionState> ParseDuckHuntLogInitGlobal(ClientContext &c
 	TestResultFormat format = bind_data.format;
 	std::string format_name = bind_data.format_name;
 	if (format == TestResultFormat::AUTO) {
-		format = DetectTestResultFormat(content);
-		format_name = TestResultFormatToString(format);
-
-		// If legacy detection returned UNKNOWN, try new registry auto-detection
-		if (format == TestResultFormat::UNKNOWN) {
-			auto *detected_parser = TryAutoDetectNewRegistry(content);
-			if (detected_parser) {
-				format_name = detected_parser->getFormatName();
-			}
+		// Step 1: Try modular parser registry auto-detection (priority-ordered)
+		auto *detected_parser = TryAutoDetectNewRegistry(content);
+		if (detected_parser) {
+			format_name = detected_parser->getFormatName();
+			format = TestResultFormat::UNKNOWN; // Use UNKNOWN so we use registry-based parsing below
+		} else {
+			// Step 2: Fallback to legacy format detection
+			format = DetectTestResultFormat(content);
+			format_name = TestResultFormatToString(format);
 		}
 	}
 
@@ -2193,8 +2193,17 @@ void ProcessMultipleFiles(ClientContext &context, const std::vector<std::string>
 
 			// Detect format if AUTO
 			TestResultFormat detected_format = format;
+			std::string detected_format_name;
 			if (format == TestResultFormat::AUTO) {
-				detected_format = DetectTestResultFormat(content);
+				// Step 1: Try modular parser registry auto-detection (priority-ordered)
+				auto *detected_parser = TryAutoDetectNewRegistry(content);
+				if (detected_parser) {
+					detected_format_name = detected_parser->getFormatName();
+					// Keep detected_format as AUTO/UNKNOWN, we'll use by-name lookup
+				} else {
+					// Step 2: Fallback to legacy format detection
+					detected_format = DetectTestResultFormat(content);
+				}
 			}
 
 			// Parse content using modular parser registry
@@ -2206,7 +2215,15 @@ void ProcessMultipleFiles(ClientContext &context, const std::vector<std::string>
 			}
 
 			// Use modular parser registry for all formats
-			if (!TryNewParserRegistry(context, detected_format, content, file_events)) {
+			bool parsed = false;
+			if (!detected_format_name.empty()) {
+				// Registry detected a format - use by-name lookup
+				parsed = TryNewParserRegistryByName(context, detected_format_name, content, file_events);
+			} else {
+				// Legacy detection or explicit format - use enum lookup
+				parsed = TryNewParserRegistry(context, detected_format, content, file_events);
+			}
+			if (!parsed) {
 				// No parser found for this format, skip file
 				continue;
 			}
