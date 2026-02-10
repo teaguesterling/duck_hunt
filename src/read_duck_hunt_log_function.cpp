@@ -281,114 +281,10 @@ void ProcessErrorPatterns(std::vector<ValidationEvent> &events) {
 	}
 }
 
-
-// Static array for enum-to-string conversion (indexed by enum value)
-static const char *const FORMAT_NAMES[] = {
-    "unknown",             // 0: UNKNOWN
-    "auto",                // 1: AUTO
-    "pytest_json",         // 2: PYTEST_JSON
-    "gotest_json",         // 3: GOTEST_JSON
-    "eslint_json",         // 4: ESLINT_JSON
-    "pytest_text",         // 5: PYTEST_TEXT
-    "make_error",          // 6: MAKE_ERROR
-    "generic_lint",        // 7: GENERIC_LINT
-    "duckdb_test",         // 8: DUCKDB_TEST
-    "rubocop_json",        // 9: RUBOCOP_JSON
-    "cargo_test_json",     // 10: CARGO_TEST_JSON
-    "swiftlint_json",      // 11: SWIFTLINT_JSON
-    "phpstan_json",        // 12: PHPSTAN_JSON
-    "shellcheck_json",     // 13: SHELLCHECK_JSON
-    "stylelint_json",      // 14: STYLELINT_JSON
-    "clippy_json",         // 15: CLIPPY_JSON
-    "markdownlint_json",   // 16: MARKDOWNLINT_JSON
-    "yamllint_json",       // 17: YAMLLINT_JSON
-    "bandit_json",         // 18: BANDIT_JSON
-    "spotbugs_json",       // 19: SPOTBUGS_JSON
-    "ktlint_json",         // 20: KTLINT_JSON
-    "hadolint_json",       // 21: HADOLINT_JSON
-    "lintr_json",          // 22: LINTR_JSON
-    "sqlfluff_json",       // 23: SQLFLUFF_JSON
-    "tflint_json",         // 24: TFLINT_JSON
-    "kube_score_json",     // 25: KUBE_SCORE_JSON
-    "cmake_build",         // 26: CMAKE_BUILD
-    "python_build",        // 27: PYTHON_BUILD
-    "node_build",          // 28: NODE_BUILD
-    "cargo_build",         // 29: CARGO_BUILD
-    "maven_build",         // 30: MAVEN_BUILD
-    "gradle_build",        // 31: GRADLE_BUILD
-    "msbuild",             // 32: MSBUILD
-    "junit_text",          // 33: JUNIT_TEXT
-    "valgrind",            // 34: VALGRIND
-    "gdb_lldb",            // 35: GDB_LLDB
-    "rspec_text",          // 36: RSPEC_TEXT
-    "mocha_chai_text",     // 37: MOCHA_CHAI_TEXT
-    "gtest_text",          // 38: GTEST_TEXT
-    "nunit_xunit_text",    // 39: NUNIT_XUNIT_TEXT
-    "pylint_text",         // 40: PYLINT_TEXT
-    "flake8_text",         // 41: FLAKE8_TEXT
-    "black_text",          // 42: BLACK_TEXT
-    "mypy_text",           // 43: MYPY_TEXT
-    "docker_build",        // 44: DOCKER_BUILD
-    "bazel_build",         // 45: BAZEL_BUILD
-    "isort_text",          // 46: ISORT_TEXT
-    "bandit_text",         // 47: BANDIT_TEXT
-    "autopep8_text",       // 48: AUTOPEP8_TEXT
-    "yapf_text",           // 49: YAPF_TEXT
-    "coverage_text",       // 50: COVERAGE_TEXT
-    "pytest_cov_text",     // 51: PYTEST_COV_TEXT
-    "github_actions_text", // 52: GITHUB_ACTIONS_TEXT
-    "gitlab_ci_text",      // 53: GITLAB_CI_TEXT
-    "jenkins_text",        // 54: JENKINS_TEXT
-    "drone_ci_text",       // 55: DRONE_CI_TEXT
-    "terraform_text",      // 56: TERRAFORM_TEXT
-    "ansible_text",        // 57: ANSIBLE_TEXT
-    "github_cli",          // 58: GITHUB_CLI
-    "clang_tidy_text",     // 59: CLANG_TIDY_TEXT
-    "regexp",              // 60: REGEXP
-    "junit_xml",           // 61: JUNIT_XML
-    "nunit_xml",           // 62: NUNIT_XML
-    "checkstyle_xml",      // 63: CHECKSTYLE_XML
-    "jsonl",               // 64: JSONL
-    "logfmt",              // 65: LOGFMT
-    "syslog",              // 66: SYSLOG
-    "apache_access",       // 67: APACHE_ACCESS
-    "nginx_access",        // 68: NGINX_ACCESS
-    "aws_cloudtrail",      // 69: AWS_CLOUDTRAIL
-    "gcp_cloud_logging",   // 70: GCP_CLOUD_LOGGING
-    "azure_activity",      // 71: AZURE_ACTIVITY
-    "python_logging",      // 72: PYTHON_LOGGING
-    "log4j",               // 73: LOG4J
-    "logrus",              // 74: LOGRUS
-    "iptables",            // 75: IPTABLES
-    "pf",                  // 76: PF_FIREWALL
-    "cisco_asa",           // 77: CISCO_ASA
-    "vpc_flow",            // 78: VPC_FLOW
-    "kubernetes",          // 79: KUBERNETES
-    "windows_event",       // 80: WINDOWS_EVENT
-    "auditd",              // 81: AUDITD
-    "s3_access",           // 82: S3_ACCESS
-    "winston",             // 83: WINSTON
-    "pino",                // 84: PINO
-    "bunyan",              // 85: BUNYAN
-    "serilog",             // 86: SERILOG
-    "nlog",                // 87: NLOG
-    "ruby_logger",         // 88: RUBY_LOGGER
-    "rails_log",           // 89: RAILS_LOG
-    "strace",              // 90: STRACE
-};
-
-std::string TestResultFormatToString(TestResultFormat format) {
-	auto index = static_cast<uint8_t>(format);
-	if (index < sizeof(FORMAT_NAMES) / sizeof(FORMAT_NAMES[0])) {
-		return FORMAT_NAMES[index];
-	}
-	return "unknown";
-}
-
 // Static map for string-to-enum conversion (includes aliases)
 static const std::unordered_map<std::string, TestResultFormat> &GetFormatMap() {
 	static const std::unordered_map<std::string, TestResultFormat> map = {
-	    // Primary names (must match FORMAT_NAMES array)
+	    // Primary names
 	    {"unknown", TestResultFormat::UNKNOWN},
 	    {"auto", TestResultFormat::AUTO},
 	    {"pytest_json", TestResultFormat::PYTEST_JSON},
@@ -570,6 +466,104 @@ TestResultFormat StringToTestResultFormat(const std::string &str) {
 	return it != map.end() ? it->second : TestResultFormat::UNKNOWN;
 }
 
+// Get canonical format name from enum (for registry lookup)
+// Returns empty string if format is unknown/auto
+std::string GetCanonicalFormatName(TestResultFormat format) {
+	// Canonical names map enum to registry format name
+	static const std::unordered_map<TestResultFormat, std::string> canonical_names = {
+	    {TestResultFormat::PYTEST_JSON, "pytest_json"},
+	    {TestResultFormat::GOTEST_JSON, "gotest_json"},
+	    {TestResultFormat::ESLINT_JSON, "eslint_json"},
+	    {TestResultFormat::PYTEST_TEXT, "pytest_text"},
+	    {TestResultFormat::MAKE_ERROR, "make_error"},
+	    {TestResultFormat::GENERIC_LINT, "generic_lint"},
+	    {TestResultFormat::DUCKDB_TEST, "duckdb_test"},
+	    {TestResultFormat::RUBOCOP_JSON, "rubocop_json"},
+	    {TestResultFormat::CARGO_TEST_JSON, "cargo_test_json"},
+	    {TestResultFormat::SWIFTLINT_JSON, "swiftlint_json"},
+	    {TestResultFormat::PHPSTAN_JSON, "phpstan_json"},
+	    {TestResultFormat::SHELLCHECK_JSON, "shellcheck_json"},
+	    {TestResultFormat::STYLELINT_JSON, "stylelint_json"},
+	    {TestResultFormat::CLIPPY_JSON, "clippy_json"},
+	    {TestResultFormat::MARKDOWNLINT_JSON, "markdownlint_json"},
+	    {TestResultFormat::YAMLLINT_JSON, "yamllint_json"},
+	    {TestResultFormat::BANDIT_JSON, "bandit_json"},
+	    {TestResultFormat::SPOTBUGS_JSON, "spotbugs_json"},
+	    {TestResultFormat::KTLINT_JSON, "ktlint_json"},
+	    {TestResultFormat::HADOLINT_JSON, "hadolint_json"},
+	    {TestResultFormat::LINTR_JSON, "lintr_json"},
+	    {TestResultFormat::SQLFLUFF_JSON, "sqlfluff_json"},
+	    {TestResultFormat::TFLINT_JSON, "tflint_json"},
+	    {TestResultFormat::KUBE_SCORE_JSON, "kube_score_json"},
+	    {TestResultFormat::CMAKE_BUILD, "cmake_build"},
+	    {TestResultFormat::PYTHON_BUILD, "python_build"},
+	    {TestResultFormat::NODE_BUILD, "node_build"},
+	    {TestResultFormat::CARGO_BUILD, "cargo_build"},
+	    {TestResultFormat::MAVEN_BUILD, "maven_build"},
+	    {TestResultFormat::GRADLE_BUILD, "gradle_build"},
+	    {TestResultFormat::MSBUILD, "msbuild"},
+	    {TestResultFormat::JUNIT_TEXT, "junit_text"},
+	    {TestResultFormat::VALGRIND, "valgrind"},
+	    {TestResultFormat::GDB_LLDB, "gdb_lldb"},
+	    {TestResultFormat::RSPEC_TEXT, "rspec_text"},
+	    {TestResultFormat::MOCHA_CHAI_TEXT, "mocha_chai_text"},
+	    {TestResultFormat::GTEST_TEXT, "gtest_text"},
+	    {TestResultFormat::NUNIT_XUNIT_TEXT, "nunit_xunit_text"},
+	    {TestResultFormat::PYLINT_TEXT, "pylint_text"},
+	    {TestResultFormat::FLAKE8_TEXT, "flake8_text"},
+	    {TestResultFormat::BLACK_TEXT, "black_text"},
+	    {TestResultFormat::MYPY_TEXT, "mypy_text"},
+	    {TestResultFormat::DOCKER_BUILD, "docker_build"},
+	    {TestResultFormat::BAZEL_BUILD, "bazel_build"},
+	    {TestResultFormat::ISORT_TEXT, "isort_text"},
+	    {TestResultFormat::BANDIT_TEXT, "bandit_text"},
+	    {TestResultFormat::AUTOPEP8_TEXT, "autopep8_text"},
+	    {TestResultFormat::YAPF_TEXT, "yapf_text"},
+	    {TestResultFormat::COVERAGE_TEXT, "coverage_text"},
+	    {TestResultFormat::PYTEST_COV_TEXT, "pytest_cov_text"},
+	    {TestResultFormat::GITHUB_ACTIONS_TEXT, "github_actions_text"},
+	    {TestResultFormat::GITLAB_CI_TEXT, "gitlab_ci_text"},
+	    {TestResultFormat::JENKINS_TEXT, "jenkins_text"},
+	    {TestResultFormat::DRONE_CI_TEXT, "drone_ci_text"},
+	    {TestResultFormat::TERRAFORM_TEXT, "terraform_text"},
+	    {TestResultFormat::ANSIBLE_TEXT, "ansible_text"},
+	    {TestResultFormat::GITHUB_CLI, "github_cli"},
+	    {TestResultFormat::CLANG_TIDY_TEXT, "clang_tidy_text"},
+	    {TestResultFormat::JUNIT_XML, "junit_xml"},
+	    {TestResultFormat::NUNIT_XML, "nunit_xml"},
+	    {TestResultFormat::CHECKSTYLE_XML, "checkstyle_xml"},
+	    {TestResultFormat::JSONL, "jsonl"},
+	    {TestResultFormat::LOGFMT, "logfmt"},
+	    {TestResultFormat::SYSLOG, "syslog"},
+	    {TestResultFormat::APACHE_ACCESS, "apache_access"},
+	    {TestResultFormat::NGINX_ACCESS, "nginx_access"},
+	    {TestResultFormat::AWS_CLOUDTRAIL, "aws_cloudtrail"},
+	    {TestResultFormat::GCP_CLOUD_LOGGING, "gcp_cloud_logging"},
+	    {TestResultFormat::AZURE_ACTIVITY, "azure_activity"},
+	    {TestResultFormat::PYTHON_LOGGING, "python_logging"},
+	    {TestResultFormat::LOG4J, "log4j"},
+	    {TestResultFormat::LOGRUS, "logrus"},
+	    {TestResultFormat::IPTABLES, "iptables"},
+	    {TestResultFormat::PF_FIREWALL, "pf"},
+	    {TestResultFormat::CISCO_ASA, "cisco_asa"},
+	    {TestResultFormat::VPC_FLOW, "vpc_flow"},
+	    {TestResultFormat::KUBERNETES, "kubernetes"},
+	    {TestResultFormat::WINDOWS_EVENT, "windows_event"},
+	    {TestResultFormat::AUDITD, "auditd"},
+	    {TestResultFormat::S3_ACCESS, "s3_access"},
+	    {TestResultFormat::WINSTON, "winston"},
+	    {TestResultFormat::PINO, "pino"},
+	    {TestResultFormat::BUNYAN, "bunyan"},
+	    {TestResultFormat::SERILOG, "serilog"},
+	    {TestResultFormat::NLOG, "nlog"},
+	    {TestResultFormat::RUBY_LOGGER, "ruby_logger"},
+	    {TestResultFormat::RAILS_LOG, "rails_log"},
+	    {TestResultFormat::STRACE, "strace"},
+	};
+	auto it = canonical_names.find(format);
+	return it != canonical_names.end() ? it->second : "";
+}
+
 /**
  * Try to parse content using the new modular parser registry.
  * Returns true if a parser was found and content was parsed.
@@ -637,13 +631,6 @@ bool TryNewParserRegistryByName(ClientContext &context, const std::string &forma
 	// Only return true if we actually parsed something
 	// This allows fallback to old registry if new parser produces no results
 	return events.size() > events_before;
-}
-
-bool TryNewParserRegistry(ClientContext &context, TestResultFormat format, const std::string &content,
-                          std::vector<ValidationEvent> &events) {
-	// Get the format name string from enum
-	std::string format_name = TestResultFormatToString(format);
-	return TryNewParserRegistryByName(context, format_name, content, events);
 }
 
 /**
@@ -715,8 +702,15 @@ unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFuncti
 	// Get format parameter (optional, defaults to auto)
 	if (input.inputs.size() > 1) {
 		std::string format_str = input.inputs[1].ToString();
-		bind_data->format_name = format_str; // Store raw format name for registry lookup
 		bind_data->format = StringToTestResultFormat(format_str);
+
+		// Get canonical format name for registry lookup (handles aliases)
+		if (bind_data->format != TestResultFormat::UNKNOWN && bind_data->format != TestResultFormat::AUTO &&
+		    bind_data->format != TestResultFormat::REGEXP) {
+			bind_data->format_name = GetCanonicalFormatName(bind_data->format);
+		} else {
+			bind_data->format_name = format_str; // Use original string for registry-only formats
+		}
 
 		// Check for unknown format - but allow registry-only formats and format groups
 		if (bind_data->format == TestResultFormat::UNKNOWN) {
@@ -736,6 +730,7 @@ unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFuncti
 				                      "'regexp:(?P<severity>ERROR|WARN):\\s+(?P<message>.*)'");
 			}
 			bind_data->regexp_pattern = format_str.substr(7); // Remove "regexp:" prefix
+			bind_data->format_name = "regexp"; // Canonical name for display
 		}
 	} else {
 		bind_data->format = TestResultFormat::AUTO;
@@ -898,7 +893,8 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &co
 
 	if (files.size() > 1) {
 		// Multi-file processing path
-		ProcessMultipleFiles(context, files, bind_data.format, global_state->events, bind_data.ignore_errors);
+		ProcessMultipleFiles(context, files, bind_data.format, bind_data.format_name, global_state->events,
+		                     bind_data.ignore_errors);
 	} else {
 		// Single file processing path (original behavior)
 		// Use the matched file path if available, otherwise use the source directly
@@ -924,15 +920,10 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &co
 			// If no parser found, format stays AUTO and nothing will be parsed
 		}
 
-		// Try new modular parser registry first
-		// For registry-only formats (UNKNOWN enum but valid format_name), use by-name lookup
+		// Try modular parser registry using format_name directly
 		bool parsed = false;
-		if (format == TestResultFormat::UNKNOWN && !format_name.empty() && format_name != "unknown") {
-			// Registry-only format - use format_name directly
+		if (!format_name.empty() && format_name != "unknown" && format_name != "auto") {
 			parsed = TryNewParserRegistryByName(context, format_name, content, global_state->events);
-		} else {
-			// Known enum format - try registry with enum
-			parsed = TryNewParserRegistry(context, format, content, global_state->events);
 		}
 
 		if (!parsed && format == TestResultFormat::REGEXP) {
@@ -1215,8 +1206,15 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
 	// Get format parameter (optional, defaults to auto)
 	if (input.inputs.size() > 1) {
 		std::string format_str = input.inputs[1].ToString();
-		bind_data->format_name = format_str; // Store raw format name for registry lookup
 		bind_data->format = StringToTestResultFormat(format_str);
+
+		// Get canonical format name for registry lookup (handles aliases)
+		if (bind_data->format != TestResultFormat::UNKNOWN && bind_data->format != TestResultFormat::AUTO &&
+		    bind_data->format != TestResultFormat::REGEXP) {
+			bind_data->format_name = GetCanonicalFormatName(bind_data->format);
+		} else {
+			bind_data->format_name = format_str; // Use original string for registry-only formats
+		}
 
 		// Check for unknown format - but allow registry-only formats and format groups
 		if (bind_data->format == TestResultFormat::UNKNOWN) {
@@ -1236,6 +1234,7 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
 				                      "'regexp:(?P<severity>ERROR|WARN):\\s+(?P<message>.*)'");
 			}
 			bind_data->regexp_pattern = format_str.substr(7); // Remove "regexp:" prefix
+			bind_data->format_name = "regexp"; // Canonical name for display
 		}
 	} else {
 		bind_data->format = TestResultFormat::AUTO;
@@ -1401,15 +1400,10 @@ unique_ptr<GlobalTableFunctionState> ParseDuckHuntLogInitGlobal(ClientContext &c
 		// If no parser found, format stays AUTO and nothing will be parsed
 	}
 
-	// Try new modular parser registry first
-	// For registry-only formats (UNKNOWN enum but valid format_name), use by-name lookup
+	// Try modular parser registry using format_name directly
 	bool parsed = false;
-	if (format == TestResultFormat::UNKNOWN && !format_name.empty() && format_name != "unknown") {
-		// Registry-only format - use format_name directly
+	if (!format_name.empty() && format_name != "unknown" && format_name != "auto") {
 		parsed = TryNewParserRegistryByName(context, format_name, content, global_state->events);
-	} else {
-		// Known enum format - try registry with enum
-		parsed = TryNewParserRegistry(context, format, content, global_state->events);
 	}
 
 	if (!parsed && format == TestResultFormat::REGEXP) {
@@ -1598,7 +1592,7 @@ std::vector<std::string> GetGlobFiles(ClientContext &context, const std::string 
 }
 
 void ProcessMultipleFiles(ClientContext &context, const std::vector<std::string> &files, TestResultFormat format,
-                          std::vector<ValidationEvent> &events, bool ignore_errors) {
+                          const std::string &format_name, std::vector<ValidationEvent> &events, bool ignore_errors) {
 	for (size_t file_idx = 0; file_idx < files.size(); file_idx++) {
 		const auto &file_path = files[file_idx];
 
@@ -1606,34 +1600,31 @@ void ProcessMultipleFiles(ClientContext &context, const std::vector<std::string>
 			// Read file content
 			std::string content = ReadContentFromSource(context, file_path);
 
-			// Detect format if AUTO
-			TestResultFormat detected_format = format;
-			std::string detected_format_name;
+			// Detect format if AUTO, otherwise use provided format_name
+			std::string effective_format_name = format_name;
 			if (format == TestResultFormat::AUTO) {
 				// Use modular parser registry for auto-detection (priority-ordered)
 				auto *detected_parser = TryAutoDetectNewRegistry(content);
 				if (detected_parser) {
-					detected_format_name = detected_parser->getFormatName();
+					effective_format_name = detected_parser->getFormatName();
+				} else {
+					// No parser found, skip file
+					continue;
 				}
-				// If no parser found, detected_format stays AUTO and file will be skipped
 			}
 
 			// Parse content using modular parser registry
 			std::vector<ValidationEvent> file_events;
 
 			// Skip REGEXP format in multi-file mode (requires pattern)
-			if (detected_format == TestResultFormat::REGEXP) {
+			if (format == TestResultFormat::REGEXP) {
 				continue;
 			}
 
-			// Use modular parser registry for all formats
+			// Use modular parser registry with format_name directly
 			bool parsed = false;
-			if (!detected_format_name.empty()) {
-				// Registry detected a format - use by-name lookup
-				parsed = TryNewParserRegistryByName(context, detected_format_name, content, file_events);
-			} else {
-				// Legacy detection or explicit format - use enum lookup
-				parsed = TryNewParserRegistry(context, detected_format, content, file_events);
+			if (!effective_format_name.empty() && effective_format_name != "unknown" && effective_format_name != "auto") {
+				parsed = TryNewParserRegistryByName(context, effective_format_name, content, file_events);
 			}
 			if (!parsed) {
 				// No parser found for this format, skip file

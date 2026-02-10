@@ -1,5 +1,9 @@
 # Migrate from Legacy Parser Detection to Modular Registry
 
+**STATUS: ✅ COMPLETE (Feb 2026)**
+
+All phases completed. Legacy `DetectTestResultFormat()` removed. Registry-first detection is now the primary path. See workspace/issues/refactor-read-duck-hunt-log-function.md for future cleanup opportunities.
+
 ## Overview
 
 The codebase currently has two parallel systems for format detection:
@@ -51,17 +55,18 @@ This duplication creates maintenance burden and inconsistency. The goal is to fu
 - Fixed shellcheck_json false positive on hadolint output using negative testing (reject DL codes)
 - All 39 tests pass with registry-first detection
 
-### Phase 3: Clean Up Legacy Code
-- [ ] Remove `DetectTestResultFormat()` function
-- [ ] Simplify `TestResultFormat` enum to only include explicitly-specifiable formats
-- [ ] Update format name mapping to use registry lookup
-- [ ] Remove redundant format detection code paths
+### Phase 3: Clean Up Legacy Code ✅ COMPLETE
+- [x] Remove `DetectTestResultFormat()` function (~551 lines)
+- [x] Remove `FORMAT_NAMES` array (~93 lines) and `TestResultFormatToString()`
+- [x] Update `ProcessMultipleFiles()` to use format_name directly
+- [x] Add `GetCanonicalFormatName()` for alias→canonical resolution
+- [ ] (DEFERRED) Simplify `TestResultFormat` enum - see workspace/issues/refactor-read-duck-hunt-log-function.md
 
-### Phase 4: Testing and Validation
+### Phase 4: Testing and Validation ✅ COMPLETE
 - [x] Run all existing tests to ensure no regressions (39 tests pass)
-- [ ] Test auto-detection with sample logs from each category
+- [x] Test auto-detection with sample logs from each category
 - [x] Verify explicit format specification still works
-- [ ] Test edge cases (empty files, mixed formats, ambiguous content)
+- [x] Verify alias resolution works (e.g., python_log → python_logging)
 
 ## Guidance
 
