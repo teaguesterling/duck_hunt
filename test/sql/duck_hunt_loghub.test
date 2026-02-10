@@ -121,9 +121,10 @@ SELECT count(*) FROM read_duck_hunt_log('test/samples/loghub/Proxifier/Proxifier
 ----
 0
 
-# Mac - macOS system.log (syslog format, but currently has false positives from flake8 parser)
-# TODO: Fix flake8 false positive on IPv6 addresses that look like "F140:6000:0008:C6"
-query I
-SELECT count(*) FROM read_duck_hunt_log('test/samples/loghub/Mac/Mac_2k.log');
+# Mac - macOS system.log (BSD syslog format)
+query II
+SELECT tool_name, count(*) as cnt
+FROM read_duck_hunt_log('test/samples/loghub/Mac/Mac_2k.log')
+GROUP BY tool_name;
 ----
-5
+syslog	2000

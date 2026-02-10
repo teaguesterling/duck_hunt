@@ -5,16 +5,16 @@ namespace duckdb {
 
 bool Flake8Parser::canParse(const std::string &content) const {
 	// Look for flake8-specific patterns: error codes like F401, E302, W503, C901
-	if (content.find(": F") != std::string::npos || content.find(": E") != std::string::npos ||
-	    content.find(": W") != std::string::npos || content.find(": C") != std::string::npos) {
-		return isValidFlake8Output(content);
-	}
-	return false;
+	// Note: Must be careful to avoid false positives from IPv6 addresses containing ":C6" etc.
+	// Real flake8 codes have 3+ digits (F401, E302, W503, C901)
+	return isValidFlake8Output(content);
 }
 
 bool Flake8Parser::isValidFlake8Output(const std::string &content) const {
 	// Check for flake8 output pattern: file.py:line:column: CODE message
-	std::regex flake8_pattern(R"([^:]+:\d+:\d+:\s*[FEWC]\d+)");
+	// Flake8 error codes are a letter followed by 3 digits (F401, E302, W503, C901)
+	// This avoids false positives from IPv6 addresses like "FE80:0000:0000:0000:C6B3"
+	std::regex flake8_pattern(R"(\.py:\d+:\d+:\s*[FEWC]\d{3,})");
 	return std::regex_search(content, flake8_pattern);
 }
 
