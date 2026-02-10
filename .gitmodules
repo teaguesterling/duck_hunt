@@ -9,3 +9,6 @@
 [submodule "test/samples/loghub"]
 	path = test/samples/loghub
 	url = https://github.com/logpai/loghub.git
+[submodule "test/samples/ghalogs"]
+	path = test/samples/ghalogs
+	url = https://github.com/D2KLab/gha-dataset.git
