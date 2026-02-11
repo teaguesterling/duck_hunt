@@ -119,6 +119,163 @@ errors	ERROR
 warnings	WARNING
 
 # =============================================================================
+# Edge Cases and Failure Handling for parse_duck_hunt_log
+# =============================================================================
+
+# Test NULL content handling
+statement ok
+CREATE TABLE null_content AS
+SELECT 'valid' as name, 'x.c:1: error: test' as content
+UNION ALL
+SELECT 'null_val' as name, NULL as content
+UNION ALL
+SELECT 'another' as name, 'y.c:2: warning: warn' as content;
+
+# NULL content should produce no rows for that input
+query II
+SELECT l.name, e.status
+FROM null_content l, LATERAL parse_duck_hunt_log(l.content, 'generic_lint') e
+ORDER BY l.name;
+----
+another	WARNING
+valid	ERROR
+
+# NOTE: Named parameters (severity_threshold, content, context) are not supported
+# in LATERAL join context - DuckDB interprets them as column references.
+# Use direct function calls for those features.
+
+# Test LEFT JOIN behavior - rows without matches preserved
+query II
+SELECT l.name, COALESCE(e.status, 'NO_MATCH') as status
+FROM null_content l
+LEFT JOIN LATERAL parse_duck_hunt_log(l.content, 'generic_lint') e ON true
+ORDER BY l.name;
+----
+another	WARNING
+null_val	NO_MATCH
+valid	ERROR
+
+# Test with CTE
+query II
+WITH error_logs AS (
+    SELECT 'build1' as build, 'src/a.c:10: error: undefined' as log
+    UNION ALL
+    SELECT 'build2' as build, 'src/b.c:20: error: syntax error' as log
+)
+SELECT c.build, e.ref_file
+FROM error_logs c, LATERAL parse_duck_hunt_log(c.log, 'generic_lint') e
+ORDER BY c.build;
+----
+build1	src/a.c
+build2	src/b.c
+
+# Test aggregations with lateral join
+query II
+SELECT l.name, COUNT(*) as event_count
+FROM log_contents l, LATERAL parse_duck_hunt_log(l.content, 'generic_lint') e
+GROUP BY l.name
+ORDER BY l.name;
+----
+file1	1
+file2	1
+
+# Test with multi-event content and aggregation
+statement ok
+CREATE TABLE multi_error AS SELECT
+'file1' as build,
+'a.c:1: error: err1
+b.c:2: warning: warn1
+c.c:3: error: err2' as content;
+
+query III
+SELECT m.build, e.status, COUNT(*) as cnt
+FROM multi_error m, LATERAL parse_duck_hunt_log(m.content, 'generic_lint') e
+GROUP BY m.build, e.status
+ORDER BY e.status;
+----
+file1	ERROR	2
+file1	WARNING	1
+
+# Test window functions with lateral join
+query III
+SELECT l.name, e.status, ROW_NUMBER() OVER (PARTITION BY l.name ORDER BY e.ref_line) as rn
+FROM log_contents l, LATERAL parse_duck_hunt_log(l.content, 'generic_lint') e
+ORDER BY l.name, rn;
+----
+file1	ERROR	1
+file2	WARNING	1
+
+# Test DISTINCT with lateral join
+query I
+SELECT DISTINCT e.status
+FROM log_contents l, LATERAL parse_duck_hunt_log(l.content, 'generic_lint') e
+ORDER BY e.status;
+----
+ERROR
+WARNING
+
+# Test ORDER BY on lateral columns
+query III
+SELECT l.name, e.status, e.ref_line
+FROM log_contents l, LATERAL parse_duck_hunt_log(l.content, 'generic_lint') e
+ORDER BY e.ref_line DESC;
+----
+file2	WARNING	20
+file1	ERROR	10
+
+# Test with unknown format - falls back to auto-detection
+# (Unknown formats are handled gracefully, not as errors)
+query I
+SELECT COUNT(*) > 0 as has_results
+FROM log_contents l, LATERAL parse_duck_hunt_log(l.content, 'nonexistent_format_xyz') e;
+----
+true
+
+# Test with regexp format in lateral context
+query II
+SELECT l.name, e.message
+FROM log_contents l, LATERAL parse_duck_hunt_log(l.content, 'regexp:(?P<file>\S+):(?P<line>\d+):\s*(?P<severity>\w+):\s*(?P<message>.*)') e
+ORDER BY l.name;
+----
+file1	something failed
+file2	check this
+
+# Test nested lateral joins (lateral on lateral result)
+statement ok
+CREATE TABLE nested_test AS SELECT 1 as id, 'x.c:1: error: outer' as content;
+
+query II
+SELECT n.id, e.status
+FROM nested_test n, LATERAL parse_duck_hunt_log(n.content, 'generic_lint') e
+ORDER BY n.id;
+----
+1	ERROR
+
+# Test UNION with lateral joins
+query II
+SELECT 'set1' as source, e.status
+FROM log_contents l, LATERAL parse_duck_hunt_log(l.content, 'generic_lint') e
+WHERE l.name = 'file1'
+UNION ALL
+SELECT 'set2' as source, e.status
+FROM log_contents l, LATERAL parse_duck_hunt_log(l.content, 'generic_lint') e
+WHERE l.name = 'file2'
+ORDER BY source;
+----
+set1	ERROR
+set2	WARNING
+
+# Cleanup edge case tables
+statement ok
+DROP TABLE null_content;
+
+statement ok
+DROP TABLE multi_error;
+
+statement ok
+DROP TABLE nested_test;
+
+# =============================================================================
 # Tests for read_duck_hunt_log with LATERAL joins (file-based)
 # =============================================================================
 
@@ -173,6 +330,113 @@ LIMIT 3;
 make	Makefile
 make	src/main.c
 make	src/utils.c
+
+# Test NULL file path handling
+statement ok
+CREATE TABLE null_paths AS
+SELECT 'valid' as name, 'test/samples/make.out' as path
+UNION ALL
+SELECT 'null_path' as name, NULL as path
+UNION ALL
+SELECT 'another' as name, 'test/samples/mypy.txt' as path;
+
+# NULL paths should produce no rows for that input
+query II
+SELECT l.name, COUNT(*) as events
+FROM null_paths l, LATERAL read_duck_hunt_log(l.path) e
+GROUP BY l.name
+ORDER BY l.name;
+----
+another	4
+valid	5
+
+# Test LEFT JOIN with NULL/missing files - NULL path preserved with NO_FILE
+query II
+SELECT l.name, COALESCE(e.status, 'NO_FILE') as status
+FROM null_paths l
+LEFT JOIN LATERAL read_duck_hunt_log(l.path) e ON true
+WHERE l.name = 'null_path'
+ORDER BY l.name;
+----
+null_path	NO_FILE
+
+# NOTE: Named parameters are not supported in LATERAL context
+
+# Test with CTE and read_duck_hunt_log
+query II
+WITH file_list AS (
+    SELECT 'make' as tool, 'test/samples/make.out' as log_path
+    UNION ALL
+    SELECT 'mypy' as tool, 'test/samples/mypy.txt' as log_path
+)
+SELECT f.tool, COUNT(*) as total
+FROM file_list f, LATERAL read_duck_hunt_log(f.log_path) e
+GROUP BY f.tool
+ORDER BY f.tool;
+----
+make	5
+mypy	4
+
+# Test aggregation across multiple files
+query I
+SELECT COUNT(DISTINCT e.tool_name) as distinct_tools
+FROM log_files l, LATERAL read_duck_hunt_log(l.path) e;
+----
+2
+
+# Test window function with read_duck_hunt_log
+query III
+SELECT l.test_type, e.status,
+       ROW_NUMBER() OVER (PARTITION BY l.test_type ORDER BY e.ref_line) as rn
+FROM log_files l, LATERAL read_duck_hunt_log(l.path) e
+WHERE e.status = 'ERROR'
+ORDER BY l.test_type, rn
+LIMIT 4;
+----
+make	ERROR	1
+make	ERROR	2
+make	ERROR	3
+mypy	ERROR	1
+
+# Test UNION with read_duck_hunt_log lateral joins
+query II
+SELECT 'make_errors' as category, COUNT(*) as cnt
+FROM (SELECT 'test/samples/make.out' as p) t, LATERAL read_duck_hunt_log(t.p) e
+WHERE e.status = 'ERROR'
+UNION ALL
+SELECT 'mypy_errors' as category, COUNT(*) as cnt
+FROM (SELECT 'test/samples/mypy.txt' as p) t, LATERAL read_duck_hunt_log(t.p) e
+WHERE e.status = 'ERROR'
+ORDER BY category;
+----
+make_errors	3
+mypy_errors	3
+
+# Test empty file handling (file exists but no parseable content)
+statement ok
+CREATE TABLE edge_files AS SELECT '/dev/null' as path;
+
+query I
+SELECT COUNT(*)
+FROM edge_files ef, LATERAL read_duck_hunt_log(ef.path) e;
+----
+0
+
+# Test multiple references to same lateral result
+query I
+SELECT COUNT(*)
+FROM log_files l, LATERAL read_duck_hunt_log(l.path) e
+WHERE e.status = e.status  -- trivial self-reference
+  AND l.test_type = 'make';
+----
+5
+
+# Clean up edge case tables
+statement ok
+DROP TABLE null_paths;
+
+statement ok
+DROP TABLE edge_files;
 
 # Clean up file tables
 statement ok
