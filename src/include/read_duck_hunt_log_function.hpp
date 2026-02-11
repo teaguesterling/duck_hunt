@@ -164,6 +164,15 @@ struct ParseDuckHuntLogInOutLocalState : public LocalTableFunctionState {
 	std::unordered_map<std::string, std::vector<std::string>> log_lines_by_file;
 };
 
+// Local state for read_duck_hunt_log in-out function (LATERAL join support)
+struct ReadDuckHuntLogInOutLocalState : public LocalTableFunctionState {
+	bool initialized = false;
+	idx_t output_offset = 0;
+	std::vector<ValidationEvent> events;
+	std::unordered_map<std::string, std::vector<std::string>> log_lines_by_file;
+	std::string current_file_path; // Track current file for log_file field
+};
+
 // Format conversion utilities
 TestResultFormat StringToTestResultFormat(const std::string &str);
 
@@ -200,6 +209,17 @@ unique_ptr<LocalTableFunctionState> ReadDuckHuntLogInitLocal(ExecutionContext &c
                                                              GlobalTableFunctionState *global_state);
 
 void ReadDuckHuntLogFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output);
+
+// In-out function implementation for read_duck_hunt_log (LATERAL join support)
+unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInOutInitGlobal(ClientContext &context,
+                                                                    TableFunctionInitInput &input);
+
+unique_ptr<LocalTableFunctionState> ReadDuckHuntLogInOutInitLocal(ExecutionContext &context,
+                                                                  TableFunctionInitInput &input,
+                                                                  GlobalTableFunctionState *global_state);
+
+OperatorResultType ReadDuckHuntLogInOutFunction(ExecutionContext &context, TableFunctionInput &data_p, DataChunk &input,
+                                                DataChunk &output);
 
 // Table function implementation for parse_duck_hunt_log (string-based)
 unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunctionBindInput &input,

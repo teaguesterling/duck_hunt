@@ -54,11 +54,15 @@ unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFuncti
                                              vector<LogicalType> &return_types, vector<string> &names) {
 	auto bind_data = make_uniq<ReadDuckHuntLogBindData>();
 
-	// Get source parameter (required)
-	if (input.inputs.empty()) {
-		throw BinderException("read_duck_hunt_log requires at least one parameter (source)");
+	// For in-out functions (LATERAL joins), source comes from the input DataChunk at execution time
+	// input.inputs may be empty or contain column references, not literal values
+	// We only need to process format (second arg) and named parameters at bind time
+
+	// Get source parameter if available as a literal (for direct calls)
+	// For LATERAL joins, this will be empty and source comes from the input DataChunk
+	if (!input.inputs.empty() && !input.inputs[0].IsNull()) {
+		bind_data->source = input.inputs[0].ToString();
 	}
-	bind_data->source = input.inputs[0].ToString();
 
 	// Get format parameter (optional, defaults to auto)
 	if (input.inputs.size() > 1) {
@@ -768,12 +772,178 @@ OperatorResultType ParseDuckHuntLogInOutFunction(ExecutionContext &context, Tabl
 	return OperatorResultType::HAVE_MORE_OUTPUT;
 }
 
+// In-out function implementations for read_duck_hunt_log LATERAL join support
+unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInOutInitGlobal(ClientContext &context,
+                                                                    TableFunctionInitInput &input) {
+	// For in-out functions, global state is minimal - we don't pre-parse
+	return make_uniq<ReadDuckHuntLogGlobalState>();
+}
+
+unique_ptr<LocalTableFunctionState> ReadDuckHuntLogInOutInitLocal(ExecutionContext &context,
+                                                                  TableFunctionInitInput &input,
+                                                                  GlobalTableFunctionState *global_state) {
+	return make_uniq<ReadDuckHuntLogInOutLocalState>();
+}
+
+// Helper function to check if a path contains glob characters
+static bool ContainsGlobCharacters(const std::string &path) {
+	return path.find('*') != std::string::npos || path.find('?') != std::string::npos ||
+	       path.find('[') != std::string::npos || path.find('{') != std::string::npos;
+}
+
+OperatorResultType ReadDuckHuntLogInOutFunction(ExecutionContext &context, TableFunctionInput &data_p, DataChunk &input,
+                                                DataChunk &output) {
+	auto &bind_data = data_p.bind_data->Cast<ReadDuckHuntLogBindData>();
+	auto &lstate = data_p.local_state->Cast<ReadDuckHuntLogInOutLocalState>();
+
+	if (!lstate.initialized) {
+		// Get file path from input DataChunk (first column)
+		if (input.size() == 0 || input.data.empty()) {
+			output.SetCardinality(0);
+			return OperatorResultType::NEED_MORE_INPUT;
+		}
+
+		Value path_value = input.GetValue(0, 0);
+		if (path_value.IsNull()) {
+			// Null input - no output, request next row
+			output.SetCardinality(0);
+			lstate.initialized = false;
+			return OperatorResultType::NEED_MORE_INPUT;
+		}
+
+		std::string source_path = path_value.ToString();
+		lstate.current_file_path = source_path;
+
+		// Check if this is a glob pattern (contains *, ?, [, or {)
+		std::vector<std::string> files;
+		if (ContainsGlobCharacters(source_path)) {
+			// Expand glob pattern
+			try {
+				files = GetFilesFromPattern(context.client, source_path);
+			} catch (const IOException &) {
+				files.clear();
+			}
+		} else {
+			// Single file path
+			files.push_back(source_path);
+		}
+
+		// Process all files
+		for (const auto &file_path : files) {
+			std::string content;
+			try {
+				content = ReadContentFromSource(context.client, file_path);
+			} catch (const IOException &) {
+				// File doesn't exist or can't be read - skip if ignore_errors
+				if (bind_data.ignore_errors) {
+					continue;
+				}
+				// Otherwise just skip silently (graceful handling)
+				continue;
+			}
+
+			if (content.empty()) {
+				continue;
+			}
+
+			// Determine format - either from bind_data or auto-detect
+			TestResultFormat format = bind_data.format;
+			std::string format_name = bind_data.format_name;
+
+			if (format == TestResultFormat::AUTO) {
+				format_name = DetectFormat(content);
+				if (!format_name.empty()) {
+					format = TestResultFormat::UNKNOWN;
+				}
+			}
+
+			// Parse content
+			std::vector<ValidationEvent> file_events;
+			if (format == TestResultFormat::REGEXP) {
+				file_events = ParseContentRegexp(content, bind_data.regexp_pattern, bind_data.include_unparsed);
+			} else if (!format_name.empty() && format_name != "unknown" && format_name != "auto") {
+				file_events = ParseContent(context.client, content, format_name);
+			}
+
+			// Set log_file on each event
+			for (auto &event : file_events) {
+				if (event.log_file.empty()) {
+					event.log_file = file_path;
+				}
+			}
+
+			// Cache log lines for context extraction if needed
+			if (bind_data.context_lines > 0) {
+				std::vector<std::string> lines;
+				std::istringstream stream(content);
+				std::string line;
+				while (std::getline(stream, line)) {
+					lines.push_back(line);
+				}
+				lstate.log_lines_by_file[file_path] = std::move(lines);
+			}
+
+			// Add to collected events
+			lstate.events.insert(lstate.events.end(), file_events.begin(), file_events.end());
+		}
+
+		if (lstate.events.empty()) {
+			// No events from any files - request next row
+			output.SetCardinality(0);
+			lstate.initialized = false;
+			lstate.log_lines_by_file.clear();
+			return OperatorResultType::NEED_MORE_INPUT;
+		}
+
+		// Process error patterns for intelligent categorization
+		ProcessErrorPatterns(lstate.events);
+
+		// Apply severity threshold filtering
+		if (bind_data.severity_threshold != SeverityLevel::DEBUG) {
+			auto new_end =
+			    std::remove_if(lstate.events.begin(), lstate.events.end(), [&bind_data](const ValidationEvent &event) {
+				    return !ShouldEmitEvent(event.severity, bind_data.severity_threshold);
+			    });
+			lstate.events.erase(new_end, lstate.events.end());
+		}
+
+		lstate.output_offset = 0;
+		lstate.initialized = true;
+	}
+
+	// Calculate how many events to output this chunk
+	idx_t remaining = lstate.events.size() > lstate.output_offset ? lstate.events.size() - lstate.output_offset : 0;
+	idx_t output_size = std::min(remaining, static_cast<idx_t>(STANDARD_VECTOR_SIZE));
+
+	// Populate the output chunk
+	PopulateDataChunkFromEvents(output, lstate.events, lstate.output_offset, output_size, bind_data.content_mode,
+	                            bind_data.content_limit, bind_data.context_lines,
+	                            bind_data.context_lines > 0 ? &lstate.log_lines_by_file : nullptr);
+
+	lstate.output_offset += output_size;
+
+	// Return NEED_MORE_INPUT only when output is empty (done with this input row)
+	if (output.size() == 0) {
+		// Reset state for next input row
+		lstate.initialized = false;
+		lstate.events.clear();
+		lstate.log_lines_by_file.clear();
+		lstate.output_offset = 0;
+		lstate.current_file_path.clear();
+		return OperatorResultType::NEED_MORE_INPUT;
+	}
+
+	return OperatorResultType::HAVE_MORE_OUTPUT;
+}
+
 TableFunctionSet GetReadDuckHuntLogFunction() {
 	TableFunctionSet set("read_duck_hunt_log");
 
 	// Single argument version: read_duck_hunt_log(source) - auto-detects format
-	TableFunction single_arg("read_duck_hunt_log", {LogicalType::VARCHAR}, ReadDuckHuntLogFunction, ReadDuckHuntLogBind,
-	                         ReadDuckHuntLogInitGlobal, ReadDuckHuntLogInitLocal);
+	// Uses in-out function pattern for LATERAL join support
+	TableFunction single_arg("read_duck_hunt_log", {LogicalType::VARCHAR}, nullptr, ReadDuckHuntLogBind,
+	                         ReadDuckHuntLogInOutInitGlobal, ReadDuckHuntLogInOutInitLocal);
+	single_arg.in_out_function = ReadDuckHuntLogInOutFunction;
 	single_arg.named_parameters["severity_threshold"] = LogicalType::VARCHAR;
 	single_arg.named_parameters["ignore_errors"] = LogicalType::BOOLEAN;
 	single_arg.named_parameters["content"] = LogicalType::ANY;
@@ -782,8 +952,10 @@ TableFunctionSet GetReadDuckHuntLogFunction() {
 	set.AddFunction(single_arg);
 
 	// Two argument version: read_duck_hunt_log(source, format)
-	TableFunction two_arg("read_duck_hunt_log", {LogicalType::VARCHAR, LogicalType::VARCHAR}, ReadDuckHuntLogFunction,
-	                      ReadDuckHuntLogBind, ReadDuckHuntLogInitGlobal, ReadDuckHuntLogInitLocal);
+	// Uses in-out function pattern for LATERAL join support
+	TableFunction two_arg("read_duck_hunt_log", {LogicalType::VARCHAR, LogicalType::VARCHAR}, nullptr,
+	                      ReadDuckHuntLogBind, ReadDuckHuntLogInOutInitGlobal, ReadDuckHuntLogInOutInitLocal);
+	two_arg.in_out_function = ReadDuckHuntLogInOutFunction;
 	two_arg.named_parameters["severity_threshold"] = LogicalType::VARCHAR;
 	two_arg.named_parameters["ignore_errors"] = LogicalType::BOOLEAN;
 	two_arg.named_parameters["content"] = LogicalType::ANY;

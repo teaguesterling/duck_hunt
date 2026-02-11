@@ -118,6 +118,69 @@ ORDER BY sq.category;
 errors	ERROR
 warnings	WARNING
 
+# =============================================================================
+# Tests for read_duck_hunt_log with LATERAL joins (file-based)
+# =============================================================================
+
+# Create a table with file paths
+statement ok
+CREATE TABLE log_files AS
+SELECT 'test/samples/make.out' as path, 'make' as test_type
+UNION ALL
+SELECT 'test/samples/mypy.txt' as path, 'mypy' as test_type;
+
+# Basic lateral join with read_duck_hunt_log
+query II
+SELECT l.test_type, COUNT(*)
+FROM log_files l, LATERAL read_duck_hunt_log(l.path) e
+GROUP BY l.test_type
+ORDER BY l.test_type;
+----
+make	5
+mypy	4
+
+# Lateral join with explicit format
+query III
+SELECT l.test_type, e.status, COUNT(*)
+FROM log_files l, LATERAL read_duck_hunt_log(l.path, 'auto') e
+GROUP BY l.test_type, e.status
+ORDER BY l.test_type, e.status;
+----
+make	ERROR	3
+make	INFO	1
+make	WARNING	1
+mypy	ERROR	3
+mypy	WARNING	1
+
+# Test with non-existent files returns empty (not error)
+statement ok
+CREATE TABLE missing_files AS SELECT '/nonexistent/path.log' as path;
+
+query I
+SELECT COUNT(*)
+FROM missing_files m, LATERAL read_duck_hunt_log(m.path) e;
+----
+0
+
+# Test filtering within lateral join
+query II
+SELECT l.test_type, e.ref_file
+FROM log_files l, LATERAL read_duck_hunt_log(l.path) e
+WHERE e.status = 'ERROR'
+ORDER BY l.test_type, e.ref_file
+LIMIT 3;
+----
+make	Makefile
+make	src/main.c
+make	src/utils.c
+
+# Clean up file tables
+statement ok
+DROP TABLE log_files;
+
+statement ok
+DROP TABLE missing_files;
+
 # Cleanup
 statement ok
 DROP TABLE log_contents;
