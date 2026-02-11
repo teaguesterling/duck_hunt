@@ -68,8 +68,10 @@ bool IsValidFormat(const std::string &format_name);
  *
  * @param content The log/test output content to parse
  * @param pattern The regexp pattern with named capture groups
+ * @param include_unparsed If true, include lines that don't match as UNKNOWN events
  * @return Vector of parsed validation events
  */
-std::vector<ValidationEvent> ParseContentRegexp(const std::string &content, const std::string &pattern);
+std::vector<ValidationEvent> ParseContentRegexp(const std::string &content, const std::string &pattern,
+                                                bool include_unparsed = false);
 
 } // namespace duckdb

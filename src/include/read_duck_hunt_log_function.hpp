@@ -128,10 +128,11 @@ struct ReadDuckHuntLogBindData : public TableFunctionData {
 	ContentMode content_mode;         // How to handle log_content column (default: FULL)
 	int32_t content_limit;            // Character limit when content_mode is LIMIT (default: 200 for SMART)
 	int32_t context_lines;            // Number of context lines to include (0 = no context column)
+	bool include_unparsed;            // Include lines that don't match pattern (regexp only, default: false)
 
 	ReadDuckHuntLogBindData()
 	    : format(TestResultFormat::AUTO), severity_threshold(SeverityLevel::DEBUG), ignore_errors(false),
-	      content_mode(ContentMode::FULL), content_limit(200), context_lines(0) {
+	      content_mode(ContentMode::FULL), content_limit(200), context_lines(0), include_unparsed(false) {
 	}
 };
 

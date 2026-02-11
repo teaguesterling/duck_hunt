@@ -52,6 +52,8 @@ std::string ValidationEventTypeToString(ValidationEventType type) {
 		return "crash_signal";
 	case ValidationEventType::DEBUG_INFO:
 		return "debug_info";
+	case ValidationEventType::UNKNOWN:
+		return "unknown";
 	default:
 		return "unknown";
 	}
@@ -102,6 +104,8 @@ ValidationEventType StringToValidationEventType(const std::string &str) {
 		return ValidationEventType::CRASH_SIGNAL;
 	if (str == "debug_info")
 		return ValidationEventType::DEBUG_INFO;
+	if (str == "unknown")
+		return ValidationEventType::UNKNOWN;
 	return ValidationEventType::TEST_RESULT; // Default
 }
 

@@ -149,6 +149,12 @@ unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFuncti
 		bind_data->context_lines = std::min(ctx_lines, static_cast<int32_t>(50));
 	}
 
+	// Handle include_unparsed named parameter (regexp format only)
+	auto include_unparsed_param = input.named_parameters.find("include_unparsed");
+	if (include_unparsed_param != input.named_parameters.end()) {
+		bind_data->include_unparsed = include_unparsed_param->second.GetValue<bool>();
+	}
+
 	// Define return schema (Schema V2)
 	return_types = {
 	    // Core identification
@@ -307,7 +313,7 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &co
 		if (format_detected) {
 			if (format == TestResultFormat::REGEXP) {
 				// REGEXP is special - requires user-provided pattern
-				auto events = ParseContentRegexp(content, bind_data.regexp_pattern);
+				auto events = ParseContentRegexp(content, bind_data.regexp_pattern, bind_data.include_unparsed);
 				global_state->events.insert(global_state->events.end(), events.begin(), events.end());
 			} else if (!format_name.empty() && format_name != "unknown" && format_name != "auto") {
 				auto events = ParseContent(context, content, format_name);
@@ -479,6 +485,12 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
 		bind_data->context_lines = std::min(ctx_lines, static_cast<int32_t>(50));
 	}
 
+	// Handle include_unparsed named parameter (regexp format only)
+	auto include_unparsed_param = input.named_parameters.find("include_unparsed");
+	if (include_unparsed_param != input.named_parameters.end()) {
+		bind_data->include_unparsed = include_unparsed_param->second.GetValue<bool>();
+	}
+
 	// Define return schema (Schema V2 - same as read_duck_hunt_log)
 	return_types = {
 	    // Core identification
@@ -587,7 +599,7 @@ unique_ptr<GlobalTableFunctionState> ParseDuckHuntLogInitGlobal(ClientContext &c
 	// Parse content using core API
 	if (format == TestResultFormat::REGEXP) {
 		// REGEXP is special - requires user-provided pattern
-		auto events = ParseContentRegexp(content, bind_data.regexp_pattern);
+		auto events = ParseContentRegexp(content, bind_data.regexp_pattern, bind_data.include_unparsed);
 		global_state->events.insert(global_state->events.end(), events.begin(), events.end());
 	} else if (!format_name.empty() && format_name != "unknown" && format_name != "auto") {
 		auto events = ParseContent(context, content, format_name);
@@ -651,6 +663,7 @@ TableFunctionSet GetReadDuckHuntLogFunction() {
 	single_arg.named_parameters["ignore_errors"] = LogicalType::BOOLEAN;
 	single_arg.named_parameters["content"] = LogicalType::ANY;
 	single_arg.named_parameters["context"] = LogicalType::INTEGER;
+	single_arg.named_parameters["include_unparsed"] = LogicalType::BOOLEAN;
 	set.AddFunction(single_arg);
 
 	// Two argument version: read_duck_hunt_log(source, format)
@@ -660,6 +673,7 @@ TableFunctionSet GetReadDuckHuntLogFunction() {
 	two_arg.named_parameters["ignore_errors"] = LogicalType::BOOLEAN;
 	two_arg.named_parameters["content"] = LogicalType::ANY;
 	two_arg.named_parameters["context"] = LogicalType::INTEGER;
+	two_arg.named_parameters["include_unparsed"] = LogicalType::BOOLEAN;
 	set.AddFunction(two_arg);
 
 	return set;
@@ -675,6 +689,7 @@ TableFunctionSet GetParseDuckHuntLogFunction() {
 	single_arg.named_parameters["ignore_errors"] = LogicalType::BOOLEAN;
 	single_arg.named_parameters["content"] = LogicalType::ANY;
 	single_arg.named_parameters["context"] = LogicalType::INTEGER;
+	single_arg.named_parameters["include_unparsed"] = LogicalType::BOOLEAN;
 	set.AddFunction(single_arg);
 
 	// Two argument version: parse_duck_hunt_log(content, format)
@@ -684,6 +699,7 @@ TableFunctionSet GetParseDuckHuntLogFunction() {
 	two_arg.named_parameters["ignore_errors"] = LogicalType::BOOLEAN;
 	two_arg.named_parameters["content"] = LogicalType::ANY;
 	two_arg.named_parameters["context"] = LogicalType::INTEGER;
+	two_arg.named_parameters["include_unparsed"] = LogicalType::BOOLEAN;
 	set.AddFunction(two_arg);
 
 	return set;

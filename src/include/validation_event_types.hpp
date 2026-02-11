@@ -40,7 +40,8 @@ enum class ValidationEventType : uint8_t {
 	SUMMARY = 10,
 	DEBUG_EVENT = 11,
 	CRASH_SIGNAL = 12,
-	DEBUG_INFO = 13
+	DEBUG_INFO = 13,
+	UNKNOWN = 14 // Line couldn't be parsed - used with include_unparsed option
 };
 
 // Main validation event structure

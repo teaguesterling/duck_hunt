@@ -83,9 +83,10 @@ bool IsValidFormat(const std::string &format_name) {
 	return registry.hasFormat(format_name) || registry.isGroup(format_name);
 }
 
-std::vector<ValidationEvent> ParseContentRegexp(const std::string &content, const std::string &pattern) {
+std::vector<ValidationEvent> ParseContentRegexp(const std::string &content, const std::string &pattern,
+                                                bool include_unparsed) {
 	std::vector<ValidationEvent> events;
-	RegexpParser::ParseWithRegexp(content, pattern, events);
+	RegexpParser::ParseWithRegexp(content, pattern, events, include_unparsed);
 	return events;
 }
 

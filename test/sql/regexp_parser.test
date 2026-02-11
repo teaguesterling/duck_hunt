@@ -1,0 +1,120 @@
+# name: test/sql/regexp_parser.test
+# description: Test the regexp parser with custom patterns and include_unparsed option
+# group: [duck_hunt]
+
+require duck_hunt
+
+# Test basic regexp pattern matching
+query IIII
+SELECT event_type, severity, message, log_line_start
+FROM parse_duck_hunt_log(
+    'ERROR: something failed
+WARNING: check this
+INFO: all good',
+    'regexp:(?P<severity>ERROR|WARNING|INFO):\s+(?P<message>.*)'
+) ORDER BY log_line_start;
+----
+lint_issue	error	something failed	1
+lint_issue	warning	check this	2
+lint_issue	info	all good	3
+
+# Test regexp with file path and line number capture
+query IIIII
+SELECT event_type, ref_file, ref_line, severity, message
+FROM parse_duck_hunt_log(
+    'src/main.cpp:42: error: undefined reference
+src/util.cpp:15: warning: unused variable',
+    'regexp:(?P<file>[^:]+):(?P<line>\d+):\s+(?P<severity>error|warning):\s+(?P<message>.*)'
+) ORDER BY ref_line;
+----
+lint_issue	src/util.cpp	15	warning	unused variable
+lint_issue	src/main.cpp	42	error	undefined reference
+
+# Test include_unparsed=false (default) - only matched lines returned
+query II
+SELECT event_type, log_line_start
+FROM parse_duck_hunt_log(
+    'ERROR: matched line
+this line does not match
+WARNING: another match',
+    'regexp:(?P<severity>ERROR|WARNING):\s+(?P<message>.*)'
+) ORDER BY log_line_start;
+----
+lint_issue	1
+lint_issue	3
+
+# Test include_unparsed=true - all lines returned, unmatched as 'unknown'
+query IIII
+SELECT event_type, status, severity, log_line_start
+FROM parse_duck_hunt_log(
+    'ERROR: matched line
+this line does not match
+WARNING: another match',
+    'regexp:(?P<severity>ERROR|WARNING):\s+(?P<message>.*)',
+    include_unparsed := true
+) ORDER BY log_line_start;
+----
+lint_issue	ERROR	error	1
+unknown	NULL	NULL	2
+lint_issue	WARNING	warning	3
+
+# Test include_unparsed with log_content populated for unknown events
+query III
+SELECT event_type, log_content, message
+FROM parse_duck_hunt_log(
+    'ERROR: has message
+unmatched line here',
+    'regexp:(?P<severity>ERROR):\s+(?P<message>.*)',
+    include_unparsed := true
+) ORDER BY log_line_start;
+----
+lint_issue	ERROR: has message	has message
+unknown	unmatched line here	(empty)
+
+# Test no matches - returns info summary when include_unparsed=false
+query II
+SELECT event_type, message
+FROM parse_duck_hunt_log(
+    'no matches here
+nothing matches',
+    'regexp:(?P<severity>NOTFOUND):\s+(?P<message>.*)'
+);
+----
+lint_issue	No matches found for the provided pattern
+
+# Test no matches with include_unparsed=true - returns unknown events
+query III
+SELECT event_type, status, log_line_start
+FROM parse_duck_hunt_log(
+    'no matches here
+nothing matches',
+    'regexp:(?P<severity>NOTFOUND):\s+(?P<message>.*)',
+    include_unparsed := true
+) ORDER BY log_line_start;
+----
+unknown	NULL	1
+unknown	NULL	2
+
+# Test error code capture
+query III
+SELECT event_type, error_code, message
+FROM parse_duck_hunt_log(
+    'E001: first error
+W002: a warning',
+    'regexp:(?P<code>[EW]\d+):\s+(?P<message>.*)'
+) ORDER BY log_line_start;
+----
+lint_issue	E001	first error
+lint_issue	W002	a warning
+
+# Test category capture
+query III
+SELECT event_type, category, message
+FROM parse_duck_hunt_log(
+    '[security] potential vulnerability
+[performance] slow query detected',
+    'regexp:\[(?P<category>\w+)\]\s+(?P<message>.*)'
+) ORDER BY log_line_start;
+----
+lint_issue	security	potential vulnerability
+lint_issue	performance	slow query detected

@@ -9,13 +9,14 @@ namespace duckdb {
 class RegexpParser {
 public:
 	static void ParseWithRegexp(const std::string &content, const std::string &pattern,
-	                            std::vector<ValidationEvent> &events);
+	                            std::vector<ValidationEvent> &events, bool include_unparsed = false);
 
 	std::string GetName() const {
 		return "regexp";
 	}
 	// Note: CanParse is not applicable for regexp - it always needs user-provided pattern
-	void Parse(const std::string &content, const std::string &pattern, std::vector<ValidationEvent> &events) const;
+	void Parse(const std::string &content, const std::string &pattern, std::vector<ValidationEvent> &events,
+	           bool include_unparsed = false) const;
 };
 
 } // namespace duckdb

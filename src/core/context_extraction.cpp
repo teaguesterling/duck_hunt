@@ -143,8 +143,14 @@ void PopulateDataChunkFromEvents(DataChunk &output, const std::vector<Validation
 		output.SetValue(col++, i, event.ref_column == -1 ? Value() : Value::INTEGER(event.ref_column));
 		output.SetValue(col++, i, Value(event.function_name));
 		// Classification
-		output.SetValue(col++, i, Value(ValidationEventStatusToString(event.status)));
-		output.SetValue(col++, i, Value(event.severity));
+		// For UNKNOWN event types (unparsed lines), output NULL for status and severity
+		if (event.event_type == ValidationEventType::UNKNOWN) {
+			output.SetValue(col++, i, Value()); // NULL status
+			output.SetValue(col++, i, Value()); // NULL severity
+		} else {
+			output.SetValue(col++, i, Value(ValidationEventStatusToString(event.status)));
+			output.SetValue(col++, i, Value(event.severity));
+		}
 		output.SetValue(col++, i, Value(event.category));
 		output.SetValue(col++, i, Value(event.error_code));
 		// Content

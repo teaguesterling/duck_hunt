@@ -9,12 +9,12 @@
 namespace duckdb {
 
 void RegexpParser::Parse(const std::string &content, const std::string &pattern,
-                         std::vector<ValidationEvent> &events) const {
-	ParseWithRegexp(content, pattern, events);
+                         std::vector<ValidationEvent> &events, bool include_unparsed) const {
+	ParseWithRegexp(content, pattern, events, include_unparsed);
 }
 
 void RegexpParser::ParseWithRegexp(const std::string &content, const std::string &pattern,
-                                   std::vector<ValidationEvent> &events) {
+                                   std::vector<ValidationEvent> &events, bool include_unparsed) {
 	// Normalize line endings (CRLF -> LF, CR -> LF) before processing
 	// This handles Windows (\r\n), Unix (\n), and old Mac (\r) line endings uniformly
 	std::string normalized_content = SafeParsing::NormalizeLineEndings(content);
@@ -192,8 +192,28 @@ void RegexpParser::ParseWithRegexp(const std::string &content, const std::string
 
 			event.log_content = line;
 			event.execution_time = 0.0;
+			event.log_line_start = line_num;
+			event.log_line_end = line_num;
 
 			events.push_back(event);
+		} else if (include_unparsed) {
+			// Emit UNKNOWN event for unmatched lines when include_unparsed is true
+			// This is primarily for debugging - only log_content is populated
+			ValidationEvent unknown_event;
+			unknown_event.event_id = event_id++;
+			unknown_event.tool_name = "regexp";
+			unknown_event.event_type = ValidationEventType::UNKNOWN;
+			// status and severity deliberately left unset (will be NULL)
+			unknown_event.category = "regexp_match";
+			// message deliberately left empty - log_content is sufficient for debugging
+			unknown_event.log_content = line;
+			unknown_event.log_line_start = line_num;
+			unknown_event.log_line_end = line_num;
+			unknown_event.ref_line = line_num;
+			unknown_event.ref_column = -1;
+			unknown_event.execution_time = 0.0;
+
+			events.push_back(unknown_event);
 		}
 	}
 
