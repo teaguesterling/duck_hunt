@@ -390,14 +390,20 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
                                               vector<LogicalType> &return_types, vector<string> &names) {
 	auto bind_data = make_uniq<ReadDuckHuntLogBindData>();
 
-	// Get content parameter (required)
-	if (input.inputs.empty()) {
-		throw BinderException("parse_duck_hunt_log requires at least one parameter (content)");
+	// For in-out functions (LATERAL joins), content comes from the input DataChunk at execution time
+	// input.inputs may be empty or contain column references, not literal values
+	// We only need to process format (second arg) and named parameters at bind time
+
+	// Get content parameter if available as a literal (for direct calls)
+	// For LATERAL joins, this will be empty and content comes from the input DataChunk
+	if (!input.inputs.empty() && !input.inputs[0].IsNull()) {
+		bind_data->source = input.inputs[0].ToString();
 	}
-	bind_data->source = input.inputs[0].ToString();
 
 	// Get format parameter (optional, defaults to auto)
-	if (input.inputs.size() > 1) {
+	// For single-arg calls, input.inputs.size() == 1
+	// For two-arg calls, input.inputs.size() == 2
+	if (input.inputs.size() > 1 && !input.inputs[1].IsNull()) {
 		std::string format_str = input.inputs[1].ToString();
 		bind_data->format = StringToTestResultFormat(format_str);
 
@@ -653,6 +659,116 @@ void ParseDuckHuntLogFunction(ClientContext &context, TableFunctionInput &data_p
 	local_state.chunk_offset += output.size();
 }
 
+// In-out function implementations for LATERAL join support
+unique_ptr<GlobalTableFunctionState> ParseDuckHuntLogInOutInitGlobal(ClientContext &context,
+                                                                      TableFunctionInitInput &input) {
+	// For in-out functions, global state is minimal - we don't pre-parse
+	return make_uniq<ReadDuckHuntLogGlobalState>();
+}
+
+unique_ptr<LocalTableFunctionState> ParseDuckHuntLogInOutInitLocal(ExecutionContext &context,
+                                                                    TableFunctionInitInput &input,
+                                                                    GlobalTableFunctionState *global_state) {
+	return make_uniq<ParseDuckHuntLogInOutLocalState>();
+}
+
+OperatorResultType ParseDuckHuntLogInOutFunction(ExecutionContext &context, TableFunctionInput &data_p,
+                                                  DataChunk &input, DataChunk &output) {
+	auto &bind_data = data_p.bind_data->Cast<ReadDuckHuntLogBindData>();
+	auto &lstate = data_p.local_state->Cast<ParseDuckHuntLogInOutLocalState>();
+
+	if (!lstate.initialized) {
+		// Get content from input DataChunk (first column)
+		// For LATERAL joins, content comes from the input table
+		// For direct calls, DuckDB creates a synthetic input DataChunk
+		if (input.size() == 0 || input.data.empty()) {
+			// No input data - signal we need more
+			output.SetCardinality(0);
+			return OperatorResultType::NEED_MORE_INPUT;
+		}
+
+		// Get the content value - handle both constant and flat vectors
+		Value content_value = input.GetValue(0, 0);
+		if (content_value.IsNull()) {
+			// Null input - no output, request next row
+			output.SetCardinality(0);
+			lstate.initialized = false;
+			return OperatorResultType::NEED_MORE_INPUT;
+		}
+
+		auto content = content_value.ToString();
+
+
+		// Determine format - either from bind_data or auto-detect
+		TestResultFormat format = bind_data.format;
+		std::string format_name = bind_data.format_name;
+
+		if (format == TestResultFormat::AUTO) {
+			format_name = DetectFormat(content);
+			if (!format_name.empty()) {
+				format = TestResultFormat::UNKNOWN;
+			}
+		}
+
+		// Parse content
+		if (format == TestResultFormat::REGEXP) {
+			lstate.events = ParseContentRegexp(content, bind_data.regexp_pattern, bind_data.include_unparsed);
+		} else if (!format_name.empty() && format_name != "unknown" && format_name != "auto") {
+			lstate.events = ParseContent(context.client, content, format_name);
+		}
+
+		// Process error patterns for intelligent categorization
+		ProcessErrorPatterns(lstate.events);
+
+		// Apply severity threshold filtering
+		if (bind_data.severity_threshold != SeverityLevel::DEBUG) {
+			auto new_end = std::remove_if(lstate.events.begin(), lstate.events.end(),
+			                              [&bind_data](const ValidationEvent &event) {
+				                              return !ShouldEmitEvent(event.severity, bind_data.severity_threshold);
+			                              });
+			lstate.events.erase(new_end, lstate.events.end());
+		}
+
+		// Cache log lines for context extraction if needed
+		if (bind_data.context_lines > 0) {
+			std::vector<std::string> lines;
+			std::istringstream stream(content);
+			std::string line;
+			while (std::getline(stream, line)) {
+				lines.push_back(line);
+			}
+			lstate.log_lines_by_file[""] = std::move(lines);
+		}
+
+		lstate.output_offset = 0;
+		lstate.initialized = true;
+	}
+
+	// Calculate how many events to output this chunk
+	idx_t remaining = lstate.events.size() > lstate.output_offset ? lstate.events.size() - lstate.output_offset : 0;
+	idx_t output_size = std::min(remaining, static_cast<idx_t>(STANDARD_VECTOR_SIZE));
+
+	// Populate the output chunk
+	PopulateDataChunkFromEvents(output, lstate.events, lstate.output_offset, output_size, bind_data.content_mode,
+	                            bind_data.content_limit, bind_data.context_lines,
+	                            bind_data.context_lines > 0 ? &lstate.log_lines_by_file : nullptr);
+
+	lstate.output_offset += output_size;
+
+	// Follow JSON pattern: return NEED_MORE_INPUT only when output is empty
+	// This signals we're done with this input row
+	if (output.size() == 0) {
+		// Reset state for next input row
+		lstate.initialized = false;
+		lstate.events.clear();
+		lstate.log_lines_by_file.clear();
+		lstate.output_offset = 0;
+		return OperatorResultType::NEED_MORE_INPUT;
+	}
+
+	return OperatorResultType::HAVE_MORE_OUTPUT;
+}
+
 TableFunctionSet GetReadDuckHuntLogFunction() {
 	TableFunctionSet set("read_duck_hunt_log");
 
@@ -683,8 +799,10 @@ TableFunctionSet GetParseDuckHuntLogFunction() {
 	TableFunctionSet set("parse_duck_hunt_log");
 
 	// Single argument version: parse_duck_hunt_log(content) - auto-detects format
-	TableFunction single_arg("parse_duck_hunt_log", {LogicalType::VARCHAR}, ParseDuckHuntLogFunction,
-	                         ParseDuckHuntLogBind, ParseDuckHuntLogInitGlobal, ParseDuckHuntLogInitLocal);
+	// Uses in-out function pattern for LATERAL join support
+	TableFunction single_arg("parse_duck_hunt_log", {LogicalType::VARCHAR}, nullptr, ParseDuckHuntLogBind,
+	                         ParseDuckHuntLogInOutInitGlobal, ParseDuckHuntLogInOutInitLocal);
+	single_arg.in_out_function = ParseDuckHuntLogInOutFunction;
 	single_arg.named_parameters["severity_threshold"] = LogicalType::VARCHAR;
 	single_arg.named_parameters["ignore_errors"] = LogicalType::BOOLEAN;
 	single_arg.named_parameters["content"] = LogicalType::ANY;
@@ -693,8 +811,10 @@ TableFunctionSet GetParseDuckHuntLogFunction() {
 	set.AddFunction(single_arg);
 
 	// Two argument version: parse_duck_hunt_log(content, format)
-	TableFunction two_arg("parse_duck_hunt_log", {LogicalType::VARCHAR, LogicalType::VARCHAR}, ParseDuckHuntLogFunction,
-	                      ParseDuckHuntLogBind, ParseDuckHuntLogInitGlobal, ParseDuckHuntLogInitLocal);
+	// Uses in-out function pattern for LATERAL join support
+	TableFunction two_arg("parse_duck_hunt_log", {LogicalType::VARCHAR, LogicalType::VARCHAR}, nullptr,
+	                      ParseDuckHuntLogBind, ParseDuckHuntLogInOutInitGlobal, ParseDuckHuntLogInOutInitLocal);
+	two_arg.in_out_function = ParseDuckHuntLogInOutFunction;
 	two_arg.named_parameters["severity_threshold"] = LogicalType::VARCHAR;
 	two_arg.named_parameters["ignore_errors"] = LogicalType::BOOLEAN;
 	two_arg.named_parameters["content"] = LogicalType::ANY;

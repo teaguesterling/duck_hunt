@@ -1,0 +1,132 @@
+# name: test/sql/lateral_join_minimal.test
+# description: Minimal lateral join test
+# group: [sql]
+
+require duck_hunt
+
+# Basic lateral join
+statement ok
+CREATE TABLE log_contents AS
+SELECT 'test.c:10: error: something failed' as content, 'file1' as name
+UNION ALL
+SELECT 'util.c:20: warning: check this' as content, 'file2' as name;
+
+query III
+SELECT l.name, e.status, e.message
+FROM log_contents l, LATERAL parse_duck_hunt_log(l.content, 'generic_lint') e
+ORDER BY l.name;
+----
+file1	ERROR	something failed
+file2	WARNING	check this
+
+# Multiple events per input row
+statement ok
+CREATE TABLE multi_event AS SELECT
+'a.c:1: error: first error
+b.c:2: error: second error' as content;
+
+query I
+SELECT COUNT(*)
+FROM multi_event m, LATERAL parse_duck_hunt_log(m.content, 'generic_lint') e;
+----
+2
+
+# Verify all events are extracted
+query II
+SELECT e.ref_file, e.message
+FROM multi_event m, LATERAL parse_duck_hunt_log(m.content, 'generic_lint') e
+ORDER BY e.ref_line;
+----
+a.c	first error
+b.c	second error
+
+# With format auto-detection
+query II
+SELECT l.name, COUNT(*)
+FROM log_contents l, LATERAL parse_duck_hunt_log(l.content) e
+GROUP BY l.name
+ORDER BY l.name;
+----
+file1	1
+file2	1
+
+# Early termination with LIMIT
+query I
+SELECT COUNT(*) FROM (
+    SELECT * FROM log_contents l,
+    LATERAL parse_duck_hunt_log(l.content, 'generic_lint') e
+    LIMIT 1
+);
+----
+1
+
+# Test with VALUES clause
+query II
+SELECT t.id, e.status
+FROM (VALUES (1, 'x.c:1: error: test'), (2, 'y.c:2: warning: other')) AS t(id, content),
+     LATERAL parse_duck_hunt_log(t.content, 'generic_lint') e
+ORDER BY t.id;
+----
+1	ERROR
+2	WARNING
+
+# Test with filtering in lateral context
+query II
+SELECT l.name, e.status
+FROM log_contents l, LATERAL parse_duck_hunt_log(l.content, 'generic_lint') e
+WHERE e.status = 'ERROR'
+ORDER BY l.name;
+----
+file1	ERROR
+
+# Test with JSON format in lateral join
+statement ok
+CREATE TABLE eslint_logs AS
+SELECT 1 as file_id, '[{"filePath":"a.js","messages":[{"severity":2,"message":"unused var","line":1,"column":1}]}]' as content
+UNION ALL
+SELECT 2 as file_id, '[{"filePath":"b.js","messages":[{"severity":1,"message":"prefer const","line":5,"column":3}]}]' as content;
+
+query III
+SELECT l.file_id, e.ref_file, e.status
+FROM eslint_logs l, LATERAL parse_duck_hunt_log(l.content, 'eslint_json') e
+WHERE e.event_type != 'summary'
+ORDER BY l.file_id;
+----
+1	a.js	ERROR
+2	b.js	WARNING
+
+# Test empty input produces no output rows
+statement ok
+CREATE TABLE empty_log AS SELECT '' as content;
+
+query I
+SELECT COUNT(*)
+FROM empty_log l, LATERAL parse_duck_hunt_log(l.content, 'generic_lint') e;
+----
+0
+
+# Test lateral join with subquery
+query II
+SELECT sq.category, e.status
+FROM (
+    SELECT 'errors' as category, 'x.c:1: error: fail' as content
+    UNION ALL
+    SELECT 'warnings' as category, 'y.c:2: warning: warn' as content
+) sq, LATERAL parse_duck_hunt_log(sq.content, 'generic_lint') e
+ORDER BY sq.category;
+----
+errors	ERROR
+warnings	WARNING
+
+# Cleanup
+statement ok
+DROP TABLE log_contents;
+
+statement ok
+DROP TABLE multi_event;
+
+statement ok
+DROP TABLE eslint_logs;
+
+statement ok
+DROP TABLE empty_log;

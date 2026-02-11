@@ -2,6 +2,7 @@
 
 #include "duckdb.hpp"
 #include "duckdb/function/table_function.hpp"
+#include "duckdb/common/enums/operator_result_type.hpp"
 #include "validation_event_types.hpp"
 
 namespace duckdb {
@@ -155,6 +156,14 @@ struct ReadDuckHuntLogLocalState : public LocalTableFunctionState {
 	}
 };
 
+// Local state for parse_duck_hunt_log in-out function (LATERAL join support)
+struct ParseDuckHuntLogInOutLocalState : public LocalTableFunctionState {
+	bool initialized = false;
+	idx_t output_offset = 0;
+	std::vector<ValidationEvent> events;
+	std::unordered_map<std::string, std::vector<std::string>> log_lines_by_file;
+};
+
 // Format conversion utilities
 TestResultFormat StringToTestResultFormat(const std::string &str);
 
@@ -202,6 +211,17 @@ unique_ptr<LocalTableFunctionState> ParseDuckHuntLogInitLocal(ExecutionContext &
                                                               GlobalTableFunctionState *global_state);
 
 void ParseDuckHuntLogFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output);
+
+// In-out function implementation for parse_duck_hunt_log (LATERAL join support)
+unique_ptr<GlobalTableFunctionState> ParseDuckHuntLogInOutInitGlobal(ClientContext &context,
+                                                                      TableFunctionInitInput &input);
+
+unique_ptr<LocalTableFunctionState> ParseDuckHuntLogInOutInitLocal(ExecutionContext &context,
+                                                                    TableFunctionInitInput &input,
+                                                                    GlobalTableFunctionState *global_state);
+
+OperatorResultType ParseDuckHuntLogInOutFunction(ExecutionContext &context, TableFunctionInput &data_p,
+                                                  DataChunk &input, DataChunk &output);
 
 // Helper function to populate DataChunk from ValidationEvents
 void PopulateDataChunkFromEvents(
