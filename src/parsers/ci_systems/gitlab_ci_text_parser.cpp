@@ -15,8 +15,8 @@ bool GitLabCITextParser::canParse(const std::string &content) const {
 	}
 
 	// GitLab CI section markers
-	bool has_section_markers = content.find("section_start:") != std::string::npos ||
-	                           content.find("section_end:") != std::string::npos;
+	bool has_section_markers =
+	    content.find("section_start:") != std::string::npos || content.find("section_end:") != std::string::npos;
 
 	if (has_section_markers) {
 		return true;

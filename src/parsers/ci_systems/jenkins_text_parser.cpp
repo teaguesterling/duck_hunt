@@ -6,10 +6,10 @@ namespace duckdb {
 
 bool JenkinsTextParser::canParse(const std::string &content) const {
 	// Jenkins specific markers
-	bool has_jenkins_marker = content.find("Started by") != std::string::npos &&
-	                          (content.find("Building in workspace") != std::string::npos ||
-	                           content.find("Building on master") != std::string::npos ||
-	                           content.find("Running on") != std::string::npos);
+	bool has_jenkins_marker =
+	    content.find("Started by") != std::string::npos &&
+	    (content.find("Building in workspace") != std::string::npos ||
+	     content.find("Building on master") != std::string::npos || content.find("Running on") != std::string::npos);
 
 	if (has_jenkins_marker) {
 		return true;
@@ -37,8 +37,8 @@ bool JenkinsTextParser::canParse(const std::string &content) const {
 	bool has_jenkins_plugin = content.find("at org.jenkinsci.plugins") != std::string::npos ||
 	                          content.find("at hudson.") != std::string::npos;
 
-	if (has_jenkins_plugin && (content.find("Exception") != std::string::npos ||
-	                           content.find("java.lang.") != std::string::npos)) {
+	if (has_jenkins_plugin &&
+	    (content.find("Exception") != std::string::npos || content.find("java.lang.") != std::string::npos)) {
 		return true;
 	}
 

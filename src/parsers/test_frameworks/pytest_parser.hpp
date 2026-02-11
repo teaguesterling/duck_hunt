@@ -39,8 +39,7 @@ public:
 
 private:
 	void parseTestLine(const std::string &line, int64_t &event_id, std::vector<ValidationEvent> &events,
-	                   int32_t log_line_num,
-	                   const std::unordered_map<std::string, FailureInfo> &failure_info) const;
+	                   int32_t log_line_num, const std::unordered_map<std::string, FailureInfo> &failure_info) const;
 };
 
 } // namespace duckdb

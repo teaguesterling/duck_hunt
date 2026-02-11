@@ -1,6 +1,6 @@
 # name: test/sql/duckdb_test_parser.test
 # description: Test DuckDB test output parser for various failure modes
-# group: [duck_hunt]
+# group: [sql]
 
 require duck_hunt
 

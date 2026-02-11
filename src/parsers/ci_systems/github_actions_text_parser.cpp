@@ -6,32 +6,31 @@ namespace duckdb {
 
 bool GitHubActionsTextParser::canParse(const std::string &content) const {
 	// GitHub Actions specific markers
-	bool has_workflow_command = content.find("::error::") != std::string::npos ||
-	                            content.find("::warning::") != std::string::npos ||
-	                            content.find("::notice::") != std::string::npos ||
-	                            content.find("::group::") != std::string::npos ||
-	                            content.find("::endgroup::") != std::string::npos;
+	bool has_workflow_command =
+	    content.find("::error::") != std::string::npos || content.find("::warning::") != std::string::npos ||
+	    content.find("::notice::") != std::string::npos || content.find("::group::") != std::string::npos ||
+	    content.find("::endgroup::") != std::string::npos;
 
 	if (has_workflow_command) {
 		return true;
 	}
 
 	// GitHub Actions step format with timestamps
-	bool has_step_markers = content.find("##[group]") != std::string::npos ||
-	                        content.find("##[endgroup]") != std::string::npos ||
-	                        content.find("##[error]") != std::string::npos ||
-	                        content.find("##[warning]") != std::string::npos;
+	bool has_step_markers =
+	    content.find("##[group]") != std::string::npos || content.find("##[endgroup]") != std::string::npos ||
+	    content.find("##[error]") != std::string::npos || content.find("##[warning]") != std::string::npos;
 
 	if (has_step_markers) {
 		return true;
 	}
 
 	// Azure DevOps style (GitHub Actions runner uses similar format)
-	bool has_azure_style = content.find("Task         :") != std::string::npos &&
-	                       content.find("Description  :") != std::string::npos;
+	bool has_azure_style =
+	    content.find("Task         :") != std::string::npos && content.find("Description  :") != std::string::npos;
 
 	if (has_azure_style &&
-	    content.find("==============================================================================") != std::string::npos) {
+	    content.find("==============================================================================") !=
+	        std::string::npos) {
 		return true;
 	}
 

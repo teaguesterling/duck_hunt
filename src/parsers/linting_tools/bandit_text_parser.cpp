@@ -6,16 +6,16 @@ namespace duckdb {
 
 bool BanditTextParser::canParse(const std::string &content) const {
 	// Bandit specific markers
-	bool has_bandit_header = content.find("[main]") != std::string::npos &&
-	                         content.find("running on Python") != std::string::npos;
+	bool has_bandit_header =
+	    content.find("[main]") != std::string::npos && content.find("running on Python") != std::string::npos;
 
 	if (has_bandit_header) {
 		return true;
 	}
 
 	// Bandit results summary
-	bool has_results = content.find("Code scanned:") != std::string::npos &&
-	                   content.find("Total lines of code:") != std::string::npos;
+	bool has_results =
+	    content.find("Code scanned:") != std::string::npos && content.find("Total lines of code:") != std::string::npos;
 
 	if (has_results) {
 		return true;
@@ -32,9 +32,9 @@ bool BanditTextParser::canParse(const std::string &content) const {
 	}
 
 	// Bandit severity/confidence markers
-	bool has_severity_conf = content.find("Severity:") != std::string::npos &&
-	                         content.find("Confidence:") != std::string::npos &&
-	                         (content.find("Issue:") != std::string::npos || content.find("Test ID:") != std::string::npos);
+	bool has_severity_conf =
+	    content.find("Severity:") != std::string::npos && content.find("Confidence:") != std::string::npos &&
+	    (content.find("Issue:") != std::string::npos || content.find("Test ID:") != std::string::npos);
 
 	return has_severity_conf;
 }

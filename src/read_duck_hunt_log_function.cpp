@@ -91,7 +91,7 @@ unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFuncti
 				                      "'regexp:(?P<severity>ERROR|WARN):\\s+(?P<message>.*)'");
 			}
 			bind_data->regexp_pattern = format_str.substr(7); // Remove "regexp:" prefix
-			bind_data->format_name = "regexp"; // Canonical name for display
+			bind_data->format_name = "regexp";                // Canonical name for display
 		}
 	} else {
 		bind_data->format = TestResultFormat::AUTO;
@@ -433,7 +433,7 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
 				                      "'regexp:(?P<severity>ERROR|WARN):\\s+(?P<message>.*)'");
 			}
 			bind_data->regexp_pattern = format_str.substr(7); // Remove "regexp:" prefix
-			bind_data->format_name = "regexp"; // Canonical name for display
+			bind_data->format_name = "regexp";                // Canonical name for display
 		}
 	} else {
 		bind_data->format = TestResultFormat::AUTO;
@@ -661,19 +661,19 @@ void ParseDuckHuntLogFunction(ClientContext &context, TableFunctionInput &data_p
 
 // In-out function implementations for LATERAL join support
 unique_ptr<GlobalTableFunctionState> ParseDuckHuntLogInOutInitGlobal(ClientContext &context,
-                                                                      TableFunctionInitInput &input) {
+                                                                     TableFunctionInitInput &input) {
 	// For in-out functions, global state is minimal - we don't pre-parse
 	return make_uniq<ReadDuckHuntLogGlobalState>();
 }
 
 unique_ptr<LocalTableFunctionState> ParseDuckHuntLogInOutInitLocal(ExecutionContext &context,
-                                                                    TableFunctionInitInput &input,
-                                                                    GlobalTableFunctionState *global_state) {
+                                                                   TableFunctionInitInput &input,
+                                                                   GlobalTableFunctionState *global_state) {
 	return make_uniq<ParseDuckHuntLogInOutLocalState>();
 }
 
 OperatorResultType ParseDuckHuntLogInOutFunction(ExecutionContext &context, TableFunctionInput &data_p,
-                                                  DataChunk &input, DataChunk &output) {
+                                                 DataChunk &input, DataChunk &output) {
 	auto &bind_data = data_p.bind_data->Cast<ReadDuckHuntLogBindData>();
 	auto &lstate = data_p.local_state->Cast<ParseDuckHuntLogInOutLocalState>();
 
@@ -698,7 +698,6 @@ OperatorResultType ParseDuckHuntLogInOutFunction(ExecutionContext &context, Tabl
 
 		auto content = content_value.ToString();
 
-
 		// Determine format - either from bind_data or auto-detect
 		TestResultFormat format = bind_data.format;
 		std::string format_name = bind_data.format_name;
@@ -722,10 +721,10 @@ OperatorResultType ParseDuckHuntLogInOutFunction(ExecutionContext &context, Tabl
 
 		// Apply severity threshold filtering
 		if (bind_data.severity_threshold != SeverityLevel::DEBUG) {
-			auto new_end = std::remove_if(lstate.events.begin(), lstate.events.end(),
-			                              [&bind_data](const ValidationEvent &event) {
-				                              return !ShouldEmitEvent(event.severity, bind_data.severity_threshold);
-			                              });
+			auto new_end =
+			    std::remove_if(lstate.events.begin(), lstate.events.end(), [&bind_data](const ValidationEvent &event) {
+				    return !ShouldEmitEvent(event.severity, bind_data.severity_threshold);
+			    });
 			lstate.events.erase(new_end, lstate.events.end());
 		}
 

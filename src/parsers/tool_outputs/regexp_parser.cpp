@@ -8,8 +8,8 @@
 
 namespace duckdb {
 
-void RegexpParser::Parse(const std::string &content, const std::string &pattern,
-                         std::vector<ValidationEvent> &events, bool include_unparsed) const {
+void RegexpParser::Parse(const std::string &content, const std::string &pattern, std::vector<ValidationEvent> &events,
+                         bool include_unparsed) const {
 	ParseWithRegexp(content, pattern, events, include_unparsed);
 }
 

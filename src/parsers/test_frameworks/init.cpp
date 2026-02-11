@@ -106,9 +106,8 @@ void RegisterTestFrameworksParsers(ParserRegistry &registry) {
 	    std::vector<std::string> {"playwright"}, std::vector<std::string> {"javascript", "test"}));
 
 	registry.registerParser(make_uniq<DelegatingParser<PlaywrightJSONParser>>(
-	    "playwright_json", "Playwright JSON Parser", ParserCategory::TEST_FRAMEWORK,
-	    "Playwright JSON reporter output", ParserPriority::VERY_HIGH,
-	    std::vector<std::string> {}, std::vector<std::string> {"javascript", "test"}));
+	    "playwright_json", "Playwright JSON Parser", ParserCategory::TEST_FRAMEWORK, "Playwright JSON reporter output",
+	    ParserPriority::VERY_HIGH, std::vector<std::string> {}, std::vector<std::string> {"javascript", "test"}));
 
 	// Go test text parser
 	registry.registerParser(make_uniq<DelegatingParser<GoTestTextParser>>(

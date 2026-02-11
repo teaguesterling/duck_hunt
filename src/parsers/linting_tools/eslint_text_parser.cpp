@@ -136,12 +136,13 @@ std::vector<ValidationEvent> EslintTextParser::parse(const std::string &content)
 	} else {
 		summary.status = ValidationEventStatus::WARNING;
 		summary.severity = "warning";
-		summary.message = std::to_string(total_issues) + " problem(s) (" + std::to_string(warning_count) + " warning(s))";
+		summary.message =
+		    std::to_string(total_issues) + " problem(s) (" + std::to_string(warning_count) + " warning(s))";
 	}
 
-	summary.structured_data =
-	    "{\"total\": " + std::to_string(total_issues) + ", \"errors\": " + std::to_string(error_count) +
-	    ", \"warnings\": " + std::to_string(warning_count) + "}";
+	summary.structured_data = "{\"total\": " + std::to_string(total_issues) +
+	                          ", \"errors\": " + std::to_string(error_count) +
+	                          ", \"warnings\": " + std::to_string(warning_count) + "}";
 	events.push_back(summary);
 
 	return events;

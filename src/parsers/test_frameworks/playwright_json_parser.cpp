@@ -200,7 +200,9 @@ void PlaywrightJSONParser::parseSuite(yyjson_val *suite, std::vector<ValidationE
 	if (specs && yyjson_is_arr(specs)) {
 		size_t idx, max;
 		yyjson_val *spec;
-		yyjson_arr_foreach(specs, idx, max, spec) { parseSpec(spec, events, event_id, full_title); }
+		yyjson_arr_foreach(specs, idx, max, spec) {
+			parseSpec(spec, events, event_id, full_title);
+		}
 	}
 
 	// Recursively parse nested suites
@@ -208,7 +210,9 @@ void PlaywrightJSONParser::parseSuite(yyjson_val *suite, std::vector<ValidationE
 	if (suites && yyjson_is_arr(suites)) {
 		size_t idx, max;
 		yyjson_val *nested_suite;
-		yyjson_arr_foreach(suites, idx, max, nested_suite) { parseSuite(nested_suite, events, event_id, full_title); }
+		yyjson_arr_foreach(suites, idx, max, nested_suite) {
+			parseSuite(nested_suite, events, event_id, full_title);
+		}
 	}
 }
 
@@ -233,7 +237,9 @@ std::vector<ValidationEvent> PlaywrightJSONParser::parse(const std::string &cont
 	if (suites && yyjson_is_arr(suites)) {
 		size_t idx, max;
 		yyjson_val *suite;
-		yyjson_arr_foreach(suites, idx, max, suite) { parseSuite(suite, events, event_id, ""); }
+		yyjson_arr_foreach(suites, idx, max, suite) {
+			parseSuite(suite, events, event_id, "");
+		}
 	}
 
 	// Parse stats for summary
@@ -275,7 +281,8 @@ std::vector<ValidationEvent> PlaywrightJSONParser::parse(const std::string &cont
 		if (flaky > 0)
 			summary.message += ", " + std::to_string(flaky) + " flaky";
 
-		summary.structured_data = "{\"passed\":" + std::to_string(expected) + ",\"failed\":" + std::to_string(unexpected) +
+		summary.structured_data = "{\"passed\":" + std::to_string(expected) +
+		                          ",\"failed\":" + std::to_string(unexpected) +
 		                          ",\"skipped\":" + std::to_string(skipped) + ",\"flaky\":" + std::to_string(flaky) +
 		                          ",\"duration\":" + std::to_string(duration) + "}";
 

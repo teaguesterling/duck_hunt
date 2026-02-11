@@ -214,14 +214,14 @@ void ParseDuckHuntLogFunction(ClientContext &context, TableFunctionInput &data_p
 
 // In-out function implementation for parse_duck_hunt_log (LATERAL join support)
 unique_ptr<GlobalTableFunctionState> ParseDuckHuntLogInOutInitGlobal(ClientContext &context,
-                                                                      TableFunctionInitInput &input);
+                                                                     TableFunctionInitInput &input);
 
 unique_ptr<LocalTableFunctionState> ParseDuckHuntLogInOutInitLocal(ExecutionContext &context,
-                                                                    TableFunctionInitInput &input,
-                                                                    GlobalTableFunctionState *global_state);
+                                                                   TableFunctionInitInput &input,
+                                                                   GlobalTableFunctionState *global_state);
 
 OperatorResultType ParseDuckHuntLogInOutFunction(ExecutionContext &context, TableFunctionInput &data_p,
-                                                  DataChunk &input, DataChunk &output);
+                                                 DataChunk &input, DataChunk &output);
 
 // Helper function to populate DataChunk from ValidationEvents
 void PopulateDataChunkFromEvents(

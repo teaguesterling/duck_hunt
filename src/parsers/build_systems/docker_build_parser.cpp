@@ -15,10 +15,10 @@ bool DockerBuildParser::canParse(const std::string &content) const {
 	}
 
 	// BuildKit format
-	bool has_buildkit = content.find("#") != std::string::npos &&
-	                    (content.find("[stage-") != std::string::npos ||
-	                     content.find("[internal]") != std::string::npos || content.find("DONE") != std::string::npos ||
-	                     content.find("CACHED") != std::string::npos);
+	bool has_buildkit =
+	    content.find("#") != std::string::npos &&
+	    (content.find("[stage-") != std::string::npos || content.find("[internal]") != std::string::npos ||
+	     content.find("DONE") != std::string::npos || content.find("CACHED") != std::string::npos);
 
 	if (has_buildkit && (content.find("FROM") != std::string::npos || content.find("RUN") != std::string::npos)) {
 		return true;
@@ -200,7 +200,7 @@ std::vector<ValidationEvent> DockerBuildParser::parse(const std::string &content
 			event.event_type = ValidationEventType::SECURITY_FINDING;
 			event.severity = (severity == "CRITICAL" || severity == "HIGH") ? "error" : "warning";
 			event.status = (severity == "CRITICAL" || severity == "HIGH") ? ValidationEventStatus::FAIL
-			                                                               : ValidationEventStatus::WARNING;
+			                                                              : ValidationEventStatus::WARNING;
 			event.message = std::to_string(count) + " " + severity + " vulnerabilities found";
 			event.tool_name = "docker";
 			event.category = "docker_build";

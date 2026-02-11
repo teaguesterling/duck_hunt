@@ -15,8 +15,8 @@ bool RuffParser::canParse(const std::string &content) const {
 		// or "Found N errors" summary
 		// Use multiline flag or match at line start with \n prefix
 		bool has_rule_code = std::regex_search(content, std::regex(R"((^|\n)[A-Z]+\d+\s+\[\*?\])"));
-		bool has_found_errors = content.find("Found ") != std::string::npos &&
-		                        content.find(" error") != std::string::npos;
+		bool has_found_errors =
+		    content.find("Found ") != std::string::npos && content.find(" error") != std::string::npos;
 		bool has_fixable = content.find("fixable with") != std::string::npos;
 
 		return has_rule_code || has_found_errors || has_fixable;

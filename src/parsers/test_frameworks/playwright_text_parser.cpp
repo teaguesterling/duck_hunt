@@ -17,10 +17,9 @@ bool PlaywrightTextParser::canParse(const std::string &content) const {
 	                          content.find("[firefox]") != std::string::npos ||
 	                          content.find("[webkit]") != std::string::npos;
 
-	bool has_file_marker = content.find(".spec.js:") != std::string::npos ||
-	                       content.find(".spec.ts:") != std::string::npos ||
-	                       content.find(".test.js:") != std::string::npos ||
-	                       content.find(".test.ts:") != std::string::npos;
+	bool has_file_marker =
+	    content.find(".spec.js:") != std::string::npos || content.find(".spec.ts:") != std::string::npos ||
+	    content.find(".test.js:") != std::string::npos || content.find(".test.ts:") != std::string::npos;
 
 	// Must have running tests header OR (browser marker AND file marker)
 	return has_running_tests || (has_browser_marker && has_file_marker);
@@ -241,7 +240,8 @@ std::vector<ValidationEvent> PlaywrightTextParser::parse(const std::string &cont
 			event.tool_name = "playwright";
 			event.category = "playwright_text";
 			event.log_content = line;
-			event.structured_data = "{\"passed\": " + std::to_string(passed_count) + ", \"duration\": \"" + duration + "\"}";
+			event.structured_data =
+			    "{\"passed\": " + std::to_string(passed_count) + ", \"duration\": \"" + duration + "\"}";
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
 

@@ -1,4 +1,4 @@
-# name: test/sql/lateral_join_minimal.test
+# name: test/sql/lateral_join.test
 # description: Minimal lateral join test
 # group: [sql]
 

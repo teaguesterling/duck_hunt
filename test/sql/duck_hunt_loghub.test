@@ -1,6 +1,6 @@
 # name: test/sql/duck_hunt_loghub.test
 # description: Test duck_hunt log parsing with loghub datasets
-# group: [duck_hunt]
+# group: [sql]
 
 require duck_hunt
 

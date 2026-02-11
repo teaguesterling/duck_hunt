@@ -10,8 +10,7 @@ bool RubocopTextParser::canParse(const std::string &content) const {
 	// 3. Summary like "X files inspected, Y offenses detected"
 
 	// Check for RuboCop summary pattern
-	if (content.find("files inspected") != std::string::npos &&
-	    content.find("offense") != std::string::npos) {
+	if (content.find("files inspected") != std::string::npos && content.find("offense") != std::string::npos) {
 		return true;
 	}
 
@@ -22,8 +21,7 @@ bool RubocopTextParser::canParse(const std::string &content) const {
 	}
 
 	// Check for "Inspecting X files" header
-	if (content.find("Inspecting") != std::string::npos &&
-	    content.find("file") != std::string::npos) {
+	if (content.find("Inspecting") != std::string::npos && content.find("file") != std::string::npos) {
 		std::regex inspecting_pattern(R"(Inspecting \d+ files?)");
 		if (std::regex_search(content, inspecting_pattern)) {
 			return true;
@@ -102,8 +100,8 @@ std::vector<ValidationEvent> RubocopTextParser::parse(const std::string &content
 			event.log_content = line;
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
-			event.structured_data = "{\"cop\": \"" + cop_name + "\", \"severity_code\": \"" +
-			                        std::string(1, severity_char) + "\"}";
+			event.structured_data =
+			    "{\"cop\": \"" + cop_name + "\", \"severity_code\": \"" + std::string(1, severity_char) + "\"}";
 
 			events.push_back(event);
 		}
@@ -138,10 +136,10 @@ std::vector<ValidationEvent> RubocopTextParser::parse(const std::string &content
 		summary.message = std::to_string(total_issues) + " convention issue(s) detected";
 	}
 
-	summary.structured_data =
-	    "{\"total\": " + std::to_string(total_issues) + ", \"errors\": " + std::to_string(error_count) +
-	    ", \"warnings\": " + std::to_string(warning_count) +
-	    ", \"conventions\": " + std::to_string(convention_count) + "}";
+	summary.structured_data = "{\"total\": " + std::to_string(total_issues) +
+	                          ", \"errors\": " + std::to_string(error_count) +
+	                          ", \"warnings\": " + std::to_string(warning_count) +
+	                          ", \"conventions\": " + std::to_string(convention_count) + "}";
 	events.push_back(summary);
 
 	return events;

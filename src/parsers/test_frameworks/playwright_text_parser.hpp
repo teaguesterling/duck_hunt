@@ -42,10 +42,8 @@ public:
 	}
 	std::vector<CommandPattern> getCommandPatterns() const override {
 		return {
-		    CommandPattern::Like("playwright test%"),
-		    CommandPattern::Like("npx playwright test%"),
-		    CommandPattern::Like("yarn playwright test%"),
-		    CommandPattern::Like("pnpm playwright test%"),
+		    CommandPattern::Like("playwright test%"),         CommandPattern::Like("npx playwright test%"),
+		    CommandPattern::Like("yarn playwright test%"),    CommandPattern::Like("pnpm playwright test%"),
 		    CommandPattern::Regexp(R"(playwright\s+test.*)"),
 		};
 	}

@@ -60,11 +60,12 @@ void RegisterLintingToolsParsers(ParserRegistry &registry) {
 
 	registry.registerParser(make_uniq<DelegatingParser<BanditTextParser>>(
 	    "bandit_text", "Bandit Parser", ParserCategory::LINTING, "Python Bandit security linter output",
-	    ParserPriority::HIGH, std::vector<std::string> {"bandit"}, std::vector<std::string> {"python", "lint", "security"}));
+	    ParserPriority::HIGH, std::vector<std::string> {"bandit"},
+	    std::vector<std::string> {"python", "lint", "security"}));
 
 	registry.registerParser(make_uniq<DelegatingParser<RuffParser>>(
-	    "ruff_text", "Ruff Parser", ParserCategory::LINTING, "Python Ruff linter output",
-	    ParserPriority::VERY_HIGH, std::vector<std::string> {"ruff"}, std::vector<std::string> {"python", "lint"}));
+	    "ruff_text", "Ruff Parser", ParserCategory::LINTING, "Python Ruff linter output", ParserPriority::VERY_HIGH,
+	    std::vector<std::string> {"ruff"}, std::vector<std::string> {"python", "lint"}));
 
 	registry.registerParser(make_uniq<DelegatingParser<EslintTextParser>>(
 	    "eslint_text", "ESLint Text Parser", ParserCategory::LINTING, "ESLint JavaScript/TypeScript linter text output",
@@ -75,12 +76,14 @@ void RegisterLintingToolsParsers(ParserRegistry &registry) {
 	    ParserPriority::HIGH, std::vector<std::string> {}, std::vector<std::string> {"ruby", "lint"}));
 
 	registry.registerParser(make_uniq<DelegatingParser<ShellcheckTextParser>>(
-	    "shellcheck_text", "ShellCheck Text Parser", ParserCategory::LINTING, "ShellCheck shell script linter text output",
-	    ParserPriority::HIGH, std::vector<std::string> {}, std::vector<std::string> {"shell", "lint"}));
+	    "shellcheck_text", "ShellCheck Text Parser", ParserCategory::LINTING,
+	    "ShellCheck shell script linter text output", ParserPriority::HIGH, std::vector<std::string> {},
+	    std::vector<std::string> {"shell", "lint"}));
 
 	registry.registerParser(make_uniq<DelegatingParser<HadolintTextParser>>(
 	    "hadolint_text", "Hadolint Text Parser", ParserCategory::LINTING, "Hadolint Dockerfile linter text output",
-	    ParserPriority::HIGH, std::vector<std::string> {}, std::vector<std::string> {"docker", "lint", "infrastructure"}));
+	    ParserPriority::HIGH, std::vector<std::string> {},
+	    std::vector<std::string> {"docker", "lint", "infrastructure"}));
 }
 
 // Auto-register this category

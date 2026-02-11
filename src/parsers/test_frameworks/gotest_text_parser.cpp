@@ -13,8 +13,7 @@ bool GoTestTextParser::canParse(const std::string &content) const {
 	// Check for RUN marker
 	if (content.find("=== RUN") != std::string::npos) {
 		// Verify we also have result markers
-		if (content.find("--- PASS:") != std::string::npos ||
-		    content.find("--- FAIL:") != std::string::npos ||
+		if (content.find("--- PASS:") != std::string::npos || content.find("--- FAIL:") != std::string::npos ||
 		    content.find("--- SKIP:") != std::string::npos) {
 			return true;
 		}
@@ -93,7 +92,8 @@ std::vector<ValidationEvent> GoTestTextParser::parse(const std::string &content)
 			int32_t err_line = 0;
 			try {
 				err_line = std::stoi(match[2].str());
-			} catch (...) {}
+			} catch (...) {
+			}
 			std::string message = match[3].str();
 			current_test_info->errors.push_back({file, err_line, message});
 			continue;
@@ -106,7 +106,8 @@ std::vector<ValidationEvent> GoTestTextParser::parse(const std::string &content)
 			double duration = 0.0;
 			try {
 				duration = std::stod(match[3].str());
-			} catch (...) {}
+			} catch (...) {
+			}
 
 			// Find or create test info
 			TestInfo *test_info = nullptr;
@@ -136,7 +137,8 @@ std::vector<ValidationEvent> GoTestTextParser::parse(const std::string &content)
 			double duration = 0.0;
 			try {
 				duration = std::stod(match[3].str());
-			} catch (...) {}
+			} catch (...) {
+			}
 
 			// If no individual tests were found, create a package-level event
 			if (tests.empty()) {
@@ -238,9 +240,9 @@ std::vector<ValidationEvent> GoTestTextParser::parse(const std::string &content)
 		summary.message = "No tests found";
 	}
 
-	summary.structured_data =
-	    "{\"passed\": " + std::to_string(pass_count) + ", \"failed\": " + std::to_string(fail_count) +
-	    ", \"skipped\": " + std::to_string(skip_count) + "}";
+	summary.structured_data = "{\"passed\": " + std::to_string(pass_count) +
+	                          ", \"failed\": " + std::to_string(fail_count) +
+	                          ", \"skipped\": " + std::to_string(skip_count) + "}";
 	events.push_back(summary);
 
 	return events;

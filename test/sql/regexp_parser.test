@@ -1,6 +1,6 @@
 # name: test/sql/regexp_parser.test
 # description: Test the regexp parser with custom patterns and include_unparsed option
-# group: [duck_hunt]
+# group: [sql]
 
 require duck_hunt
 

@@ -116,7 +116,7 @@ static std::unordered_map<std::string, FailureInfo> extractFailureInfo(const std
 			info.error_message = current_error_message;
 			info.failure_log_line_start = current_block_start;
 			info.failure_log_line_end = line_num; // Will be updated when block ends
-			info.traceback = ""; // Will be set when block ends
+			info.traceback = "";                  // Will be set when block ends
 			failures[current_test_name] = info;
 			// Don't clear current_test_name - there might be multiple location lines
 			// but we want the last one (closest to the actual failure)

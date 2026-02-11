@@ -88,7 +88,8 @@ void DuckDBTestParser::ParseDuckDBTestOutput(const std::string &content, std::ve
 						failure_line = -1;
 					}
 					if (debug) {
-						fprintf(stderr, "DEBUG: Extracted file='%s' line=%d\n", current_test_file.c_str(), failure_line);
+						fprintf(stderr, "DEBUG: Extracted file='%s' line=%d\n", current_test_file.c_str(),
+						        failure_line);
 					}
 				}
 			}
