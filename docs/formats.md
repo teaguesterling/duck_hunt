@@ -1,6 +1,6 @@
 # Supported Formats
 
-Duck Hunt supports 105 format strings for parsing development tool outputs. Use these with `read_duck_hunt_log()` or `parse_duck_hunt_log()`.
+Duck Hunt supports 107 format strings for parsing development tool outputs. Use these with `read_duck_hunt_log()` or `parse_duck_hunt_log()`.
 
 > **See also:** [Format Maturity Levels](format-maturity.md) for test coverage and stability ratings.
 
@@ -20,7 +20,7 @@ SELECT * FROM parse_duck_hunt_log(content, 'ci');
 
 | Group | Description | Count |
 |-------|-------------|-------|
-| `python` | Python tools (pytest, pylint, mypy, flake8, ruff, bandit, etc.) | 18 |
+| `python` | Python tools (pytest, pylint, mypy, flake8, ruff, bandit, etc.) | 19 |
 | `java` | Java/JVM tools (junit, maven, gradle, spotbugs, etc.) | 11 |
 | `c_cpp` | C/C++ tools (gtest, make, cmake, valgrind, etc.) | 10 |
 | `javascript` | JavaScript/Node.js tools (eslint, mocha, playwright, winston, pino, etc.) | 10 |
@@ -38,7 +38,7 @@ SELECT * FROM parse_duck_hunt_log(content, 'ci');
 
 | Group | Description | Count |
 |-------|-------------|-------|
-| `lint` | Linting & static analysis tools | 32 |
+| `lint` | Linting & static analysis tools | 33 |
 | `infrastructure` | Infrastructure & DevOps tools | 17 |
 | `test` | Test frameworks & runners | 15 |
 | `logging` | Logging frameworks & formats | 13 |
@@ -138,6 +138,7 @@ The function analyzes content patterns and returns the best-matching format stri
 | `autopep8_text` | autopep8 | python, lint | - |
 | `yapf_text` | YAPF | python, lint | - |
 | `ruff_text` | Ruff | python, lint | - |
+| `ruff_json` | Ruff (JSON) | python, lint | - |
 | `bandit_text` | Bandit (text) | python, security, lint | - |
 | `generic_lint` | Generic format | lint | - |
 

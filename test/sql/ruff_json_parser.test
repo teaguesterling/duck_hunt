@@ -1,0 +1,70 @@
+# name: test/sql/ruff_json_parser.test
+# description: Test ruff JSON output parser
+# group: [sql]
+
+require duck_hunt
+
+# Test basic ruff JSON parsing with unused import error
+query IIII
+SELECT tool_name, status, ref_file, ref_line
+FROM parse_duck_hunt_log('[{"cell":null,"code":"F401","end_location":{"column":10,"row":1},"filename":"/tmp/test.py","fix":{"applicability":"safe","edits":[],"message":"Remove unused import"},"location":{"column":8,"row":1},"message":"`os` imported but unused","noqa_row":1,"url":"https://docs.astral.sh/ruff/rules/unused-import"}]', 'ruff_json')
+WHERE event_type = 'lint_issue';
+----
+ruff	ERROR	/tmp/test.py	1
+
+# Test error code extraction
+query II
+SELECT error_code, message
+FROM parse_duck_hunt_log('[{"cell":null,"code":"F401","end_location":{"column":10,"row":1},"filename":"/tmp/test.py","location":{"column":8,"row":1},"message":"`os` imported but unused","noqa_row":1,"url":"https://docs.astral.sh/ruff/rules/unused-import"}]', 'ruff_json')
+WHERE event_type = 'lint_issue';
+----
+F401	`os` imported but unused
+
+# Test column extraction
+query I
+SELECT ref_column
+FROM parse_duck_hunt_log('[{"cell":null,"code":"E501","end_location":{"column":100,"row":5},"filename":"long.py","location":{"column":80,"row":5},"message":"Line too long (100 > 79)","noqa_row":5}]', 'ruff_json')
+WHERE event_type = 'lint_issue';
+----
+80
+
+# Test suggestion from URL and fix message
+query I
+SELECT suggestion
+FROM parse_duck_hunt_log('[{"cell":null,"code":"F401","end_location":{"column":10,"row":1},"filename":"test.py","fix":{"applicability":"safe","edits":[],"message":"Remove unused import: `os`"},"location":{"column":8,"row":1},"message":"`os` imported but unused","noqa_row":1,"url":"https://docs.astral.sh/ruff/rules/unused-import"}]', 'ruff_json')
+WHERE event_type = 'lint_issue';
+----
+https://docs.astral.sh/ruff/rules/unused-import | Remove unused import: `os`
+
+# Test warning severity (W codes)
+query II
+SELECT status, severity
+FROM parse_duck_hunt_log('[{"cell":null,"code":"W291","end_location":{"column":10,"row":1},"filename":"test.py","location":{"column":1,"row":1},"message":"trailing whitespace","noqa_row":1}]', 'ruff_json')
+WHERE event_type = 'lint_issue';
+----
+WARNING	warning
+
+# Test summary event
+query II
+SELECT status, message
+FROM parse_duck_hunt_log('[{"cell":null,"code":"F401","end_location":{"column":10,"row":1},"filename":"test.py","location":{"column":8,"row":1},"message":"unused import","noqa_row":1}]', 'ruff_json')
+WHERE event_type = 'summary';
+----
+FAIL	Found 1 error
+
+# Test empty array (all checks passed)
+query II
+SELECT status, message
+FROM parse_duck_hunt_log('[]', 'ruff_json')
+WHERE event_type = 'summary';
+----
+PASS	All checks passed!
+
+# Test multiple issues
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('[{"cell":null,"code":"F401","end_location":{"column":10,"row":1},"filename":"test.py","location":{"column":8,"row":1},"message":"unused import 1","noqa_row":1},{"cell":null,"code":"F401","end_location":{"column":10,"row":2},"filename":"test.py","location":{"column":8,"row":2},"message":"unused import 2","noqa_row":2},{"cell":null,"code":"E501","end_location":{"column":100,"row":3},"filename":"test.py","location":{"column":80,"row":3},"message":"line too long","noqa_row":3}]', 'ruff_json')
+WHERE event_type = 'lint_issue';
+----
+3
+

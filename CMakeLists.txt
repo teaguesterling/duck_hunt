@@ -142,6 +142,7 @@ set(EXTENSION_SOURCES
     src/parsers/linting_tools/isort_parser.cpp
     src/parsers/linting_tools/bandit_text_parser.cpp
     src/parsers/linting_tools/ruff_parser.cpp
+    src/parsers/linting_tools/ruff_json_parser.cpp
     src/parsers/linting_tools/eslint_text_parser.cpp
     src/parsers/linting_tools/rubocop_text_parser.cpp
     src/parsers/linting_tools/shellcheck_text_parser.cpp
