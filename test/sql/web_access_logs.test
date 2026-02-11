@@ -203,7 +203,7 @@ WHERE category IN ('web_access', 'system_log')
 GROUP BY category ORDER BY category;
 ----
 system_log	1
-web_access	2
+web_access	3
 
 # =============================================================================
 # Edge Cases

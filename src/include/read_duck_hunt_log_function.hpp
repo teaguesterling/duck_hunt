@@ -158,6 +158,12 @@ struct ReadDuckHuntLogLocalState : public LocalTableFunctionState {
 TestResultFormat StringToTestResultFormat(const std::string &str);
 
 // Content reading utilities
+// Size of buffer used for format sniffing (8KB - enough for ~100 lines)
+// Following CSV sniffer pattern: read small sample for detection, full file only if needed
+constexpr size_t SNIFF_BUFFER_SIZE = 8192;
+
+std::string PeekContentFromSource(ClientContext &context, const std::string &source,
+                                  size_t max_bytes = SNIFF_BUFFER_SIZE);
 std::string ReadContentFromSource(ClientContext &context, const std::string &source);
 bool IsValidJSON(const std::string &content);
 

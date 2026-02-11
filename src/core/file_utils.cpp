@@ -8,6 +8,20 @@
 
 namespace duckdb {
 
+std::string PeekContentFromSource(ClientContext &context, const std::string &source, size_t max_bytes) {
+	auto &fs = FileSystem::GetFileSystem(context);
+	auto flags = FileFlags::FILE_FLAGS_READ | FileCompressionType::AUTO_DETECT;
+	auto file_handle = fs.OpenFile(source, flags);
+
+	// Read up to max_bytes
+	std::string content;
+	content.resize(max_bytes);
+	auto bytes_read = file_handle->Read((void *)content.data(), max_bytes);
+	content.resize(static_cast<size_t>(bytes_read));
+
+	return content;
+}
+
 std::string ReadContentFromSource(ClientContext &context, const std::string &source) {
 	// Use DuckDB's FileSystem to properly handle file paths including UNITTEST_ROOT_DIRECTORY
 	auto &fs = FileSystem::GetFileSystem(context);
@@ -136,17 +150,20 @@ void ProcessMultipleFiles(ClientContext &context, const std::vector<std::string>
 		const auto &file_path = files[file_idx];
 
 		try {
-			// Read file content
-			std::string content = ReadContentFromSource(context, file_path);
-
-			// Detect format if AUTO, otherwise use provided format_name
+			// Determine format using sniff approach (peek first, full read only if needed)
 			std::string effective_format_name = format_name;
 			if (format == TestResultFormat::AUTO) {
-				effective_format_name = DetectFormat(content);
+				// Peek first SNIFF_BUFFER_SIZE bytes for format detection
+				// This avoids loading entire file into memory for unrecognized formats
+				std::string peek_content = PeekContentFromSource(context, file_path, SNIFF_BUFFER_SIZE);
+				effective_format_name = DetectFormat(peek_content);
 				if (effective_format_name.empty()) {
-					continue; // No parser found, skip file
+					continue; // No parser found, skip file without reading full content
 				}
 			}
+
+			// Format detected (or explicitly specified) - now read full content
+			std::string content = ReadContentFromSource(context, file_path);
 
 			// Skip REGEXP format in multi-file mode (requires pattern)
 			if (format == TestResultFormat::REGEXP) {

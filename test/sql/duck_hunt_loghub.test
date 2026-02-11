@@ -1,0 +1,130 @@
+# name: test/sql/duck_hunt_loghub.test
+# description: Test duck_hunt log parsing with loghub datasets
+# group: [duck_hunt]
+
+require duck_hunt
+
+# Test format detection and parsing for loghub distributed systems logs
+# Loghub: https://github.com/logpai/loghub
+
+# HDFS - Apache Hadoop HDFS logs (log4j-style)
+query III
+SELECT tool_name, severity, count(*) as cnt
+FROM read_duck_hunt_log('test/samples/loghub/HDFS/HDFS_2k.log')
+GROUP BY tool_name, severity
+ORDER BY cnt DESC;
+----
+hdfs	info	1920
+hdfs	warning	80
+
+# Spark - Apache Spark logs
+query II
+SELECT tool_name, count(*) as cnt
+FROM read_duck_hunt_log('test/samples/loghub/Spark/Spark_2k.log')
+GROUP BY tool_name;
+----
+spark	2000
+
+# Zookeeper - Apache Zookeeper logs
+query II
+SELECT tool_name, count(*) as cnt
+FROM read_duck_hunt_log('test/samples/loghub/Zookeeper/Zookeeper_2k.log')
+GROUP BY tool_name;
+----
+zookeeper	2000
+
+# OpenSSH - SSH daemon logs (detected as syslog format)
+query II
+SELECT tool_name, count(*) as cnt
+FROM read_duck_hunt_log('test/samples/loghub/OpenSSH/OpenSSH_2k.log')
+GROUP BY tool_name;
+----
+syslog	2000
+
+# Android - Android logcat format
+query II
+SELECT tool_name, count(*) as cnt
+FROM read_duck_hunt_log('test/samples/loghub/Android/Android_2k.log')
+GROUP BY tool_name;
+----
+android	2000
+
+# Linux - Linux system logs (detected as syslog format)
+query II
+SELECT tool_name, count(*) as cnt
+FROM read_duck_hunt_log('test/samples/loghub/Linux/Linux_2k.log')
+GROUP BY tool_name;
+----
+syslog	2000
+
+# OpenStack - OpenStack service logs
+query II
+SELECT tool_name, count(*) as cnt
+FROM read_duck_hunt_log('test/samples/loghub/OpenStack/OpenStack_2k.log')
+GROUP BY tool_name;
+----
+openstack	2000
+
+# BGL - Blue Gene/L supercomputer logs (custom format with severity)
+query III
+SELECT tool_name, severity, count(*) as cnt
+FROM read_duck_hunt_log('test/samples/loghub/BGL/BGL_2k.log')
+GROUP BY tool_name, severity
+ORDER BY cnt DESC;
+----
+bgl	info	1589
+bgl	error	358
+bgl	warning	8
+
+# === Formats that are NOT YET SUPPORTED ===
+# These should return 0 rows without crashing (sniff-based detection prevents crashes)
+
+# HPC - High Performance Computing logs
+# Previously caused a crash due to regex backtracking, now safely returns empty result
+query I
+SELECT count(*) FROM read_duck_hunt_log('test/samples/loghub/HPC/HPC_2k.log');
+----
+0
+
+# Apache - Apache httpd error logs
+# Format: [Day Mon DD HH:MM:SS YYYY] [level] message
+query III
+SELECT tool_name, severity, count(*) as cnt
+FROM read_duck_hunt_log('test/samples/loghub/Apache/Apache_2k.log')
+GROUP BY tool_name, severity
+ORDER BY cnt DESC;
+----
+apache_error	info	1405
+apache_error	error	595
+
+# HealthApp - Custom Android health app logs (pipe-delimited)
+query I
+SELECT count(*) FROM read_duck_hunt_log('test/samples/loghub/HealthApp/HealthApp_2k.log');
+----
+0
+
+# Thunderbird - Thunderbird mail client logs
+query I
+SELECT count(*) FROM read_duck_hunt_log('test/samples/loghub/Thunderbird/Thunderbird_2k.log');
+----
+0
+
+# Windows - Windows CBS/CSI component logs
+query I
+SELECT count(*) FROM read_duck_hunt_log('test/samples/loghub/Windows/Windows_2k.log');
+----
+0
+
+# Proxifier - Network proxy tool logs
+query I
+SELECT count(*) FROM read_duck_hunt_log('test/samples/loghub/Proxifier/Proxifier_2k.log');
+----
+0
+
+# Mac - macOS system.log (BSD syslog format)
+query II
+SELECT tool_name, count(*) as cnt
+FROM read_duck_hunt_log('test/samples/loghub/Mac/Mac_2k.log')
+GROUP BY tool_name;
+----
+syslog	2000

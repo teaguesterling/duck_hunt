@@ -184,6 +184,7 @@ set(EXTENSION_SOURCES
     # Web access and system log parsers
     src/parsers/web_access/syslog_parser.cpp
     src/parsers/web_access/apache_access_parser.cpp
+    src/parsers/web_access/apache_error_parser.cpp
     src/parsers/web_access/nginx_access_parser.cpp
 
     # Cloud provider log parsers
