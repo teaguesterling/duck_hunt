@@ -23,6 +23,10 @@ void DuckDBTestParser::ParseDuckDBTestOutput(const std::string &content, std::ve
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
+	int line_num = 0;
+
+	// DEBUG: Track parsing state
+	bool debug = false; // Set to true to enable debug output
 
 	// Track current test being processed
 	std::string current_test_file;
@@ -37,6 +41,12 @@ void DuckDBTestParser::ParseDuckDBTestOutput(const std::string &content, std::ve
 	bool in_actual_section = false;
 
 	while (std::getline(stream, line)) {
+		line_num++;
+		if (debug) {
+			fprintf(stderr, "DEBUG[%d]: '%s' (in_failure=%d)\n", line_num, line.substr(0, 50).c_str(),
+			        in_failure_section);
+		}
+
 		// Parse test progress lines: [X/Y] (Z%): /path/to/test.test
 		if (line.find("[") == 0 && line.find("]:") != std::string::npos) {
 			size_t path_start = line.find("): ");
@@ -55,17 +65,26 @@ void DuckDBTestParser::ParseDuckDBTestOutput(const std::string &content, std::ve
 		         line.find("Query unexpectedly failed") != std::string::npos) {
 			in_failure_section = true;
 			failure_message = line;
+			if (debug) {
+				fprintf(stderr, "DEBUG: FAILURE DETECTED: '%s'\n", failure_message.c_str());
+			}
 
-			// Extract line number from failure message
-			size_t line_start = line.find(".test:");
-			if (line_start != std::string::npos) {
-				line_start += 6; // Length of ".test:"
-				size_t line_end = line.find(")", line_start);
-				if (line_end != std::string::npos) {
+			// Extract test file path and line number from failure message
+			// Format: "Wrong result in query! (path/to/test.test:LINE)!"
+			size_t paren_start = line.find("(");
+			size_t paren_end = line.rfind(")");
+			if (paren_start != std::string::npos && paren_end != std::string::npos && paren_end > paren_start) {
+				std::string location = line.substr(paren_start + 1, paren_end - paren_start - 1);
+				size_t colon_pos = location.rfind(":");
+				if (colon_pos != std::string::npos) {
+					current_test_file = location.substr(0, colon_pos);
 					try {
-						failure_line = std::stoi(line.substr(line_start, line_end - line_start));
+						failure_line = std::stoi(location.substr(colon_pos + 1));
 					} catch (...) {
 						failure_line = -1;
+					}
+					if (debug) {
+						fprintf(stderr, "DEBUG: Extracted file='%s' line=%d\n", current_test_file.c_str(), failure_line);
 					}
 				}
 			}
@@ -96,26 +115,13 @@ void DuckDBTestParser::ParseDuckDBTestOutput(const std::string &content, std::ve
 			in_actual_section = true;
 		}
 
-		// Capture expected result data
-		else if (in_expected_section && !line.empty() &&
-		         line.find("================================================================================") ==
-		             std::string::npos) {
-			if (!expected_result.empty())
-				expected_result += "\n";
-			expected_result += line;
-		}
-
-		// Capture actual result data
-		else if (in_actual_section && !line.empty() &&
-		         line.find("================================================================================") ==
-		             std::string::npos) {
-			if (!actual_result.empty())
-				actual_result += "\n";
-			actual_result += line;
-		}
-
 		// End of failure section - create failure event
+		// IMPORTANT: Check this BEFORE result data capture to avoid FAILED: line being captured as result
 		else if (in_failure_section && line.find("FAILED:") != std::string::npos) {
+			if (debug) {
+				fprintf(stderr, "DEBUG: FAILED: found, creating event. file='%s' line=%d msg='%s'\n",
+				        current_test_file.c_str(), failure_line, failure_message.c_str());
+			}
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "duckdb_test";
@@ -158,6 +164,24 @@ void DuckDBTestParser::ParseDuckDBTestOutput(const std::string &content, std::ve
 			mismatch_details.clear();
 			expected_result.clear();
 			actual_result.clear();
+		}
+
+		// Capture expected result data
+		else if (in_expected_section && !line.empty() &&
+		         line.find("================================================================================") ==
+		             std::string::npos) {
+			if (!expected_result.empty())
+				expected_result += "\n";
+			expected_result += line;
+		}
+
+		// Capture actual result data
+		else if (in_actual_section && !line.empty() &&
+		         line.find("================================================================================") ==
+		             std::string::npos) {
+			if (!actual_result.empty())
+				actual_result += "\n";
+			actual_result += line;
 		}
 
 		// Parse summary line: test cases: X | Y passed | Z failed

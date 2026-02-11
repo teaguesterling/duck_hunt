@@ -1,0 +1,23 @@
+# name: test/sql/duckdb_test_parser.test
+# description: Test DuckDB test output parser
+# group: [duck_hunt]
+
+require duck_hunt
+
+# Test parsing DuckDB test failure output
+query IIII
+SELECT status, ref_file, ref_line, message
+FROM read_duck_hunt_log('test/samples/test_frameworks/duckdb_test_failures.txt', 'duckdb_test')
+WHERE status = 'FAIL'
+ORDER BY ref_line;
+----
+FAIL	test/sql/duckdb_parser_validation.test	9	Wrong result in query! (test/sql/duckdb_parser_validation.test:9)! | Mismatch on row 1, column 1(index 1)
+
+# Test that summary is also parsed
+query II
+SELECT status, message
+FROM read_duck_hunt_log('test/samples/test_frameworks/duckdb_test_failures.txt', 'duckdb_test')
+WHERE category = 'test_summary';
+----
+INFO	Test summary: 4 tests passed
+
