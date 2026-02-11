@@ -293,14 +293,12 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &co
 
 		// Only read full content if format was detected or explicitly specified
 		if (format_detected) {
-			if (is_file) {
-				try {
-					content = ReadContentFromSource(context, source_path);
-				} catch (const IOException &) {
-					// If file reading fails, treat source as direct content
-					content = bind_data.source;
-				}
-			} else {
+			// Try to read as file first (both for AUTO-detected and explicitly specified formats)
+			try {
+				content = ReadContentFromSource(context, source_path);
+				is_file = true;
+			} catch (const IOException &) {
+				// If file reading fails, treat source as direct content
 				content = bind_data.source;
 			}
 		}

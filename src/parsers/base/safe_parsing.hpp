@@ -25,6 +25,85 @@ namespace duckdb {
  */
 namespace SafeParsing {
 
+/**
+ * Normalize line endings to Unix-style LF (\n).
+ *
+ * Handles three line ending styles:
+ * - CRLF (\r\n) - Windows
+ * - LF (\n) - Unix/Linux/macOS
+ * - CR (\r) - Old Mac (pre-OS X)
+ *
+ * This is similar to how DuckDB's CSV parser handles mixed line endings
+ * in non-strict mode. All line endings are converted to \n before processing.
+ *
+ * @param content The raw content with potentially mixed line endings
+ * @return Content with all line endings normalized to \n
+ */
+inline std::string NormalizeLineEndings(const std::string &content) {
+	if (content.empty()) {
+		return content;
+	}
+
+	std::string result;
+	result.reserve(content.size());
+
+	for (size_t i = 0; i < content.size(); ++i) {
+		char c = content[i];
+		if (c == '\r') {
+			// Check if this is \r\n (Windows) - consume the \n as part of single newline
+			if (i + 1 < content.size() && content[i + 1] == '\n') {
+				++i; // Skip the \n, we'll add a single \n
+			}
+			// Whether \r alone (old Mac) or \r\n (Windows), emit single \n
+			result += '\n';
+		} else {
+			result += c;
+		}
+	}
+
+	return result;
+}
+
+/**
+ * Detect the predominant line ending style in content.
+ *
+ * Returns one of:
+ * - "\\r\\n" for CRLF (Windows)
+ * - "\\n" for LF (Unix/Linux/macOS)
+ * - "\\r" for CR (Old Mac)
+ * - "" if no line endings detected
+ */
+inline std::string DetectLineEnding(const std::string &content) {
+	bool has_cr = false;
+	bool has_lf = false;
+	bool has_crlf = false;
+
+	for (size_t i = 0; i < content.size(); ++i) {
+		if (content[i] == '\r') {
+			if (i + 1 < content.size() && content[i + 1] == '\n') {
+				has_crlf = true;
+				++i; // Skip the \n
+			} else {
+				has_cr = true;
+			}
+		} else if (content[i] == '\n') {
+			has_lf = true;
+		}
+	}
+
+	// Prioritize CRLF detection (most common mixed case)
+	if (has_crlf) {
+		return "\\r\\n";
+	}
+	if (has_lf) {
+		return "\\n";
+	}
+	if (has_cr) {
+		return "\\r";
+	}
+	return "";
+}
+
 // Maximum line length to attempt regex matching
 // Lines longer than this are skipped to prevent catastrophic backtracking
 constexpr size_t MAX_REGEX_LINE_LENGTH = 2000;
@@ -243,7 +322,7 @@ inline bool HasPotentialBacktracking(const std::string &pattern) {
 class SafeLineReader {
 public:
 	explicit SafeLineReader(const std::string &content, size_t max_line_length = MAX_REGEX_LINE_LENGTH)
-	    : stream_(content), max_length_(max_line_length), line_number_(0) {
+	    : stream_(NormalizeLineEndings(content)), max_length_(max_line_length), line_number_(0) {
 	}
 
 	/**

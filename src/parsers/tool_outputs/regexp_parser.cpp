@@ -1,4 +1,5 @@
 #include "regexp_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 #include <string>
@@ -14,6 +15,10 @@ void RegexpParser::Parse(const std::string &content, const std::string &pattern,
 
 void RegexpParser::ParseWithRegexp(const std::string &content, const std::string &pattern,
                                    std::vector<ValidationEvent> &events) {
+	// Normalize line endings (CRLF -> LF, CR -> LF) before processing
+	// This handles Windows (\r\n), Unix (\n), and old Mac (\r) line endings uniformly
+	std::string normalized_content = SafeParsing::NormalizeLineEndings(content);
+
 	// Extract named group names from the pattern
 	// Supports both Python-style (?P<name>...) and ECMAScript-style (?<name>...)
 	std::vector<std::string> group_names;
@@ -74,7 +79,7 @@ void RegexpParser::ParseWithRegexp(const std::string &content, const std::string
 	};
 
 	// Parse content line by line
-	std::istringstream stream(content);
+	std::istringstream stream(normalized_content);
 	std::string line;
 	int64_t event_id = 1;
 	int line_num = 0;
