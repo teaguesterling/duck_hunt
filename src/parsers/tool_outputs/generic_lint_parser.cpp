@@ -28,6 +28,49 @@ std::vector<ValidationEvent> GenericLintParser::parse(const std::string &content
 	return events;
 }
 
+std::vector<ValidationEvent> GenericLintParser::parseLine(const std::string &line, int32_t line_number,
+                                                          int64_t &event_id) const {
+	std::vector<ValidationEvent> events;
+
+	// Parse generic lint format using safe string parsing (no regex backtracking risk)
+	std::string file, severity, message;
+	int line_num, col;
+
+	if (SafeParsing::ParseCompilerDiagnostic(line, file, line_num, col, severity, message)) {
+		ValidationEvent event;
+		event.event_id = event_id++;
+		event.tool_name = "lint";
+		event.event_type = ValidationEventType::LINT_ISSUE;
+		event.ref_file = file;
+		event.ref_line = line_num;
+		event.ref_column = col;
+		event.function_name = "";
+		event.message = message;
+		event.execution_time = 0.0;
+		event.log_content = line;
+		event.log_line_start = line_number;
+		event.log_line_end = line_number;
+
+		if (severity == "error") {
+			event.status = ValidationEventStatus::ERROR;
+			event.category = "lint_error";
+			event.severity = "error";
+		} else if (severity == "warning") {
+			event.status = ValidationEventStatus::WARNING;
+			event.category = "lint_warning";
+			event.severity = "warning";
+		} else {
+			event.status = ValidationEventStatus::INFO;
+			event.category = "lint_info";
+			event.severity = "info";
+		}
+
+		events.push_back(event);
+	}
+
+	return events;
+}
+
 void GenericLintParser::ParseGenericLint(const std::string &content, std::vector<ValidationEvent> &events) {
 	SafeParsing::SafeLineReader reader(content);
 	std::string line;

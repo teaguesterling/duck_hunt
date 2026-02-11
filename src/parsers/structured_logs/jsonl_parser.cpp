@@ -192,4 +192,36 @@ std::vector<ValidationEvent> JSONLParser::parse(const std::string &content) cons
 	return events;
 }
 
+std::vector<ValidationEvent> JSONLParser::parseLine(const std::string &line, int32_t line_number,
+                                                    int64_t &event_id) const {
+	std::vector<ValidationEvent> events;
+
+	// Trim whitespace
+	std::string trimmed = line;
+	size_t start = trimmed.find_first_not_of(" \t\r\n");
+	if (start == std::string::npos) {
+		return events; // Empty line
+	}
+	trimmed = trimmed.substr(start);
+
+	size_t end = trimmed.find_last_not_of(" \t\r\n");
+	if (end != std::string::npos) {
+		trimmed = trimmed.substr(0, end + 1);
+	}
+
+	// Skip non-JSON lines
+	if (trimmed.empty() || trimmed[0] != '{') {
+		return events;
+	}
+
+	try {
+		ValidationEvent event = ParseJsonLine(trimmed, event_id++, line_number);
+		events.push_back(event);
+	} catch (...) {
+		// Ignore parse errors
+	}
+
+	return events;
+}
+
 } // namespace duckdb

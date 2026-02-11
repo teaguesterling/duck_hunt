@@ -81,6 +81,37 @@ public:
 	}
 
 	// =========================================================================
+	// Streaming support (optional, enables line-by-line parsing)
+	// =========================================================================
+
+	/**
+	 * Check if this parser supports streaming (line-by-line) parsing.
+	 * When true, parseLine() can be used for incremental parsing, enabling:
+	 * - Early termination with LIMIT without reading entire file
+	 * - Reduced memory footprint for large files
+	 *
+	 * Default returns false - parsers must explicitly opt-in to streaming.
+	 */
+	virtual bool supportsStreaming() const {
+		return false;
+	}
+
+	/**
+	 * Parse a single line and return any events found.
+	 * Only called when supportsStreaming() returns true.
+	 *
+	 * @param line The line content (without newline character)
+	 * @param line_number The 1-based line number in the file
+	 * @param event_id Reference to event ID counter (increment for each event)
+	 * @return Vector of events found in this line (usually 0 or 1)
+	 */
+	virtual std::vector<ValidationEvent> parseLine(const std::string &line, int32_t line_number,
+	                                               int64_t &event_id) const {
+		// Default: not supported, return empty
+		return {};
+	}
+
+	// =========================================================================
 	// Metadata methods (required)
 	// =========================================================================
 

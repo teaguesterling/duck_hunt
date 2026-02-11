@@ -1,0 +1,81 @@
+# name: test/sql/streaming.test
+# description: Test streaming parser support for large files
+# group: [duck_hunt]
+
+require duck_hunt
+
+# Create a test file with 100 error lines for streaming test
+statement ok
+COPY (SELECT 'test.c:' || i || ': error: test error ' || i AS line FROM range(1, 101) t(i)) TO '__TEST_DIR__/streaming_test.txt' (HEADER false);
+
+# Test that generic_lint correctly parses all events in streaming mode
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('__TEST_DIR__/streaming_test.txt', 'generic_lint');
+----
+100
+
+# Test LIMIT works correctly with streaming
+query I
+SELECT COUNT(*) FROM (
+    SELECT * FROM read_duck_hunt_log('__TEST_DIR__/streaming_test.txt', 'generic_lint')
+    LIMIT 10
+);
+----
+10
+
+# Verify data content is correct
+query II
+SELECT ref_line, message FROM read_duck_hunt_log('__TEST_DIR__/streaming_test.txt', 'generic_lint')
+LIMIT 3;
+----
+1	test error 1
+2	test error 2
+3	test error 3
+
+# Test that streaming preserves order
+query II
+SELECT ref_line, ref_line = ROW_NUMBER() OVER () as correct_order
+FROM read_duck_hunt_log('__TEST_DIR__/streaming_test.txt', 'generic_lint')
+LIMIT 5;
+----
+1	true
+2	true
+3	true
+4	true
+5	true
+
+# Test streaming with severity filtering (should still work)
+statement ok
+COPY (SELECT
+    CASE WHEN i % 2 = 0 THEN 'test.c:' || i || ': error: error ' || i
+    ELSE 'test.c:' || i || ': warning: warning ' || i END AS line
+FROM range(1, 21) t(i)) TO '__TEST_DIR__/mixed_severity.txt' (HEADER false);
+
+# Count only errors (severity filtering via WHERE)
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('__TEST_DIR__/mixed_severity.txt', 'generic_lint')
+WHERE status = 'ERROR';
+----
+10
+
+# Test streaming with LATERAL join (single file)
+statement ok
+CREATE TABLE streaming_files AS SELECT '__TEST_DIR__/streaming_test.txt' as path;
+
+query I
+SELECT COUNT(*) FROM streaming_files f, LATERAL read_duck_hunt_log(f.path, 'generic_lint') e;
+----
+100
+
+# Test streaming LATERAL with LIMIT
+query I
+SELECT COUNT(*) FROM (
+    SELECT * FROM streaming_files f, LATERAL read_duck_hunt_log(f.path, 'generic_lint') e
+    LIMIT 5
+);
+----
+5
+
+# Cleanup
+statement ok
+DROP TABLE streaming_files;

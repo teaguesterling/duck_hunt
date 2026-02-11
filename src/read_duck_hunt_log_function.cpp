@@ -2,6 +2,7 @@
 #include "include/validation_event_types.hpp"
 #include "core/parser_registry.hpp"
 #include "core/parse_content.hpp"
+#include "core/file_utils.hpp"
 #include "core/format_utils.hpp"
 #include "core/error_patterns.hpp"
 #include "parsers/test_frameworks/duckdb_test_parser.hpp"
@@ -814,117 +815,240 @@ OperatorResultType ReadDuckHuntLogInOutFunction(ExecutionContext &context, Table
 		std::string source_path = path_value.ToString();
 		lstate.current_file_path = source_path;
 
-		// Check if this is a glob pattern (contains *, ?, [, or {)
-		std::vector<std::string> files;
+		// Check if this is a glob pattern - streaming not supported for globs
 		if (ContainsGlobCharacters(source_path)) {
-			// Expand glob pattern
+			// Glob patterns: use batch mode
+			std::vector<std::string> files;
 			try {
 				files = GetFilesFromPattern(context.client, source_path);
 			} catch (const IOException &) {
 				files.clear();
 			}
-		} else {
-			// Single file path
-			files.push_back(source_path);
-		}
 
-		// Process all files
-		for (const auto &file_path : files) {
-			std::string content;
-			try {
-				content = ReadContentFromSource(context.client, file_path);
-			} catch (const IOException &) {
-				// File doesn't exist or can't be read - skip if ignore_errors
-				if (bind_data.ignore_errors) {
+			// Process all files in batch mode
+			for (const auto &file_path : files) {
+				std::string content;
+				try {
+					content = ReadContentFromSource(context.client, file_path);
+				} catch (const IOException &) {
 					continue;
 				}
-				// Otherwise just skip silently (graceful handling)
-				continue;
-			}
 
-			if (content.empty()) {
-				continue;
-			}
+				if (content.empty()) {
+					continue;
+				}
 
-			// Determine format - either from bind_data or auto-detect
+				TestResultFormat format = bind_data.format;
+				std::string format_name = bind_data.format_name;
+
+				if (format == TestResultFormat::AUTO) {
+					format_name = DetectFormat(content);
+					if (!format_name.empty()) {
+						format = TestResultFormat::UNKNOWN;
+					}
+				}
+
+				std::vector<ValidationEvent> file_events;
+				if (format == TestResultFormat::REGEXP) {
+					file_events = ParseContentRegexp(content, bind_data.regexp_pattern, bind_data.include_unparsed);
+				} else if (!format_name.empty() && format_name != "unknown" && format_name != "auto") {
+					file_events = ParseContent(context.client, content, format_name);
+				}
+
+				for (auto &event : file_events) {
+					if (event.log_file.empty()) {
+						event.log_file = file_path;
+					}
+				}
+
+				if (bind_data.context_lines > 0) {
+					std::vector<std::string> lines;
+					std::istringstream stream(content);
+					std::string line;
+					while (std::getline(stream, line)) {
+						lines.push_back(line);
+					}
+					lstate.log_lines_by_file[file_path] = std::move(lines);
+				}
+
+				lstate.events.insert(lstate.events.end(), file_events.begin(), file_events.end());
+			}
+			lstate.streaming_mode = false;
+		} else {
+			// Single file - check if we can use streaming mode
 			TestResultFormat format = bind_data.format;
 			std::string format_name = bind_data.format_name;
 
+			// First, peek at the file for format detection if needed
 			if (format == TestResultFormat::AUTO) {
-				format_name = DetectFormat(content);
-				if (!format_name.empty()) {
-					format = TestResultFormat::UNKNOWN;
+				std::string peek_content;
+				try {
+					peek_content = PeekContentFromSource(context.client, source_path, SNIFF_BUFFER_SIZE);
+				} catch (const IOException &) {
+					output.SetCardinality(0);
+					lstate.initialized = false;
+					return OperatorResultType::NEED_MORE_INPUT;
 				}
+				format_name = DetectFormat(peek_content);
 			}
 
-			// Parse content
-			std::vector<ValidationEvent> file_events;
-			if (format == TestResultFormat::REGEXP) {
-				file_events = ParseContentRegexp(content, bind_data.regexp_pattern, bind_data.include_unparsed);
-			} else if (!format_name.empty() && format_name != "unknown" && format_name != "auto") {
-				file_events = ParseContent(context.client, content, format_name);
+			// Check if the parser supports streaming
+			IParser *parser = nullptr;
+			if (!format_name.empty() && format_name != "unknown" && format_name != "auto" &&
+			    format != TestResultFormat::REGEXP) {
+				parser = ParserRegistry::getInstance().getParser(format_name);
 			}
 
-			// Set log_file on each event
-			for (auto &event : file_events) {
-				if (event.log_file.empty()) {
-					event.log_file = file_path;
+			// Use streaming mode if:
+			// - Parser exists and supports streaming
+			// - Not using REGEXP format (requires full content)
+			// - Not using context lines (would need full file for context)
+			bool can_stream = parser && parser->supportsStreaming() && format != TestResultFormat::REGEXP &&
+			                  bind_data.context_lines == 0;
+
+			if (can_stream) {
+				// Initialize streaming mode
+				try {
+					lstate.line_reader = make_uniq<LineReader>(context.client, source_path);
+				} catch (const IOException &) {
+					output.SetCardinality(0);
+					lstate.initialized = false;
+					return OperatorResultType::NEED_MORE_INPUT;
 				}
-			}
-
-			// Cache log lines for context extraction if needed
-			if (bind_data.context_lines > 0) {
-				std::vector<std::string> lines;
-				std::istringstream stream(content);
-				std::string line;
-				while (std::getline(stream, line)) {
-					lines.push_back(line);
+				lstate.streaming_mode = true;
+				lstate.streaming_parser = parser;
+				lstate.streaming_event_id = 0;
+				lstate.output_offset = 0;
+				lstate.initialized = true;
+			} else {
+				// Fall back to batch mode
+				std::string content;
+				try {
+					content = ReadContentFromSource(context.client, source_path);
+				} catch (const IOException &) {
+					output.SetCardinality(0);
+					lstate.initialized = false;
+					return OperatorResultType::NEED_MORE_INPUT;
 				}
-				lstate.log_lines_by_file[file_path] = std::move(lines);
-			}
 
-			// Add to collected events
-			lstate.events.insert(lstate.events.end(), file_events.begin(), file_events.end());
+				if (!content.empty()) {
+					if (format == TestResultFormat::AUTO && format_name.empty()) {
+						format_name = DetectFormat(content);
+					}
+
+					std::vector<ValidationEvent> file_events;
+					if (format == TestResultFormat::REGEXP) {
+						file_events =
+						    ParseContentRegexp(content, bind_data.regexp_pattern, bind_data.include_unparsed);
+					} else if (!format_name.empty() && format_name != "unknown" && format_name != "auto") {
+						file_events = ParseContent(context.client, content, format_name);
+					}
+
+					for (auto &event : file_events) {
+						if (event.log_file.empty()) {
+							event.log_file = source_path;
+						}
+					}
+
+					if (bind_data.context_lines > 0) {
+						std::vector<std::string> lines;
+						std::istringstream stream(content);
+						std::string line;
+						while (std::getline(stream, line)) {
+							lines.push_back(line);
+						}
+						lstate.log_lines_by_file[source_path] = std::move(lines);
+					}
+
+					lstate.events = std::move(file_events);
+				}
+				lstate.streaming_mode = false;
+			}
 		}
 
-		if (lstate.events.empty()) {
-			// No events from any files - request next row
-			output.SetCardinality(0);
-			lstate.initialized = false;
-			lstate.log_lines_by_file.clear();
-			return OperatorResultType::NEED_MORE_INPUT;
-		}
+		// For batch mode: post-process events
+		if (!lstate.streaming_mode) {
+			if (lstate.events.empty()) {
+				output.SetCardinality(0);
+				lstate.initialized = false;
+				lstate.log_lines_by_file.clear();
+				return OperatorResultType::NEED_MORE_INPUT;
+			}
 
-		// Process error patterns for intelligent categorization
-		ProcessErrorPatterns(lstate.events);
+			ProcessErrorPatterns(lstate.events);
 
-		// Apply severity threshold filtering
-		if (bind_data.severity_threshold != SeverityLevel::DEBUG) {
-			auto new_end =
-			    std::remove_if(lstate.events.begin(), lstate.events.end(), [&bind_data](const ValidationEvent &event) {
-				    return !ShouldEmitEvent(event.severity, bind_data.severity_threshold);
-			    });
-			lstate.events.erase(new_end, lstate.events.end());
+			if (bind_data.severity_threshold != SeverityLevel::DEBUG) {
+				auto new_end = std::remove_if(lstate.events.begin(), lstate.events.end(),
+				                              [&bind_data](const ValidationEvent &event) {
+					                              return !ShouldEmitEvent(event.severity, bind_data.severity_threshold);
+				                              });
+				lstate.events.erase(new_end, lstate.events.end());
+			}
 		}
 
 		lstate.output_offset = 0;
 		lstate.initialized = true;
 	}
 
-	// Calculate how many events to output this chunk
+	// Streaming mode: read lines and parse incrementally
+	if (lstate.streaming_mode) {
+		lstate.events.clear();
+
+		// Read lines until we have enough events or reach EOF
+		while (lstate.events.size() < STANDARD_VECTOR_SIZE && lstate.line_reader->HasNext()) {
+			std::string line = lstate.line_reader->NextLine();
+			int32_t line_number = lstate.line_reader->CurrentLineNumber();
+
+			auto line_events = lstate.streaming_parser->parseLine(line, line_number, lstate.streaming_event_id);
+
+			for (auto &event : line_events) {
+				// Apply severity filtering
+				if (bind_data.severity_threshold != SeverityLevel::DEBUG &&
+				    !ShouldEmitEvent(event.severity, bind_data.severity_threshold)) {
+					continue;
+				}
+
+				if (event.log_file.empty()) {
+					event.log_file = lstate.current_file_path;
+				}
+				lstate.events.push_back(std::move(event));
+
+				if (lstate.events.size() >= STANDARD_VECTOR_SIZE) {
+					break;
+				}
+			}
+		}
+
+		if (lstate.events.empty()) {
+			// No more events - done with this file
+			output.SetCardinality(0);
+			lstate.initialized = false;
+			lstate.streaming_mode = false;
+			lstate.line_reader.reset();
+			lstate.streaming_parser = nullptr;
+			lstate.current_file_path.clear();
+			return OperatorResultType::NEED_MORE_INPUT;
+		}
+
+		// Populate output from streamed events
+		idx_t output_size = std::min(lstate.events.size(), static_cast<size_t>(STANDARD_VECTOR_SIZE));
+		PopulateDataChunkFromEvents(output, lstate.events, 0, output_size, bind_data.content_mode,
+		                            bind_data.content_limit, 0, nullptr);
+
+		return OperatorResultType::HAVE_MORE_OUTPUT;
+	}
+
+	// Batch mode: output from pre-parsed events
 	idx_t remaining = lstate.events.size() > lstate.output_offset ? lstate.events.size() - lstate.output_offset : 0;
 	idx_t output_size = std::min(remaining, static_cast<idx_t>(STANDARD_VECTOR_SIZE));
 
-	// Populate the output chunk
 	PopulateDataChunkFromEvents(output, lstate.events, lstate.output_offset, output_size, bind_data.content_mode,
 	                            bind_data.content_limit, bind_data.context_lines,
 	                            bind_data.context_lines > 0 ? &lstate.log_lines_by_file : nullptr);
 
 	lstate.output_offset += output_size;
 
-	// Return NEED_MORE_INPUT only when output is empty (done with this input row)
 	if (output.size() == 0) {
-		// Reset state for next input row
 		lstate.initialized = false;
 		lstate.events.clear();
 		lstate.log_lines_by_file.clear();

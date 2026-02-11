@@ -1,4 +1,5 @@
 #include "../include/read_duck_hunt_log_function.hpp"
+#include "file_utils.hpp"
 #include "parse_content.hpp"
 #include "duckdb/common/file_system.hpp"
 #include "duckdb/common/string_util.hpp"
@@ -7,6 +8,110 @@
 #include <regex>
 
 namespace duckdb {
+
+// ============================================================================
+// LineReader Implementation
+// ============================================================================
+
+LineReader::LineReader(ClientContext &context, const std::string &source) {
+	auto &fs = FileSystem::GetFileSystem(context);
+	auto flags = FileFlags::FILE_FLAGS_READ | FileCompressionType::AUTO_DETECT;
+	file_handle_ = fs.OpenFile(source, flags);
+	buffer_.resize(BUFFER_SIZE);
+}
+
+void LineReader::FillBuffer() {
+	if (eof_) {
+		return;
+	}
+
+	// Move any remaining data to the beginning of the buffer
+	if (buffer_pos_ < buffer_end_) {
+		size_t remaining = buffer_end_ - buffer_pos_;
+		std::memmove(&buffer_[0], &buffer_[buffer_pos_], remaining);
+		buffer_end_ = remaining;
+	} else {
+		buffer_end_ = 0;
+	}
+	buffer_pos_ = 0;
+
+	// Read more data into the buffer
+	size_t space_available = buffer_.size() - buffer_end_;
+	if (space_available > 0) {
+		auto bytes_read = file_handle_->Read(&buffer_[buffer_end_], space_available);
+		if (bytes_read == 0) {
+			eof_ = true;
+		} else {
+			buffer_end_ += static_cast<size_t>(bytes_read);
+		}
+	}
+}
+
+bool LineReader::HasNext() {
+	// If we have buffered data, check for newline or EOF
+	if (buffer_pos_ < buffer_end_) {
+		return true;
+	}
+
+	// Try to fill the buffer
+	if (!eof_) {
+		FillBuffer();
+	}
+
+	return buffer_pos_ < buffer_end_;
+}
+
+std::string LineReader::NextLine() {
+	std::string line;
+
+	while (true) {
+		// Look for newline in current buffer
+		for (size_t i = buffer_pos_; i < buffer_end_; ++i) {
+			if (buffer_[i] == '\n') {
+				// Found newline - extract line and advance position
+				line.append(buffer_.data() + buffer_pos_, i - buffer_pos_);
+				buffer_pos_ = i + 1;
+				line_number_++;
+
+				// Remove trailing \r if present (Windows line endings)
+				if (!line.empty() && line.back() == '\r') {
+					line.pop_back();
+				}
+				return line;
+			}
+		}
+
+		// No newline found in buffer - append what we have and try to read more
+		line.append(buffer_.data() + buffer_pos_, buffer_end_ - buffer_pos_);
+		buffer_pos_ = buffer_end_;
+
+		if (eof_) {
+			// At EOF - return whatever we have (last line without newline)
+			if (!line.empty()) {
+				line_number_++;
+				// Remove trailing \r if present
+				if (!line.empty() && line.back() == '\r') {
+					line.pop_back();
+				}
+			}
+			return line;
+		}
+
+		// Try to fill the buffer
+		FillBuffer();
+
+		if (buffer_pos_ >= buffer_end_ && eof_) {
+			// EOF reached after fill - return accumulated line
+			if (!line.empty()) {
+				line_number_++;
+				if (!line.empty() && line.back() == '\r') {
+					line.pop_back();
+				}
+			}
+			return line;
+		}
+	}
+}
 
 std::string PeekContentFromSource(ClientContext &context, const std::string &source, size_t max_bytes) {
 	auto &fs = FileSystem::GetFileSystem(context);

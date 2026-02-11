@@ -268,4 +268,46 @@ std::vector<ValidationEvent> SyslogParser::parse(const std::string &content) con
 	return events;
 }
 
+std::vector<ValidationEvent> SyslogParser::parseLine(const std::string &line, int32_t line_number,
+                                                     int64_t &event_id) const {
+	std::vector<ValidationEvent> events;
+
+	// Trim whitespace
+	std::string trimmed = line;
+	size_t start = trimmed.find_first_not_of(" \t\r\n");
+	if (start == std::string::npos) {
+		return events; // Empty line
+	}
+	trimmed = trimmed.substr(start);
+
+	size_t end = trimmed.find_last_not_of(" \t\r\n");
+	if (end != std::string::npos) {
+		trimmed = trimmed.substr(0, end + 1);
+	}
+
+	if (trimmed.empty()) {
+		return events;
+	}
+
+	ValidationEvent event;
+
+	// Try RFC 5424 first (more specific)
+	if (ParseRFC5424Syslog(trimmed, event, event_id, line_number)) {
+		events.push_back(event);
+		event_id++;
+	}
+	// Then BSD format
+	else if (ParseBSDSyslog(trimmed, event, event_id, line_number)) {
+		events.push_back(event);
+		event_id++;
+	}
+	// Fallback to simple parser
+	else if (ParseSimpleSyslog(trimmed, event, event_id, line_number)) {
+		events.push_back(event);
+		event_id++;
+	}
+
+	return events;
+}
+
 } // namespace duckdb

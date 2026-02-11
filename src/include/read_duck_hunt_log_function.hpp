@@ -7,6 +7,10 @@
 
 namespace duckdb {
 
+// Forward declaration for streaming support
+class LineReader;
+class IParser;
+
 // Content mode for log_content column truncation
 enum class ContentMode : uint8_t {
 	FULL = 0,  // Full content (default)
@@ -171,6 +175,14 @@ struct ReadDuckHuntLogInOutLocalState : public LocalTableFunctionState {
 	std::vector<ValidationEvent> events;
 	std::unordered_map<std::string, std::vector<std::string>> log_lines_by_file;
 	std::string current_file_path; // Track current file for log_file field
+
+	// Streaming mode support (Phase 3)
+	bool streaming_mode = false;                    // Whether using streaming or batch mode
+	unique_ptr<LineReader> line_reader;             // Line reader for streaming mode
+	IParser *streaming_parser = nullptr;            // Parser for streaming mode (non-owning)
+	int64_t streaming_event_id = 0;                 // Event ID counter for streaming
+	std::vector<std::string> context_buffer;        // Circular buffer for context lines
+	size_t context_buffer_start = 0;                // Start index in circular buffer
 };
 
 // Format conversion utilities

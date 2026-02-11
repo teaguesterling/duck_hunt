@@ -27,6 +27,13 @@ public:
 		return "linting_tool";
 	}
 
+	// Streaming support (Phase 3)
+	bool supportsStreaming() const override {
+		return true;
+	}
+	std::vector<ValidationEvent> parseLine(const std::string &line, int32_t line_number,
+	                                       int64_t &event_id) const override;
+
 	// Static method for backward compatibility with legacy code
 	static void ParseGenericLint(const std::string &content, std::vector<ValidationEvent> &events);
 };

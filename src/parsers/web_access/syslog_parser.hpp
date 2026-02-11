@@ -39,6 +39,13 @@ public:
 	std::string getCategory() const override {
 		return "system_log";
 	}
+
+	// Streaming support (Phase 3)
+	bool supportsStreaming() const override {
+		return true;
+	}
+	std::vector<ValidationEvent> parseLine(const std::string &line, int32_t line_number,
+	                                       int64_t &event_id) const override;
 };
 
 } // namespace duckdb
