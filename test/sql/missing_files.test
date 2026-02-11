@@ -1,0 +1,36 @@
+# name: test/sql/missing_files.test
+# description: Test graceful handling of missing or non-existent files
+# group: [duck_hunt]
+
+require duck_hunt
+
+# Test that missing files return empty results instead of crashing
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('/nonexistent/path/file.log');
+----
+0
+
+# Test missing file with explicit format
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('/nonexistent/path/file.log', 'pytest');
+----
+0
+
+# Test missing file in a directory that exists
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('test/samples/missing_file.log');
+----
+0
+
+# Test that parse_duck_hunt_log handles missing content gracefully
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log('', 'pytest');
+----
+0
+
+# Test empty content with auto-detection
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log('', 'auto');
+----
+0
+
