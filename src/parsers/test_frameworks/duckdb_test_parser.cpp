@@ -60,9 +60,13 @@ void DuckDBTestParser::ParseDuckDBTestOutput(const std::string &content, std::ve
 			}
 		}
 
-		// Detect failure start
+		// Detect failure start - various DuckDB test failure messages
 		else if (line.find("Wrong result in query!") != std::string::npos ||
-		         line.find("Query unexpectedly failed") != std::string::npos) {
+		         line.find("Wrong row count in query!") != std::string::npos ||
+		         line.find("Wrong column count in query!") != std::string::npos ||
+		         line.find("Wrong result hash!") != std::string::npos ||
+		         line.find("Query unexpectedly failed") != std::string::npos ||
+		         line.find("Query unexpectedly succeeded!") != std::string::npos) {
 			in_failure_section = true;
 			failure_message = line;
 			if (debug) {

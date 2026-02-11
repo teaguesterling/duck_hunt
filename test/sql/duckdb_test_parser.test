@@ -1,17 +1,30 @@
 # name: test/sql/duckdb_test_parser.test
-# description: Test DuckDB test output parser
+# description: Test DuckDB test output parser for various failure modes
 # group: [duck_hunt]
 
 require duck_hunt
 
-# Test parsing DuckDB test failure output
+# Test parsing all DuckDB test failure types
 query IIII
 SELECT status, ref_file, ref_line, message
 FROM read_duck_hunt_log('test/samples/test_frameworks/duckdb_test_failures.txt', 'duckdb_test')
 WHERE status = 'FAIL'
 ORDER BY ref_line;
 ----
+FAIL	test/sql/unexpected_success.test	8	Query unexpectedly succeeded! (test/sql/unexpected_success.test:8)!
 FAIL	test/sql/duckdb_parser_validation.test	9	Wrong result in query! (test/sql/duckdb_parser_validation.test:9)! | Mismatch on row 1, column 1(index 1)
+FAIL	test/sql/query_error.test	15	Query unexpectedly failed (test/sql/query_error.test:15)!
+FAIL	test/sql/row_count_test.test	25	Wrong row count in query! (test/sql/row_count_test.test:25)!
+FAIL	test/sql/column_count.test	30	Wrong column count in query! (test/sql/column_count.test:30)!
+FAIL	test/sql/hash_test.test	45	Wrong result hash! (test/sql/hash_test.test:45)!
+
+# Test count of failures
+query I
+SELECT COUNT(*)
+FROM read_duck_hunt_log('test/samples/test_frameworks/duckdb_test_failures.txt', 'duckdb_test')
+WHERE status = 'FAIL';
+----
+6
 
 # Test that summary is also parsed
 query II
@@ -20,4 +33,54 @@ FROM read_duck_hunt_log('test/samples/test_frameworks/duckdb_test_failures.txt',
 WHERE category = 'test_summary';
 ----
 INFO	Test summary: 4 tests passed
+
+# Test individual failure types
+
+# Wrong result in query (mismatch)
+query II
+SELECT ref_file, ref_line
+FROM read_duck_hunt_log('test/samples/test_frameworks/duckdb_test_failures.txt', 'duckdb_test')
+WHERE message LIKE '%Wrong result in query%';
+----
+test/sql/duckdb_parser_validation.test	9
+
+# Wrong row count
+query II
+SELECT ref_file, ref_line
+FROM read_duck_hunt_log('test/samples/test_frameworks/duckdb_test_failures.txt', 'duckdb_test')
+WHERE message LIKE '%Wrong row count%';
+----
+test/sql/row_count_test.test	25
+
+# Query unexpectedly failed
+query II
+SELECT ref_file, ref_line
+FROM read_duck_hunt_log('test/samples/test_frameworks/duckdb_test_failures.txt', 'duckdb_test')
+WHERE message LIKE '%Query unexpectedly failed%';
+----
+test/sql/query_error.test	15
+
+# Wrong column count
+query II
+SELECT ref_file, ref_line
+FROM read_duck_hunt_log('test/samples/test_frameworks/duckdb_test_failures.txt', 'duckdb_test')
+WHERE message LIKE '%Wrong column count%';
+----
+test/sql/column_count.test	30
+
+# Wrong result hash
+query II
+SELECT ref_file, ref_line
+FROM read_duck_hunt_log('test/samples/test_frameworks/duckdb_test_failures.txt', 'duckdb_test')
+WHERE message LIKE '%Wrong result hash%';
+----
+test/sql/hash_test.test	45
+
+# Query unexpectedly succeeded
+query II
+SELECT ref_file, ref_line
+FROM read_duck_hunt_log('test/samples/test_frameworks/duckdb_test_failures.txt', 'duckdb_test')
+WHERE message LIKE '%Query unexpectedly succeeded%';
+----
+test/sql/unexpected_success.test	8
 

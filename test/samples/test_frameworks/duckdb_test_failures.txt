@@ -1,6 +1,6 @@
-[0/5] (0%): test/sql/basic.test
-[1/5] (20%): test/sql/other.test
-[2/5] (40%): test/sql/duckdb_parser_validation.test
+[0/10] (0%): test/sql/basic.test
+[1/10] (10%): test/sql/other.test
+[2/10] (20%): test/sql/duckdb_parser_validation.test
 1. test/sql/duckdb_parser_validation.test:9
 ================================================================================
 Wrong result in query! (test/sql/duckdb_parser_validation.test:9)!
@@ -34,11 +34,119 @@ test/sql/duckdb_parser_validation.test:9: FAILED:
 explicitly with message:
   0
 
+[3/10] (30%): test/sql/row_count_test.test
+2. test/sql/row_count_test.test:25
+================================================================================
+Wrong row count in query! (test/sql/row_count_test.test:25)!
+Expected 5 rows, but got 3 rows
+================================================================================
+SELECT * FROM my_table;
+================================================================================
+Expected result:
+================================================================================
+1
+2
+3
+4
+5
 
-[3/5] (60%): test/sql/another.test
-[4/5] (80%): test/sql/final.test
-[5/5] (100%): test/sql/final.test
+================================================================================
+Actual result:
+================================================================================
+1
+2
+3
+
+
+-------------------------------------------------------------------------------
+test/sql/row_count_test.test
+-------------------------------------------------------------------------------
+/home/teague/Projects/duck_hunt/duckdb/test/sqlite/test_sqllogictest.cpp:207
+...............................................................................
+
+test/sql/row_count_test.test:25: FAILED:
+explicitly with message:
+  0
+
+[4/10] (40%): test/sql/query_error.test
+3. test/sql/query_error.test:15
+================================================================================
+Query unexpectedly failed (test/sql/query_error.test:15)!
+================================================================================
+SELECT * FROM nonexistent_table;
+================================================================================
+Error: Catalog Error: Table with name nonexistent_table does not exist!
+
+-------------------------------------------------------------------------------
+test/sql/query_error.test
+-------------------------------------------------------------------------------
+/home/teague/Projects/duck_hunt/duckdb/test/sqlite/test_sqllogictest.cpp:207
+...............................................................................
+
+test/sql/query_error.test:15: FAILED:
+explicitly with message:
+  0
+
+[5/10] (50%): test/sql/column_count.test
+4. test/sql/column_count.test:30
+================================================================================
+Wrong column count in query! (test/sql/column_count.test:30)!
+Expected 3 columns but got 2
+================================================================================
+SELECT a, b FROM my_table;
+
+-------------------------------------------------------------------------------
+test/sql/column_count.test
+-------------------------------------------------------------------------------
+/home/teague/Projects/duck_hunt/duckdb/test/sqlite/test_sqllogictest.cpp:207
+...............................................................................
+
+test/sql/column_count.test:30: FAILED:
+explicitly with message:
+  0
+
+[6/10] (60%): test/sql/hash_test.test
+5. test/sql/hash_test.test:45
+================================================================================
+Wrong result hash! (test/sql/hash_test.test:45)!
+Expected hash: 8d777f385d3dfec8815d20f7496026dc
+Actual hash: a87ff679a2f3e71d9181a67b7542122c
+================================================================================
+SELECT md5(data) FROM large_table;
+
+-------------------------------------------------------------------------------
+test/sql/hash_test.test
+-------------------------------------------------------------------------------
+/home/teague/Projects/duck_hunt/duckdb/test/sqlite/test_sqllogictest.cpp:207
+...............................................................................
+
+test/sql/hash_test.test:45: FAILED:
+explicitly with message:
+  0
+
+[7/10] (70%): test/sql/unexpected_success.test
+6. test/sql/unexpected_success.test:8
+================================================================================
+Query unexpectedly succeeded! (test/sql/unexpected_success.test:8)!
+================================================================================
+SELECT 1;
+================================================================================
+Expected query to fail but it succeeded!
+
+-------------------------------------------------------------------------------
+test/sql/unexpected_success.test
+-------------------------------------------------------------------------------
+/home/teague/Projects/duck_hunt/duckdb/test/sqlite/test_sqllogictest.cpp:207
+...............................................................................
+
+test/sql/unexpected_success.test:8: FAILED:
+explicitly with message:
+  0
+
+[8/10] (80%): test/sql/another.test
+[9/10] (90%): test/sql/final.test
+[10/10] (100%): test/sql/final.test
 ============================================================================
-test cases:   5 |   4 passed | 1 failed
-assertions: 100 | 99 passed | 1 failed
+test cases:   10 |   4 passed | 6 failed
+assertions: 200 | 194 passed | 6 failed
 
