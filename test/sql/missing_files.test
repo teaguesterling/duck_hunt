@@ -1,6 +1,6 @@
 # name: test/sql/missing_files.test
 # description: Test graceful handling of missing or non-existent files
-# group: [duck_hunt]
+# group: [sql]
 
 require duck_hunt
 

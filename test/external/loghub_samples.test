@@ -1,6 +1,6 @@
-# name: test/sql/loghub_samples.test
+# name: test/external/loghub_samples.test
 # description: Test parsers against loghub real-world log samples
-# group: [sql]
+# group: [external]
 
 require duck_hunt
 
