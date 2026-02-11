@@ -1,5 +1,5 @@
-# name: test/external/loghub_samples.test
-# description: Test parsers against loghub real-world log samples
+# name: external-tests/loghub_samples.test
+# description: Test parsers against loghub real-world log samples (requires loghub submodule)
 # group: [external]
 
 require duck_hunt

@@ -1,5 +1,5 @@
-# name: test/external/duck_hunt_loghub.test
-# description: Test duck_hunt log parsing with loghub datasets
+# name: external-tests/duck_hunt_loghub.test
+# description: Test duck_hunt log parsing with loghub datasets (requires loghub submodule)
 # group: [external]
 
 require duck_hunt
