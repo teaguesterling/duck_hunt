@@ -938,8 +938,7 @@ OperatorResultType ReadDuckHuntLogInOutFunction(ExecutionContext &context, Table
 
 					std::vector<ValidationEvent> file_events;
 					if (format == TestResultFormat::REGEXP) {
-						file_events =
-						    ParseContentRegexp(content, bind_data.regexp_pattern, bind_data.include_unparsed);
+						file_events = ParseContentRegexp(content, bind_data.regexp_pattern, bind_data.include_unparsed);
 					} else if (!format_name.empty() && format_name != "unknown" && format_name != "auto") {
 						file_events = ParseContent(context.client, content, format_name);
 					}
