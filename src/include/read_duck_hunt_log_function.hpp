@@ -177,12 +177,12 @@ struct ReadDuckHuntLogInOutLocalState : public LocalTableFunctionState {
 	std::string current_file_path; // Track current file for log_file field
 
 	// Streaming mode support (Phase 3)
-	bool streaming_mode = false;                    // Whether using streaming or batch mode
-	unique_ptr<LineReader> line_reader;             // Line reader for streaming mode
-	IParser *streaming_parser = nullptr;            // Parser for streaming mode (non-owning)
-	int64_t streaming_event_id = 0;                 // Event ID counter for streaming
-	std::vector<std::string> context_buffer;        // Circular buffer for context lines
-	size_t context_buffer_start = 0;                // Start index in circular buffer
+	bool streaming_mode = false;             // Whether using streaming or batch mode
+	unique_ptr<LineReader> line_reader;      // Line reader for streaming mode
+	IParser *streaming_parser = nullptr;     // Parser for streaming mode (non-owning)
+	int64_t streaming_event_id = 0;          // Event ID counter for streaming
+	std::vector<std::string> context_buffer; // Circular buffer for context lines
+	size_t context_buffer_start = 0;         // Start index in circular buffer
 };
 
 // Format conversion utilities
