@@ -898,7 +898,8 @@ OperatorResultType ReadDuckHuntLogInOutFunction(ExecutionContext &context, Table
 					// Extract pattern from "regexp:..." format
 					effective_regexp_pattern = format_str.substr(7);
 					effective_format_name = "regexp";
-				} else if (effective_format != TestResultFormat::UNKNOWN && effective_format != TestResultFormat::AUTO) {
+				} else if (effective_format != TestResultFormat::UNKNOWN &&
+				           effective_format != TestResultFormat::AUTO) {
 					effective_format_name = GetCanonicalFormatName(effective_format);
 				} else {
 					effective_format_name = format_str;
