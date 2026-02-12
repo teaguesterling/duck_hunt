@@ -2,6 +2,7 @@
 #include "parsers/base/base_parser.hpp"
 #include "make_parser.hpp"
 #include "cmake_parser.hpp"
+#include "gcc_parser.hpp"
 #include "maven_parser.hpp"
 #include "gradle_parser.hpp"
 #include "msbuild_parser.hpp"
@@ -21,9 +22,20 @@ DECLARE_PARSER_CATEGORY(BuildSystems);
 
 void RegisterBuildSystemsParsers(ParserRegistry &registry) {
 	// Core build systems - Format: format_name, display_name, category, description, priority, aliases, groups
+
+	// Compiler diagnostic parser - handles GCC/Clang/compatible compiler output
+	// Priority HIGH: compiler diagnostics are specific and should be detected before make wrapper
+	registry.registerParser(make_uniq<DelegatingParser<CompilerDiagnosticParser>>(
+	    "gcc_text", "Compiler Diagnostic Parser", ParserCategory::BUILD_SYSTEM,
+	    "GCC-style compiler diagnostics (file:line:col: severity: message)", ParserPriority::HIGH,
+	    std::vector<std::string> {"gcc", "g++", "clang", "clang++", "cc", "c++", "gfortran", "gnat",
+	                              "compiler_diagnostic"},
+	    std::vector<std::string> {"c_cpp", "fortran", "build"}));
+
+	// Make parser - lower priority than gcc since make runs gcc and wraps its output
 	registry.registerParser(make_uniq<DelegatingParser<MakeParser>>(
 	    "make_error", "Make Error Parser", ParserCategory::BUILD_SYSTEM, "GNU Make build output with errors",
-	    ParserPriority::HIGH, std::vector<std::string> {"make"}, std::vector<std::string> {"c_cpp", "build"}));
+	    ParserPriority::MEDIUM, std::vector<std::string> {"make"}, std::vector<std::string> {"c_cpp", "build"}));
 
 	registry.registerParser(make_uniq<DelegatingParser<CMakeParser>>(
 	    "cmake_build", "CMake Parser", ParserCategory::BUILD_SYSTEM, "CMake build system output", ParserPriority::HIGH,

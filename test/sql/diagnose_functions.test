@@ -112,10 +112,10 @@ WHERE format = 'flake8_text';
 ----
 flake8_text	true	true
 
-# Test 13: Test make_error is selected (not just can_parse)
+# Test 13: Test gcc_text is selected for GCC diagnostics (higher priority than make)
 query I
 SELECT is_selected FROM duck_hunt_diagnose_read('test/samples/build_systems/make_errors.txt')
-WHERE format = 'make_error';
+WHERE format = 'gcc_text';
 ----
 true
 

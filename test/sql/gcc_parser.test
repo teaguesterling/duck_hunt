@@ -1,0 +1,396 @@
+# name: test/sql/gcc_parser.test
+# description: test GCC/Clang compiler diagnostic parser
+# group: [sql]
+
+require duck_hunt
+
+# =============================================================================
+# BASIC FORMAT DETECTION
+# =============================================================================
+
+# Test 1: Basic GCC error detection
+query I
+SELECT tool_name FROM parse_duck_hunt_log('src/main.c:15:5: error: ''foo'' undeclared', 'gcc_text');
+----
+compiler
+
+# Test 2: Basic GCC warning detection
+query I
+SELECT tool_name FROM parse_duck_hunt_log('src/main.c:15:5: warning: unused variable ''x''', 'gcc_text');
+----
+compiler
+
+# Test 3: GCC note detection
+query I
+SELECT tool_name FROM parse_duck_hunt_log('src/main.c:15:5: note: declared here', 'gcc_text');
+----
+compiler
+
+# Test 4: Auto-detection of GCC format
+query I
+SELECT tool_name FROM parse_duck_hunt_log('src/main.c:15:5: error: ''foo'' undeclared', 'auto');
+----
+compiler
+
+# =============================================================================
+# FILE PATH EXTRACTION
+# =============================================================================
+
+# Test 5: Simple file path
+query I
+SELECT ref_file FROM parse_duck_hunt_log('main.c:10:5: error: test', 'gcc_text');
+----
+main.c
+
+# Test 6: Relative file path
+query I
+SELECT ref_file FROM parse_duck_hunt_log('src/utils/helper.cpp:42:10: warning: test', 'gcc_text');
+----
+src/utils/helper.cpp
+
+# Test 7: Absolute file path
+query I
+SELECT ref_file FROM parse_duck_hunt_log('/home/user/project/src/main.cpp:100:1: error: test', 'gcc_text');
+----
+/home/user/project/src/main.cpp
+
+# Test 8: Long absolute path (the original failing case)
+query I
+SELECT ref_file FROM parse_duck_hunt_log('/mnt/aux-data/teague/Projects/duckdb_read_lines/src/read_lines.cpp:52:22: warning: structured bindings only available', 'gcc_text');
+----
+/mnt/aux-data/teague/Projects/duckdb_read_lines/src/read_lines.cpp
+
+# =============================================================================
+# LINE AND COLUMN EXTRACTION
+# =============================================================================
+
+# Test 9: Line number extraction
+query I
+SELECT ref_line FROM parse_duck_hunt_log('main.c:42:5: error: test', 'gcc_text');
+----
+42
+
+# Test 10: Column number extraction
+query I
+SELECT ref_column FROM parse_duck_hunt_log('main.c:42:17: error: test', 'gcc_text');
+----
+17
+
+# Test 11: No column number (older GCC format) - column is NULL when not present
+query II
+SELECT ref_line, ref_column FROM parse_duck_hunt_log('main.c:42: error: test', 'gcc_text');
+----
+42	NULL
+
+# =============================================================================
+# SEVERITY MAPPING
+# =============================================================================
+
+# Test 12: Error severity
+query II
+SELECT severity, status FROM parse_duck_hunt_log('main.c:1:1: error: test', 'gcc_text');
+----
+error	ERROR
+
+# Test 13: Warning severity
+query II
+SELECT severity, status FROM parse_duck_hunt_log('main.c:1:1: warning: test', 'gcc_text');
+----
+warning	WARNING
+
+# Test 14: Note severity
+query II
+SELECT severity, status FROM parse_duck_hunt_log('main.c:1:1: note: test', 'gcc_text');
+----
+info	INFO
+
+# =============================================================================
+# MESSAGE EXTRACTION
+# =============================================================================
+
+# Test 15: Simple message
+query I
+SELECT message FROM parse_duck_hunt_log('main.c:1:1: error: undeclared variable', 'gcc_text');
+----
+undeclared variable
+
+# Test 16: Message with quotes
+query I
+SELECT message FROM parse_duck_hunt_log('main.c:1:1: error: ''foo'' was not declared in this scope', 'gcc_text');
+----
+'foo' was not declared in this scope
+
+# Test 17: Message with warning flag - flag should be extracted to error_code
+query II
+SELECT message, error_code FROM parse_duck_hunt_log('main.c:1:1: warning: unused variable ''x'' [-Wunused-variable]', 'gcc_text');
+----
+unused variable 'x'	-Wunused-variable
+
+# Test 18: Message with multiple brackets
+query II
+SELECT message, error_code FROM parse_duck_hunt_log('main.c:1:1: warning: ''auto'' type specifier is a C++11 extension [-Wc++11-extensions]', 'gcc_text');
+----
+'auto' type specifier is a C++11 extension	-Wc++11-extensions
+
+# =============================================================================
+# C++ SPECIFIC PATTERNS
+# =============================================================================
+
+# Test 19: C++17 structured bindings warning (the original failing case)
+query IIII
+SELECT ref_file, ref_line, ref_column, severity FROM parse_duck_hunt_log('/path/to/file.cpp:52:22: warning: structured bindings only available with ''-std=c++17'' or ''-std=gnu++17''', 'gcc_text');
+----
+/path/to/file.cpp	52	22	warning
+
+# Test 20: Template error
+query I
+SELECT message FROM parse_duck_hunt_log('template.hpp:100:5: error: no matching function for call to ''func''', 'gcc_text');
+----
+no matching function for call to 'func'
+
+# Test 21: Namespace error
+query I
+SELECT ref_file FROM parse_duck_hunt_log('src/namespace/deeply/nested/file.cpp:1:1: error: test', 'gcc_text');
+----
+src/namespace/deeply/nested/file.cpp
+
+# =============================================================================
+# MULTIPLE DIAGNOSTICS
+# =============================================================================
+
+# Test 22: Multiple errors
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log('main.c:1:1: error: first error
+main.c:2:1: error: second error
+main.c:3:1: error: third error', 'gcc_text');
+----
+3
+
+# Test 23: Mixed errors and warnings
+query II
+SELECT severity, COUNT(*) FROM parse_duck_hunt_log('main.c:1:1: error: an error
+main.c:2:1: warning: a warning
+main.c:3:1: error: another error
+main.c:4:1: warning: another warning', 'gcc_text')
+GROUP BY severity ORDER BY severity;
+----
+error	2
+warning	2
+
+# Test 24: Error with follow-up notes
+query II
+SELECT severity, COUNT(*) FROM parse_duck_hunt_log('main.c:10:5: error: ''x'' was not declared in this scope
+main.c:5:5: note: suggested alternative: ''y''
+main.c:3:1: note: ''y'' declared here', 'gcc_text')
+GROUP BY severity ORDER BY severity;
+----
+error	1
+info	2
+
+# =============================================================================
+# FUNCTION CONTEXT
+# =============================================================================
+
+# Test 25: Function context parsing
+query I
+SELECT DISTINCT function_name FROM parse_duck_hunt_log('main.c: In function ''calculate'':
+main.c:10:5: error: undeclared variable', 'gcc_text') WHERE function_name != '';
+----
+calculate
+
+# Test 26: Member function context
+query I
+SELECT DISTINCT function_name FROM parse_duck_hunt_log('class.cpp: In member function ''void MyClass::process()'':
+class.cpp:50:10: warning: unused parameter', 'gcc_text') WHERE function_name != '';
+----
+void MyClass::process()
+
+# Test 27: Constructor context
+query I
+SELECT DISTINCT function_name FROM parse_duck_hunt_log('class.cpp: In constructor ''MyClass::MyClass(int)'':
+class.cpp:20:5: error: member not initialized', 'gcc_text') WHERE function_name != '';
+----
+MyClass::MyClass(int)
+
+# =============================================================================
+# FILE EXTENSIONS
+# =============================================================================
+
+# Test 28: C file
+query I
+SELECT ref_file FROM parse_duck_hunt_log('file.c:1:1: error: test', 'gcc_text');
+----
+file.c
+
+# Test 29: C++ file (.cpp)
+query I
+SELECT ref_file FROM parse_duck_hunt_log('file.cpp:1:1: error: test', 'gcc_text');
+----
+file.cpp
+
+# Test 30: C++ file (.cc)
+query I
+SELECT ref_file FROM parse_duck_hunt_log('file.cc:1:1: error: test', 'gcc_text');
+----
+file.cc
+
+# Test 31: C++ file (.cxx)
+query I
+SELECT ref_file FROM parse_duck_hunt_log('file.cxx:1:1: error: test', 'gcc_text');
+----
+file.cxx
+
+# Test 32: Header file (.h)
+query I
+SELECT ref_file FROM parse_duck_hunt_log('header.h:1:1: error: test', 'gcc_text');
+----
+header.h
+
+# Test 33: C++ header file (.hpp)
+query I
+SELECT ref_file FROM parse_duck_hunt_log('header.hpp:1:1: error: test', 'gcc_text');
+----
+header.hpp
+
+# Test 34: Fortran file (gfortran)
+query I
+SELECT ref_file FROM parse_duck_hunt_log('program.f90:1:1: error: test', 'gcc_text');
+----
+program.f90
+
+# =============================================================================
+# EDGE CASES
+# =============================================================================
+
+# Test 35: Very long file path
+query I
+SELECT LENGTH(ref_file) > 50 FROM parse_duck_hunt_log('/very/long/path/to/some/deeply/nested/directory/structure/file.cpp:1:1: error: test', 'gcc_text');
+----
+true
+
+# Test 36: File path with spaces (quoted)
+query I
+SELECT ref_file FROM parse_duck_hunt_log('path/to/my file.cpp:1:1: error: test', 'gcc_text');
+----
+path/to/my file.cpp
+
+# Test 37: Large line numbers
+query I
+SELECT ref_line FROM parse_duck_hunt_log('file.cpp:999999:1: error: test', 'gcc_text');
+----
+999999
+
+# Test 38: Large column numbers
+query I
+SELECT ref_column FROM parse_duck_hunt_log('file.cpp:1:999: error: test', 'gcc_text');
+----
+999
+
+# =============================================================================
+# NON-MATCHING CONTENT (should not match)
+# =============================================================================
+
+# Test 39: Clang-tidy output should NOT match gcc_text (has rule names)
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log('file.cpp:1:1: warning: use nullptr [modernize-use-nullptr]', 'gcc_text');
+----
+0
+
+# Test 40: MyPy output should NOT match gcc_text (no column, Python-style)
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log('script.py:10: error: Incompatible types [type-arg]', 'gcc_text');
+----
+0
+
+# =============================================================================
+# REALISTIC BUILD OUTPUT
+# =============================================================================
+
+# Test 41: CMake build with GCC warnings
+query III
+SELECT ref_file, ref_line, severity FROM parse_duck_hunt_log('[ 82%] Building CXX object CMakeFiles/myapp.dir/src/main.cpp.o
+/home/user/project/src/main.cpp:52:22: warning: structured bindings only available with ''-std=c++17''
+   52 |     auto [a, b] = pair;
+      |                      ^
+[ 83%] Linking CXX executable myapp', 'gcc_text');
+----
+/home/user/project/src/main.cpp	52	warning
+
+# Test 42: Multiple files with errors
+query II
+SELECT ref_file, COUNT(*) FROM parse_duck_hunt_log('src/a.cpp:10:5: error: error in a
+src/b.cpp:20:5: error: error in b
+src/a.cpp:15:5: warning: warning in a
+src/c.cpp:30:5: error: error in c', 'gcc_text')
+GROUP BY ref_file ORDER BY ref_file;
+----
+src/a.cpp	2
+src/b.cpp	1
+src/c.cpp	1
+
+# Test 43: GCC verbose output with diagnostics
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log('g++ -Wall -Wextra -g -c src/main.cpp -o build/main.o
+src/main.cpp: In function ''int main()'':
+src/main.cpp:15:5: error: ''undefined_var'' undeclared
+   15 |     undefined_var = 42;
+      |     ^~~~~~~~~~~~~
+src/main.cpp:28:12: warning: unused variable ''temp'' [-Wunused-variable]
+   28 |     int temp = 0;
+      |         ^~~~', 'gcc_text');
+----
+2
+
+# =============================================================================
+# CATEGORY VERIFICATION
+# =============================================================================
+
+# Test 44: Category should be compilation
+query I
+SELECT DISTINCT category FROM parse_duck_hunt_log('main.c:1:1: error: test', 'gcc_text');
+----
+compilation
+
+# =============================================================================
+# FORMAT ALIAS TESTS
+# =============================================================================
+
+# Test 45: Using 'gcc' alias
+query I
+SELECT tool_name FROM parse_duck_hunt_log('main.c:1:1: error: test', 'gcc');
+----
+compiler
+
+# Test 46: Using 'g++' alias
+query I
+SELECT tool_name FROM parse_duck_hunt_log('main.cpp:1:1: error: test', 'g++');
+----
+compiler
+
+# Test 47: Using 'clang' alias
+query I
+SELECT tool_name FROM parse_duck_hunt_log('main.c:1:1: error: test', 'clang');
+----
+compiler
+
+# Test 48: Using 'clang++' alias
+query I
+SELECT tool_name FROM parse_duck_hunt_log('main.cpp:1:1: error: test', 'clang++');
+----
+compiler
+
+# Test 49: Using 'compiler_diagnostic' alias
+query I
+SELECT tool_name FROM parse_duck_hunt_log('main.c:1:1: error: test', 'compiler_diagnostic');
+----
+compiler
+
+# =============================================================================
+# PRIORITY/DETECTION TESTS
+# =============================================================================
+
+# Test 50: GCC format should be detected before mypy for C++ files
+query I
+SELECT tool_name FROM parse_duck_hunt_log('/path/to/file.cpp:52:22: warning: some warning message', 'auto');
+----
+compiler

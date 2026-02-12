@@ -97,6 +97,7 @@ const std::unordered_map<std::string, TestResultFormat> &GetFormatMap() {
 	    {"ruby_logger", TestResultFormat::RUBY_LOGGER},
 	    {"rails_log", TestResultFormat::RAILS_LOG},
 	    {"strace", TestResultFormat::STRACE},
+	    {"gcc_text", TestResultFormat::GCC_TEXT},
 	    // Aliases
 	    {"ndjson", TestResultFormat::JSONL},
 	    {"cloudtrail", TestResultFormat::AWS_CLOUDTRAIL},
@@ -139,7 +140,16 @@ const std::unordered_map<std::string, TestResultFormat> &GetFormatMap() {
 	    {"clang-tidy", TestResultFormat::CLANG_TIDY_TEXT},
 	    // Build system aliases
 	    {"make", TestResultFormat::MAKE_ERROR},
-	    {"gcc", TestResultFormat::MAKE_ERROR},
+	    // Compiler diagnostic aliases
+	    {"gcc", TestResultFormat::GCC_TEXT},
+	    {"g++", TestResultFormat::GCC_TEXT},
+	    {"clang", TestResultFormat::GCC_TEXT},
+	    {"clang++", TestResultFormat::GCC_TEXT},
+	    {"cc", TestResultFormat::GCC_TEXT},
+	    {"c++", TestResultFormat::GCC_TEXT},
+	    {"gfortran", TestResultFormat::GCC_TEXT},
+	    {"gnat", TestResultFormat::GCC_TEXT},
+	    {"compiler_diagnostic", TestResultFormat::GCC_TEXT},
 	    {"cmake", TestResultFormat::CMAKE_BUILD},
 	    {"maven", TestResultFormat::MAVEN_BUILD},
 	    {"mvn", TestResultFormat::MAVEN_BUILD},
@@ -197,6 +207,7 @@ std::string GetCanonicalFormatName(TestResultFormat format) {
 	    {TestResultFormat::ESLINT_JSON, "eslint_json"},
 	    {TestResultFormat::PYTEST_TEXT, "pytest_text"},
 	    {TestResultFormat::MAKE_ERROR, "make_error"},
+	    {TestResultFormat::GCC_TEXT, "gcc_text"},
 	    {TestResultFormat::GENERIC_LINT, "generic_lint"},
 	    {TestResultFormat::DUCKDB_TEST, "duckdb_test"},
 	    {TestResultFormat::RUBOCOP_JSON, "rubocop_json"},
@@ -280,6 +291,7 @@ std::string GetCanonicalFormatName(TestResultFormat format) {
 	    {TestResultFormat::RUBY_LOGGER, "ruby_logger"},
 	    {TestResultFormat::RAILS_LOG, "rails_log"},
 	    {TestResultFormat::STRACE, "strace"},
+	    {TestResultFormat::GCC_TEXT, "gcc_text"},
 	};
 	auto it = canonical_names.find(format);
 	return it != canonical_names.end() ? it->second : "";

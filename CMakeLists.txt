@@ -46,6 +46,7 @@ set(EXTENSION_SOURCES
     src/parsers/tool_outputs/eslint_json_parser.cpp
     src/parsers/tool_outputs/gotest_json_parser.cpp
     src/parsers/build_systems/make_parser.cpp
+    src/parsers/build_systems/gcc_parser.cpp
     src/parsers/linting_tools/mypy_parser.cpp
     src/parsers/linting_tools/flake8_parser.cpp
     

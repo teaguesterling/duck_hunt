@@ -66,8 +66,31 @@ unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFuncti
 	}
 
 	// Get format parameter (optional, defaults to auto)
-	if (input.inputs.size() > 1) {
-		std::string format_str = input.inputs[1].ToString();
+	// For direct calls: input.inputs = [source, format] or [source]
+	// For LATERAL with column ref source: input.inputs = [format] (source comes from DataChunk)
+	std::string format_str;
+	bool has_format = false;
+
+	if (input.inputs.size() >= 2 && !input.inputs[1].IsNull()) {
+		// Direct call with both source and format as literals
+		format_str = input.inputs[1].ToString();
+		has_format = true;
+	} else if (input.inputs.size() == 1 && !input.inputs[0].IsNull()) {
+		// Could be single-arg call with literal source, or two-arg LATERAL with column ref source
+		std::string val = input.inputs[0].ToString();
+		// Check if this looks like a format (not a file path)
+		auto &registry = ParserRegistry::getInstance();
+		auto test_format = StringToTestResultFormat(val);
+		if (test_format != TestResultFormat::UNKNOWN || registry.hasFormat(val) || registry.isGroup(val) ||
+		    val == "auto") {
+			format_str = val;
+			has_format = true;
+			bind_data->source = ""; // Source will come from DataChunk
+		}
+		// Otherwise, it's a source path with auto format
+	}
+
+	if (has_format) {
 		bind_data->format = StringToTestResultFormat(format_str);
 
 		// Get canonical format name for registry lookup (handles aliases)
@@ -406,10 +429,35 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
 	}
 
 	// Get format parameter (optional, defaults to auto)
-	// For single-arg calls, input.inputs.size() == 1
-	// For two-arg calls, input.inputs.size() == 2
-	if (input.inputs.size() > 1 && !input.inputs[1].IsNull()) {
-		std::string format_str = input.inputs[1].ToString();
+	// For direct calls: input.inputs = [source, format] or [source]
+	// For LATERAL with column ref source: input.inputs = [format] (source comes from DataChunk)
+	// Determine which index has the format based on function arity and input size
+	std::string format_str;
+	bool has_format = false;
+
+	// Check if we're the two-arg version by looking at the projected columns count
+	// The two-arg function has 2 arguments, but for LATERAL, input.inputs only has literals
+	if (input.inputs.size() >= 2 && !input.inputs[1].IsNull()) {
+		// Direct call with both source and format as literals
+		format_str = input.inputs[1].ToString();
+		has_format = true;
+	} else if (input.inputs.size() == 1 && !input.inputs[0].IsNull()) {
+		// Could be single-arg call with literal source, or two-arg LATERAL with column ref source
+		// Check if this looks like a format (not a file path)
+		std::string val = input.inputs[0].ToString();
+		// If it doesn't look like a path (no slashes, dots suggesting extensions) and is a known format
+		auto &registry = ParserRegistry::getInstance();
+		auto test_format = StringToTestResultFormat(val);
+		if (test_format != TestResultFormat::UNKNOWN || registry.hasFormat(val) || registry.isGroup(val) ||
+		    val == "auto") {
+			format_str = val;
+			has_format = true;
+			bind_data->source = ""; // Source will come from DataChunk
+		}
+		// Otherwise, it's a source path with auto format
+	}
+
+	if (has_format) {
 		bind_data->format = StringToTestResultFormat(format_str);
 
 		// Get canonical format name for registry lookup (handles aliases)
@@ -703,9 +751,28 @@ OperatorResultType ParseDuckHuntLogInOutFunction(ExecutionContext &context, Tabl
 
 		auto content = content_value.ToString();
 
-		// Determine format - either from bind_data or auto-detect
+		// Determine format - either from bind_data or input DataChunk (for LATERAL)
 		TestResultFormat format = bind_data.format;
 		std::string format_name = bind_data.format_name;
+
+		// For LATERAL joins, format may be passed in the second input column
+		std::string regexp_pattern;
+		if (input.ColumnCount() >= 2) {
+			Value format_value = input.GetValue(1, 0);
+			if (!format_value.IsNull()) {
+				std::string format_str = format_value.ToString();
+				format = StringToTestResultFormat(format_str);
+				if (format == TestResultFormat::REGEXP && format_str.length() > 7) {
+					// Extract pattern from "regexp:..." format
+					regexp_pattern = format_str.substr(7);
+					format_name = "regexp";
+				} else if (format != TestResultFormat::UNKNOWN && format != TestResultFormat::AUTO) {
+					format_name = GetCanonicalFormatName(format);
+				} else {
+					format_name = format_str;
+				}
+			}
+		}
 
 		if (format == TestResultFormat::AUTO) {
 			format_name = DetectFormat(content);
@@ -716,7 +783,9 @@ OperatorResultType ParseDuckHuntLogInOutFunction(ExecutionContext &context, Tabl
 
 		// Parse content
 		if (format == TestResultFormat::REGEXP) {
-			lstate.events = ParseContentRegexp(content, bind_data.regexp_pattern, bind_data.include_unparsed);
+			// Use pattern from LATERAL input if available, otherwise from bind
+			const std::string &pattern = regexp_pattern.empty() ? bind_data.regexp_pattern : regexp_pattern;
+			lstate.events = ParseContentRegexp(content, pattern, bind_data.include_unparsed);
 		} else if (!format_name.empty() && format_name != "unknown" && format_name != "auto") {
 			lstate.events = ParseContent(context.client, content, format_name);
 		}
@@ -815,6 +884,28 @@ OperatorResultType ReadDuckHuntLogInOutFunction(ExecutionContext &context, Table
 		std::string source_path = path_value.ToString();
 		lstate.current_file_path = source_path;
 
+		// For LATERAL joins, format may be passed in the second input column
+		// Check if there's a format parameter in the input DataChunk
+		TestResultFormat effective_format = bind_data.format;
+		std::string effective_format_name = bind_data.format_name;
+		std::string effective_regexp_pattern = bind_data.regexp_pattern;
+		if (input.ColumnCount() >= 2) {
+			Value format_value = input.GetValue(1, 0);
+			if (!format_value.IsNull()) {
+				std::string format_str = format_value.ToString();
+				effective_format = StringToTestResultFormat(format_str);
+				if (effective_format == TestResultFormat::REGEXP && format_str.length() > 7) {
+					// Extract pattern from "regexp:..." format
+					effective_regexp_pattern = format_str.substr(7);
+					effective_format_name = "regexp";
+				} else if (effective_format != TestResultFormat::UNKNOWN && effective_format != TestResultFormat::AUTO) {
+					effective_format_name = GetCanonicalFormatName(effective_format);
+				} else {
+					effective_format_name = format_str;
+				}
+			}
+		}
+
 		// Check if this is a glob pattern - streaming not supported for globs
 		if (ContainsGlobCharacters(source_path)) {
 			// Glob patterns: use batch mode
@@ -838,8 +929,8 @@ OperatorResultType ReadDuckHuntLogInOutFunction(ExecutionContext &context, Table
 					continue;
 				}
 
-				TestResultFormat format = bind_data.format;
-				std::string format_name = bind_data.format_name;
+				TestResultFormat format = effective_format;
+				std::string format_name = effective_format_name;
 
 				if (format == TestResultFormat::AUTO) {
 					format_name = DetectFormat(content);
@@ -850,7 +941,7 @@ OperatorResultType ReadDuckHuntLogInOutFunction(ExecutionContext &context, Table
 
 				std::vector<ValidationEvent> file_events;
 				if (format == TestResultFormat::REGEXP) {
-					file_events = ParseContentRegexp(content, bind_data.regexp_pattern, bind_data.include_unparsed);
+					file_events = ParseContentRegexp(content, effective_regexp_pattern, bind_data.include_unparsed);
 				} else if (!format_name.empty() && format_name != "unknown" && format_name != "auto") {
 					file_events = ParseContent(context.client, content, format_name);
 				}
@@ -876,8 +967,8 @@ OperatorResultType ReadDuckHuntLogInOutFunction(ExecutionContext &context, Table
 			lstate.streaming_mode = false;
 		} else {
 			// Single file - check if we can use streaming mode
-			TestResultFormat format = bind_data.format;
-			std::string format_name = bind_data.format_name;
+			TestResultFormat format = effective_format;
+			std::string format_name = effective_format_name;
 
 			// First, peek at the file for format detection if needed
 			if (format == TestResultFormat::AUTO) {
@@ -938,7 +1029,7 @@ OperatorResultType ReadDuckHuntLogInOutFunction(ExecutionContext &context, Table
 
 					std::vector<ValidationEvent> file_events;
 					if (format == TestResultFormat::REGEXP) {
-						file_events = ParseContentRegexp(content, bind_data.regexp_pattern, bind_data.include_unparsed);
+						file_events = ParseContentRegexp(content, effective_regexp_pattern, bind_data.include_unparsed);
 					} else if (!format_name.empty() && format_name != "unknown" && format_name != "auto") {
 						file_events = ParseContent(context.client, content, format_name);
 					}

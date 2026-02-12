@@ -45,12 +45,12 @@ GROUP BY tool_name;
 ----
 20	8	8	lint
 
-# Test 5: large_build.out auto-detection (detected as make due to gcc compile lines)
+# Test 5: large_build.out auto-detection (detected as compiler for GCC diagnostics)
 query I
 SELECT DISTINCT tool_name
 FROM read_duck_hunt_log('test/samples/large_build.out', 'auto');
 ----
-make
+compiler
 
 # Test 6: large_build.out field validation
 query IIII

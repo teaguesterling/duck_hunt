@@ -17,18 +17,18 @@ SELECT DISTINCT tool_name FROM parse_duck_hunt_log('{"Action":"run","Package":"g
 ----
 go_test
 
-# Test 3: Generic lint auto-detection
+# Test 3: Compiler diagnostic auto-detection (gcc_text has higher priority than generic_lint)
 query I
 SELECT DISTINCT tool_name FROM parse_duck_hunt_log('src/main.c:15:5: error: undeclared variable', 'auto');
 ----
-lint
+compiler
 
-# Test 4: Make error auto-detection
+# Test 4: Compiler diagnostic takes priority over make wrapper errors
 query I
 SELECT DISTINCT tool_name FROM parse_duck_hunt_log('src/main.c:15:5: error: undeclared_var
 make: *** [Makefile:23: build/main] Error 1', 'auto');
 ----
-make
+compiler
 
 # Test 5: DuckDB test auto-detection
 query I
@@ -99,14 +99,14 @@ go_test
 
 # Test 14: Test explicit format override vs auto-detection
 statement ok
-CREATE TABLE explicit_format AS 
-SELECT * FROM parse_duck_hunt_log('src/main.c:15:5: error: undeclared variable', 'generic_lint');
+CREATE TABLE explicit_format AS
+SELECT * FROM parse_duck_hunt_log('src/main.c:15:5: error: undeclared variable', 'gcc_text');
 
 statement ok
-CREATE TABLE auto_detected AS 
+CREATE TABLE auto_detected AS
 SELECT * FROM parse_duck_hunt_log('src/main.c:15:5: error: undeclared variable', 'auto');
 
-# Verify both produce the same results
+# Verify both produce the same results (gcc_text is auto-detected for compiler diagnostics)
 query I
 SELECT COUNT(*) FROM (
   SELECT tool_name, ref_file, ref_line, status, message

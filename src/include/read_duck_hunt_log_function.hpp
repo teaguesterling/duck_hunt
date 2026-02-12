@@ -119,7 +119,9 @@ enum class TestResultFormat : uint8_t {
 	RUBY_LOGGER = 88,
 	RAILS_LOG = 89,
 	// System tracing formats
-	STRACE = 90
+	STRACE = 90,
+	// Compiler diagnostic format
+	GCC_TEXT = 91
 };
 
 // Bind data for read_duck_hunt_log table function

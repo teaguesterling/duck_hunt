@@ -117,7 +117,7 @@ go_test
 
 # Test explicit format overrides auto-detection
 query I
-SELECT tool_name FROM parse_duck_hunt_log('random content that would not match', 'generic_lint');
+SELECT tool_name FROM parse_duck_hunt_log('file.c:10: error: test message', 'generic_lint');
 ----
 lint
 

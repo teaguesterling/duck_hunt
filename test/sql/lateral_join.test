@@ -4,6 +4,33 @@
 
 require duck_hunt
 
+# =============================================================================
+# LATERAL format parameter bug fix verification
+# The format parameter must be respected in LATERAL joins, not ignored
+# =============================================================================
+
+# Test that explicit format is respected in LATERAL joins
+# gcc_text should reject .py files (returns 0 rows)
+# If format is ignored, auto-detection would use mypy_text (returns 4 rows)
+statement ok
+CREATE TABLE format_test AS SELECT 'test/samples/mypy.txt' as path;
+
+query I
+SELECT COUNT(*) FROM format_test t, LATERAL read_duck_hunt_log(t.path, 'gcc_text') e;
+----
+0
+
+# Verify auto works (proves the file has content)
+query I
+SELECT COUNT(*) > 0 FROM format_test t, LATERAL read_duck_hunt_log(t.path, 'auto') e;
+----
+true
+
+statement ok
+DROP TABLE format_test;
+
+# =============================================================================
+
 # Basic lateral join
 statement ok
 CREATE TABLE log_contents AS
@@ -223,11 +250,10 @@ ORDER BY e.ref_line DESC;
 file2	WARNING	20
 file1	ERROR	10
 
-# Test with unknown format - falls back to auto-detection
-# (Unknown formats are handled gracefully, not as errors)
+# Test with auto format in lateral context
 query I
 SELECT COUNT(*) > 0 as has_results
-FROM log_contents l, LATERAL parse_duck_hunt_log(l.content, 'nonexistent_format_xyz') e;
+FROM log_contents l, LATERAL parse_duck_hunt_log(l.content, 'auto') e;
 ----
 true
 
@@ -286,26 +312,49 @@ SELECT 'test/samples/make.out' as path, 'make' as test_type
 UNION ALL
 SELECT 'test/samples/mypy.txt' as path, 'mypy' as test_type;
 
-# Basic lateral join with read_duck_hunt_log
+# Basic lateral join with read_duck_hunt_log (auto-detection)
+# gcc_text has higher priority, so make.out returns 4 GCC diagnostics
 query II
 SELECT l.test_type, COUNT(*)
 FROM log_files l, LATERAL read_duck_hunt_log(l.path) e
 GROUP BY l.test_type
 ORDER BY l.test_type;
 ----
-make	5
+make	4
 mypy	4
 
-# Lateral join with explicit format
+# Test each file with its correct explicit format
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('test/samples/make.out', 'gcc_text');
+----
+4
+
+query I
+SELECT COUNT(*) FROM read_duck_hunt_log('test/samples/mypy.txt', 'mypy_text');
+----
+4
+
+# Lateral join with auto-detection - gcc_text selected for make.out
 query III
 SELECT l.test_type, e.status, COUNT(*)
 FROM log_files l, LATERAL read_duck_hunt_log(l.path, 'auto') e
 GROUP BY l.test_type, e.status
 ORDER BY l.test_type, e.status;
 ----
-make	ERROR	3
+make	ERROR	2
 make	INFO	1
 make	WARNING	1
+mypy	ERROR	3
+mypy	WARNING	1
+
+# Lateral join with explicit mypy_text format for mypy files
+query III
+SELECT l.test_type, e.status, COUNT(*)
+FROM log_files l, LATERAL read_duck_hunt_log(l.path, 'mypy_text') e
+WHERE l.test_type = 'mypy'
+GROUP BY l.test_type, e.status
+ORDER BY l.test_type, e.status;
+----
 mypy	ERROR	3
 mypy	WARNING	1
 
@@ -319,7 +368,7 @@ FROM missing_files m, LATERAL read_duck_hunt_log(m.path) e;
 ----
 0
 
-# Test filtering within lateral join
+# Test filtering within lateral join (auto-detection)
 query II
 SELECT l.test_type, e.ref_file
 FROM log_files l, LATERAL read_duck_hunt_log(l.path) e
@@ -327,7 +376,18 @@ WHERE e.status = 'ERROR'
 ORDER BY l.test_type, e.ref_file
 LIMIT 3;
 ----
-make	Makefile
+make	src/main.c
+make	src/utils.c
+mypy	src/api/routes.py
+
+# Test filtering with explicit gcc_text format on C files
+query II
+SELECT l.test_type, e.ref_file
+FROM log_files l, LATERAL read_duck_hunt_log(l.path, 'gcc_text') e
+WHERE e.status = 'ERROR' AND l.test_type = 'make'
+ORDER BY l.test_type, e.ref_file
+LIMIT 3;
+----
 make	src/main.c
 make	src/utils.c
 
@@ -340,7 +400,7 @@ SELECT 'null_path' as name, NULL as path
 UNION ALL
 SELECT 'another' as name, 'test/samples/mypy.txt' as path;
 
-# NULL paths should produce no rows for that input
+# NULL paths should produce no rows for that input (auto-detection)
 query II
 SELECT l.name, COUNT(*) as events
 FROM null_paths l, LATERAL read_duck_hunt_log(l.path) e
@@ -348,7 +408,16 @@ GROUP BY l.name
 ORDER BY l.name;
 ----
 another	4
-valid	5
+valid	4
+
+# NULL paths with explicit gcc_text format
+query II
+SELECT l.name, COUNT(*) as events
+FROM null_paths l, LATERAL read_duck_hunt_log(l.path, 'gcc_text') e
+GROUP BY l.name
+ORDER BY l.name;
+----
+valid	4
 
 # Test LEFT JOIN with NULL/missing files - NULL path preserved with NO_FILE
 query II
@@ -362,7 +431,7 @@ null_path	NO_FILE
 
 # NOTE: Named parameters are not supported in LATERAL context
 
-# Test with CTE and read_duck_hunt_log
+# Test with CTE and read_duck_hunt_log (auto-detection)
 query II
 WITH file_list AS (
     SELECT 'make' as tool, 'test/samples/make.out' as log_path
@@ -374,8 +443,22 @@ FROM file_list f, LATERAL read_duck_hunt_log(f.log_path) e
 GROUP BY f.tool
 ORDER BY f.tool;
 ----
-make	5
+make	4
 mypy	4
+
+# Test with CTE and explicit gcc_text format
+query II
+WITH file_list AS (
+    SELECT 'make' as tool, 'test/samples/make.out' as log_path
+    UNION ALL
+    SELECT 'mypy' as tool, 'test/samples/mypy.txt' as log_path
+)
+SELECT f.tool, COUNT(*) as total
+FROM file_list f, LATERAL read_duck_hunt_log(f.log_path, 'gcc_text') e
+GROUP BY f.tool
+ORDER BY f.tool;
+----
+make	4
 
 # Test aggregation across multiple files
 query I
@@ -395,8 +478,8 @@ LIMIT 4;
 ----
 make	ERROR	1
 make	ERROR	2
-make	ERROR	3
 mypy	ERROR	1
+mypy	ERROR	2
 
 # Test UNION with read_duck_hunt_log lateral joins
 query II
@@ -409,7 +492,7 @@ FROM (SELECT 'test/samples/mypy.txt' as p) t, LATERAL read_duck_hunt_log(t.p) e
 WHERE e.status = 'ERROR'
 ORDER BY category;
 ----
-make_errors	3
+make_errors	2
 mypy_errors	3
 
 # Test empty file handling (file exists but no parseable content)
@@ -429,7 +512,7 @@ FROM log_files l, LATERAL read_duck_hunt_log(l.path) e
 WHERE e.status = e.status  -- trivial self-reference
   AND l.test_type = 'make';
 ----
-5
+4
 
 # Clean up edge case tables
 statement ok

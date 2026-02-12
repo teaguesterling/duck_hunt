@@ -114,21 +114,7 @@ void GenericLintParser::ParseGenericLint(const std::string &content, std::vector
 		}
 	}
 
-	// If no events were created, add a basic summary
-	if (events.empty()) {
-		ValidationEvent summary_event;
-		summary_event.event_id = 1;
-		summary_event.tool_name = "lint";
-		summary_event.event_type = ValidationEventType::LINT_ISSUE;
-		summary_event.status = ValidationEventStatus::INFO;
-		summary_event.category = "lint_summary";
-		summary_event.message = "Generic lint output parsed (no issues found)";
-		summary_event.ref_line = -1;
-		summary_event.ref_column = -1;
-		summary_event.execution_time = 0.0;
-
-		events.push_back(summary_event);
-	}
+	// Empty input or no matches = no output (don't synthesize fake events)
 }
 
 } // namespace duckdb

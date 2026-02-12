@@ -23,8 +23,8 @@ public:
 		return "Make/GCC/Clang build error output";
 	}
 	int getPriority() const override {
-		return 90;
-	} // High priority for common build errors
+		return ParserPriority::MEDIUM;
+	} // Lower than gcc - make wraps gcc output
 	std::string getCategory() const override {
 		return "build_system";
 	}
