@@ -1,6 +1,6 @@
 # name: test/sql/streaming.test
 # description: Test streaming parser support for large files
-# group: [duck_hunt]
+# group: [sql]
 
 require duck_hunt
 
