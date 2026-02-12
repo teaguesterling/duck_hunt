@@ -1,6 +1,6 @@
 # Supported Formats
 
-Duck Hunt supports 107 format strings for parsing development tool outputs. Use these with `read_duck_hunt_log()` or `parse_duck_hunt_log()`.
+Duck Hunt supports 108 format strings for parsing development tool outputs. Use these with `read_duck_hunt_log()` or `parse_duck_hunt_log()`.
 
 > **See also:** [Format Maturity Levels](format-maturity.md) for test coverage and stability ratings.
 
@@ -22,7 +22,7 @@ SELECT * FROM parse_duck_hunt_log(content, 'ci');
 |-------|-------------|-------|
 | `python` | Python tools (pytest, pylint, mypy, flake8, ruff, bandit, etc.) | 19 |
 | `java` | Java/JVM tools (junit, maven, gradle, spotbugs, etc.) | 11 |
-| `c_cpp` | C/C++ tools (gtest, make, cmake, valgrind, etc.) | 10 |
+| `c_cpp` | C/C++ tools (gcc, gtest, make, cmake, valgrind, etc.) | 11 |
 | `javascript` | JavaScript/Node.js tools (eslint, mocha, playwright, winston, pino, etc.) | 10 |
 | `ruby` | Ruby tools (rspec, rubocop, ruby_logger, rails) | 5 |
 | `dotnet` | .NET tools (nunit, msbuild, serilog, nlog) | 4 |
@@ -43,7 +43,7 @@ SELECT * FROM parse_duck_hunt_log(content, 'ci');
 | `test` | Test frameworks & runners | 15 |
 | `logging` | Logging frameworks & formats | 13 |
 | `security` | Security scanning & audit tools | 11 |
-| `build` | Build systems & compilers | 10 |
+| `build` | Build systems & compilers | 11 |
 | `cloud` | Cloud platform logs & services | 7 |
 | `ci` | CI/CD systems | 7 |
 | `distributed` | Distributed systems logs | 6 |
@@ -146,6 +146,7 @@ The function analyzes content patterns and returns the best-matching format stri
 
 | Format String | Tool | Groups | Sample File |
 |---------------|------|--------|-------------|
+| `gcc_text` | GCC/Clang | c_cpp, build | [make.out](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/make.out) |
 | `make_error` | GNU Make | c_cpp, build | [make_errors.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/build_systems/make_errors.txt) |
 | `cmake_build` | CMake | c_cpp, build | [cmake_build_errors.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/build_systems/cmake_build_errors.txt) |
 | `python_build` | pip/setuptools | python, build | [pip_install_errors.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/build_systems/pip_install_errors.txt) |
@@ -301,15 +302,42 @@ WHERE severity = 'error';
 
 ---
 
-### make_error
+### gcc_text
 
-GNU Make build output with GCC/Clang compiler errors and warnings.
+GCC/Clang/gfortran compiler diagnostic output. Handles the standard `file:line:column: severity: message` format used by GCC-family compilers.
+
+**Aliases:** `gcc`, `g++`, `clang`, `clang++`, `cc`, `c++`, `gfortran`, `gnat`
 
 **Sample Input:**
 ```
 src/main.c:15:5: error: 'undefined_var' undeclared
-src/main.c:28:12: warning: unused variable 'temp'
+src/main.c:28:12: warning: unused variable 'temp' [-Wunused-variable]
+src/utils.c:8:9: note: declared here
+```
+
+**Query:**
+```sql
+SELECT ref_file, ref_line, severity, message
+FROM read_duck_hunt_log('build.log', 'gcc_text')
+WHERE status = 'ERROR';
+```
+
+**Notes:**
+- Uses file extension filtering to distinguish from mypy (`.py` files are rejected)
+- Higher priority than `make_error` since make output often contains GCC diagnostics
+- Supports C, C++, Fortran, Ada, Objective-C, and CUDA file extensions
+
+---
+
+### make_error
+
+GNU Make build harness output. Parses make-specific error lines like `make: *** [target] Error N`.
+
+**Sample Input:**
+```
+make: Entering directory '/project'
 make: *** [Makefile:23: build] Error 1
+make: Leaving directory '/project'
 ```
 
 **Query:**
@@ -318,6 +346,10 @@ SELECT ref_file, ref_line, severity, message
 FROM read_duck_hunt_log('test/samples/make.out', 'make_error')
 WHERE status = 'ERROR';
 ```
+
+**Notes:**
+- For GCC/Clang compiler diagnostics within make output, use `gcc_text` or `auto`
+- Auto-detection will choose `gcc_text` for files containing compiler diagnostics
 
 ---
 

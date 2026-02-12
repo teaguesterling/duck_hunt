@@ -70,10 +70,11 @@ This document lists all available log parsers in the Duck Hunt extension.
 | generic_lint | `generic_lint` | test/samples/large_build.out | Yes |
 | regexp | `regexp:PATTERN` | - | Inline |
 
-### Build Systems (10 parsers)
+### Build Systems (11 parsers)
 
 | Parser | Format Name | Sample File | Tests |
 |--------|-------------|-------------|-------|
+| gcc | `gcc_text` | test/samples/make.out | Yes |
 | make | `make_error` | test/samples/make.out | Yes |
 | cmake | `cmake_build` | workspace/cmake_sample.txt | Yes |
 | maven | `maven_build` | - | Inline |
@@ -190,9 +191,9 @@ This document lists all available log parsers in the Duck Hunt extension.
 |--------|-------------|-------------|-------|
 | lcov | `lcov` | - | Yes |
 
-## Total: 105 formats
+## Total: 106 formats
 
-> 100 log formats + 5 workflow formats (github_actions, gitlab_ci, jenkins, docker, spack)
+> 101 log formats + 5 workflow formats (github_actions, gitlab_ci, jenkins, docker, spack)
 
 ## Usage
 

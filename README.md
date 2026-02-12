@@ -2,7 +2,7 @@
 
 [![Documentation Status](https://readthedocs.org/projects/duck-hunt/badge/?version=latest)](https://duck-hunt.readthedocs.io/en/latest/?badge=latest)
 
-A DuckDB extension for parsing test results, build outputs, and CI/CD logs from 105 development tools.
+A DuckDB extension for parsing test results, build outputs, and CI/CD logs from 106 development tools.
 
 ## Functions
 
@@ -133,7 +133,7 @@ SELECT * FROM parse_duck_hunt_log(content, 'test');
 |-------|-------|
 | `python` | pytest, mypy, pylint, flake8, black, isort, bandit, coverage |
 | `java` | junit, maven, gradle, spotbugs, ktlint, hdfs, spark, zookeeper |
-| `c_cpp` | gtest, make, cmake, valgrind, gdb, strace, clang-tidy |
+| `c_cpp` | gcc, gtest, make, cmake, valgrind, gdb, strace, clang-tidy |
 | `javascript` | eslint, stylelint, mocha, winston, pino, bunyan, node |
 | `rust` | cargo, clippy, cargo_test |
 | `go` | gotest, logrus |
@@ -160,12 +160,13 @@ SELECT * FROM parse_duck_hunt_log(content, 'test');
 | `pytest_json` | pytest | [sample](test/samples/test_frameworks/pytest_json_failures.json) |
 | `eslint_json` | ESLint | [sample](test/samples/linting_tools/eslint_output.json) |
 | `mypy_text` | MyPy | [sample](test/samples/linting_tools/mypy_output.txt) |
+| `gcc_text` | GCC/Clang | [sample](test/samples/make.out) |
 | `make_error` | GNU Make | [sample](test/samples/build_systems/make_errors.txt) |
 | `gotest_json` | Go test | [sample](test/samples/test_frameworks/gotest_failures.json) |
 | `valgrind` | Valgrind | [sample](test/samples/debugging_tools/valgrind_memcheck.txt) |
 | `generic_lint` | Generic | `file:line:col: severity: message` |
 
-**[See all 105 formats →](docs/formats.md)** | **[Workflow formats →](docs/workflow-formats.md)**
+**[See all 106 formats →](docs/formats.md)** | **[Workflow formats →](docs/workflow-formats.md)**
 
 ## Output Schema
 
@@ -237,7 +238,7 @@ The `github_actions_zip` format:
 
 ## Documentation
 
-- **[Format Reference](docs/formats.md)** - All 105 supported formats with examples
+- **[Format Reference](docs/formats.md)** - All 106 supported formats with examples
 - **[Workflow Formats](docs/workflow-formats.md)** - CI/CD workflow parsing (GitHub Actions, GitLab CI, Jenkins)
 - **[Format Maturity](docs/format-maturity.md)** - Stability ratings and test coverage
 - **[Schema Reference](docs/schema.md)** - Complete field documentation
