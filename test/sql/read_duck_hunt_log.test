@@ -35,19 +35,33 @@ GROUP BY tool_name;
 ----
 3	go_test	1	1
 
-# Test 3: Read make error file
+# Test 3: Read make error file (make_error parser only captures make-specific lines, not GCC diagnostics)
 statement ok
-CREATE TABLE make_file_results AS 
+CREATE TABLE make_file_results AS
 SELECT * FROM read_duck_hunt_log('workspace/make_error_sample.txt', 'make_error');
 
-# Verify make error file parsing results
+# Verify make error file parsing results - make_error only captures the make failure line
 query III
 SELECT COUNT(*), tool_name,
        COUNT(CASE WHEN status = 'ERROR' THEN 1 END) as errors
 FROM make_file_results
 GROUP BY tool_name;
 ----
-5	make	3
+1	make	1
+
+# Test 3b: Read the same file with gcc_text to capture GCC diagnostics
+statement ok
+CREATE TABLE gcc_file_results AS
+SELECT * FROM read_duck_hunt_log('workspace/make_error_sample.txt', 'gcc_text');
+
+# Verify GCC diagnostics are captured separately
+query III
+SELECT COUNT(*), tool_name,
+       COUNT(CASE WHEN status = 'ERROR' THEN 1 END) as errors
+FROM gcc_file_results
+GROUP BY tool_name;
+----
+4	compiler	2
 
 # Test 4: Read clang-tidy file
 statement ok
@@ -120,6 +134,9 @@ DROP TABLE gotest_file_results;
 
 statement ok
 DROP TABLE make_file_results;
+
+statement ok
+DROP TABLE gcc_file_results;
 
 statement ok
 DROP TABLE clang_tidy_file_results;

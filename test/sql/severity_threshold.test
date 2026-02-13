@@ -84,7 +84,7 @@ FROM parse_duck_hunt_log('[
 ----
 0
 
-# Test 6: Test with make_error format
+# Test 6: Test with make_error format (only captures make-specific lines, not GCC diagnostics)
 query II
 SELECT COUNT(*), severity
 FROM parse_duck_hunt_log('gcc -Wall -o test test.c
@@ -94,7 +94,7 @@ make: *** [Makefile:5: test] Error 1', 'make_error', severity_threshold := 'erro
 GROUP BY severity
 ORDER BY severity;
 ----
-2	error
+1	error
 
 # Test 7: Test with generic_lint format
 query I

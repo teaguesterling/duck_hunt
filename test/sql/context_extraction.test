@@ -11,7 +11,7 @@ require duck_hunt
 # Test 1: Context column appears when context parameter is provided
 query I
 SELECT COUNT(*)
-FROM parse_duck_hunt_log('main.c:5:10: error: test error', 'make_error', context := 3)
+FROM parse_duck_hunt_log('main.c:5:10: error: test error', 'gcc_text', context := 3)
 WHERE context IS NOT NULL;
 ----
 1
@@ -21,7 +21,7 @@ query I
 SELECT COUNT(*)
 FROM (
   SELECT column_name
-  FROM (DESCRIBE SELECT * FROM parse_duck_hunt_log('main.c:5:10: error: test error', 'make_error'))
+  FROM (DESCRIBE SELECT * FROM parse_duck_hunt_log('main.c:5:10: error: test error', 'gcc_text'))
   WHERE column_name = 'context'
 );
 ----
@@ -32,7 +32,7 @@ query I
 SELECT COUNT(*)
 FROM (
   SELECT column_name
-  FROM (DESCRIBE SELECT * FROM parse_duck_hunt_log('main.c:5:10: error: test error', 'make_error', context := 3))
+  FROM (DESCRIBE SELECT * FROM parse_duck_hunt_log('main.c:5:10: error: test error', 'gcc_text', context := 3))
   WHERE column_name = 'context'
 );
 ----
@@ -48,7 +48,7 @@ FROM parse_duck_hunt_log('line 1
 line 2
 main.c:3:1: error: test error
 line 4
-line 5', 'make_error', context := 2)
+line 5', 'gcc_text', context := 2)
 WHERE log_line_start IS NOT NULL;
 ----
 true	true	true
@@ -60,7 +60,7 @@ FROM parse_duck_hunt_log('line 1
 line 2
 main.c:3:1: error: test
 line 4
-line 5', 'make_error', context := 2)
+line 5', 'gcc_text', context := 2)
 WHERE log_line_start = 3;
 ----
 5
@@ -72,7 +72,7 @@ FROM parse_duck_hunt_log('line 1
 line 2
 main.c:3:1: error: test
 line 4
-line 5', 'make_error', context := 2)
+line 5', 'gcc_text', context := 2)
 WHERE log_line_start = 3;
 ----
 1
@@ -86,7 +86,7 @@ line 3
 main.c:4:1: error: test
 line 5
 line 6
-line 7', 'make_error', context := 1)
+line 7', 'gcc_text', context := 1)
 WHERE log_line_start = 4;
 ----
 3
@@ -103,7 +103,7 @@ query I
 SELECT COUNT(*)
 FROM (
   SELECT column_name
-  FROM (DESCRIBE SELECT * FROM parse_duck_hunt_log('main.c:5:10: error: test', 'make_error', context := 0))
+  FROM (DESCRIBE SELECT * FROM parse_duck_hunt_log('main.c:5:10: error: test', 'gcc_text', context := 0))
   WHERE column_name = 'context'
 );
 ----
@@ -116,7 +116,7 @@ FROM parse_duck_hunt_log('line 1
 line 2
 main.c:3:1: error: test
 line 4
-line 5', 'make_error', context := 2)
+line 5', 'gcc_text', context := 2)
 WHERE log_line_start = 3;
 ----
 1
@@ -127,7 +127,7 @@ SELECT context[1].content
 FROM parse_duck_hunt_log('first line
 second line
 main.c:3:1: error: test
-fourth line', 'make_error', context := 2)
+fourth line', 'gcc_text', context := 2)
 WHERE log_line_start = 3;
 ----
 first line
@@ -139,7 +139,7 @@ FROM parse_duck_hunt_log('line 1
 line 2
 main.c:3:1: error: test
 line 4
-line 5', 'make_error', context := 2)
+line 5', 'gcc_text', context := 2)
 WHERE log_line_start = 3;
 ----
 true
@@ -153,7 +153,7 @@ query I
 SELECT len(context)
 FROM parse_duck_hunt_log('main.c:1:1: error: test
 line 2
-line 3', 'make_error', context := 5)
+line 3', 'gcc_text', context := 5)
 WHERE log_line_start = 1;
 ----
 3
@@ -163,7 +163,7 @@ query I
 SELECT len(context)
 FROM parse_duck_hunt_log('line 1
 line 2
-main.c:3:1: error: test', 'make_error', context := 5)
+main.c:3:1: error: test', 'gcc_text', context := 5)
 WHERE log_line_start = 3;
 ----
 3
@@ -171,7 +171,7 @@ WHERE log_line_start = 3;
 # Test 15: Context larger than file - returns all lines
 query I
 SELECT len(context)
-FROM parse_duck_hunt_log('main.c:1:1: error: test', 'make_error', context := 100)
+FROM parse_duck_hunt_log('main.c:1:1: error: test', 'gcc_text', context := 100)
 WHERE log_line_start = 1;
 ----
 1
@@ -181,7 +181,7 @@ query I
 SELECT COUNT(*)
 FROM parse_duck_hunt_log('main.c:1:1: error: first
 main.c:2:1: error: second
-main.c:3:1: error: third', 'make_error', context := 1)
+main.c:3:1: error: third', 'gcc_text', context := 1)
 WHERE context IS NOT NULL;
 ----
 3
@@ -191,13 +191,13 @@ query III
 SELECT
   (SELECT context[1].line_number FROM parse_duck_hunt_log('main.c:1:1: error: first
 main.c:2:1: error: second
-main.c:3:1: error: third', 'make_error', context := 1) WHERE log_line_start = 1),
+main.c:3:1: error: third', 'gcc_text', context := 1) WHERE log_line_start = 1),
   (SELECT context[1].line_number FROM parse_duck_hunt_log('main.c:1:1: error: first
 main.c:2:1: error: second
-main.c:3:1: error: third', 'make_error', context := 1) WHERE log_line_start = 2),
+main.c:3:1: error: third', 'gcc_text', context := 1) WHERE log_line_start = 2),
   (SELECT context[1].line_number FROM parse_duck_hunt_log('main.c:1:1: error: first
 main.c:2:1: error: second
-main.c:3:1: error: third', 'make_error', context := 1) WHERE log_line_start = 3);
+main.c:3:1: error: third', 'gcc_text', context := 1) WHERE log_line_start = 3);
 ----
 1	1	2
 
@@ -239,7 +239,7 @@ true
 query I
 SELECT COUNT(*)
 FROM parse_duck_hunt_log('main.c:1:1: warning: unused variable
-main.c:2:1: error: undefined reference', 'make_error', severity_threshold := 'error', context := 2)
+main.c:2:1: error: undefined reference', 'gcc_text', severity_threshold := 'error', context := 2)
 WHERE context IS NOT NULL;
 ----
 1
@@ -247,7 +247,7 @@ WHERE context IS NOT NULL;
 # Test 22: Context combined with content parameter
 query II
 SELECT context IS NOT NULL, log_content IS NULL
-FROM parse_duck_hunt_log('main.c:1:1: error: test error', 'make_error', content := 'none', context := 2);
+FROM parse_duck_hunt_log('main.c:1:1: error: test error', 'gcc_text', content := 'none', context := 2);
 ----
 true	true
 
@@ -255,7 +255,7 @@ true	true
 query I
 SELECT COUNT(*)
 FROM parse_duck_hunt_log('main.c:1:1: warning: unused
-main.c:2:1: error: undefined', 'make_error', severity_threshold := 'error', content := 'none', context := 1)
+main.c:2:1: error: undefined', 'gcc_text', severity_threshold := 'error', content := 'none', context := 1)
 WHERE context IS NOT NULL AND log_content IS NULL;
 ----
 1
@@ -271,7 +271,7 @@ FROM parse_duck_hunt_log('line 1
 line 2
 main.c:3:1: error: test
 line 4
-line 5', 'make_error', context := 2)
+line 5', 'gcc_text', context := 2)
 WHERE log_line_start = 3;
 ----
 4
@@ -283,7 +283,7 @@ FROM parse_duck_hunt_log('line 1
 line 2
 main.c:3:1: error: test
 line 4
-line 5', 'make_error', context := 2)
+line 5', 'gcc_text', context := 2)
 WHERE log_line_start = 3;
 ----
 5
@@ -295,7 +295,7 @@ FROM parse_duck_hunt_log('line 1
 line 2
 main.c:3:1: error: test
 line 4
-line 5', 'make_error', context := 1)
+line 5', 'gcc_text', context := 1)
 WHERE log_line_start = 3;
 ----
 3

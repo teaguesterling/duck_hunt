@@ -50,12 +50,12 @@ ORDER BY event_id;
 lint	src/main.c	15	ERROR
 lint	src/utils.c	20	WARNING
 
-# Test make error parsing
+# Test make error parsing (make_error only parses make-specific lines, not GCC diagnostics)
 query I
 SELECT COUNT(*) FROM parse_duck_hunt_log('src/main.c:15:5: error: undeclared_var
 make: *** [Makefile:23: build/main] Error 1', 'make_error');
 ----
-2
+1
 
 # Test ValidationEvent schema completeness
 query I

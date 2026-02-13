@@ -7,8 +7,16 @@ namespace duckdb {
 
 /**
  * Parser for CMake build output.
- * Handles CMake configuration errors/warnings, GCC/Clang compile errors,
- * linker errors, and make/gmake failures.
+ *
+ * Handles cmake-specific patterns:
+ * - Configuration errors: "CMake Error at file:line ..."
+ * - Configuration warnings: "CMake Warning at file:line ..."
+ * - Deprecation/developer warnings
+ * - Configuration summary: "-- Configuring incomplete"
+ * - gmake failures: "gmake[N]: *** [target] Error N"
+ *
+ * Does NOT parse GCC/Clang diagnostics (file:line: error:) - use gcc_text parser for those.
+ * For full cmake build output, use auto-detection or combine with gcc_text parser.
  */
 class CMakeParser : public IParser {
 public:
@@ -22,13 +30,13 @@ public:
 		return "CMake Build Parser";
 	}
 	int getPriority() const override {
-		return 80;
+		return ParserPriority::MEDIUM;
 	}
 	std::string getCategory() const override {
 		return "build_system";
 	}
 	std::string getDescription() const override {
-		return "CMake configuration and build output";
+		return "CMake configuration output (errors, warnings, gmake failures)";
 	}
 	std::vector<std::string> getAliases() const override {
 		return {"cmake"};

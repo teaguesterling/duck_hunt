@@ -81,22 +81,22 @@ GROUP BY tool_name;
 ----
 3	lint	2	1
 
-# Test 4: Make error format parsing
+# Test 4: Make error format parsing (make_error only parses make-specific lines, not GCC diagnostics)
 statement ok
-CREATE TABLE make_results AS 
+CREATE TABLE make_results AS
 SELECT * FROM parse_duck_hunt_log('gcc -Wall -Wextra -g -o build/main src/main.c src/utils.c
 src/main.c:15:5: error: undeclared_var undeclared
 src/utils.c:8:9: error: assignment to expression with array type
 make: *** [Makefile:23: build/main] Error 1', 'make_error');
 
-# Verify make error parsing results
+# Verify make error parsing results - only the make failure line is captured
 query III
 SELECT COUNT(*), tool_name,
        COUNT(CASE WHEN status = 'ERROR' THEN 1 END) as errors
 FROM make_results
 GROUP BY tool_name;
 ----
-3	make	3
+1	make	1
 
 # Test 5: Auto-detection capability (filter out SUMMARY events for count accuracy)
 query II

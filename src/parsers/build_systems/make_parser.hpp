@@ -6,8 +6,15 @@
 namespace duckdb {
 
 /**
- * Parser for Make build system error output.
- * Handles GCC/Clang compilation errors, make failures, and linker errors.
+ * Parser for Make build system output.
+ *
+ * Handles make-specific patterns:
+ * - Recipe failures: "make: *** [target] Error N"
+ * - Submake errors: "make[N]: *** [target] Error N"
+ * - Directory tracking: "make[N]: Entering/Leaving directory"
+ *
+ * Does NOT parse GCC/Clang diagnostics (file:line: error:) - use gcc_text parser for those.
+ * For full make build output, use auto-detection or combine with gcc_text parser.
  */
 class MakeParser : public IParser {
 public:
@@ -20,11 +27,11 @@ public:
 		return "make";
 	}
 	std::string getDescription() const override {
-		return "Make/GCC/Clang build error output";
+		return "Make build system output (recipe failures, directory tracking)";
 	}
 	int getPriority() const override {
 		return ParserPriority::MEDIUM;
-	} // Lower than gcc - make wraps gcc output
+	}
 	std::string getCategory() const override {
 		return "build_system";
 	}
@@ -36,9 +43,6 @@ public:
 		    CommandPattern::Like("gmake %"),
 		};
 	}
-
-private:
-	bool isValidMakeError(const std::string &content) const;
 };
 
 } // namespace duckdb

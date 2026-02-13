@@ -4,27 +4,35 @@
 
 require duck_hunt
 
-# Test 1: make_error parser should populate log line tracking fields
+# Test 1: gcc_text parser should populate log line tracking fields for compiler diagnostics
+query IIIT
+SELECT log_line_start, log_line_end, ref_line, message
+FROM read_duck_hunt_log('test/samples/make.out', 'gcc_text')
+WHERE log_line_start IS NOT NULL
+ORDER BY log_line_start
+LIMIT 4;
+----
+2	2	15	'undefined_var' undeclared (first use in this function)
+5	5	15	each undeclared identifier is reported only once for each function it appears in
+6	6	28	unused variable 'temp'
+10	10	8	assignment to expression with array type
+
+# Test 1b: make_error parser should populate log line tracking for make-specific lines
 query IIIT
 SELECT log_line_start, log_line_end, ref_line, message
 FROM read_duck_hunt_log('test/samples/make.out', 'make_error')
 WHERE log_line_start IS NOT NULL
-ORDER BY log_line_start
-LIMIT 5;
+ORDER BY log_line_start;
 ----
-2	2	15	'undefined_var' undeclared (first use in this function)
-5	5	15	each undeclared identifier is reported only once for each function it appears in
-6	6	28	unused variable 'temp' [-Wunused-variable]
-10	10	8	assignment to expression with array type
 13	13	NULL	make: *** [Makefile:23: build/main.o] Error 1
 
 # Test 2: Single-line events should have log_line_start == log_line_end
 query I
 SELECT COUNT(*)
-FROM read_duck_hunt_log('test/samples/make.out', 'make_error')
+FROM read_duck_hunt_log('test/samples/make.out', 'gcc_text')
 WHERE log_line_start IS NOT NULL AND log_line_start = log_line_end;
 ----
-5
+4
 
 # Test 3: JSON formats should have NULL log line tracking (no meaningful line position)
 query II
@@ -35,19 +43,28 @@ LIMIT 1;
 NULL	NULL
 
 # Test 4: log_line_start should be 1-indexed (first line is 1, not 0)
+# Using gcc_text to parse GCC diagnostics
+query I
+SELECT MIN(log_line_start)
+FROM read_duck_hunt_log('test/samples/make.out', 'gcc_text')
+WHERE log_line_start IS NOT NULL;
+----
+2
+
+# Test 4b: make_error only captures make-specific lines (not GCC diagnostics)
 query I
 SELECT MIN(log_line_start)
 FROM read_duck_hunt_log('test/samples/make.out', 'make_error')
 WHERE log_line_start IS NOT NULL;
 ----
-2
+13
 
 # Test 5: Verify log_line_start != ref_line (they track different things)
 # ref_line is the source code line, log_line_start is the log file line
 query III
 SELECT log_line_start, ref_line,
        CASE WHEN log_line_start != ref_line OR ref_line IS NULL THEN 1 ELSE 0 END as different
-FROM read_duck_hunt_log('test/samples/make.out', 'make_error')
+FROM read_duck_hunt_log('test/samples/make.out', 'gcc_text')
 WHERE log_line_start IS NOT NULL
 ORDER BY log_line_start
 LIMIT 3;
