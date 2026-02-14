@@ -31,22 +31,17 @@ void RegexpParser::ParseWithRegexp(const std::string &content, const std::string
 		search_start = name_match.suffix().first;
 	}
 
-	// Convert Python-style named groups to std::regex compatible format
-	// (?P<name>...) -> (?:...) but we keep track of positions
-	std::string modified_pattern = std::regex_replace(pattern, std::regex(R"(\(\?P<([a-zA-Z_][a-zA-Z0-9_]*)>)"), "(?:");
-	// Also handle ECMAScript-style (?<name>...) -> (?:...)
-	modified_pattern = std::regex_replace(modified_pattern, std::regex(R"(\(\?<([a-zA-Z_][a-zA-Z0-9_]*)>)"), "(?:");
-
-	// Actually, std::regex in C++11/14 doesn't support named groups, so we need to use indexed groups.
-	// We'll convert named groups to regular groups and track which index corresponds to which name.
-	// (?P<name>...) and (?<name>...) become (...)
-	modified_pattern = std::regex_replace(pattern, std::regex(R"(\(\?P?<[a-zA-Z_][a-zA-Z0-9_]*>)"), "(");
+	// Convert Python-style named groups (?P<name>...) and ECMAScript-style (?<name>...)
+	// to regular groups (...) since std::regex doesn't support named groups.
+	// We track group names separately via name_to_index map.
+	std::string modified_pattern =
+	    std::regex_replace(pattern, std::regex(R"(\(\?P?<[a-zA-Z_][a-zA-Z0-9_]*>)"), "(");
 
 	std::regex user_regex;
 	try {
 		user_regex = std::regex(modified_pattern);
 	} catch (const std::regex_error &e) {
-		// If regex compilation fails, create an error event
+		// If regex compilation fails, create an error event with pattern context
 		ValidationEvent error_event;
 		error_event.event_id = 1;
 		error_event.tool_name = "regexp";
@@ -54,7 +49,8 @@ void RegexpParser::ParseWithRegexp(const std::string &content, const std::string
 		error_event.status = ValidationEventStatus::ERROR;
 		error_event.severity = "error";
 		error_event.category = "parse_error";
-		error_event.message = std::string("Invalid regex pattern: ") + e.what();
+		// Include the pattern in the error message for debugging
+		error_event.message = std::string("Invalid regex pattern '") + pattern + "': " + e.what();
 		error_event.ref_line = -1;
 		error_event.ref_column = -1;
 		events.push_back(error_event);
@@ -78,14 +74,14 @@ void RegexpParser::ParseWithRegexp(const std::string &content, const std::string
 		return "";
 	};
 
-	// Parse content line by line
-	std::istringstream stream(normalized_content);
+	// Parse content line by line using SafeLineReader to truncate long lines
+	// This prevents ReDoS attacks from user-provided patterns on long input
+	SafeParsing::SafeLineReader reader(normalized_content);
 	std::string line;
 	int64_t event_id = 1;
-	int line_num = 0;
 
-	while (std::getline(stream, line)) {
-		line_num++;
+	while (reader.getLine(line)) {
+		int line_num = reader.lineNumber();
 		std::smatch match;
 
 		if (std::regex_search(line, match, user_regex)) {

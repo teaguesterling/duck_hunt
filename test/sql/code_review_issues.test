@@ -1,0 +1,147 @@
+# name: test/sql/code_review_issues.test
+# description: Test cases for issues found in comprehensive code review
+# group: [sql]
+
+require duck_hunt
+
+# =============================================================================
+# Issue 2: ReDoS vulnerability in regexp parser
+# User-provided patterns applied to content without line length limits
+# The regexp parser should use SafeLineReader to truncate long lines
+# =============================================================================
+
+# Test 2a: Long lines should be handled safely
+# After fix: lines > 2000 chars are truncated, so patterns expecting end-of-line won't match
+# The SafeLineReader truncates at ~2000 chars for safety
+statement ok
+CREATE TABLE long_line_test AS
+SELECT message
+FROM parse_duck_hunt_log(
+    repeat('a', 5000) || ': error: test message',
+    'regexp:^(.+): (error|warning): (.+)$'
+);
+
+# After fix: no match because line is truncated (doesn't end with the expected suffix)
+# This is safe behavior - prevents ReDoS on long lines
+query I
+SELECT message LIKE '%No matches found%' FROM long_line_test;
+----
+true
+
+statement ok
+DROP TABLE long_line_test;
+
+# Test 2a2: Verify truncation happens at around 2000 chars
+# Use a pattern that matches truncated content
+statement ok
+CREATE TABLE truncated_line_test AS
+SELECT length(log_content) as content_length
+FROM parse_duck_hunt_log(
+    repeat('a', 5000) || ': error: test message',
+    'regexp:^a+'
+);
+
+# After fix: log_content should be truncated to ~2000 chars
+query I
+SELECT content_length <= 2100 AND content_length > 1900 FROM truncated_line_test;
+----
+true
+
+statement ok
+DROP TABLE truncated_line_test;
+
+# Test 2b: Normal-length lines should still work correctly
+query III
+SELECT ref_file, ref_line, message
+FROM parse_duck_hunt_log('src/main.c:42: error: undefined reference',
+                         'regexp:^(?P<file>[^:]+):(?P<line>\d+): (?P<severity>error|warning): (?P<message>.+)$');
+----
+src/main.c	42	undefined reference
+
+# =============================================================================
+# Issue 6: Insufficient error context in regexp pattern compilation
+# Error messages should include the failing pattern for debugging
+# =============================================================================
+
+# Test 6a: Invalid regex should produce helpful error message with pattern
+statement ok
+CREATE TABLE invalid_regex_test AS
+SELECT message FROM parse_duck_hunt_log('test content', 'regexp:[invalid(');
+
+# Error message should contain pattern info for debugging
+query I
+SELECT message LIKE '%Invalid regex%' FROM invalid_regex_test;
+----
+true
+
+# After fix: message should include the pattern '[invalid('
+query I
+SELECT message LIKE '%[invalid(%' OR message LIKE '%\[invalid%' FROM invalid_regex_test;
+----
+true
+
+statement ok
+DROP TABLE invalid_regex_test;
+
+# =============================================================================
+# Issue 4: Dead code in regexp pattern transformation
+# Lines 36-38 compute modified_pattern but line 43 overwrites it from original
+# This is a code quality issue - test that named groups still work correctly
+# =============================================================================
+
+# Test 4a: Python-style named groups should work
+query III
+SELECT ref_file, ref_line, severity
+FROM parse_duck_hunt_log('main.c:10: error: test',
+                         'regexp:^(?P<file>[^:]+):(?P<line>\d+): (?P<severity>\w+): (?P<message>.+)$');
+----
+main.c	10	error
+
+# Test 4b: ECMAScript-style named groups should also work
+query III
+SELECT ref_file, ref_line, severity
+FROM parse_duck_hunt_log('main.c:10: warning: test',
+                         'regexp:^(?<file>[^:]+):(?<line>\d+): (?<severity>\w+): (?<message>.+)$');
+----
+main.c	10	warning
+
+# =============================================================================
+# Issue 3: ReDoS in LIKE pattern matching (command patterns)
+# Verify command pattern matching completes in reasonable time
+# =============================================================================
+
+# Test 3a: Parser lookup by command should complete quickly
+query I
+SELECT duck_hunt_detect_format('pytest tests/ -v --tb=short -x --cov=src') IS NOT NULL;
+----
+true
+
+# Test 3b: Format detection should work with typical build commands
+query I
+SELECT duck_hunt_detect_format('make -j4 CFLAGS="-O2 -Wall" all install') IS NOT NULL;
+----
+true
+
+# =============================================================================
+# Regression tests: Ensure normal functionality still works after fixes
+# =============================================================================
+
+# Verify regexp parser works correctly for normal cases with named groups
+query III
+SELECT ref_file, ref_line, message
+FROM parse_duck_hunt_log('src/main.c:42: error: undefined reference',
+                         'regexp:^(?P<file>[^:]+):(?P<line>\d+): (?P<severity>error|warning): (?P<message>.+)$');
+----
+src/main.c	42	undefined reference
+
+# Verify auto-detection still works (winston has higher priority for this JSON format)
+query I
+SELECT tool_name IN ('jsonl', 'winston', 'log4j') FROM parse_duck_hunt_log('{"level":"error","message":"test"}', 'auto') LIMIT 1;
+----
+true
+
+# Verify gcc_text parser works
+query II
+SELECT ref_file, ref_line FROM parse_duck_hunt_log('main.c:10:5: error: test', 'gcc_text');
+----
+main.c	10
