@@ -90,6 +90,8 @@ void ParserRegistry::registerParser(ParserPtr parser) {
 		return;
 	}
 
+	std::lock_guard<std::mutex> lock(registry_mutex_);
+
 	// Register by primary format name
 	std::string format_name = parser->getFormatName();
 	PARSER_TRACE("Registering parser: " << format_name);
@@ -106,20 +108,20 @@ void ParserRegistry::registerParser(ParserPtr parser) {
 }
 
 IParser *ParserRegistry::getParser(const std::string &format_name) const {
-	// Ensure parsers are initialized
-	// Ensure parsers are registered (call_once ensures this only runs once)
+	// Ensure parsers are initialized (call_once ensures this only runs once)
 	InitializeAllParsers();
 
+	std::lock_guard<std::mutex> lock(registry_mutex_);
 	auto it = format_map_.find(format_name);
 	return (it != format_map_.end()) ? it->second : nullptr;
 }
 
 IParser *ParserRegistry::findParser(const std::string &content) const {
-	// Ensure parsers are initialized
-	// Ensure parsers are registered (call_once ensures this only runs once)
+	// Ensure parsers are initialized (call_once ensures this only runs once)
 	InitializeAllParsers();
 
-	ensureSorted();
+	std::lock_guard<std::mutex> lock(registry_mutex_);
+	ensureSortedLocked();
 
 	// Try parsers in priority order
 	for (IParser *parser : sorted_parsers_) {
@@ -202,10 +204,12 @@ IParser *ParserRegistry::findParserByCommand(const std::string &command) const {
 	// Ensure parsers are initialized
 	InitializeAllParsers();
 
-	ensureSorted();
-
 	// Normalize command by stripping path prefix from executable
+	// Do this before acquiring lock to minimize lock hold time
 	std::string normalized = normalizeCommand(command);
+
+	std::lock_guard<std::mutex> lock(registry_mutex_);
+	ensureSortedLocked();
 
 	IParser *best_match = nullptr;
 	int best_priority = -1;
@@ -253,13 +257,17 @@ std::vector<IParser *> ParserRegistry::getParsersByCategory(const std::string &c
 
 	std::vector<IParser *> result;
 
-	for (const auto &parser : parsers_) {
-		if (parser->getCategory() == category) {
-			result.push_back(parser.get());
+	{
+		std::lock_guard<std::mutex> lock(registry_mutex_);
+		for (const auto &parser : parsers_) {
+			if (parser->getCategory() == category) {
+				result.push_back(parser.get());
+			}
 		}
 	}
 
 	// Sort by priority within category (stable for determinism)
+	// Sorting is done outside lock since result is a local copy
 	std::stable_sort(result.begin(), result.end(),
 	                 [](IParser *a, IParser *b) { return a->getPriority() > b->getPriority(); });
 
@@ -272,14 +280,18 @@ std::vector<IParser *> ParserRegistry::getParsersByGroup(const std::string &grou
 
 	std::vector<IParser *> result;
 
-	for (const auto &parser : parsers_) {
-		const auto &groups = parser->getGroups();
-		if (std::find(groups.begin(), groups.end(), group) != groups.end()) {
-			result.push_back(parser.get());
+	{
+		std::lock_guard<std::mutex> lock(registry_mutex_);
+		for (const auto &parser : parsers_) {
+			const auto &groups = parser->getGroups();
+			if (std::find(groups.begin(), groups.end(), group) != groups.end()) {
+				result.push_back(parser.get());
+			}
 		}
 	}
 
 	// Sort by priority within group (stable for determinism)
+	// Sorting is done outside lock since result is a local copy
 	std::stable_sort(result.begin(), result.end(),
 	                 [](IParser *a, IParser *b) { return a->getPriority() > b->getPriority(); });
 
@@ -290,6 +302,7 @@ bool ParserRegistry::isGroup(const std::string &name) const {
 	// Ensure parsers are registered (call_once ensures this only runs once)
 	InitializeAllParsers();
 
+	std::lock_guard<std::mutex> lock(registry_mutex_);
 	for (const auto &parser : parsers_) {
 		const auto &groups = parser->getGroups();
 		if (std::find(groups.begin(), groups.end(), name) != groups.end()) {
@@ -306,15 +319,19 @@ std::vector<std::string> ParserRegistry::getGroups() const {
 	std::vector<std::string> groups;
 	std::unordered_map<std::string, bool> seen;
 
-	for (const auto &parser : parsers_) {
-		for (const auto &group : parser->getGroups()) {
-			if (!seen[group]) {
-				groups.push_back(group);
-				seen[group] = true;
+	{
+		std::lock_guard<std::mutex> lock(registry_mutex_);
+		for (const auto &parser : parsers_) {
+			for (const auto &group : parser->getGroups()) {
+				if (!seen[group]) {
+					groups.push_back(group);
+					seen[group] = true;
+				}
 			}
 		}
 	}
 
+	// Sort outside lock since groups is a local copy
 	std::sort(groups.begin(), groups.end());
 	return groups;
 }
@@ -324,21 +341,25 @@ std::vector<ParserInfo> ParserRegistry::getAllFormats() const {
 	InitializeAllParsers();
 
 	std::vector<ParserInfo> result;
-	result.reserve(parsers_.size());
 
-	for (const auto &parser : parsers_) {
-		ParserInfo info;
-		info.format_name = parser->getFormatName();
-		info.description = parser->getDescription();
-		info.category = parser->getCategory();
-		info.required_extension = parser->getRequiredExtension();
-		info.priority = parser->getPriority();
-		info.command_patterns = parser->getCommandPatterns();
-		info.groups = parser->getGroups();
-		result.push_back(info);
+	{
+		std::lock_guard<std::mutex> lock(registry_mutex_);
+		result.reserve(parsers_.size());
+
+		for (const auto &parser : parsers_) {
+			ParserInfo info;
+			info.format_name = parser->getFormatName();
+			info.description = parser->getDescription();
+			info.category = parser->getCategory();
+			info.required_extension = parser->getRequiredExtension();
+			info.priority = parser->getPriority();
+			info.command_patterns = parser->getCommandPatterns();
+			info.groups = parser->getGroups();
+			result.push_back(info);
+		}
 	}
 
-	// Sort by category, then by format name
+	// Sort outside lock since result is a local copy
 	std::sort(result.begin(), result.end(), [](const ParserInfo &a, const ParserInfo &b) {
 		if (a.category != b.category) {
 			return a.category < b.category;
@@ -356,14 +377,18 @@ std::vector<std::string> ParserRegistry::getCategories() const {
 	std::vector<std::string> categories;
 	std::unordered_map<std::string, bool> seen;
 
-	for (const auto &parser : parsers_) {
-		const auto &cat = parser->getCategory();
-		if (!seen[cat]) {
-			categories.push_back(cat);
-			seen[cat] = true;
+	{
+		std::lock_guard<std::mutex> lock(registry_mutex_);
+		for (const auto &parser : parsers_) {
+			const auto &cat = parser->getCategory();
+			if (!seen[cat]) {
+				categories.push_back(cat);
+				seen[cat] = true;
+			}
 		}
 	}
 
+	// Sort outside lock since categories is a local copy
 	std::sort(categories.begin(), categories.end());
 	return categories;
 }
@@ -371,17 +396,21 @@ std::vector<std::string> ParserRegistry::getCategories() const {
 bool ParserRegistry::hasFormat(const std::string &format_name) const {
 	// Ensure parsers are registered (call_once ensures this only runs once)
 	InitializeAllParsers();
+
+	std::lock_guard<std::mutex> lock(registry_mutex_);
 	return format_map_.find(format_name) != format_map_.end();
 }
 
 void ParserRegistry::clear() {
+	std::lock_guard<std::mutex> lock(registry_mutex_);
 	parsers_.clear();
 	sorted_parsers_.clear();
 	format_map_.clear();
 	needs_resort_ = false;
 }
 
-void ParserRegistry::ensureSorted() const {
+void ParserRegistry::ensureSortedLocked() const {
+	// Note: Caller must hold registry_mutex_
 	if (!needs_resort_) {
 		return;
 	}
