@@ -3,6 +3,19 @@
 
 namespace duckdb {
 
+// Pre-compiled regex patterns for ESLint text parsing (compiled once, reused)
+namespace {
+// canParse patterns
+static const std::regex RE_ISSUE_PATTERN(R"(\s+\d+:\d+\s+(error|warning)\s+)");
+static const std::regex RE_STYLISH_PATTERN(R"([^\s].*\.(js|ts|jsx|tsx|mjs|cjs)\s*(\n|$))");
+static const std::regex RE_ISSUE_LINE(R"(\n\s+\d+:\d+\s+(error|warning)\s+.+\s+\S+)");
+
+// parse patterns
+static const std::regex RE_FILE_PATTERN(R"(^([^\s].*\.(js|ts|jsx|tsx|mjs|cjs|vue))\s*$)");
+static const std::regex RE_ISSUE_DETAIL(R"(^\s+(\d+):(\d+)\s+(error|warning)\s+(.+?)\s{2,}(\S+)\s*$)");
+static const std::regex RE_ISSUE_DETAIL_ALT(R"(^\s+(\d+):(\d+)\s+(error|warning)\s+(.+)\s+(\S+)\s*$)");
+} // anonymous namespace
+
 bool EslintTextParser::canParse(const std::string &content) const {
 	// Look for ESLint stylish format patterns:
 	// 1. Lines with "error" or "warning" followed by rule name
@@ -13,18 +26,13 @@ bool EslintTextParser::canParse(const std::string &content) const {
 	if (content.find("problem") != std::string::npos &&
 	    (content.find("error") != std::string::npos || content.find("warning") != std::string::npos)) {
 		// Look for the characteristic indented issue pattern: line:col severity
-		std::regex issue_pattern(R"(\s+\d+:\d+\s+(error|warning)\s+)");
-		if (std::regex_search(content, issue_pattern)) {
+		if (std::regex_search(content, RE_ISSUE_PATTERN)) {
 			return true;
 		}
 	}
 
 	// Also check for file path followed by indented issues (stylish format)
-	// Note: In C++, ^ and $ in regex_search match line boundaries within the string
-	std::regex stylish_pattern(R"([^\s].*\.(js|ts|jsx|tsx|mjs|cjs)\s*(\n|$))");
-	std::regex issue_line(R"(\n\s+\d+:\d+\s+(error|warning)\s+.+\s+\S+)");
-
-	if (std::regex_search(content, stylish_pattern) && std::regex_search(content, issue_line)) {
+	if (std::regex_search(content, RE_STYLISH_PATTERN) && std::regex_search(content, RE_ISSUE_LINE)) {
 		return true;
 	}
 
@@ -33,21 +41,12 @@ bool EslintTextParser::canParse(const std::string &content) const {
 
 std::vector<ValidationEvent> EslintTextParser::parse(const std::string &content) const {
 	std::vector<ValidationEvent> events;
+	events.reserve(content.size() / 100); // Estimate: ~1 event per 100 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
 	int32_t current_line_num = 0;
 	std::string current_file;
-
-	// Pattern for file path line (no leading whitespace, ends with .js/.ts/.jsx/.tsx etc.)
-	std::regex file_pattern(R"(^([^\s].*\.(js|ts|jsx|tsx|mjs|cjs|vue))\s*$)");
-
-	// Pattern for issue line: "  line:col  severity  message  rule-name"
-	// The severity and message may have variable spacing
-	std::regex issue_pattern(R"(^\s+(\d+):(\d+)\s+(error|warning)\s+(.+?)\s{2,}(\S+)\s*$)");
-
-	// Alternative pattern without double-space separator (for messages that run into rule)
-	std::regex issue_pattern_alt(R"(^\s+(\d+):(\d+)\s+(error|warning)\s+(.+)\s+(\S+)\s*$)");
 
 	int error_count = 0;
 	int warning_count = 0;
@@ -57,13 +56,13 @@ std::vector<ValidationEvent> EslintTextParser::parse(const std::string &content)
 		std::smatch match;
 
 		// Check if this is a file path line
-		if (std::regex_match(line, match, file_pattern)) {
+		if (std::regex_match(line, match, RE_FILE_PATTERN)) {
 			current_file = match[1].str();
 			continue;
 		}
 
 		// Check if this is an issue line
-		if (std::regex_match(line, match, issue_pattern) || std::regex_match(line, match, issue_pattern_alt)) {
+		if (std::regex_match(line, match, RE_ISSUE_DETAIL) || std::regex_match(line, match, RE_ISSUE_DETAIL_ALT)) {
 			int32_t line_number = 0;
 			int32_t column_number = 0;
 

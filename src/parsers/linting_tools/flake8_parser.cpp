@@ -3,6 +3,12 @@
 
 namespace duckdb {
 
+// Pre-compiled regex patterns for Flake8 parsing (compiled once, reused)
+namespace {
+static const std::regex RE_FLAKE8_PATTERN(R"(\.py:\d+:\d+:\s*[FEWC]\d{3,})");
+static const std::regex RE_FLAKE8_MESSAGE(R"(([^:]+):(\d+):(\d+):\s*([FEWC]\d+)\s*(.+))");
+} // anonymous namespace
+
 bool Flake8Parser::canParse(const std::string &content) const {
 	// Look for flake8-specific patterns: error codes like F401, E302, W503, C901
 	// Note: Must be careful to avoid false positives from IPv6 addresses containing ":C6" etc.
@@ -14,25 +20,22 @@ bool Flake8Parser::isValidFlake8Output(const std::string &content) const {
 	// Check for flake8 output pattern: file.py:line:column: CODE message
 	// Flake8 error codes are a letter followed by 3 digits (F401, E302, W503, C901)
 	// This avoids false positives from IPv6 addresses like "FE80:0000:0000:0000:C6B3"
-	std::regex flake8_pattern(R"(\.py:\d+:\d+:\s*[FEWC]\d{3,})");
-	return std::regex_search(content, flake8_pattern);
+	return std::regex_search(content, RE_FLAKE8_PATTERN);
 }
 
 std::vector<ValidationEvent> Flake8Parser::parse(const std::string &content) const {
 	std::vector<ValidationEvent> events;
+	events.reserve(content.size() / 60); // Estimate: ~1 event per 60 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
 	int32_t current_line_num = 0;
 
-	// Regex pattern for Flake8 output: file.py:line:column: error_code message
-	std::regex flake8_message(R"(([^:]+):(\d+):(\d+):\s*([FEWC]\d+)\s*(.+))");
-
 	while (std::getline(stream, line)) {
 		current_line_num++;
 		std::smatch match;
 
-		if (std::regex_search(line, match, flake8_message)) {
+		if (std::regex_search(line, match, RE_FLAKE8_MESSAGE)) {
 			std::string file_path = match[1].str();
 			std::string line_str = match[2].str();
 			std::string column_str = match[3].str();

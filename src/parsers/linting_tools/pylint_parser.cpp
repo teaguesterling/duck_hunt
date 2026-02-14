@@ -3,6 +3,23 @@
 
 namespace duckdb {
 
+// Pre-compiled regex patterns for Pylint parsing (compiled once, reused)
+namespace {
+// Validation patterns
+static const std::regex RE_PYLINT_MODULE(R"(\*+\s*Module\s+)");
+static const std::regex RE_PYLINT_LEGACY_CHECK(R"([CWERF]:\s*\d+,\s*\d+:)");
+static const std::regex RE_PYLINT_MODERN_CHECK(R"(\S+\.py:\d+:\d+:\s*[CWERFIB]\d{4}:)");
+static const std::regex RE_PYLINT_RATING_CHECK(R"(Your code has been rated at)");
+
+// Parse patterns
+static const std::regex RE_PYLINT_MODULE_HEADER(R"(\*+\s*Module\s+(.+))");
+static const std::regex RE_PYLINT_LEGACY_MESSAGE(R"(([CWERF]):\s*(\d+),\s*(\d+):\s*(.+?)\s+\(([^)]+)\))");
+static const std::regex RE_PYLINT_LEGACY_SIMPLE(R"(([CWERF]):\s*(\d+),\s*(\d+):\s*(.+))");
+static const std::regex RE_PYLINT_MODERN_MESSAGE(R"((\S+\.py):(\d+):(\d+):\s*([CWERFIB]\d{4}):\s*(.+?)\s+\(([^)]+)\))");
+static const std::regex RE_PYLINT_MODERN_SIMPLE(R"((\S+\.py):(\d+):(\d+):\s*([CWERFIB]\d{4}):\s*(.+))");
+static const std::regex RE_PYLINT_RATING(R"(Your code has been rated at ([\d\.-]+)/10)");
+} // anonymous namespace
+
 bool PylintParser::canParse(const std::string &content) const {
 	// Look for Pylint-specific patterns
 	// Modern format: file.py:line:col: CODE: message (symbol)
@@ -27,35 +44,17 @@ bool PylintParser::canParse(const std::string &content) const {
 
 bool PylintParser::isValidPylintOutput(const std::string &content) const {
 	// Check for Pylint-specific output patterns
-	std::regex pylint_module(R"(\*+\s*Module\s+)");
-	// Legacy format: C: line, col: message
-	std::regex pylint_legacy_message(R"([CWERF]:\s*\d+,\s*\d+:)");
-	// Modern parseable format: file.py:line:col: C0114: message (symbol)
-	std::regex pylint_modern_message(R"(\S+\.py:\d+:\d+:\s*[CWERFIB]\d{4}:)");
-	std::regex pylint_rating(R"(Your code has been rated at)");
-
-	return std::regex_search(content, pylint_module) || std::regex_search(content, pylint_legacy_message) ||
-	       std::regex_search(content, pylint_modern_message) || std::regex_search(content, pylint_rating);
+	return std::regex_search(content, RE_PYLINT_MODULE) || std::regex_search(content, RE_PYLINT_LEGACY_CHECK) ||
+	       std::regex_search(content, RE_PYLINT_MODERN_CHECK) || std::regex_search(content, RE_PYLINT_RATING_CHECK);
 }
 
 std::vector<ValidationEvent> PylintParser::parse(const std::string &content) const {
 	std::vector<ValidationEvent> events;
+	events.reserve(content.size() / 80); // Estimate: ~1 event per 80 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
 	int32_t current_line_num = 0;
-
-	// Regex patterns for Pylint output
-	std::regex pylint_module_header(R"(\*+\s*Module\s+(.+))");
-	// Legacy format: C:  1, 0: message (code)
-	std::regex pylint_legacy_message(R"(([CWERF]):\s*(\d+),\s*(\d+):\s*(.+?)\s+\(([^)]+)\))");
-	std::regex pylint_legacy_simple(R"(([CWERF]):\s*(\d+),\s*(\d+):\s*(.+))");
-	// Modern parseable format: file.py:line:col: C0114: message (symbol)
-	std::regex pylint_modern_message(R"((\S+\.py):(\d+):(\d+):\s*([CWERFIB]\d{4}):\s*(.+?)\s+\(([^)]+)\))");
-	std::regex pylint_modern_simple(R"((\S+\.py):(\d+):(\d+):\s*([CWERFIB]\d{4}):\s*(.+))");
-	std::regex pylint_rating(R"(Your code has been rated at ([\d\.-]+)/10)");
-	std::regex pylint_statistics(R"((\d+)\s+statements\s+analysed)");
-
 	std::string current_module;
 
 	while (std::getline(stream, line)) {
@@ -63,13 +62,13 @@ std::vector<ValidationEvent> PylintParser::parse(const std::string &content) con
 		std::smatch match;
 
 		// Check for module header
-		if (std::regex_search(line, match, pylint_module_header)) {
+		if (std::regex_search(line, match, RE_PYLINT_MODULE_HEADER)) {
 			current_module = match[1].str();
 			continue;
 		}
 
 		// Check for modern Pylint format: file.py:line:col: CODE: message (symbol)
-		if (std::regex_search(line, match, pylint_modern_message)) {
+		if (std::regex_search(line, match, RE_PYLINT_MODERN_MESSAGE)) {
 			std::string file_path = match[1].str();
 			std::string line_str = match[2].str();
 			std::string column_str = match[3].str();
@@ -121,7 +120,7 @@ std::vector<ValidationEvent> PylintParser::parse(const std::string &content) con
 		}
 
 		// Check for modern format without symbol
-		if (std::regex_search(line, match, pylint_modern_simple)) {
+		if (std::regex_search(line, match, RE_PYLINT_MODERN_SIMPLE)) {
 			std::string file_path = match[1].str();
 			std::string line_str = match[2].str();
 			std::string column_str = match[3].str();
@@ -171,7 +170,7 @@ std::vector<ValidationEvent> PylintParser::parse(const std::string &content) con
 		}
 
 		// Check for legacy Pylint message with error code: C:  1, 0: message (code)
-		if (std::regex_search(line, match, pylint_legacy_message)) {
+		if (std::regex_search(line, match, RE_PYLINT_LEGACY_MESSAGE)) {
 			std::string severity_char = match[1].str();
 			std::string line_str = match[2].str();
 			std::string column_str = match[3].str();
@@ -221,7 +220,7 @@ std::vector<ValidationEvent> PylintParser::parse(const std::string &content) con
 		}
 
 		// Check for legacy Pylint message without explicit error code
-		if (std::regex_search(line, match, pylint_legacy_simple)) {
+		if (std::regex_search(line, match, RE_PYLINT_LEGACY_SIMPLE)) {
 			std::string severity_char = match[1].str();
 			std::string line_str = match[2].str();
 			std::string column_str = match[3].str();
@@ -268,7 +267,7 @@ std::vector<ValidationEvent> PylintParser::parse(const std::string &content) con
 		}
 
 		// Check for rating information
-		if (std::regex_search(line, match, pylint_rating)) {
+		if (std::regex_search(line, match, RE_PYLINT_RATING)) {
 			std::string rating = match[1].str();
 
 			ValidationEvent event;
