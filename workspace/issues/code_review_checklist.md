@@ -62,6 +62,25 @@ Generated: 2026-02-14
 - [x] **Dead code in regexp transformation** - Removed overwritten modified_pattern
 - [x] **Insufficient error context** - Pattern included in error messages
 
+### Static Regex & Vector Reserve Progress (Phase 1)
+Parsers converted to static const regex patterns and added reserve():
+- [x] eslint_text_parser.cpp (6 patterns)
+- [x] mypy_parser.cpp (8 patterns)
+- [x] pylint_parser.cpp (10 patterns)
+- [x] flake8_parser.cpp (2 patterns)
+- [x] gotest_text_parser.cpp (4 patterns)
+- [x] pytest_parser.cpp (reserve added, already had static patterns)
+- [x] mocha_chai_text_parser.cpp (18 patterns)
+- [x] nunit_xunit_text_parser.cpp (20 patterns)
+- [x] gtest_text_parser.cpp (13 patterns)
+- [x] rspec_text_parser.cpp (13 patterns)
+- [x] docker_parser.cpp (3 patterns)
+- [x] junit_text_parser.cpp (17 patterns)
+
+**Total: ~114 patterns converted across 12 parsers**
+
+Remaining: 30 parsers with ~360 non-static patterns
+
 ## Implementation Order
 
 ### Phase 1: Quick Wins (This PR)

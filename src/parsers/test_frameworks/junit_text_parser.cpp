@@ -5,6 +5,38 @@
 
 namespace duckdb {
 
+// Pre-compiled regex patterns for JUnit parsing (compiled once, reused)
+namespace {
+// JUnit 4 patterns
+static const std::regex RE_JUNIT4_CLASS(R"(Running (.+))");
+static const std::regex RE_JUNIT4_SUMMARY(
+    R"(Tests run: (\d+), Failures: (\d+), Errors: (\d+), Skipped: (\d+), Time elapsed: ([\d.]+) sec.*?)");
+static const std::regex RE_JUNIT4_TEST(
+    R"((.+?)\((.+?)\)\s+Time elapsed: ([\d.]+) sec\s+<<< (PASSED!|FAILURE!|ERROR!|SKIPPED!))");
+static const std::regex RE_JUNIT4_EXCEPTION(R"((.+?): (.+)$)");
+static const std::regex RE_JUNIT4_STACK_TRACE(R"(\s+at (.+?)\.(.+?)\((.+?):(\d+)\))");
+
+// JUnit 5 patterns
+static const std::regex RE_JUNIT5_HEADER(R"(JUnit Jupiter ([\d.]+))");
+static const std::regex RE_JUNIT5_CLASS(R"([├└]─ (.+?) [✓✗↷])");
+static const std::regex RE_JUNIT5_TEST(R"([│\s]+[├└]─ (.+?)\(\) ([✓✗↷]) \((\d+)ms\))");
+static const std::regex RE_JUNIT5_SUMMARY(R"(\[\s+(\d+) tests (found|successful|failed|skipped)\s+\])");
+
+// Maven Surefire patterns
+static const std::regex RE_SUREFIRE_CLASS(R"(\[INFO\] Running (.+))");
+static const std::regex RE_SUREFIRE_TEST(R"(\[ERROR\] (.+?)\((.+?)\)\s+Time elapsed: ([\d.]+) s\s+<<< (FAILURE!|ERROR!))");
+static const std::regex RE_SUREFIRE_SUMMARY(R"(\[INFO\] Tests run: (\d+), Failures: (\d+), Errors: (\d+), Skipped: (\d+))");
+static const std::regex RE_SUREFIRE_RESULTS(R"(\[ERROR\] (.+):(\d+) (.+))");
+
+// Gradle patterns
+static const std::regex RE_GRADLE_TEST(R"((.+?) > (.+?) (PASSED|FAILED|SKIPPED))");
+static const std::regex RE_GRADLE_SUMMARY(R"((\d+) tests completed, (\d+) failed, (\d+) skipped)");
+
+// TestNG patterns
+static const std::regex RE_TESTNG_TEST(R"((.+?)\.(.+?): (PASS|FAIL|SKIP))");
+static const std::regex RE_TESTNG_SUMMARY(R"(Total tests run: (\d+), Failures: (\d+), Skips: (\d+))");
+} // anonymous namespace
+
 bool JUnitTextParser::canParse(const std::string &content) const {
 	// Check for JUnit text patterns (should be checked before pytest since they can contain similar keywords)
 	return content.find("Running ") != std::string::npos &&
@@ -23,39 +55,11 @@ std::vector<ValidationEvent> JUnitTextParser::parse(const std::string &content) 
 }
 
 static void parseJUnitTextImpl(const std::string &content, std::vector<ValidationEvent> &events) {
+	events.reserve(content.size() / 100); // Estimate: ~1 event per 100 chars
 	std::istringstream iss(content);
 	std::string line;
 	int64_t event_id = 1;
 	int32_t current_line_num = 0;
-
-	// JUnit text patterns for different output formats
-	std::regex junit4_class_pattern(R"(Running (.+))");
-	std::regex junit4_summary_pattern(
-	    R"(Tests run: (\d+), Failures: (\d+), Errors: (\d+), Skipped: (\d+), Time elapsed: ([\d.]+) sec.*?)");
-	std::regex junit4_test_pattern(
-	    R"((.+?)\((.+?)\)\s+Time elapsed: ([\d.]+) sec\s+<<< (PASSED!|FAILURE!|ERROR!|SKIPPED!))");
-	std::regex junit4_exception_pattern(R"((.+?): (.+)$)");
-	std::regex junit4_stack_trace_pattern(R"(\s+at (.+?)\.(.+?)\((.+?):(\d+)\))");
-
-	// JUnit 5 patterns
-	std::regex junit5_header_pattern(R"(JUnit Jupiter ([\d.]+))");
-	std::regex junit5_class_pattern(R"([├└]─ (.+?) [✓✗↷])");
-	std::regex junit5_test_pattern(R"([│\s]+[├└]─ (.+?)\(\) ([✓✗↷]) \((\d+)ms\))");
-	std::regex junit5_summary_pattern(R"(\[\s+(\d+) tests (found|successful|failed|skipped)\s+\])");
-
-	// Maven Surefire patterns
-	std::regex surefire_class_pattern(R"(\[INFO\] Running (.+))");
-	std::regex surefire_test_pattern(R"(\[ERROR\] (.+?)\((.+?)\)\s+Time elapsed: ([\d.]+) s\s+<<< (FAILURE!|ERROR!))");
-	std::regex surefire_summary_pattern(R"(\[INFO\] Tests run: (\d+), Failures: (\d+), Errors: (\d+), Skipped: (\d+))");
-	std::regex surefire_results_pattern(R"(\[ERROR\] (.+):(\d+) (.+))");
-
-	// Gradle patterns
-	std::regex gradle_test_pattern(R"((.+?) > (.+?) (PASSED|FAILED|SKIPPED))");
-	std::regex gradle_summary_pattern(R"((\d+) tests completed, (\d+) failed, (\d+) skipped)");
-
-	// TestNG patterns
-	std::regex testng_test_pattern(R"((.+?)\.(.+?): (PASS|FAIL|SKIP))");
-	std::regex testng_summary_pattern(R"(Total tests run: (\d+), Failures: (\d+), Skips: (\d+))");
 
 	std::string current_class = "";
 	std::string current_exception = "";
@@ -67,12 +71,12 @@ static void parseJUnitTextImpl(const std::string &content, std::vector<Validatio
 		std::smatch match;
 
 		// Parse JUnit 4 class execution
-		if (std::regex_search(line, match, junit4_class_pattern)) {
+		if (std::regex_search(line, match, RE_JUNIT4_CLASS)) {
 			current_class = match[1].str();
 			in_stack_trace = false;
 		}
 		// Parse JUnit 4 class summary
-		else if (std::regex_search(line, match, junit4_summary_pattern)) {
+		else if (std::regex_search(line, match, RE_JUNIT4_SUMMARY)) {
 			int tests_run = std::stoi(match[1].str());
 			int failures = std::stoi(match[2].str());
 			int errors = std::stoi(match[3].str());
@@ -100,7 +104,7 @@ static void parseJUnitTextImpl(const std::string &content, std::vector<Validatio
 			events.push_back(event);
 		}
 		// Parse JUnit 4 individual test results
-		else if (std::regex_search(line, match, junit4_test_pattern)) {
+		else if (std::regex_search(line, match, RE_JUNIT4_TEST)) {
 			std::string test_method = match[1].str();
 			std::string test_class = match[2].str();
 			double time_elapsed = std::stod(match[3].str());
@@ -149,7 +153,7 @@ static void parseJUnitTextImpl(const std::string &content, std::vector<Validatio
 			events.push_back(event);
 		}
 		// Parse JUnit 5 header
-		else if (std::regex_search(line, match, junit5_header_pattern)) {
+		else if (std::regex_search(line, match, RE_JUNIT5_HEADER)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "junit5";
@@ -167,11 +171,11 @@ static void parseJUnitTextImpl(const std::string &content, std::vector<Validatio
 			events.push_back(event);
 		}
 		// Parse JUnit 5 class results
-		else if (std::regex_search(line, match, junit5_class_pattern)) {
+		else if (std::regex_search(line, match, RE_JUNIT5_CLASS)) {
 			current_class = match[1].str();
 		}
 		// Parse JUnit 5 test results
-		else if (std::regex_search(line, match, junit5_test_pattern)) {
+		else if (std::regex_search(line, match, RE_JUNIT5_TEST)) {
 			std::string test_method = match[1].str();
 			std::string result_symbol = match[2].str();
 			int time_ms = std::stoi(match[3].str());
@@ -210,11 +214,11 @@ static void parseJUnitTextImpl(const std::string &content, std::vector<Validatio
 			events.push_back(event);
 		}
 		// Parse Maven Surefire class execution
-		else if (std::regex_search(line, match, surefire_class_pattern)) {
+		else if (std::regex_search(line, match, RE_SUREFIRE_CLASS)) {
 			current_class = match[1].str();
 		}
 		// Parse Maven Surefire test failures
-		else if (std::regex_search(line, match, surefire_test_pattern)) {
+		else if (std::regex_search(line, match, RE_SUREFIRE_TEST)) {
 			std::string test_method = match[1].str();
 			std::string test_class = match[2].str();
 			double time_elapsed = std::stod(match[3].str());
@@ -249,7 +253,7 @@ static void parseJUnitTextImpl(const std::string &content, std::vector<Validatio
 			events.push_back(event);
 		}
 		// Parse Maven Surefire summary
-		else if (std::regex_search(line, match, surefire_summary_pattern)) {
+		else if (std::regex_search(line, match, RE_SUREFIRE_SUMMARY)) {
 			int tests_run = std::stoi(match[1].str());
 			int failures = std::stoi(match[2].str());
 			int errors = std::stoi(match[3].str());
@@ -275,7 +279,7 @@ static void parseJUnitTextImpl(const std::string &content, std::vector<Validatio
 			events.push_back(event);
 		}
 		// Parse Gradle test results
-		else if (std::regex_search(line, match, gradle_test_pattern)) {
+		else if (std::regex_search(line, match, RE_GRADLE_TEST)) {
 			std::string test_class = match[1].str();
 			std::string test_method = match[2].str();
 			std::string result = match[3].str();
@@ -314,7 +318,7 @@ static void parseJUnitTextImpl(const std::string &content, std::vector<Validatio
 			events.push_back(event);
 		}
 		// Parse Gradle test summary
-		else if (std::regex_search(line, match, gradle_summary_pattern)) {
+		else if (std::regex_search(line, match, RE_GRADLE_SUMMARY)) {
 			int total = std::stoi(match[1].str());
 			int failed = std::stoi(match[2].str());
 			int skipped = std::stoi(match[3].str());
@@ -338,7 +342,7 @@ static void parseJUnitTextImpl(const std::string &content, std::vector<Validatio
 			events.push_back(event);
 		}
 		// Parse TestNG test results
-		else if (std::regex_search(line, match, testng_test_pattern)) {
+		else if (std::regex_search(line, match, RE_TESTNG_TEST)) {
 			std::string test_class = match[1].str();
 			std::string test_method = match[2].str();
 			std::string result = match[3].str();
@@ -377,7 +381,7 @@ static void parseJUnitTextImpl(const std::string &content, std::vector<Validatio
 			events.push_back(event);
 		}
 		// Parse TestNG summary
-		else if (std::regex_search(line, match, testng_summary_pattern)) {
+		else if (std::regex_search(line, match, RE_TESTNG_SUMMARY)) {
 			int total = std::stoi(match[1].str());
 			int failed = std::stoi(match[2].str());
 			int skipped = std::stoi(match[3].str());
@@ -402,9 +406,9 @@ static void parseJUnitTextImpl(const std::string &content, std::vector<Validatio
 		}
 		// Handle exception messages in stack traces
 		else if (in_stack_trace) {
-			if (std::regex_search(line, match, junit4_exception_pattern)) {
+			if (std::regex_search(line, match, RE_JUNIT4_EXCEPTION)) {
 				current_exception = match[1].str() + ": " + match[2].str();
-			} else if (std::regex_search(line, match, junit4_stack_trace_pattern)) {
+			} else if (std::regex_search(line, match, RE_JUNIT4_STACK_TRACE)) {
 				// Extract file and line info from stack trace
 				std::string file = match[3].str();
 				int line_number = std::stoi(match[4].str());
