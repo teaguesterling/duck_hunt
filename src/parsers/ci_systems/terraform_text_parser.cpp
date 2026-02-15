@@ -1,5 +1,6 @@
 #include "terraform_text_parser.hpp"
 #include "duckdb/common/exception.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <sstream>
 #include <regex>
 
@@ -169,9 +170,9 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string &conte
 
 		// Parse plan summary
 		if (std::regex_search(line, match, RE_PLAN_SUMMARY)) {
-			int to_add = std::stoi(match[1].str());
-			int to_change = std::stoi(match[2].str());
-			int to_destroy = std::stoi(match[3].str());
+			int to_add = SafeParsing::SafeStoi(match[1].str());
+			int to_change = SafeParsing::SafeStoi(match[2].str());
+			int to_destroy = SafeParsing::SafeStoi(match[3].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -221,7 +222,7 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string &conte
 		// Parse resource creation complete
 		if (std::regex_search(line, match, RE_RESOURCE_CREATION_COMPLETE)) {
 			std::string resource_name = match[1].str();
-			int duration = std::stoi(match[2].str());
+			int duration = SafeParsing::SafeStoi(match[2].str());
 			std::string resource_id = match[3].str();
 
 			ValidationEvent event;
@@ -274,7 +275,7 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string &conte
 		// Parse resource modification complete
 		if (std::regex_search(line, match, RE_RESOURCE_MODIFICATION_COMPLETE)) {
 			std::string resource_name = match[1].str();
-			int duration = std::stoi(match[2].str());
+			int duration = SafeParsing::SafeStoi(match[2].str());
 			std::string resource_id = match[3].str();
 
 			ValidationEvent event;
@@ -327,7 +328,7 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string &conte
 		// Parse resource destruction complete
 		if (std::regex_search(line, match, RE_RESOURCE_DESTRUCTION_COMPLETE)) {
 			std::string resource_name = match[1].str();
-			int duration = std::stoi(match[2].str());
+			int duration = SafeParsing::SafeStoi(match[2].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -352,9 +353,9 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string &conte
 
 		// Parse apply complete summary
 		if (std::regex_search(line, match, RE_APPLY_COMPLETE)) {
-			int added = std::stoi(match[1].str());
-			int changed = std::stoi(match[2].str());
-			int destroyed = std::stoi(match[3].str());
+			int added = SafeParsing::SafeStoi(match[1].str());
+			int changed = SafeParsing::SafeStoi(match[2].str());
+			int destroyed = SafeParsing::SafeStoi(match[3].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;

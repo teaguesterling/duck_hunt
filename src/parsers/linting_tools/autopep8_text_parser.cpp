@@ -1,4 +1,5 @@
 #include "autopep8_text_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 
@@ -77,8 +78,8 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string &conten
 			event.tool_name = "autopep8";
 			event.event_type = ValidationEventType::LINT_ISSUE;
 			event.ref_file = match[1].str();
-			event.ref_line = std::stoi(match[2].str());
-			event.ref_column = std::stoi(match[3].str());
+			event.ref_line = SafeParsing::SafeStoi(match[2].str());
+			event.ref_column = SafeParsing::SafeStoi(match[3].str());
 			event.status = ValidationEventStatus::ERROR;
 			event.severity = "error";
 			event.category = "syntax";
@@ -99,8 +100,8 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string &conten
 			event.tool_name = "autopep8";
 			event.event_type = ValidationEventType::LINT_ISSUE;
 			event.ref_file = match[1].str();
-			event.ref_line = std::stoi(match[2].str());
-			event.ref_column = std::stoi(match[3].str());
+			event.ref_line = SafeParsing::SafeStoi(match[2].str());
+			event.ref_column = SafeParsing::SafeStoi(match[3].str());
 			event.status = ValidationEventStatus::WARNING;
 			event.severity = "warning";
 			event.category = "style";
@@ -308,8 +309,8 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string &conten
 			event.tool_name = "autopep8";
 			event.event_type = ValidationEventType::LINT_ISSUE;
 			event.ref_file = match[1].str();
-			event.ref_line = std::stoi(match[2].str());
-			event.ref_column = std::stoi(match[3].str());
+			event.ref_line = SafeParsing::SafeStoi(match[2].str());
+			event.ref_column = SafeParsing::SafeStoi(match[3].str());
 			event.status = ValidationEventStatus::ERROR;
 			event.severity = "error";
 			event.category = "syntax";

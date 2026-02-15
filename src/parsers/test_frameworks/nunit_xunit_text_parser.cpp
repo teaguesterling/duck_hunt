@@ -1,4 +1,5 @@
 #include "nunit_xunit_text_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 #include <string>
@@ -118,10 +119,10 @@ static void parseNUnitXUnitImpl(const std::string &content, std::vector<Validati
 		}
 		// NUnit Test Summary
 		else if (std::regex_search(line, match, RE_NUNIT_SUMMARY)) {
-			int total_tests = std::stoi(match[1].str());
-			int passed = std::stoi(match[2].str());
-			int failed = std::stoi(match[3].str());
-			int skipped = std::stoi(match[6].str());
+			int total_tests = SafeParsing::SafeStoi(match[1].str());
+			int passed = SafeParsing::SafeStoi(match[2].str());
+			int failed = SafeParsing::SafeStoi(match[3].str());
+			int skipped = SafeParsing::SafeStoi(match[6].str());
 			// Note: warnings (match[4]) and inconclusive (match[5]) are parsed but typically not critical for summaries
 
 			ValidationEvent event;
@@ -279,7 +280,7 @@ static void parseNUnitXUnitImpl(const std::string &content, std::vector<Validati
 		}
 		// xUnit Test Summary
 		else if (std::regex_search(line, match, RE_XUNIT_TOTAL_SUMMARY)) {
-			int total_tests = std::stoi(match[1].str());
+			int total_tests = SafeParsing::SafeStoi(match[1].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -319,7 +320,7 @@ static void parseNUnitXUnitImpl(const std::string &content, std::vector<Validati
 		// Handle file path and line number information
 		else if (std::regex_search(line, match, RE_NUNIT_TEST_SOURCE)) {
 			std::string file_path = match[1].str();
-			int line_number = std::stoi(match[2].str());
+			int line_number = SafeParsing::SafeStoi(match[2].str());
 
 			// Update the most recent test event with file/line info
 			if (!events.empty()) {
@@ -333,7 +334,7 @@ static void parseNUnitXUnitImpl(const std::string &content, std::vector<Validati
 		// Handle xUnit stack traces
 		else if (std::regex_search(line, match, RE_XUNIT_STACK_TRACE)) {
 			std::string file_path = match[2].str();
-			int line_number = std::stoi(match[3].str());
+			int line_number = SafeParsing::SafeStoi(match[3].str());
 
 			// Update the most recent test event with file/line info
 			if (!events.empty()) {

@@ -109,10 +109,10 @@ std::vector<ValidationEvent> PlaywrightTextParser::parse(const std::string &cont
 
 			current_browser = match[1].str();
 			current_file = match[2].str();
-			current_file_line = std::stoi(match[3].str());
-			current_file_col = std::stoi(match[4].str());
+			current_file_line = SafeParsing::SafeStoi(match[3].str());
+			current_file_col = SafeParsing::SafeStoi(match[4].str());
 			current_test_name = match[5].str();
-			int duration_ms = std::stoi(match[6].str());
+			int duration_ms = SafeParsing::SafeStoi(match[6].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -138,8 +138,8 @@ std::vector<ValidationEvent> PlaywrightTextParser::parse(const std::string &cont
 		else if (std::regex_search(clean_line, match, RE_TEST_FAILED)) {
 			current_browser = match[1].str();
 			current_file = match[2].str();
-			current_file_line = std::stoi(match[3].str());
-			current_file_col = std::stoi(match[4].str());
+			current_file_line = SafeParsing::SafeStoi(match[3].str());
+			current_file_col = SafeParsing::SafeStoi(match[4].str());
 			current_test_name = match[5].str();
 			// Don't emit yet - wait for error details
 		}
@@ -147,8 +147,8 @@ std::vector<ValidationEvent> PlaywrightTextParser::parse(const std::string &cont
 		else if (std::regex_search(clean_line, match, RE_TEST_SKIPPED)) {
 			current_browser = match[1].str();
 			current_file = match[2].str();
-			current_file_line = std::stoi(match[3].str());
-			current_file_col = std::stoi(match[4].str());
+			current_file_line = SafeParsing::SafeStoi(match[3].str());
+			current_file_col = SafeParsing::SafeStoi(match[4].str());
 			current_test_name = match[5].str();
 
 			ValidationEvent event;
@@ -199,8 +199,8 @@ std::vector<ValidationEvent> PlaywrightTextParser::parse(const std::string &cont
 			failure_start_line = current_line_num;
 			current_browser = match[2].str();
 			current_file = match[3].str();
-			current_file_line = std::stoi(match[4].str());
-			current_file_col = std::stoi(match[5].str());
+			current_file_line = SafeParsing::SafeStoi(match[4].str());
+			current_file_col = SafeParsing::SafeStoi(match[5].str());
 			current_test_name = match[6].str();
 			current_error_message.clear();
 			error_file.clear();
@@ -214,12 +214,12 @@ std::vector<ValidationEvent> PlaywrightTextParser::parse(const std::string &cont
 		// Check for stack trace (get first one for error location)
 		else if (in_failure_block && error_file.empty() && std::regex_search(clean_line, match, RE_STACK_LINE)) {
 			error_file = match[1].str();
-			error_line_num = std::stoi(match[2].str());
-			error_col = std::stoi(match[3].str());
+			error_line_num = SafeParsing::SafeStoi(match[2].str());
+			error_col = SafeParsing::SafeStoi(match[3].str());
 		}
 		// Summary: passed
 		else if (std::regex_search(clean_line, match, RE_PASSED_SUMMARY)) {
-			int passed_count = std::stoi(match[1].str());
+			int passed_count = SafeParsing::SafeStoi(match[1].str());
 			std::string duration = match[2].str();
 
 			ValidationEvent event;
@@ -240,7 +240,7 @@ std::vector<ValidationEvent> PlaywrightTextParser::parse(const std::string &cont
 		}
 		// Summary: failed
 		else if (std::regex_search(clean_line, match, RE_FAILED_SUMMARY)) {
-			int failed_count = std::stoi(match[1].str());
+			int failed_count = SafeParsing::SafeStoi(match[1].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -259,7 +259,7 @@ std::vector<ValidationEvent> PlaywrightTextParser::parse(const std::string &cont
 		}
 		// Summary: skipped
 		else if (std::regex_search(clean_line, match, RE_SKIPPED_SUMMARY)) {
-			int skipped_count = std::stoi(match[1].str());
+			int skipped_count = SafeParsing::SafeStoi(match[1].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;

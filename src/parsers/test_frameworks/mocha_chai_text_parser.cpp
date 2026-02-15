@@ -1,4 +1,5 @@
 #include "mocha_chai_text_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 #include <string>
@@ -139,8 +140,8 @@ std::vector<ValidationEvent> MochaChaiTextParser::parse(const std::string &conte
 		// Check for file and line information (Context.<anonymous> format)
 		else if (std::regex_match(line, match, RE_FILE_LINE)) {
 			current_file_path = match[1].str();
-			current_line_number = std::stoi(match[2].str());
-			current_column = std::stoi(match[3].str());
+			current_line_number = SafeParsing::SafeStoi(match[2].str());
+			current_column = SafeParsing::SafeStoi(match[3].str());
 
 			// If we have a failed test from inline ✗ marker, create the event now
 			if (!current_test_name.empty() && !current_error_message.empty() && !in_failure_details) {
@@ -174,8 +175,8 @@ std::vector<ValidationEvent> MochaChaiTextParser::parse(const std::string &conte
 		// Check for general file and line information (any "at ... (file:line:col)" format)
 		else if (in_failure_details && current_file_path.empty() && std::regex_search(line, match, RE_GENERAL_FILE_LINE)) {
 			current_file_path = match[1].str();
-			current_line_number = std::stoi(match[2].str());
-			current_column = std::stoi(match[3].str());
+			current_line_number = SafeParsing::SafeStoi(match[2].str());
+			current_column = SafeParsing::SafeStoi(match[3].str());
 		}
 		// Check for failed example start (in failure summary section)
 		// Format: "  1) Context name test name:" or "  1) Context name"
@@ -227,7 +228,7 @@ std::vector<ValidationEvent> MochaChaiTextParser::parse(const std::string &conte
 		}
 		// Check for summary lines
 		else if (std::regex_match(line, match, RE_SUMMARY_LINE)) {
-			int passing_count = std::stoi(match[1].str());
+			int passing_count = SafeParsing::SafeStoi(match[1].str());
 			std::string total_time = match[2].str();
 
 			duckdb::ValidationEvent summary_event;
@@ -250,7 +251,7 @@ std::vector<ValidationEvent> MochaChaiTextParser::parse(const std::string &conte
 
 			events.push_back(summary_event);
 		} else if (std::regex_match(line, match, RE_FAILING_LINE)) {
-			int failing_count = std::stoi(match[1].str());
+			int failing_count = SafeParsing::SafeStoi(match[1].str());
 
 			duckdb::ValidationEvent summary_event;
 			summary_event.event_id = event_id++;
@@ -271,7 +272,7 @@ std::vector<ValidationEvent> MochaChaiTextParser::parse(const std::string &conte
 
 			events.push_back(summary_event);
 		} else if (std::regex_match(line, match, RE_PENDING_LINE)) {
-			int pending_count = std::stoi(match[1].str());
+			int pending_count = SafeParsing::SafeStoi(match[1].str());
 
 			duckdb::ValidationEvent summary_event;
 			summary_event.event_id = event_id++;

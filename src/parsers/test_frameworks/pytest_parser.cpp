@@ -1,4 +1,5 @@
 #include "pytest_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <sstream>
 #include <regex>
 #include <unordered_map>
@@ -111,7 +112,7 @@ static std::unordered_map<std::string, FailureInfo> extractFailureInfo(const std
 		if (!current_test_name.empty() && std::regex_search(line, match, location_regex)) {
 			FailureInfo info;
 			info.file = match[1].str();
-			info.line = std::stoi(match[2].str());
+			info.line = SafeParsing::SafeStoi(match[2].str());
 			info.error_type = match[3].str();
 			info.error_message = current_error_message;
 			info.failure_log_line_start = current_block_start;
@@ -166,9 +167,9 @@ std::vector<ValidationEvent> PytestParser::parse(const std::string &content) con
 			summary.log_line_end = current_line_num;
 			summary.log_content = line;
 
-			int passed = std::stoi(match[1].str());
-			int failed = match[2].matched ? std::stoi(match[2].str()) : 0;
-			int skipped = match[3].matched ? std::stoi(match[3].str()) : 0;
+			int passed = SafeParsing::SafeStoi(match[1].str());
+			int failed = match[2].matched ? SafeParsing::SafeStoi(match[2].str()) : 0;
+			int skipped = match[3].matched ? SafeParsing::SafeStoi(match[3].str()) : 0;
 			std::string duration_str = match[4].str();
 
 			summary.message = std::to_string(passed) + " passed";

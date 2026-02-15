@@ -1,4 +1,5 @@
 #include "coverage_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 #include <string>
@@ -179,7 +180,7 @@ void CoverageParser::ParseCoverageText(const std::string &content, std::vector<d
 			event.ref_column = -1;
 
 			// Set status based on coverage percentage
-			double coverage_pct = std::stod(cover.substr(0, cover.length() - 1));
+			double coverage_pct = duckdb::SafeParsing::SafeStod(cover.substr(0, cover.length() - 1));
 			if (coverage_pct >= 90.0) {
 				event.status = duckdb::ValidationEventStatus::INFO;
 				event.severity = "info";
@@ -224,7 +225,7 @@ void CoverageParser::ParseCoverageText(const std::string &content, std::vector<d
 			event.ref_column = -1;
 
 			// Set status based on coverage percentage
-			double coverage_pct = std::stod(cover.substr(0, cover.length() - 1));
+			double coverage_pct = duckdb::SafeParsing::SafeStod(cover.substr(0, cover.length() - 1));
 			if (coverage_pct >= 90.0) {
 				event.status = duckdb::ValidationEventStatus::INFO;
 				event.severity = "info";
@@ -272,7 +273,7 @@ void CoverageParser::ParseCoverageText(const std::string &content, std::vector<d
 			event.ref_column = -1;
 
 			// Set status based on coverage percentage
-			double coverage_pct = std::stod(cover.substr(0, cover.length() - 1));
+			double coverage_pct = duckdb::SafeParsing::SafeStod(cover.substr(0, cover.length() - 1));
 			if (coverage_pct >= 90.0) {
 				event.status = duckdb::ValidationEventStatus::INFO;
 				event.severity = "info";
@@ -315,7 +316,7 @@ void CoverageParser::ParseCoverageText(const std::string &content, std::vector<d
 			event.ref_column = -1;
 
 			// Set status based on coverage percentage
-			double coverage_pct = std::stod(cover.substr(0, cover.length() - 1));
+			double coverage_pct = duckdb::SafeParsing::SafeStod(cover.substr(0, cover.length() - 1));
 			if (coverage_pct >= 90.0) {
 				event.status = duckdb::ValidationEventStatus::INFO;
 				event.severity = "info";
@@ -398,7 +399,7 @@ void CoverageParser::ParseCoverageText(const std::string &content, std::vector<d
 			event.severity = "info";
 			event.category = "performance";
 			event.message = "Coverage report generated";
-			event.execution_time = std::stod(match[1].str());
+			event.execution_time = duckdb::SafeParsing::SafeStod(match[1].str());
 			event.log_content = content;
 			event.structured_data = "coverage_text";
 			event.log_line_start = current_line_num;
@@ -671,7 +672,7 @@ void CoverageParser::ParsePytestCovText(const std::string &content, std::vector<
 			event.category = "test_summary";
 			event.message = "Tests completed: " + failed + " failed, " + passed + " passed, " + skipped +
 			                " skipped in " + duration + "s";
-			event.execution_time = std::stod(duration);
+			event.execution_time = duckdb::SafeParsing::SafeStod(duration);
 			event.log_content = content;
 			event.structured_data = "pytest_cov_text";
 			event.log_line_start = current_line_num;
@@ -736,7 +737,7 @@ void CoverageParser::ParsePytestCovText(const std::string &content, std::vector<
 			// Remove % sign and convert to number for severity calculation
 			std::string pct_str = coverage_pct;
 			pct_str.erase(pct_str.find('%'));
-			double coverage_value = std::stod(pct_str);
+			double coverage_value = duckdb::SafeParsing::SafeStod(pct_str);
 
 			if (coverage_value >= 90.0) {
 				event.status = duckdb::ValidationEventStatus::PASS;
@@ -783,7 +784,7 @@ void CoverageParser::ParsePytestCovText(const std::string &content, std::vector<
 			// Remove % sign and convert to number for severity calculation
 			std::string pct_str = coverage_pct;
 			pct_str.erase(pct_str.find('%'));
-			double coverage_value = std::stod(pct_str);
+			double coverage_value = duckdb::SafeParsing::SafeStod(pct_str);
 
 			if (coverage_value >= 90.0) {
 				event.status = duckdb::ValidationEventStatus::PASS;

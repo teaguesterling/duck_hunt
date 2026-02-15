@@ -1,5 +1,6 @@
 #include "drone_ci_text_parser.hpp"
 #include "duckdb/common/exception.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <sstream>
 #include <regex>
 
@@ -89,7 +90,7 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 		// Parse DroneCI step completion
 		if (std::regex_search(line, match, RE_DRONE_STEP_COMPLETE)) {
 			std::string step_name = match[1].str();
-			int exit_code = std::stoi(match[2].str());
+			int exit_code = SafeParsing::SafeStoi(match[2].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -137,7 +138,7 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 
 		// Parse pipeline failure
 		if (std::regex_search(line, match, RE_DRONE_PIPELINE_FAILED)) {
-			int exit_code = std::stoi(match[1].str());
+			int exit_code = SafeParsing::SafeStoi(match[1].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -211,7 +212,7 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 
 		// Parse NPM operations
 		if (std::regex_search(line, match, RE_NPM_INSTALL)) {
-			int package_count = std::stoi(match[1].str());
+			int package_count = SafeParsing::SafeStoi(match[1].str());
 			double install_time = std::stod(match[2].str());
 
 			ValidationEvent event;
@@ -237,7 +238,7 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 		}
 
 		if (std::regex_search(line, match, RE_NPM_VULNERABILITIES)) {
-			int vuln_count = std::stoi(match[1].str());
+			int vuln_count = SafeParsing::SafeStoi(match[1].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -311,7 +312,7 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 
 		if (std::regex_search(line, match, RE_JEST_TEST_ITEM)) {
 			std::string test_name = match[1].str();
-			int test_time_ms = std::stoi(match[2].str());
+			int test_time_ms = SafeParsing::SafeStoi(match[2].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -363,9 +364,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 
 		// Parse Jest summaries
 		if (std::regex_search(line, match, RE_JEST_SUMMARY)) {
-			int failed = std::stoi(match[1].str());
-			int passed = std::stoi(match[2].str());
-			int total = std::stoi(match[3].str());
+			int failed = SafeParsing::SafeStoi(match[1].str());
+			int passed = SafeParsing::SafeStoi(match[2].str());
+			int total = SafeParsing::SafeStoi(match[3].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -390,9 +391,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 		}
 
 		if (std::regex_search(line, match, RE_JEST_TEST_SUMMARY)) {
-			int failed = std::stoi(match[1].str());
-			int passed = std::stoi(match[2].str());
-			int total = std::stoi(match[3].str());
+			int failed = SafeParsing::SafeStoi(match[1].str());
+			int passed = SafeParsing::SafeStoi(match[2].str());
+			int total = SafeParsing::SafeStoi(match[3].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -491,8 +492,8 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 
 		// Parse ESLint warnings/errors
 		if (std::regex_search(line, match, RE_ESLINT_WARNING)) {
-			int line_num = std::stoi(match[1].str());
-			int col_num = std::stoi(match[2].str());
+			int line_num = SafeParsing::SafeStoi(match[1].str());
+			int col_num = SafeParsing::SafeStoi(match[2].str());
 			std::string level = match[3].str();
 			std::string message = match[4].str();
 			std::string rule = match[5].str();
@@ -545,8 +546,8 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 		}
 
 		if (std::regex_search(line, match, RE_DOCKER_STEP)) {
-			int step_num = std::stoi(match[1].str());
-			int total_steps = std::stoi(match[2].str());
+			int step_num = SafeParsing::SafeStoi(match[1].str());
+			int total_steps = SafeParsing::SafeStoi(match[2].str());
 			std::string step_command = match[3].str();
 
 			ValidationEvent event;

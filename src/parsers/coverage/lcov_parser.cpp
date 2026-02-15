@@ -1,4 +1,5 @@
 #include "lcov_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <sstream>
 #include <map>
 #include <vector>
@@ -200,7 +201,7 @@ std::vector<ValidationEvent> LcovParser::parse(const std::string &content) const
 			// Function definition: FN:<line>,<name>
 			size_t comma = line.find(',', 3);
 			if (comma != std::string::npos) {
-				int32_t fn_line = std::stoi(line.substr(3, comma - 3));
+				int32_t fn_line = SafeParsing::SafeStoi(line.substr(3, comma - 3));
 				std::string fn_name = line.substr(comma + 1);
 				functions[fn_name] = {fn_line, 0};
 			}
@@ -208,7 +209,7 @@ std::vector<ValidationEvent> LcovParser::parse(const std::string &content) const
 			// Function data: FNDA:<count>,<name>
 			size_t comma = line.find(',', 5);
 			if (comma != std::string::npos) {
-				int32_t count = std::stoi(line.substr(5, comma - 5));
+				int32_t count = SafeParsing::SafeStoi(line.substr(5, comma - 5));
 				std::string fn_name = line.substr(comma + 1);
 				if (functions.count(fn_name)) {
 					functions[fn_name].second = count;
@@ -217,21 +218,21 @@ std::vector<ValidationEvent> LcovParser::parse(const std::string &content) const
 				}
 			}
 		} else if (line.substr(0, 4) == "FNF:") {
-			functions_found = std::stoi(line.substr(4));
+			functions_found = SafeParsing::SafeStoi(line.substr(4));
 		} else if (line.substr(0, 4) == "FNH:") {
-			functions_hit = std::stoi(line.substr(4));
+			functions_hit = SafeParsing::SafeStoi(line.substr(4));
 		} else if (line.substr(0, 3) == "DA:") {
 			// Line data: DA:<line>,<count>
 			size_t comma = line.find(',', 3);
 			if (comma != std::string::npos) {
-				int32_t da_line = std::stoi(line.substr(3, comma - 3));
-				int32_t count = std::stoi(line.substr(comma + 1));
+				int32_t da_line = SafeParsing::SafeStoi(line.substr(3, comma - 3));
+				int32_t count = SafeParsing::SafeStoi(line.substr(comma + 1));
 				line_hits[da_line] = count;
 			}
 		} else if (line.substr(0, 3) == "LF:") {
-			lines_found = std::stoi(line.substr(3));
+			lines_found = SafeParsing::SafeStoi(line.substr(3));
 		} else if (line.substr(0, 3) == "LH:") {
-			lines_hit = std::stoi(line.substr(3));
+			lines_hit = SafeParsing::SafeStoi(line.substr(3));
 		} else if (line.substr(0, 5) == "BRDA:") {
 			// Branch data: BRDA:<line>,<block>,<branch>,<count>
 			// count can be "-" for not taken
@@ -240,17 +241,17 @@ std::vector<ValidationEvent> LcovParser::parse(const std::string &content) const
 			size_t p2 = data.find(',', p1 + 1);
 			size_t p3 = data.find(',', p2 + 1);
 			if (p1 != std::string::npos && p2 != std::string::npos && p3 != std::string::npos) {
-				int32_t br_line = std::stoi(data.substr(0, p1));
-				int32_t block = std::stoi(data.substr(p1 + 1, p2 - p1 - 1));
-				int32_t branch = std::stoi(data.substr(p2 + 1, p3 - p2 - 1));
+				int32_t br_line = SafeParsing::SafeStoi(data.substr(0, p1));
+				int32_t block = SafeParsing::SafeStoi(data.substr(p1 + 1, p2 - p1 - 1));
+				int32_t branch = SafeParsing::SafeStoi(data.substr(p2 + 1, p3 - p2 - 1));
 				std::string count_str = data.substr(p3 + 1);
-				int32_t count = (count_str == "-") ? 0 : std::stoi(count_str);
+				int32_t count = (count_str == "-") ? 0 : SafeParsing::SafeStoi(count_str);
 				branches.push_back({br_line, block, branch, count});
 			}
 		} else if (line.substr(0, 4) == "BRF:") {
-			branches_found = std::stoi(line.substr(4));
+			branches_found = SafeParsing::SafeStoi(line.substr(4));
 		} else if (line.substr(0, 4) == "BRH:") {
-			branches_hit = std::stoi(line.substr(4));
+			branches_hit = SafeParsing::SafeStoi(line.substr(4));
 		} else if (line == "end_of_record") {
 			emit_file_events();
 		}

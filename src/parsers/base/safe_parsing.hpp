@@ -373,5 +373,121 @@ private:
 	bool was_truncated_ = false;
 };
 
+/**
+ * Safe integer parsing utilities.
+ * These wrap std::stoi/stol/stod with try-catch to return default values on failure.
+ */
+
+/**
+ * Safe wrapper for std::stoi that returns a default value on failure.
+ *
+ * @param str The string to parse
+ * @param default_value Value to return if parsing fails (default: -1)
+ * @return Parsed integer or default_value on failure
+ */
+inline int SafeStoi(const std::string &str, int default_value = -1) {
+	if (str.empty()) {
+		return default_value;
+	}
+	try {
+		return std::stoi(str);
+	} catch (...) {
+		return default_value;
+	}
+}
+
+/**
+ * Safe wrapper for std::stol that returns a default value on failure.
+ *
+ * @param str The string to parse
+ * @param default_value Value to return if parsing fails (default: -1)
+ * @return Parsed long or default_value on failure
+ */
+inline long SafeStol(const std::string &str, long default_value = -1) {
+	if (str.empty()) {
+		return default_value;
+	}
+	try {
+		return std::stol(str);
+	} catch (...) {
+		return default_value;
+	}
+}
+
+/**
+ * Safe wrapper for std::stod that returns a default value on failure.
+ *
+ * @param str The string to parse
+ * @param default_value Value to return if parsing fails (default: 0.0)
+ * @return Parsed double or default_value on failure
+ */
+inline double SafeStod(const std::string &str, double default_value = 0.0) {
+	if (str.empty()) {
+		return default_value;
+	}
+	try {
+		return std::stod(str);
+	} catch (...) {
+		return default_value;
+	}
+}
+
+/**
+ * Safe wrapper for std::stoi that returns success/failure status.
+ *
+ * @param str The string to parse
+ * @param result Output: the parsed integer (unchanged on failure)
+ * @return true if parsing succeeded, false otherwise
+ */
+inline bool TryStoi(const std::string &str, int &result) {
+	if (str.empty()) {
+		return false;
+	}
+	try {
+		result = std::stoi(str);
+		return true;
+	} catch (...) {
+		return false;
+	}
+}
+
+/**
+ * Safe wrapper for std::stol that returns success/failure status.
+ *
+ * @param str The string to parse
+ * @param result Output: the parsed long (unchanged on failure)
+ * @return true if parsing succeeded, false otherwise
+ */
+inline bool TryStol(const std::string &str, long &result) {
+	if (str.empty()) {
+		return false;
+	}
+	try {
+		result = std::stol(str);
+		return true;
+	} catch (...) {
+		return false;
+	}
+}
+
+/**
+ * Safe wrapper for std::stod that returns success/failure status.
+ *
+ * @param str The string to parse
+ * @param result Output: the parsed double (unchanged on failure)
+ * @return true if parsing succeeded, false otherwise
+ */
+inline bool TryStod(const std::string &str, double &result) {
+	if (str.empty()) {
+		return false;
+	}
+	try {
+		result = std::stod(str);
+		return true;
+	} catch (...) {
+		return false;
+	}
+}
+
 } // namespace SafeParsing
 } // namespace duckdb

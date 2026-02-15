@@ -1,4 +1,5 @@
 #include "junit_text_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 #include <string>
@@ -77,10 +78,10 @@ static void parseJUnitTextImpl(const std::string &content, std::vector<Validatio
 		}
 		// Parse JUnit 4 class summary
 		else if (std::regex_search(line, match, RE_JUNIT4_SUMMARY)) {
-			int tests_run = std::stoi(match[1].str());
-			int failures = std::stoi(match[2].str());
-			int errors = std::stoi(match[3].str());
-			int skipped = std::stoi(match[4].str());
+			int tests_run = SafeParsing::SafeStoi(match[1].str());
+			int failures = SafeParsing::SafeStoi(match[2].str());
+			int errors = SafeParsing::SafeStoi(match[3].str());
+			int skipped = SafeParsing::SafeStoi(match[4].str());
 			double time_elapsed = std::stod(match[5].str());
 
 			ValidationEvent event;
@@ -178,7 +179,7 @@ static void parseJUnitTextImpl(const std::string &content, std::vector<Validatio
 		else if (std::regex_search(line, match, RE_JUNIT5_TEST)) {
 			std::string test_method = match[1].str();
 			std::string result_symbol = match[2].str();
-			int time_ms = std::stoi(match[3].str());
+			int time_ms = SafeParsing::SafeStoi(match[3].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -254,10 +255,10 @@ static void parseJUnitTextImpl(const std::string &content, std::vector<Validatio
 		}
 		// Parse Maven Surefire summary
 		else if (std::regex_search(line, match, RE_SUREFIRE_SUMMARY)) {
-			int tests_run = std::stoi(match[1].str());
-			int failures = std::stoi(match[2].str());
-			int errors = std::stoi(match[3].str());
-			int skipped = std::stoi(match[4].str());
+			int tests_run = SafeParsing::SafeStoi(match[1].str());
+			int failures = SafeParsing::SafeStoi(match[2].str());
+			int errors = SafeParsing::SafeStoi(match[3].str());
+			int skipped = SafeParsing::SafeStoi(match[4].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -319,9 +320,9 @@ static void parseJUnitTextImpl(const std::string &content, std::vector<Validatio
 		}
 		// Parse Gradle test summary
 		else if (std::regex_search(line, match, RE_GRADLE_SUMMARY)) {
-			int total = std::stoi(match[1].str());
-			int failed = std::stoi(match[2].str());
-			int skipped = std::stoi(match[3].str());
+			int total = SafeParsing::SafeStoi(match[1].str());
+			int failed = SafeParsing::SafeStoi(match[2].str());
+			int skipped = SafeParsing::SafeStoi(match[3].str());
 			int passed = total - failed - skipped;
 
 			ValidationEvent event;
@@ -382,9 +383,9 @@ static void parseJUnitTextImpl(const std::string &content, std::vector<Validatio
 		}
 		// Parse TestNG summary
 		else if (std::regex_search(line, match, RE_TESTNG_SUMMARY)) {
-			int total = std::stoi(match[1].str());
-			int failed = std::stoi(match[2].str());
-			int skipped = std::stoi(match[3].str());
+			int total = SafeParsing::SafeStoi(match[1].str());
+			int failed = SafeParsing::SafeStoi(match[2].str());
+			int skipped = SafeParsing::SafeStoi(match[3].str());
 			int passed = total - failed - skipped;
 
 			ValidationEvent event;
@@ -411,7 +412,7 @@ static void parseJUnitTextImpl(const std::string &content, std::vector<Validatio
 			} else if (std::regex_search(line, match, RE_JUNIT4_STACK_TRACE)) {
 				// Extract file and line info from stack trace
 				std::string file = match[3].str();
-				int line_number = std::stoi(match[4].str());
+				int line_number = SafeParsing::SafeStoi(match[4].str());
 
 				// Update the last test event with exception details
 				if (!events.empty() && events.back().test_name == current_test) {
