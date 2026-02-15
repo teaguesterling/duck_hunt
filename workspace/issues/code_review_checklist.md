@@ -81,10 +81,21 @@ Parsers converted to static const regex patterns and added reserve():
 - [x] pytest_cov_text_parser.cpp (23 patterns)
 - [x] drone_ci_text_parser.cpp (23 patterns)
 - [x] gdb_lldb_parser.cpp (21 patterns)
+- [x] ansible_text_parser.cpp (17 patterns)
+- [x] terraform_text_parser.cpp (17 patterns)
+- [x] yapf_text_parser.cpp (18 patterns)
+- [x] autopep8_text_parser.cpp (16 patterns)
+- [x] docker_build_parser.cpp (16 patterns)
+- [x] github_cli_parser.cpp (15 patterns)
+- [x] jenkins_text_parser.cpp (13 patterns)
+- [x] playwright_text_parser.cpp (11 patterns)
+- [x] github_actions_text_parser.cpp (11 patterns)
+- [x] bandit_text_parser.cpp (10 patterns)
+- [x] gitlab_ci_text_parser.cpp (10 patterns)
 
-**Total: ~259 patterns converted across 17 parsers**
+**Total: ~413 patterns converted across 28 parsers**
 
-Remaining: 25 parsers with ~215 non-static patterns
+Remaining: ~19 parsers with ~137 non-static patterns
 
 ## Implementation Order
 
