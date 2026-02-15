@@ -194,6 +194,7 @@ bool PythonLoggingParser::canParse(const std::string &content) const {
 
 std::vector<ValidationEvent> PythonLoggingParser::parse(const std::string &content) const {
 	std::vector<ValidationEvent> events;
+	events.reserve(content.size() / 100); // Estimate: ~1 event per 100 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;

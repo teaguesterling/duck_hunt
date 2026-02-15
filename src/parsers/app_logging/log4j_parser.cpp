@@ -194,6 +194,7 @@ bool Log4jParser::canParse(const std::string &content) const {
 
 std::vector<ValidationEvent> Log4jParser::parse(const std::string &content) const {
 	std::vector<ValidationEvent> events;
+	events.reserve(content.size() / 100); // Estimate: ~1 event per 100 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;

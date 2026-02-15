@@ -6,6 +6,29 @@
 
 namespace duck_hunt {
 
+// Pre-compiled regex patterns for strace parsing (compiled once, reused)
+namespace {
+// canParse patterns
+static const std::regex RE_SYSCALL_DETECT(R"(\w+\([^)]*\)\s*=\s*[-\d])");
+static const std::regex RE_SIGNAL_DETECT(R"(---\s+SIG\w+\s+\{)");
+
+// ParseStrace patterns
+static const std::regex RE_SYSCALL_START(R"(^(?:\[pid\s+(\d+)\]\s+)?)"
+                                         R"((?:(\d{2}:\d{2}:\d{2}(?:\.\d+)?)\s+)?)"
+                                         R"((\w+)\()");
+static const std::regex RE_RESULT(R"(\)\s*=\s*(-?\d+|0x[0-9a-fA-F]+|\?))"
+                                  R"((?:\s+(\w+)(?:\s+\(([^)]+)\))?)?)"
+                                  R"((?:\s+<([\d.]+)>)?)"
+                                  R"(\s*$)");
+static const std::regex RE_SIGNAL(R"(^(?:\[pid\s+(\d+)\]\s+)?---\s+(SIG\w+)\s+\{([^}]+)\}\s+---)");
+static const std::regex RE_UNFINISHED(R"(^(?:\[pid\s+(\d+)\]\s+)?(?:(\d{2}:\d{2}:\d{2}(?:\.\d+)?)\s+)?(\w+)\([^)]*<unfinished\s*\.\.\.>)");
+static const std::regex RE_RESUMED(R"(^(?:\[pid\s+(\d+)\]\s+)?(?:(\d{2}:\d{2}:\d{2}(?:\.\d+)?)\s+)?<\.\.\.\s+(\w+)\s+resumed>)");
+static const std::regex RE_EXIT(R"(\+\+\+\s+exited\s+with\s+(\d+)\s+\+\+\+)");
+static const std::regex RE_KILLED(R"(\+\+\+\s+killed\s+by\s+(SIG\w+)(?:\s+\(core\s+dumped\))?\s+\+\+\+)");
+static const std::regex RE_SENDER(R"(si_pid=(\d+))");
+static const std::regex RE_PATH(R"(^\"([^\"]+)\")");
+} // anonymous namespace
+
 // Categorize syscalls by type
 static std::string GetSyscallCategory(const std::string &syscall) {
 	static const std::unordered_set<std::string> file_syscalls = {
@@ -62,10 +85,8 @@ static std::string GetSyscallCategory(const std::string &syscall) {
 // Extract file path from syscall arguments
 static std::string ExtractFilePath(const std::string &args) {
 	// Look for quoted path at start of args
-	// Pattern: starts with quote, captures non-quote chars, ends with quote
-	std::regex path_pattern("^\"([^\"]+)\"");
 	std::smatch match;
-	if (std::regex_search(args, match, path_pattern)) {
+	if (std::regex_search(args, match, RE_PATH)) {
 		return match[1].str();
 	}
 	return "";
@@ -74,11 +95,11 @@ static std::string ExtractFilePath(const std::string &args) {
 bool StraceParser::CanParse(const std::string &content) const {
 	// Check for common strace patterns
 	// Basic syscall pattern: syscall(args) = result
-	if (std::regex_search(content, std::regex(R"(\w+\([^)]*\)\s*=\s*[-\d])"))) {
+	if (std::regex_search(content, RE_SYSCALL_DETECT)) {
 		return true;
 	}
 	// Signal pattern: --- SIGNAME {...} ---
-	if (std::regex_search(content, std::regex(R"(---\s+SIG\w+\s+\{)"))) {
+	if (std::regex_search(content, RE_SIGNAL_DETECT)) {
 		return true;
 	}
 	// strace header
@@ -93,52 +114,11 @@ void StraceParser::Parse(const std::string &content, std::vector<duckdb::Validat
 }
 
 void StraceParser::ParseStrace(const std::string &content, std::vector<duckdb::ValidationEvent> &events) {
+	events.reserve(content.size() / 100); // Estimate: ~1 event per 100 chars
 	std::istringstream stream(content);
 	std::string line;
 	uint64_t event_id = 1;
 	int32_t current_line_num = 0;
-
-	// Patterns for strace output
-	// Optional: [pid NNNN] prefix
-	// Optional: HH:MM:SS or HH:MM:SS.usec timestamp
-	// syscall(args) = result [error_name (error_message)] [<duration>]
-
-	// Pattern breakdown:
-	// ^(?:\[pid\s+(\d+)\]\s+)?          - Optional [pid N] prefix, capture pid
-	// (?:(\d{2}:\d{2}:\d{2}(?:\.\d+)?)\s+)?  - Optional timestamp
-	// (\w+)                              - Syscall name
-	// \(([^)]*(?:\([^)]*\)[^)]*)*)\)    - Arguments (handles nested parens)
-	// \s*=\s*                            - = separator
-	// (-?\d+|0x[0-9a-fA-F]+|\?)         - Return value (number, hex, or ?)
-	// (?:\s+(\w+)\s+\(([^)]+)\))?       - Optional error name and message
-	// (?:\s+<([\d.]+)>)?                - Optional duration
-
-	std::regex syscall_pattern(R"(^(?:\[pid\s+(\d+)\]\s+)?)"              // Optional [pid N]
-	                           R"((?:(\d{2}:\d{2}:\d{2}(?:\.\d+)?)\s+)?)" // Optional timestamp
-	                           R"((\w+)\()"                               // Syscall name and opening paren
-	);
-
-	std::regex result_pattern(R"(\)\s*=\s*(-?\d+|0x[0-9a-fA-F]+|\?))" // = result
-	                          R"((?:\s+(\w+)(?:\s+\(([^)]+)\))?)?)"   // Optional errno and message
-	                          R"((?:\s+<([\d.]+)>)?)"                 // Optional duration
-	                          R"(\s*$)");
-
-	// Signal pattern: --- SIGNAME {si_signo=..., ...} ---
-	std::regex signal_pattern(R"(^(?:\[pid\s+(\d+)\]\s+)?---\s+(SIG\w+)\s+\{([^}]+)\}\s+---)");
-
-	// Unfinished syscall: syscall(args <unfinished ...>
-	std::regex unfinished_pattern(
-	    R"(^(?:\[pid\s+(\d+)\]\s+)?(?:(\d{2}:\d{2}:\d{2}(?:\.\d+)?)\s+)?(\w+)\([^)]*<unfinished\s*\.\.\.>)");
-
-	// Resumed syscall: <... syscall resumed>) = result
-	std::regex resumed_pattern(
-	    R"(^(?:\[pid\s+(\d+)\]\s+)?(?:(\d{2}:\d{2}:\d{2}(?:\.\d+)?)\s+)?<\.\.\.\s+(\w+)\s+resumed>)");
-
-	// Exit status: +++ exited with N +++
-	std::regex exit_pattern(R"(\+\+\+\s+exited\s+with\s+(\d+)\s+\+\+\+)");
-
-	// Killed by signal: +++ killed by SIGNAME +++
-	std::regex killed_pattern(R"(\+\+\+\s+killed\s+by\s+(SIG\w+)(?:\s+\(core\s+dumped\))?\s+\+\+\+)");
 
 	while (std::getline(stream, line)) {
 		current_line_num++;
@@ -150,7 +130,7 @@ void StraceParser::ParseStrace(const std::string &content, std::vector<duckdb::V
 		}
 
 		// Check for signal
-		if (std::regex_search(line, match, signal_pattern)) {
+		if (std::regex_search(line, match, RE_SIGNAL)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "strace";
@@ -176,9 +156,8 @@ void StraceParser::ParseStrace(const std::string &content, std::vector<duckdb::V
 
 			// Parse signal info for additional details
 			if (signal_info.find("si_pid=") != std::string::npos) {
-				std::regex sender_pattern(R"(si_pid=(\d+))");
 				std::smatch sender_match;
-				if (std::regex_search(signal_info, sender_match, sender_pattern)) {
+				if (std::regex_search(signal_info, sender_match, RE_SENDER)) {
 					event.origin = "pid:" + sender_match[1].str();
 				}
 			}
@@ -188,7 +167,7 @@ void StraceParser::ParseStrace(const std::string &content, std::vector<duckdb::V
 		}
 
 		// Check for exit status
-		if (std::regex_search(line, match, exit_pattern)) {
+		if (std::regex_search(line, match, RE_EXIT)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "strace";
@@ -210,7 +189,7 @@ void StraceParser::ParseStrace(const std::string &content, std::vector<duckdb::V
 		}
 
 		// Check for killed by signal
-		if (std::regex_search(line, match, killed_pattern)) {
+		if (std::regex_search(line, match, RE_KILLED)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "strace";
@@ -235,7 +214,7 @@ void StraceParser::ParseStrace(const std::string &content, std::vector<duckdb::V
 		}
 
 		// Check for syscall pattern
-		if (std::regex_search(line, match, syscall_pattern)) {
+		if (std::regex_search(line, match, RE_SYSCALL_START)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "strace";
@@ -291,7 +270,7 @@ void StraceParser::ParseStrace(const std::string &content, std::vector<duckdb::V
 				// Parse result portion
 				std::string result_part = line.substr(close_paren + 1);
 				std::smatch result_match;
-				if (std::regex_search(result_part, result_match, result_pattern)) {
+				if (std::regex_search(result_part, result_match, RE_RESULT)) {
 					std::string return_val = result_match[1].str();
 					std::string error_name = result_match[2].str();
 					std::string error_msg = result_match[3].str();
