@@ -2,9 +2,16 @@
 #include "read_duck_hunt_workflow_log_function.hpp"
 #include "core/parser_registry.hpp"
 #include "duckdb/common/string_util.hpp"
+#include <regex>
 #include <sstream>
 
 namespace duckdb {
+
+// Pre-compiled regex patterns for Spack parsing (compiled once, reused)
+namespace {
+static const std::regex RE_PHASE_PATTERN(R"(Executing phase:\s*'([^']+)')");
+static const std::regex RE_TIMESTAMP_PATTERN(R"(\[(\d{4}-\d{2}-\d{2}-\d{2}:\d{2}:\d{2}\.\d+)\])");
+} // anonymous namespace
 
 bool SpackParser::canParse(const std::string &content) const {
 	// Spack-specific patterns:
@@ -45,9 +52,8 @@ std::string SpackParser::extractPackageName(const std::string &line) const {
 
 std::string SpackParser::extractPhaseName(const std::string &line) const {
 	// Pattern: ... Executing phase: 'phase_name'
-	std::regex phase_pattern(R"(Executing phase:\s*'([^']+)')");
 	std::smatch match;
-	if (std::regex_search(line, match, phase_pattern)) {
+	if (std::regex_search(line, match, RE_PHASE_PATTERN)) {
 		return match[1].str();
 	}
 	return "unknown";
@@ -55,9 +61,8 @@ std::string SpackParser::extractPhaseName(const std::string &line) const {
 
 std::string SpackParser::extractTimestamp(const std::string &line) const {
 	// Pattern: ==> [2025-12-14-13:58:04.226532] ...
-	std::regex ts_pattern(R"(\[(\d{4}-\d{2}-\d{2}-\d{2}:\d{2}:\d{2}\.\d+)\])");
 	std::smatch match;
-	if (std::regex_search(line, match, ts_pattern)) {
+	if (std::regex_search(line, match, RE_TIMESTAMP_PATTERN)) {
 		return match[1].str();
 	}
 	return "";

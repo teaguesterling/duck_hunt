@@ -2,9 +2,18 @@
 #include "read_duck_hunt_workflow_log_function.hpp"
 #include "core/parser_registry.hpp"
 #include "duckdb/common/string_util.hpp"
+#include <regex>
 #include <sstream>
 
 namespace duckdb {
+
+// Pre-compiled regex patterns for Jenkins parsing (compiled once, reused)
+namespace {
+static const std::regex RE_BUILD_PATTERN(R"(Build #(\d+))");
+static const std::regex RE_WORKSPACE_PATTERN(R"(Building in workspace (.+))");
+static const std::regex RE_TIMESTAMP_PATTERN(R"(\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\])");
+static const std::regex RE_TIME_PATTERN(R"(\[\d{2}:\d{2}:\d{2}\])");
+} // anonymous namespace
 
 bool JenkinsParser::canParse(const std::string &content) const {
 	// Jenkins specific patterns
@@ -79,9 +88,8 @@ std::string JenkinsParser::extractBuildId(const std::string &content) const {
 }
 
 std::string JenkinsParser::extractBuildNumber(const std::string &content) const {
-	std::regex build_pattern(R"(Build #(\d+))");
 	std::smatch match;
-	if (std::regex_search(content, match, build_pattern)) {
+	if (std::regex_search(content, match, RE_BUILD_PATTERN)) {
 		return match[1].str();
 	}
 
@@ -127,9 +135,8 @@ std::string JenkinsParser::extractStepName(const std::string &line) const {
 }
 
 std::string JenkinsParser::extractWorkspace(const std::string &content) const {
-	std::regex workspace_pattern(R"(Building in workspace (.+))");
 	std::smatch match;
-	if (std::regex_search(content, match, workspace_pattern)) {
+	if (std::regex_search(content, match, RE_WORKSPACE_PATTERN)) {
 		return match[1].str();
 	}
 	return "";
@@ -137,15 +144,13 @@ std::string JenkinsParser::extractWorkspace(const std::string &content) const {
 
 std::string JenkinsParser::extractTimestamp(const std::string &line) const {
 	// Jenkins timestamps are often in brackets like [2023-10-15 14:30:15]
-	std::regex timestamp_pattern(R"(\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\])");
 	std::smatch match;
-	if (std::regex_search(line, match, timestamp_pattern)) {
+	if (std::regex_search(line, match, RE_TIMESTAMP_PATTERN)) {
 		return match.str();
 	}
 
 	// Alternative format: simple time [14:30:15]
-	std::regex time_pattern(R"(\[\d{2}:\d{2}:\d{2}\])");
-	if (std::regex_search(line, match, time_pattern)) {
+	if (std::regex_search(line, match, RE_TIME_PATTERN)) {
 		return match.str();
 	}
 

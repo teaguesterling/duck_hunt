@@ -9,6 +9,11 @@
 
 namespace duckdb {
 
+// Pre-compiled regex patterns for GitHub Actions ZIP parsing (compiled once, reused)
+namespace {
+static const std::regex RE_JOB_FILE_PATTERN(R"(^(\d+)_(.+)\.txt$)");
+} // anonymous namespace
+
 bool GitHubActionsZipParser::isZipPath(const std::string &path) {
 	std::string lower_path = StringUtil::Lower(path);
 	return StringUtil::EndsWith(lower_path, ".zip");
@@ -52,10 +57,9 @@ GitHubActionsZipParser::JobMetadata GitHubActionsZipParser::extractJobMetadata(c
 
 	// Pattern: {N}_{job_name}.txt
 	// Example: "0_Build extension binaries _ DuckDB-Wasm (linux_amd64).txt"
-	std::regex pattern(R"(^(\d+)_(.+)\.txt$)");
 	std::smatch match;
 
-	if (std::regex_match(filename, match, pattern)) {
+	if (std::regex_match(filename, match, RE_JOB_FILE_PATTERN)) {
 		meta.job_order = std::stoi(match[1].str());
 		meta.job_name = match[2].str();
 	} else {

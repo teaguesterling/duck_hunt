@@ -2,9 +2,17 @@
 #include "read_duck_hunt_workflow_log_function.hpp"
 #include "core/parser_registry.hpp"
 #include "duckdb/common/string_util.hpp"
+#include <regex>
 #include <sstream>
 
 namespace duckdb {
+
+// Pre-compiled regex patterns for GitLab CI parsing (compiled once, reused)
+namespace {
+static const std::regex RE_PIPELINE_PATTERN(R"(Pipeline #(\d+))");
+static const std::regex RE_RUNNER_PATTERN(R"(on ([\w\-\.]+))");
+static const std::regex RE_TIME_PATTERN(R"(\d{2}:\d{2})");
+} // anonymous namespace
 
 bool GitLabCIParser::canParse(const std::string &content) const {
 	// GitLab CI specific patterns
@@ -71,9 +79,8 @@ std::string GitLabCIParser::extractWorkflowName(const std::string &content) cons
 }
 
 std::string GitLabCIParser::extractPipelineId(const std::string &content) const {
-	std::regex pipeline_pattern(R"(Pipeline #(\d+))");
 	std::smatch match;
-	if (std::regex_search(content, match, pipeline_pattern)) {
+	if (std::regex_search(content, match, RE_PIPELINE_PATTERN)) {
 		return match[1].str();
 	}
 
@@ -122,9 +129,8 @@ std::string GitLabCIParser::extractExecutor(const std::string &content) const {
 }
 
 std::string GitLabCIParser::extractRunnerInfo(const std::string &line) const {
-	std::regex runner_pattern(R"(on ([\w\-\.]+))");
 	std::smatch match;
-	if (std::regex_search(line, match, runner_pattern)) {
+	if (std::regex_search(line, match, RE_RUNNER_PATTERN)) {
 		return match[1].str();
 	}
 	return "";
@@ -231,9 +237,8 @@ GitLabCIParser::GitLabStage GitLabCIParser::parseStage(const std::vector<std::st
 	for (const auto &line : stage_lines) {
 		// GitLab CI doesn't usually have detailed timestamps in logs
 		// Look for time markers like "00:01", "00:02" etc.
-		std::regex time_pattern(R"(\d{2}:\d{2})");
 		std::smatch match;
-		if (std::regex_search(line, match, time_pattern)) {
+		if (std::regex_search(line, match, RE_TIME_PATTERN)) {
 			if (stage.started_at.empty()) {
 				stage.started_at = match.str();
 			}

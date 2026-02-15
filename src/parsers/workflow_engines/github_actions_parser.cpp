@@ -2,9 +2,15 @@
 #include "read_duck_hunt_workflow_log_function.hpp"
 #include "core/parser_registry.hpp"
 #include "duckdb/common/string_util.hpp"
+#include <regex>
 #include <sstream>
 
 namespace duckdb {
+
+// Pre-compiled regex patterns for GitHub Actions parsing (compiled once, reused)
+namespace {
+static const std::regex RE_TIMESTAMP_PATTERN(R"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{7}Z)");
+} // anonymous namespace
 
 bool GitHubActionsParser::canParse(const std::string &content) const {
 	try {
@@ -75,8 +81,7 @@ std::vector<WorkflowEvent> GitHubActionsParser::parseWorkflowLog(const std::stri
 
 bool GitHubActionsParser::isGitHubActionsTimestamp(const std::string &line) const {
 	// GitHub Actions timestamp format: 2023-10-15T14:30:15.1234567Z
-	std::regex timestamp_pattern(R"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{7}Z)");
-	return std::regex_search(line, timestamp_pattern);
+	return std::regex_search(line, RE_TIMESTAMP_PATTERN);
 }
 
 bool GitHubActionsParser::isGroupStart(const std::string &line) const {
@@ -144,9 +149,8 @@ std::string GitHubActionsParser::extractStepName(const std::string &line) const 
 }
 
 std::string GitHubActionsParser::extractTimestamp(const std::string &line) const {
-	std::regex timestamp_pattern(R"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{7}Z)");
 	std::smatch match;
-	if (std::regex_search(line, match, timestamp_pattern)) {
+	if (std::regex_search(line, match, RE_TIMESTAMP_PATTERN)) {
 		return match.str();
 	}
 	return "";
