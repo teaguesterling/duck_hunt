@@ -1,7 +1,28 @@
 #include "autopep8_text_parser.hpp"
+#include <regex>
 #include <sstream>
 
 namespace duckdb {
+
+// Pre-compiled regex patterns for autopep8 text parsing (compiled once, reused)
+namespace {
+static const std::regex RE_DIFF_START(R"(--- original/(.+))");
+static const std::regex RE_DIFF_FIXED(R"(\+\+\+ fixed/(.+))");
+static const std::regex RE_ERROR_PATTERN(R"(ERROR: ([^:]+\.py):(\d+):(\d+): (E\d+) (.+))");
+static const std::regex RE_WARNING_PATTERN(R"(WARNING: ([^:]+\.py):(\d+):(\d+): (E\d+) (.+))");
+static const std::regex RE_INFO_PATTERN(R"(INFO: ([^:]+\.py): (.+))");
+static const std::regex RE_FIXED_PATTERN(R"(fixed ([^:]+\.py))");
+static const std::regex RE_AUTOPEP8_CMD(R"(autopep8 (--[^\s]+.+))");
+static const std::regex RE_CONFIG_LINE(R"(Applied configuration:)");
+static const std::regex RE_SUMMARY_FILES_PROCESSED(R"(Files processed: (\d+))");
+static const std::regex RE_SUMMARY_FILES_MODIFIED(R"(Files modified: (\d+))");
+static const std::regex RE_SUMMARY_FILES_ERRORS(R"(Files with errors: (\d+))");
+static const std::regex RE_SUMMARY_FIXES_APPLIED(R"(Total fixes applied: (\d+))");
+static const std::regex RE_SUMMARY_EXECUTION_TIME(R"(Execution time: ([\d\.]+)s)");
+static const std::regex RE_SYNTAX_ERROR(R"(ERROR: ([^:]+\.py):(\d+):(\d+): SyntaxError: (.+))");
+static const std::regex RE_ENCODING_ERROR(R"(WARNING: ([^:]+\.py): could not determine file encoding)");
+static const std::regex RE_ALREADY_FORMATTED(R"(INFO: ([^:]+\.py): already formatted correctly)");
+} // anonymous namespace
 
 bool Autopep8TextParser::canParse(const std::string &content) const {
 	// Check for autopep8-specific patterns
@@ -16,27 +37,10 @@ bool Autopep8TextParser::canParse(const std::string &content) const {
 
 std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string &content) const {
 	std::vector<ValidationEvent> events;
+	events.reserve(content.size() / 100); // Estimate: ~1 event per 100 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
-
-	// Regex patterns for autopep8 output
-	std::regex diff_start(R"(--- original/(.+))");
-	std::regex diff_fixed(R"(\+\+\+ fixed/(.+))");
-	std::regex error_pattern(R"(ERROR: ([^:]+\.py):(\d+):(\d+): (E\d+) (.+))");
-	std::regex warning_pattern(R"(WARNING: ([^:]+\.py):(\d+):(\d+): (E\d+) (.+))");
-	std::regex info_pattern(R"(INFO: ([^:]+\.py): (.+))");
-	std::regex fixed_pattern(R"(fixed ([^:]+\.py))");
-	std::regex autopep8_cmd(R"(autopep8 (--[^\s]+.+))");
-	std::regex config_line(R"(Applied configuration:)");
-	std::regex summary_files_processed(R"(Files processed: (\d+))");
-	std::regex summary_files_modified(R"(Files modified: (\d+))");
-	std::regex summary_files_errors(R"(Files with errors: (\d+))");
-	std::regex summary_fixes_applied(R"(Total fixes applied: (\d+))");
-	std::regex summary_execution_time(R"(Execution time: ([\d\.]+)s)");
-	std::regex syntax_error(R"(ERROR: ([^:]+\.py):(\d+):(\d+): SyntaxError: (.+))");
-	std::regex encoding_error(R"(WARNING: ([^:]+\.py): could not determine file encoding)");
-	std::regex already_formatted(R"(INFO: ([^:]+\.py): already formatted correctly)");
 
 	std::smatch match;
 	std::string current_file;
@@ -44,7 +48,7 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string &conten
 
 	while (std::getline(stream, line)) {
 		// Handle diff sections
-		if (std::regex_search(line, match, diff_start)) {
+		if (std::regex_search(line, match, RE_DIFF_START)) {
 			current_file = match[1].str();
 
 			ValidationEvent event;
@@ -67,7 +71,7 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string &conten
 		}
 
 		// Handle error patterns (E999 syntax errors)
-		if (std::regex_search(line, match, error_pattern)) {
+		if (std::regex_search(line, match, RE_ERROR_PATTERN)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "autopep8";
@@ -89,7 +93,7 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string &conten
 		}
 
 		// Handle warning patterns (line too long)
-		if (std::regex_search(line, match, warning_pattern)) {
+		if (std::regex_search(line, match, RE_WARNING_PATTERN)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "autopep8";
@@ -111,7 +115,7 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string &conten
 		}
 
 		// Handle info patterns (no changes needed)
-		if (std::regex_search(line, match, info_pattern)) {
+		if (std::regex_search(line, match, RE_INFO_PATTERN)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "autopep8";
@@ -132,7 +136,7 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string &conten
 		}
 
 		// Handle fixed file patterns
-		if (std::regex_search(line, match, fixed_pattern)) {
+		if (std::regex_search(line, match, RE_FIXED_PATTERN)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "autopep8";
@@ -153,7 +157,7 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string &conten
 		}
 
 		// Handle command patterns
-		if (std::regex_search(line, match, autopep8_cmd)) {
+		if (std::regex_search(line, match, RE_AUTOPEP8_CMD)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "autopep8";
@@ -174,7 +178,7 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string &conten
 		}
 
 		// Handle configuration section
-		if (std::regex_search(line, match, config_line)) {
+		if (std::regex_search(line, match, RE_CONFIG_LINE)) {
 			in_config = true;
 
 			ValidationEvent event;
@@ -197,7 +201,7 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string &conten
 		}
 
 		// Handle summary statistics
-		if (std::regex_search(line, match, summary_files_processed)) {
+		if (std::regex_search(line, match, RE_SUMMARY_FILES_PROCESSED)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "autopep8";
@@ -217,7 +221,7 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string &conten
 			continue;
 		}
 
-		if (std::regex_search(line, match, summary_files_modified)) {
+		if (std::regex_search(line, match, RE_SUMMARY_FILES_MODIFIED)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "autopep8";
@@ -237,7 +241,7 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string &conten
 			continue;
 		}
 
-		if (std::regex_search(line, match, summary_files_errors)) {
+		if (std::regex_search(line, match, RE_SUMMARY_FILES_ERRORS)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "autopep8";
@@ -257,7 +261,7 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string &conten
 			continue;
 		}
 
-		if (std::regex_search(line, match, summary_fixes_applied)) {
+		if (std::regex_search(line, match, RE_SUMMARY_FIXES_APPLIED)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "autopep8";
@@ -277,7 +281,7 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string &conten
 			continue;
 		}
 
-		if (std::regex_search(line, match, summary_execution_time)) {
+		if (std::regex_search(line, match, RE_SUMMARY_EXECUTION_TIME)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "autopep8";
@@ -298,7 +302,7 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string &conten
 		}
 
 		// Handle syntax errors
-		if (std::regex_search(line, match, syntax_error)) {
+		if (std::regex_search(line, match, RE_SYNTAX_ERROR)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "autopep8";
@@ -320,7 +324,7 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string &conten
 		}
 
 		// Handle encoding errors
-		if (std::regex_search(line, match, encoding_error)) {
+		if (std::regex_search(line, match, RE_ENCODING_ERROR)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "autopep8";
@@ -341,7 +345,7 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string &conten
 		}
 
 		// Handle already formatted files
-		if (std::regex_search(line, match, already_formatted)) {
+		if (std::regex_search(line, match, RE_ALREADY_FORMATTED)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "autopep8";
