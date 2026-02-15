@@ -1,7 +1,18 @@
 #include "rubocop_text_parser.hpp"
+#include <regex>
 #include <sstream>
 
 namespace duckdb {
+
+// Pre-compiled regex patterns for RuboCop parsing (compiled once, reused)
+namespace {
+// canParse patterns
+static const std::regex RE_OFFENSE_DETECT(R"(\S+\.rb:\d+:\d+:\s*[CWEF]:\s*\w+/\w+:)");
+static const std::regex RE_INSPECTING_PATTERN(R"(Inspecting \d+ files?)");
+
+// parse patterns
+static const std::regex RE_OFFENSE_PATTERN(R"(^([^:]+\.rb):(\d+):(\d+):\s*([CWEF]):\s*(\w+/\w+):\s*(.+)$)");
+} // anonymous namespace
 
 bool RubocopTextParser::canParse(const std::string &content) const {
 	// Look for RuboCop-specific patterns:
@@ -15,15 +26,13 @@ bool RubocopTextParser::canParse(const std::string &content) const {
 	}
 
 	// Check for offense pattern: file:line:col: severity: CopDepartment/CopName: message
-	std::regex offense_pattern(R"(\S+\.rb:\d+:\d+:\s*[CWEF]:\s*\w+/\w+:)");
-	if (std::regex_search(content, offense_pattern)) {
+	if (std::regex_search(content, RE_OFFENSE_DETECT)) {
 		return true;
 	}
 
 	// Check for "Inspecting X files" header
 	if (content.find("Inspecting") != std::string::npos && content.find("file") != std::string::npos) {
-		std::regex inspecting_pattern(R"(Inspecting \d+ files?)");
-		if (std::regex_search(content, inspecting_pattern)) {
+		if (std::regex_search(content, RE_INSPECTING_PATTERN)) {
 			return true;
 		}
 	}
@@ -33,13 +42,11 @@ bool RubocopTextParser::canParse(const std::string &content) const {
 
 std::vector<ValidationEvent> RubocopTextParser::parse(const std::string &content) const {
 	std::vector<ValidationEvent> events;
+	events.reserve(content.size() / 100); // Estimate: ~1 event per 100 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
 	int32_t current_line_num = 0;
-
-	// Pattern for offense line: file.rb:line:col: severity: Cop/Name: message
-	std::regex offense_pattern(R"(^([^:]+\.rb):(\d+):(\d+):\s*([CWEF]):\s*(\w+/\w+):\s*(.+)$)");
 
 	int error_count = 0;
 	int warning_count = 0;
@@ -49,7 +56,7 @@ std::vector<ValidationEvent> RubocopTextParser::parse(const std::string &content
 		current_line_num++;
 		std::smatch match;
 
-		if (std::regex_match(line, match, offense_pattern)) {
+		if (std::regex_match(line, match, RE_OFFENSE_PATTERN)) {
 			std::string file_path = match[1].str();
 			int32_t line_number = 0;
 			int32_t column_number = 0;
