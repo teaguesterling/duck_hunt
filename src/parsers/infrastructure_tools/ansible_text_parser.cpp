@@ -4,6 +4,28 @@
 
 namespace duckdb {
 
+// Pre-compiled regex patterns for Ansible text parsing (compiled once, reused)
+namespace {
+static const std::regex RE_PLAY_START(R"(PLAY \[([^\]]+)\] \*+)");
+static const std::regex RE_TASK_START(R"(TASK \[([^\]]+)\] \*+)");
+static const std::regex RE_TASK_OK(R"(ok: \[([^\]]+)\]( => \((.+)\))?)");
+static const std::regex RE_TASK_CHANGED(R"(changed: \[([^\]]+)\]( => \((.+)\))?)");
+static const std::regex RE_TASK_SKIPPING(R"(skipping: \[([^\]]+)\]( => \((.+)\))?)");
+static const std::regex RE_TASK_FAILED(R"(fatal: \[([^\]]+)\]: FAILED! => (.+))");
+static const std::regex RE_TASK_UNREACHABLE(R"(fatal: \[([^\]]+)\]: UNREACHABLE! => (.+))");
+static const std::regex RE_HANDLER_RUNNING(R"(RUNNING HANDLER \[([^\]]+)\] \*+)");
+static const std::regex RE_PLAY_RECAP_START(R"(PLAY RECAP \*+)");
+static const std::regex RE_PLAY_RECAP_HOST(
+    R"((\S+)\s+:\s+ok=(\d+)\s+changed=(\d+)\s+unreachable=(\d+)\s+failed=(\d+)\s+skipped=(\d+)\s+rescued=(\d+)\s+ignored=(\d+))");
+static const std::regex RE_ANSIBLE_ERROR(R"(ERROR! (.+))");
+static const std::regex RE_ANSIBLE_WARNING(R"(\[WARNING\]: (.+))");
+static const std::regex RE_DEPRECATION_WARNING(R"(\[DEPRECATION WARNING\]: (.+))");
+static const std::regex RE_RETRY_FAILED(R"(FAILED - RETRYING: (.+) \((\d+) retries left\))");
+static const std::regex RE_TASK_RETRY_EXHAUSTED(R"(fatal: \[([^\]]+)\]: FAILED! => \{\"attempts\": (\d+), .+\"msg\": \"(.+)\"\})");
+static const std::regex RE_CONFIG_DIFF(R"(--- (.+))");
+static const std::regex RE_ANSIBLE_NOTIFIED(R"(NOTIFIED: \[([^\]]+)\] \*+)");
+} // anonymous namespace
+
 bool AnsibleTextParser::canParse(const std::string &content) const {
 	// Check for Ansible-specific patterns
 	return content.find("PLAY [") != std::string::npos || content.find("TASK [") != std::string::npos ||
@@ -13,30 +35,11 @@ bool AnsibleTextParser::canParse(const std::string &content) const {
 
 std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string &content) const {
 	std::vector<ValidationEvent> events;
+	events.reserve(content.size() / 100); // Estimate: ~1 event per 100 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
 	std::smatch match;
-
-	// Ansible regex patterns
-	std::regex play_start(R"(PLAY \[([^\]]+)\] \*+)");
-	std::regex task_start(R"(TASK \[([^\]]+)\] \*+)");
-	std::regex task_ok(R"(ok: \[([^\]]+)\]( => \((.+)\))?)");
-	std::regex task_changed(R"(changed: \[([^\]]+)\]( => \((.+)\))?)");
-	std::regex task_skipping(R"(skipping: \[([^\]]+)\]( => \((.+)\))?)");
-	std::regex task_failed(R"(fatal: \[([^\]]+)\]: FAILED! => (.+))");
-	std::regex task_unreachable(R"(fatal: \[([^\]]+)\]: UNREACHABLE! => (.+))");
-	std::regex handler_running(R"(RUNNING HANDLER \[([^\]]+)\] \*+)");
-	std::regex play_recap_start(R"(PLAY RECAP \*+)");
-	std::regex play_recap_host(
-	    R"((\S+)\s+:\s+ok=(\d+)\s+changed=(\d+)\s+unreachable=(\d+)\s+failed=(\d+)\s+skipped=(\d+)\s+rescued=(\d+)\s+ignored=(\d+))");
-	std::regex ansible_error(R"(ERROR! (.+))");
-	std::regex ansible_warning(R"(\[WARNING\]: (.+))");
-	std::regex deprecation_warning(R"(\[DEPRECATION WARNING\]: (.+))");
-	std::regex retry_failed(R"(FAILED - RETRYING: (.+) \((\d+) retries left\))");
-	std::regex task_retry_exhausted(R"(fatal: \[([^\]]+)\]: FAILED! => \{\"attempts\": (\d+), .+\"msg\": \"(.+)\"\})");
-	std::regex config_diff(R"(--- (.+))");
-	std::regex ansible_notified(R"(NOTIFIED: \[([^\]]+)\] \*+)");
 
 	bool in_play_recap = false;
 	std::string current_play = "";
@@ -44,7 +47,7 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string &content
 
 	while (std::getline(stream, line)) {
 		// Parse play start
-		if (std::regex_search(line, match, play_start)) {
+		if (std::regex_search(line, match, RE_PLAY_START)) {
 			current_play = match[1].str();
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -66,7 +69,7 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string &content
 		}
 
 		// Parse task start
-		if (std::regex_search(line, match, task_start)) {
+		if (std::regex_search(line, match, RE_TASK_START)) {
 			current_task = match[1].str();
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -88,7 +91,7 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string &content
 		}
 
 		// Parse task OK
-		if (std::regex_search(line, match, task_ok)) {
+		if (std::regex_search(line, match, RE_TASK_OK)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "ansible";
@@ -112,7 +115,7 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string &content
 		}
 
 		// Parse task changed
-		if (std::regex_search(line, match, task_changed)) {
+		if (std::regex_search(line, match, RE_TASK_CHANGED)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "ansible";
@@ -136,7 +139,7 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string &content
 		}
 
 		// Parse task skipping
-		if (std::regex_search(line, match, task_skipping)) {
+		if (std::regex_search(line, match, RE_TASK_SKIPPING)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "ansible";
@@ -160,7 +163,7 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string &content
 		}
 
 		// Parse task failed
-		if (std::regex_search(line, match, task_failed)) {
+		if (std::regex_search(line, match, RE_TASK_FAILED)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "ansible";
@@ -181,7 +184,7 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string &content
 		}
 
 		// Parse task unreachable
-		if (std::regex_search(line, match, task_unreachable)) {
+		if (std::regex_search(line, match, RE_TASK_UNREACHABLE)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "ansible";
@@ -202,7 +205,7 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string &content
 		}
 
 		// Parse handler running
-		if (std::regex_search(line, match, handler_running)) {
+		if (std::regex_search(line, match, RE_HANDLER_RUNNING)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "ansible";
@@ -223,7 +226,7 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string &content
 		}
 
 		// Parse play recap start
-		if (std::regex_match(line, play_recap_start)) {
+		if (std::regex_match(line, RE_PLAY_RECAP_START)) {
 			in_play_recap = true;
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -245,7 +248,7 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string &content
 		}
 
 		// Parse play recap host summary
-		if (in_play_recap && std::regex_search(line, match, play_recap_host)) {
+		if (in_play_recap && std::regex_search(line, match, RE_PLAY_RECAP_HOST)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "ansible";
@@ -278,7 +281,7 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string &content
 		}
 
 		// Parse ansible errors
-		if (std::regex_search(line, match, ansible_error)) {
+		if (std::regex_search(line, match, RE_ANSIBLE_ERROR)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "ansible";
@@ -299,7 +302,7 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string &content
 		}
 
 		// Parse ansible warnings
-		if (std::regex_search(line, match, ansible_warning)) {
+		if (std::regex_search(line, match, RE_ANSIBLE_WARNING)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "ansible";
@@ -320,7 +323,7 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string &content
 		}
 
 		// Parse deprecation warnings
-		if (std::regex_search(line, match, deprecation_warning)) {
+		if (std::regex_search(line, match, RE_DEPRECATION_WARNING)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "ansible";
@@ -341,7 +344,7 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string &content
 		}
 
 		// Parse retry failures
-		if (std::regex_search(line, match, retry_failed)) {
+		if (std::regex_search(line, match, RE_RETRY_FAILED)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "ansible";
@@ -362,7 +365,7 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string &content
 		}
 
 		// Parse task retry exhausted
-		if (std::regex_search(line, match, task_retry_exhausted)) {
+		if (std::regex_search(line, match, RE_TASK_RETRY_EXHAUSTED)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "ansible";
@@ -384,7 +387,7 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string &content
 		}
 
 		// Parse config diff
-		if (std::regex_search(line, match, config_diff)) {
+		if (std::regex_search(line, match, RE_CONFIG_DIFF)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "ansible";
@@ -405,7 +408,7 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string &content
 		}
 
 		// Parse ansible notifications
-		if (std::regex_search(line, match, ansible_notified)) {
+		if (std::regex_search(line, match, RE_ANSIBLE_NOTIFIED)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "ansible";

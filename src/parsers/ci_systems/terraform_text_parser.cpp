@@ -5,6 +5,27 @@
 
 namespace duckdb {
 
+// Pre-compiled regex patterns for Terraform text parsing (compiled once, reused)
+namespace {
+static const std::regex RE_TERRAFORM_VERSION(R"(Terraform v(\d+\.\d+\.\d+))");
+static const std::regex RE_PROVIDER_INFO(R"(\+ provider registry\.terraform\.io/hashicorp/(\w+) v([\d\.]+))");
+static const std::regex RE_RESOURCE_CREATE(R"(# (\S+) will be created)");
+static const std::regex RE_RESOURCE_UPDATE(R"(# (\S+) will be updated in-place)");
+static const std::regex RE_RESOURCE_DESTROY(R"(# (\S+) will be destroyed)");
+static const std::regex RE_PLAN_SUMMARY(R"(Plan: (\d+) to add, (\d+) to change, (\d+) to destroy)");
+static const std::regex RE_RESOURCE_CREATING(R"((\S+): Creating\.\.\.)");
+static const std::regex RE_RESOURCE_CREATION_COMPLETE(R"((\S+): Creation complete after (\d+)s \[id=(.+)\])");
+static const std::regex RE_RESOURCE_MODIFYING(R"((\S+): Modifying\.\.\. \[id=(.+)\])");
+static const std::regex RE_RESOURCE_MODIFICATION_COMPLETE(R"((\S+): Modifications complete after (\d+)s \[id=(.+)\])");
+static const std::regex RE_RESOURCE_DESTROYING(R"((\S+): Destroying\.\.\. \[id=(.+)\])");
+static const std::regex RE_RESOURCE_DESTRUCTION_COMPLETE(R"((\S+): Destruction complete after (\d+)s)");
+static const std::regex RE_APPLY_COMPLETE(R"(Apply complete! Resources: (\d+) added, (\d+) changed, (\d+) destroyed)");
+static const std::regex RE_TERRAFORM_ERROR(R"(Error: (.+))");
+static const std::regex RE_TERRAFORM_WARNING(R"(Warning: (.+))");
+static const std::regex RE_TERRAFORM_OUTPUT(R"((\w+) = (.+))");
+static const std::regex RE_VERSION_WARNING(R"(Your version of Terraform is out of date!)");
+} // anonymous namespace
+
 bool TerraformTextParser::canParse(const std::string &content) const {
 	return isValidTerraformText(content);
 }
@@ -22,35 +43,17 @@ bool TerraformTextParser::isValidTerraformText(const std::string &content) const
 
 std::vector<ValidationEvent> TerraformTextParser::parse(const std::string &content) const {
 	std::vector<ValidationEvent> events;
+	events.reserve(content.size() / 100); // Estimate: ~1 event per 100 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
 	int32_t current_line_num = 0;
 	std::smatch match;
 
-	// Terraform regex patterns
-	std::regex terraform_version(R"(Terraform v(\d+\.\d+\.\d+))");
-	std::regex provider_info(R"(\+ provider registry\.terraform\.io/hashicorp/(\w+) v([\d\.]+))");
-	std::regex resource_create(R"(# (\S+) will be created)");
-	std::regex resource_update(R"(# (\S+) will be updated in-place)");
-	std::regex resource_destroy(R"(# (\S+) will be destroyed)");
-	std::regex plan_summary(R"(Plan: (\d+) to add, (\d+) to change, (\d+) to destroy)");
-	std::regex resource_creating(R"((\S+): Creating\.\.\.)");
-	std::regex resource_creation_complete(R"((\S+): Creation complete after (\d+)s \[id=(.+)\])");
-	std::regex resource_modifying(R"((\S+): Modifying\.\.\. \[id=(.+)\])");
-	std::regex resource_modification_complete(R"((\S+): Modifications complete after (\d+)s \[id=(.+)\])");
-	std::regex resource_destroying(R"((\S+): Destroying\.\.\. \[id=(.+)\])");
-	std::regex resource_destruction_complete(R"((\S+): Destruction complete after (\d+)s)");
-	std::regex apply_complete(R"(Apply complete! Resources: (\d+) added, (\d+) changed, (\d+) destroyed)");
-	std::regex terraform_error(R"(Error: (.+))");
-	std::regex terraform_warning(R"(Warning: (.+))");
-	std::regex terraform_output(R"((\w+) = (.+))");
-	std::regex version_warning(R"(Your version of Terraform is out of date!)");
-
 	while (std::getline(stream, line)) {
 		current_line_num++;
 		// Parse Terraform version
-		if (std::regex_search(line, match, terraform_version)) {
+		if (std::regex_search(line, match, RE_TERRAFORM_VERSION)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "terraform";
@@ -73,7 +76,7 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string &conte
 		}
 
 		// Parse provider information
-		if (std::regex_search(line, match, provider_info)) {
+		if (std::regex_search(line, match, RE_PROVIDER_INFO)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "terraform";
@@ -96,7 +99,7 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string &conte
 		}
 
 		// Parse resource creation plan
-		if (std::regex_search(line, match, resource_create)) {
+		if (std::regex_search(line, match, RE_RESOURCE_CREATE)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "terraform";
@@ -119,7 +122,7 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string &conte
 		}
 
 		// Parse resource update plan
-		if (std::regex_search(line, match, resource_update)) {
+		if (std::regex_search(line, match, RE_RESOURCE_UPDATE)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "terraform";
@@ -142,7 +145,7 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string &conte
 		}
 
 		// Parse resource destroy plan
-		if (std::regex_search(line, match, resource_destroy)) {
+		if (std::regex_search(line, match, RE_RESOURCE_DESTROY)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "terraform";
@@ -165,7 +168,7 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string &conte
 		}
 
 		// Parse plan summary
-		if (std::regex_search(line, match, plan_summary)) {
+		if (std::regex_search(line, match, RE_PLAN_SUMMARY)) {
 			int to_add = std::stoi(match[1].str());
 			int to_change = std::stoi(match[2].str());
 			int to_destroy = std::stoi(match[3].str());
@@ -193,7 +196,7 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string &conte
 		}
 
 		// Parse resource creation in progress
-		if (std::regex_search(line, match, resource_creating)) {
+		if (std::regex_search(line, match, RE_RESOURCE_CREATING)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "terraform";
@@ -216,7 +219,7 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string &conte
 		}
 
 		// Parse resource creation complete
-		if (std::regex_search(line, match, resource_creation_complete)) {
+		if (std::regex_search(line, match, RE_RESOURCE_CREATION_COMPLETE)) {
 			std::string resource_name = match[1].str();
 			int duration = std::stoi(match[2].str());
 			std::string resource_id = match[3].str();
@@ -243,7 +246,7 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string &conte
 		}
 
 		// Parse resource modification in progress
-		if (std::regex_search(line, match, resource_modifying)) {
+		if (std::regex_search(line, match, RE_RESOURCE_MODIFYING)) {
 			std::string resource_name = match[1].str();
 			std::string resource_id = match[2].str();
 
@@ -269,7 +272,7 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string &conte
 		}
 
 		// Parse resource modification complete
-		if (std::regex_search(line, match, resource_modification_complete)) {
+		if (std::regex_search(line, match, RE_RESOURCE_MODIFICATION_COMPLETE)) {
 			std::string resource_name = match[1].str();
 			int duration = std::stoi(match[2].str());
 			std::string resource_id = match[3].str();
@@ -296,7 +299,7 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string &conte
 		}
 
 		// Parse resource destruction in progress
-		if (std::regex_search(line, match, resource_destroying)) {
+		if (std::regex_search(line, match, RE_RESOURCE_DESTROYING)) {
 			std::string resource_name = match[1].str();
 			std::string resource_id = match[2].str();
 
@@ -322,7 +325,7 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string &conte
 		}
 
 		// Parse resource destruction complete
-		if (std::regex_search(line, match, resource_destruction_complete)) {
+		if (std::regex_search(line, match, RE_RESOURCE_DESTRUCTION_COMPLETE)) {
 			std::string resource_name = match[1].str();
 			int duration = std::stoi(match[2].str());
 
@@ -348,7 +351,7 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string &conte
 		}
 
 		// Parse apply complete summary
-		if (std::regex_search(line, match, apply_complete)) {
+		if (std::regex_search(line, match, RE_APPLY_COMPLETE)) {
 			int added = std::stoi(match[1].str());
 			int changed = std::stoi(match[2].str());
 			int destroyed = std::stoi(match[3].str());
@@ -376,7 +379,7 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string &conte
 		}
 
 		// Parse Terraform errors
-		if (std::regex_search(line, match, terraform_error)) {
+		if (std::regex_search(line, match, RE_TERRAFORM_ERROR)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "terraform";
@@ -399,7 +402,7 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string &conte
 		}
 
 		// Parse Terraform warnings
-		if (std::regex_search(line, match, terraform_warning)) {
+		if (std::regex_search(line, match, RE_TERRAFORM_WARNING)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "terraform";
@@ -422,7 +425,7 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string &conte
 		}
 
 		// Parse version warnings
-		if (std::regex_search(line, match, version_warning)) {
+		if (std::regex_search(line, match, RE_VERSION_WARNING)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "terraform";
@@ -445,7 +448,7 @@ std::vector<ValidationEvent> TerraformTextParser::parse(const std::string &conte
 		}
 
 		// Parse Terraform outputs
-		if (std::regex_search(line, match, terraform_output)) {
+		if (std::regex_search(line, match, RE_TERRAFORM_OUTPUT)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "terraform";

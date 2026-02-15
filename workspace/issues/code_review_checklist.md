@@ -76,10 +76,15 @@ Parsers converted to static const regex patterns and added reserve():
 - [x] rspec_text_parser.cpp (13 patterns)
 - [x] docker_parser.cpp (3 patterns)
 - [x] junit_text_parser.cpp (17 patterns)
+- [x] coverage_parser.cpp (44 patterns)
+- [x] valgrind_parser.cpp (34 patterns)
+- [x] pytest_cov_text_parser.cpp (23 patterns)
+- [x] drone_ci_text_parser.cpp (23 patterns)
+- [x] gdb_lldb_parser.cpp (21 patterns)
 
-**Total: ~114 patterns converted across 12 parsers**
+**Total: ~259 patterns converted across 17 parsers**
 
-Remaining: 30 parsers with ~360 non-static patterns
+Remaining: 25 parsers with ~215 non-static patterns
 
 ## Implementation Order
 
