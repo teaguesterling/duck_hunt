@@ -4,6 +4,20 @@
 
 namespace duckdb {
 
+// Pre-compiled regex patterns for GitLab CI text parsing (compiled once, reused)
+namespace {
+static const std::regex RE_SECTION_START(R"(section_start:\d+:([^\r\n]+))");
+static const std::regex RE_SECTION_END(R"(section_end:\d+:([^\r\n]+))");
+static const std::regex RE_JOB_RESULT(R"(Job (succeeded|failed))");
+static const std::regex RE_SCRIPT_LINE(R"(^\$ (.+))");
+static const std::regex RE_ERROR_LINE(R"(^(ERROR|error):?\s*(.+))");
+static const std::regex RE_WARNING_LINE(R"(^(WARNING|warning):?\s*(.+))");
+static const std::regex RE_EXIT_CODE(R"(exit code (\d+))");
+static const std::regex RE_RUNNER_INFO(R"(Running with gitlab-runner\s+(\S+))");
+static const std::regex RE_ARTIFACT_UPLOAD(R"(Uploading artifacts.*?(\d+) bytes)");
+static const std::regex RE_GIT_CHECKOUT(R"(Checking out ([a-f0-9]+) as)");
+} // anonymous namespace
+
 bool GitLabCITextParser::canParse(const std::string &content) const {
 	// GitLab CI specific markers
 	bool has_gitlab_runner = content.find("Running with gitlab-runner") != std::string::npos ||
@@ -50,22 +64,11 @@ bool GitLabCITextParser::canParse(const std::string &content) const {
 
 std::vector<ValidationEvent> GitLabCITextParser::parse(const std::string &content) const {
 	std::vector<ValidationEvent> events;
+	events.reserve(content.size() / 100); // Estimate: ~1 event per 100 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
 	int32_t line_num = 0;
-
-	// Patterns for GitLab CI output
-	std::regex section_start(R"(section_start:\d+:([^\r\n]+))");
-	std::regex section_end(R"(section_end:\d+:([^\r\n]+))");
-	std::regex job_result(R"(Job (succeeded|failed))");
-	std::regex script_line(R"(^\$ (.+))");
-	std::regex error_line(R"(^(ERROR|error):?\s*(.+))");
-	std::regex warning_line(R"(^(WARNING|warning):?\s*(.+))");
-	std::regex exit_code(R"(exit code (\d+))");
-	std::regex runner_info(R"(Running with gitlab-runner\s+(\S+))");
-	std::regex artifact_upload(R"(Uploading artifacts.*?(\d+) bytes)");
-	std::regex git_checkout(R"(Checking out ([a-f0-9]+) as)");
 
 	std::string current_section;
 	bool job_failed = false;
@@ -75,7 +78,7 @@ std::vector<ValidationEvent> GitLabCITextParser::parse(const std::string &conten
 		std::smatch match;
 
 		// Section start
-		if (std::regex_search(line, match, section_start)) {
+		if (std::regex_search(line, match, RE_SECTION_START)) {
 			current_section = match[1].str();
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -92,12 +95,12 @@ std::vector<ValidationEvent> GitLabCITextParser::parse(const std::string &conten
 			events.push_back(event);
 		}
 		// Section end
-		else if (std::regex_search(line, match, section_end)) {
+		else if (std::regex_search(line, match, RE_SECTION_END)) {
 			// Don't emit event for section end, just clear context
 			current_section.clear();
 		}
 		// Job result
-		else if (std::regex_search(line, match, job_result)) {
+		else if (std::regex_search(line, match, RE_JOB_RESULT)) {
 			std::string result = match[1].str();
 			job_failed = (result == "failed");
 
@@ -115,7 +118,7 @@ std::vector<ValidationEvent> GitLabCITextParser::parse(const std::string &conten
 			events.push_back(event);
 		}
 		// Error lines
-		else if (std::regex_search(line, match, error_line)) {
+		else if (std::regex_search(line, match, RE_ERROR_LINE)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.event_type = ValidationEventType::BUILD_ERROR;
@@ -133,7 +136,7 @@ std::vector<ValidationEvent> GitLabCITextParser::parse(const std::string &conten
 			events.push_back(event);
 		}
 		// Warning lines
-		else if (std::regex_search(line, match, warning_line)) {
+		else if (std::regex_search(line, match, RE_WARNING_LINE)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.event_type = ValidationEventType::LINT_ISSUE;
@@ -151,7 +154,7 @@ std::vector<ValidationEvent> GitLabCITextParser::parse(const std::string &conten
 			events.push_back(event);
 		}
 		// Exit code in error context
-		else if (std::regex_search(line, match, exit_code)) {
+		else if (std::regex_search(line, match, RE_EXIT_CODE)) {
 			int code = std::stoi(match[1].str());
 			if (code != 0) {
 				ValidationEvent event;
@@ -172,7 +175,7 @@ std::vector<ValidationEvent> GitLabCITextParser::parse(const std::string &conten
 			}
 		}
 		// Runner version info
-		else if (std::regex_search(line, match, runner_info)) {
+		else if (std::regex_search(line, match, RE_RUNNER_INFO)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.event_type = ValidationEventType::DEBUG_INFO;

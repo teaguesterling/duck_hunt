@@ -6,6 +6,21 @@
 
 namespace duckdb {
 
+// Pre-compiled regex patterns for Playwright text parsing (compiled once, reused)
+namespace {
+static const std::regex RE_TEST_PASSED(R"(\s*✓\s+\d+\s+\[(\w+)\]\s+›\s+([^›]+):(\d+):(\d+)\s+›\s+(.+?)\s+\((\d+)m?s\))");
+static const std::regex RE_TEST_FAILED(R"(\s*[✘×]\s+\d+\s+\[(\w+)\]\s+›\s+([^›]+):(\d+):(\d+)\s+›\s+(.+?)\s+\((\d+)m?s\))");
+static const std::regex RE_TEST_SKIPPED(R"(\s*-\s+\d+\s+\[(\w+)\]\s+›\s+([^›]+):(\d+):(\d+)\s+›\s+(.+))");
+static const std::regex RE_PROGRESS_LINE(R"(\[\d+/\d+\]\s+\[(\w+)\]\s+›\s+([^›]+):(\d+):(\d+)\s+›\s+(.+))");
+static const std::regex RE_FAILURE_HEADER(R"(\s*(\d+)\)\s+\[(\w+)\]\s+›\s+([^›]+):(\d+):(\d+)\s+›\s+(.+?)\s*─*)");
+static const std::regex RE_ERROR_LINE(R"(\s*(Error|AssertionError|TypeError|TimeoutError):\s*(.+))");
+static const std::regex RE_STACK_LINE(R"(\s*at\s+(.+):(\d+):(\d+))");
+static const std::regex RE_PASSED_SUMMARY(R"(\s*(\d+)\s+passed\s*\(([^)]+)\))");
+static const std::regex RE_FAILED_SUMMARY(R"(\s*(\d+)\s+failed)");
+static const std::regex RE_SKIPPED_SUMMARY(R"(\s*(\d+)\s+skipped)");
+static const std::regex RE_FLAKY_SUMMARY(R"(\s*(\d+)\s+flaky)");
+} // anonymous namespace
+
 bool PlaywrightTextParser::canParse(const std::string &content) const {
 	// Check for Playwright-specific patterns
 	// Must have test count pattern AND either checkmarks or browser markers
@@ -27,35 +42,11 @@ bool PlaywrightTextParser::canParse(const std::string &content) const {
 
 std::vector<ValidationEvent> PlaywrightTextParser::parse(const std::string &content) const {
 	std::vector<ValidationEvent> events;
+	events.reserve(content.size() / 100); // Estimate: ~1 event per 100 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
 	int32_t current_line_num = 0;
-
-	// Regex patterns for Playwright output
-	// Test result: "  ✓  1 [chromium] › tests/file.spec.js:228:3 › Suite › test name (929ms)"
-	// Also handles ANSI escape codes that might be present
-	std::regex test_passed(R"(\s*✓\s+\d+\s+\[(\w+)\]\s+›\s+([^›]+):(\d+):(\d+)\s+›\s+(.+?)\s+\((\d+)m?s\))");
-	std::regex test_failed(R"(\s*[✘×]\s+\d+\s+\[(\w+)\]\s+›\s+([^›]+):(\d+):(\d+)\s+›\s+(.+?)\s+\((\d+)m?s\))");
-	std::regex test_skipped(R"(\s*-\s+\d+\s+\[(\w+)\]\s+›\s+([^›]+):(\d+):(\d+)\s+›\s+(.+))");
-
-	// Progress line (during execution): "[1/46] [chromium] › tests/file.spec.js:228:3 › Suite › test"
-	std::regex progress_line(R"(\[\d+/\d+\]\s+\[(\w+)\]\s+›\s+([^›]+):(\d+):(\d+)\s+›\s+(.+))");
-
-	// Failure detail header: "  1) [chromium] › tests/fail.spec.js:1:50 › test name ────"
-	std::regex failure_header(R"(\s*(\d+)\)\s+\[(\w+)\]\s+›\s+([^›]+):(\d+):(\d+)\s+›\s+(.+?)\s*─*)");
-
-	// Error line: "    Error: expect(received).toBe(expected)"
-	std::regex error_line(R"(\s*(Error|AssertionError|TypeError|TimeoutError):\s*(.+))");
-
-	// Stack trace line: "    at /path/to/file.spec.js:1:102"
-	std::regex stack_line(R"(\s*at\s+(.+):(\d+):(\d+))");
-
-	// Summary lines
-	std::regex passed_summary(R"(\s*(\d+)\s+passed\s*\(([^)]+)\))");
-	std::regex failed_summary(R"(\s*(\d+)\s+failed)");
-	std::regex skipped_summary(R"(\s*(\d+)\s+skipped)");
-	std::regex flaky_summary(R"(\s*(\d+)\s+flaky)");
 
 	// State tracking
 	std::string current_browser;
@@ -93,7 +84,7 @@ std::vector<ValidationEvent> PlaywrightTextParser::parse(const std::string &cont
 		std::smatch match;
 
 		// Check for passed test
-		if (std::regex_search(clean_line, match, test_passed)) {
+		if (std::regex_search(clean_line, match, RE_TEST_PASSED)) {
 			// Emit any pending failure first
 			if (in_failure_block && !current_test_name.empty()) {
 				ValidationEvent event;
@@ -144,7 +135,7 @@ std::vector<ValidationEvent> PlaywrightTextParser::parse(const std::string &cont
 			events.push_back(event);
 		}
 		// Check for failed test marker
-		else if (std::regex_search(clean_line, match, test_failed)) {
+		else if (std::regex_search(clean_line, match, RE_TEST_FAILED)) {
 			current_browser = match[1].str();
 			current_file = match[2].str();
 			current_file_line = std::stoi(match[3].str());
@@ -153,7 +144,7 @@ std::vector<ValidationEvent> PlaywrightTextParser::parse(const std::string &cont
 			// Don't emit yet - wait for error details
 		}
 		// Check for skipped test
-		else if (std::regex_search(clean_line, match, test_skipped)) {
+		else if (std::regex_search(clean_line, match, RE_TEST_SKIPPED)) {
 			current_browser = match[1].str();
 			current_file = match[2].str();
 			current_file_line = std::stoi(match[3].str());
@@ -181,7 +172,7 @@ std::vector<ValidationEvent> PlaywrightTextParser::parse(const std::string &cont
 			events.push_back(event);
 		}
 		// Check for failure detail header
-		else if (std::regex_search(clean_line, match, failure_header)) {
+		else if (std::regex_search(clean_line, match, RE_FAILURE_HEADER)) {
 			// Emit any pending failure first
 			if (in_failure_block && !current_test_name.empty()) {
 				ValidationEvent event;
@@ -217,17 +208,17 @@ std::vector<ValidationEvent> PlaywrightTextParser::parse(const std::string &cont
 			error_col = 0;
 		}
 		// Check for error message
-		else if (in_failure_block && std::regex_search(clean_line, match, error_line)) {
+		else if (in_failure_block && std::regex_search(clean_line, match, RE_ERROR_LINE)) {
 			current_error_message = match[1].str() + ": " + match[2].str();
 		}
 		// Check for stack trace (get first one for error location)
-		else if (in_failure_block && error_file.empty() && std::regex_search(clean_line, match, stack_line)) {
+		else if (in_failure_block && error_file.empty() && std::regex_search(clean_line, match, RE_STACK_LINE)) {
 			error_file = match[1].str();
 			error_line_num = std::stoi(match[2].str());
 			error_col = std::stoi(match[3].str());
 		}
 		// Summary: passed
-		else if (std::regex_search(clean_line, match, passed_summary)) {
+		else if (std::regex_search(clean_line, match, RE_PASSED_SUMMARY)) {
 			int passed_count = std::stoi(match[1].str());
 			std::string duration = match[2].str();
 
@@ -248,7 +239,7 @@ std::vector<ValidationEvent> PlaywrightTextParser::parse(const std::string &cont
 			events.push_back(event);
 		}
 		// Summary: failed
-		else if (std::regex_search(clean_line, match, failed_summary)) {
+		else if (std::regex_search(clean_line, match, RE_FAILED_SUMMARY)) {
 			int failed_count = std::stoi(match[1].str());
 
 			ValidationEvent event;
@@ -267,7 +258,7 @@ std::vector<ValidationEvent> PlaywrightTextParser::parse(const std::string &cont
 			events.push_back(event);
 		}
 		// Summary: skipped
-		else if (std::regex_search(clean_line, match, skipped_summary)) {
+		else if (std::regex_search(clean_line, match, RE_SKIPPED_SUMMARY)) {
 			int skipped_count = std::stoi(match[1].str());
 
 			ValidationEvent event;
