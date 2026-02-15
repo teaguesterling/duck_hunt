@@ -21,7 +21,7 @@ Generated: 2026-02-14
 ## High Priority Issues
 
 ### Security
-- [ ] **Unchecked integer conversions** - 277 `stoi/stol/stod` calls without consistent try-catch across 55 files
+- [x] **Unchecked integer conversions** - All stoi/stol/stod calls now use SafeParsing utilities with try-catch
 - [ ] **Unsafe regex patterns in parsers** - 69 parsers don't use SafeParsing wrappers
 - [ ] **Path traversal validation** - No explicit path validation beyond DuckDB's sandbox
 
@@ -117,7 +117,7 @@ No remaining parsers with non-static patterns.
 ### Phase 1: Quick Wins (This PR)
 1. [x] Make regex patterns static const in all parsers
 2. [x] Add vector reserves to parsers
-3. [ ] Wrap stoi/stol/stod in try-catch consistently
+3. [x] Wrap stoi/stol/stod in try-catch consistently (SafeParsing utilities)
 
 ### Phase 2: Security Hardening
 4. [ ] Add file size limit (100MB default)
