@@ -9,6 +9,10 @@
 
 namespace duckdb {
 
+// Maximum file size to read into memory (100MB default)
+// Prevents OOM from accidentally processing multi-GB files
+constexpr size_t MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024;
+
 // ============================================================================
 // LineReader Implementation
 // ============================================================================
@@ -144,6 +148,12 @@ std::string ReadContentFromSource(ClientContext &context, const std::string &sou
 		// Uncompressed file - read using known size for efficiency
 		auto file_size = file_handle->GetFileSize();
 		if (file_size > 0) {
+			// Check file size limit to prevent OOM
+			if (static_cast<size_t>(file_size) > MAX_FILE_SIZE_BYTES) {
+				throw InvalidInputException("File '%s' exceeds maximum size limit of %zu MB (actual: %zu MB)",
+				                            source, MAX_FILE_SIZE_BYTES / (1024 * 1024),
+				                            static_cast<size_t>(file_size) / (1024 * 1024));
+			}
 			std::string content;
 			content.resize(static_cast<size_t>(file_size));
 			file_handle->Read((void *)content.data(), file_size);
@@ -153,7 +163,7 @@ std::string ReadContentFromSource(ClientContext &context, const std::string &sou
 
 	// Compressed files, pipes, or empty files - read in chunks until EOF
 	std::string content;
-	constexpr size_t chunk_size = 8192;
+	constexpr size_t chunk_size = 65536; // 64KB chunks for better performance
 	char buffer[chunk_size];
 
 	while (true) {
@@ -162,6 +172,13 @@ std::string ReadContentFromSource(ClientContext &context, const std::string &sou
 			break; // EOF
 		}
 		content.append(buffer, static_cast<size_t>(bytes_read));
+
+		// Check size limit during streaming read to prevent OOM
+		if (content.size() > MAX_FILE_SIZE_BYTES) {
+			throw InvalidInputException("File '%s' exceeds maximum size limit of %zu MB (read so far: %zu MB)",
+			                            source, MAX_FILE_SIZE_BYTES / (1024 * 1024),
+			                            content.size() / (1024 * 1024));
+		}
 	}
 
 	return content;
