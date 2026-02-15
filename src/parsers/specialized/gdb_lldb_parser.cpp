@@ -5,6 +5,43 @@
 
 namespace duck_hunt {
 
+// Pre-compiled regex patterns for GDB/LLDB parsing (compiled once, reused)
+namespace {
+// Debugger header patterns
+static const std::regex RE_GDB_HEADER(R"(GNU gdb \(.*\) ([\d.]+))");
+static const std::regex RE_LLDB_HEADER(R"(lldb.*version ([\d.]+))");
+static const std::regex RE_PROGRAM_START(R"(Starting program: (.+))");
+static const std::regex RE_TARGET_CREATE(R"(target create \"(.+)\")");
+
+// Signal/crash patterns
+static const std::regex RE_SIGNAL_RECEIVED(R"(Program received signal (\w+), (.+))");
+static const std::regex RE_EXC_BAD_ACCESS(R"(stop reason = EXC_BAD_ACCESS \(code=(\d+), address=(0x[0-9a-fA-F]+)\))");
+static const std::regex RE_SEGFAULT_LOCATION(R"(0x([0-9a-fA-F]+) in (.+) \(.*\) at (.+):(\d+))");
+static const std::regex RE_LLDB_CRASH_FRAME(R"(frame #\d+: (0x[0-9a-fA-F]+) .+`(.+) at (.+):(\d+):(\d+))");
+
+// Backtrace patterns
+static const std::regex RE_GDB_FRAME(R"(#(\d+)\s+(0x[0-9a-fA-F]+) in (.+) \(.*\) at (.+):(\d+))");
+static const std::regex RE_GDB_FRAME_NO_FILE(R"(#(\d+)\s+(0x[0-9a-fA-F]+) in (.+))");
+static const std::regex RE_LLDB_FRAME(R"(\* frame #(\d+): (0x[0-9a-fA-F]+) .+`(.+) at (.+):(\d+):(\d+))");
+static const std::regex RE_LLDB_FRAME_SIMPLE(R"(frame #(\d+): (0x[0-9a-fA-F]+) .+`(.+))");
+
+// Breakpoint patterns
+static const std::regex RE_BREAKPOINT_HIT(R"(Breakpoint (\d+), (.+) \(.*\) at (.+):(\d+))");
+static const std::regex RE_LLDB_BREAKPOINT_HIT(R"(stop reason = breakpoint (\d+)\.(\d+))");
+static const std::regex RE_BREAKPOINT_SET(R"(Breakpoint (\d+):.*where = .+`(.+) \+ \d+ at (.+):(\d+))");
+
+// Memory patterns
+static const std::regex RE_MEMORY_ACCESS(R"(Cannot access memory at address (0x[0-9a-fA-F]+))");
+
+// Thread patterns
+static const std::regex RE_THREAD_INFO(R"(\* thread #(\d+).*tid = (0x[0-9a-fA-F]+))");
+static const std::regex RE_GDB_THREAD_INFO(R"(\* (\d+)\s+Thread (0x[0-9a-fA-F]+) \(LWP (\d+)\))");
+
+// Watchpoint patterns
+static const std::regex RE_WATCHPOINT_HIT(R"(Hardware watchpoint (\d+): (.+))");
+static const std::regex RE_WATCHPOINT_SET(R"(Watchpoint (\d+): addr = (0x[0-9a-fA-F]+))");
+} // anonymous namespace
+
 bool GdbLldbParser::CanParse(const std::string &content) const {
 	// Check for GDB/LLDB patterns (should be checked early due to unique format)
 	return ((content.find("GNU gdb") != std::string::npos || content.find("(gdb)") != std::string::npos) ||
@@ -33,47 +70,15 @@ void GdbLldbParser::ParseGdbLldb(const std::string &content, std::vector<duckdb:
 	std::vector<std::string> stack_trace;
 	bool in_backtrace = false;
 
-	// Regular expressions for GDB/LLDB patterns
-	std::regex gdb_header(R"(GNU gdb \(.*\) ([\d.]+))");
-	std::regex lldb_header(R"(lldb.*version ([\d.]+))");
-	std::regex program_start(R"(Starting program: (.+))");
-	std::regex target_create(R"(target create \"(.+)\")");
-
-	// Signal/crash patterns
-	std::regex signal_received(R"(Program received signal (\w+), (.+))");
-	std::regex exc_bad_access(R"(stop reason = EXC_BAD_ACCESS \(code=(\d+), address=(0x[0-9a-fA-F]+)\))");
-	std::regex segfault_location(R"(0x([0-9a-fA-F]+) in (.+) \(.*\) at (.+):(\d+))");
-	std::regex lldb_crash_frame(R"(frame #\d+: (0x[0-9a-fA-F]+) .+`(.+) at (.+):(\d+):(\d+))");
-
-	// Backtrace patterns
-	std::regex gdb_frame(R"(#(\d+)\s+(0x[0-9a-fA-F]+) in (.+) \(.*\) at (.+):(\d+))");
-	std::regex gdb_frame_no_file(R"(#(\d+)\s+(0x[0-9a-fA-F]+) in (.+))");
-	std::regex lldb_frame(R"(\* frame #(\d+): (0x[0-9a-fA-F]+) .+`(.+) at (.+):(\d+):(\d+))");
-	std::regex lldb_frame_simple(R"(frame #(\d+): (0x[0-9a-fA-F]+) .+`(.+))");
-
-	// Breakpoint patterns
-	std::regex breakpoint_hit(R"(Breakpoint (\d+), (.+) \(.*\) at (.+):(\d+))");
-	std::regex lldb_breakpoint_hit(R"(stop reason = breakpoint (\d+)\.(\d+))");
-	std::regex breakpoint_set(R"(Breakpoint (\d+):.*where = .+`(.+) \+ \d+ at (.+):(\d+))");
-
-	// Register and memory patterns
-	std::regex register_line(R"((\w+)\s+(0x[0-9a-fA-F]+))");
-	std::regex memory_access(R"(Cannot access memory at address (0x[0-9a-fA-F]+))");
-
-	// Thread patterns
-	std::regex thread_info(R"(\* thread #(\d+).*tid = (0x[0-9a-fA-F]+))");
-	std::regex gdb_thread_info(R"(\* (\d+)\s+Thread (0x[0-9a-fA-F]+) \(LWP (\d+)\))");
-
-	// Watchpoint patterns
-	std::regex watchpoint_hit(R"(Hardware watchpoint (\d+): (.+))");
-	std::regex watchpoint_set(R"(Watchpoint (\d+): addr = (0x[0-9a-fA-F]+))");
+	// Reserve space for events (estimate based on content size)
+	events.reserve(content.size() / 100);
 
 	while (std::getline(stream, line)) {
 		current_line_num++;
 		std::smatch match;
 
 		// Detect debugger type
-		if (std::regex_search(line, match, gdb_header)) {
+		if (std::regex_search(line, match, RE_GDB_HEADER)) {
 			current_debugger = "GDB";
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
@@ -88,7 +93,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string &content, std::vector<duckdb:
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
 			events.push_back(event);
-		} else if (std::regex_search(line, match, lldb_header)) {
+		} else if (std::regex_search(line, match, RE_LLDB_HEADER)) {
 			current_debugger = "LLDB";
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
@@ -106,7 +111,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string &content, std::vector<duckdb:
 		}
 
 		// Program startup
-		else if (std::regex_search(line, match, program_start)) {
+		else if (std::regex_search(line, match, RE_PROGRAM_START)) {
 			current_program = match[1].str();
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
@@ -121,7 +126,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string &content, std::vector<duckdb:
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
 			events.push_back(event);
-		} else if (std::regex_search(line, match, target_create)) {
+		} else if (std::regex_search(line, match, RE_TARGET_CREATE)) {
 			current_program = match[1].str();
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
@@ -139,7 +144,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string &content, std::vector<duckdb:
 		}
 
 		// Signal/crash detection
-		else if (std::regex_search(line, match, signal_received)) {
+		else if (std::regex_search(line, match, RE_SIGNAL_RECEIVED)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = current_debugger;
@@ -153,7 +158,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string &content, std::vector<duckdb:
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
 			events.push_back(event);
-		} else if (std::regex_search(line, match, exc_bad_access)) {
+		} else if (std::regex_search(line, match, RE_EXC_BAD_ACCESS)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = current_debugger;
@@ -170,7 +175,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string &content, std::vector<duckdb:
 		}
 
 		// Crash location detection
-		else if (std::regex_search(line, match, segfault_location)) {
+		else if (std::regex_search(line, match, RE_SEGFAULT_LOCATION)) {
 			if (!events.empty() && events.back().event_type == duckdb::ValidationEventType::CRASH_SIGNAL) {
 				auto &last_event = events.back();
 				last_event.function_name = match[2].str();
@@ -181,7 +186,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string &content, std::vector<duckdb:
 					last_event.ref_line = -1;
 				}
 			}
-		} else if (std::regex_search(line, match, lldb_crash_frame)) {
+		} else if (std::regex_search(line, match, RE_LLDB_CRASH_FRAME)) {
 			if (!events.empty() && events.back().event_type == duckdb::ValidationEventType::CRASH_SIGNAL) {
 				auto &last_event = events.back();
 				last_event.function_name = match[2].str();
@@ -200,7 +205,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string &content, std::vector<duckdb:
 		else if (line.find("(gdb) bt") != std::string::npos || line.find("(lldb) bt") != std::string::npos) {
 			in_backtrace = true;
 			stack_trace.clear();
-		} else if (std::regex_search(line, match, gdb_frame)) {
+		} else if (std::regex_search(line, match, RE_GDB_FRAME)) {
 			if (in_backtrace) {
 				stack_trace.push_back(line);
 				if (stack_trace.size() == 1 && !events.empty()) {
@@ -217,11 +222,11 @@ void GdbLldbParser::ParseGdbLldb(const std::string &content, std::vector<duckdb:
 					}
 				}
 			}
-		} else if (std::regex_search(line, match, gdb_frame_no_file)) {
+		} else if (std::regex_search(line, match, RE_GDB_FRAME_NO_FILE)) {
 			if (in_backtrace) {
 				stack_trace.push_back(line);
 			}
-		} else if (std::regex_search(line, match, lldb_frame)) {
+		} else if (std::regex_search(line, match, RE_LLDB_FRAME)) {
 			if (in_backtrace) {
 				stack_trace.push_back(line);
 				if (stack_trace.size() == 1 && !events.empty()) {
@@ -239,14 +244,14 @@ void GdbLldbParser::ParseGdbLldb(const std::string &content, std::vector<duckdb:
 					}
 				}
 			}
-		} else if (std::regex_search(line, match, lldb_frame_simple)) {
+		} else if (std::regex_search(line, match, RE_LLDB_FRAME_SIMPLE)) {
 			if (in_backtrace) {
 				stack_trace.push_back(line);
 			}
 		}
 
 		// Breakpoint events
-		else if (std::regex_search(line, match, breakpoint_hit)) {
+		else if (std::regex_search(line, match, RE_BREAKPOINT_HIT)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = current_debugger;
@@ -267,7 +272,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string &content, std::vector<duckdb:
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
 			events.push_back(event);
-		} else if (std::regex_search(line, match, lldb_breakpoint_hit)) {
+		} else if (std::regex_search(line, match, RE_LLDB_BREAKPOINT_HIT)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = current_debugger;
@@ -281,7 +286,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string &content, std::vector<duckdb:
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
 			events.push_back(event);
-		} else if (std::regex_search(line, match, breakpoint_set)) {
+		} else if (std::regex_search(line, match, RE_BREAKPOINT_SET)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = current_debugger;
@@ -305,7 +310,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string &content, std::vector<duckdb:
 		}
 
 		// Watchpoint events
-		else if (std::regex_search(line, match, watchpoint_hit)) {
+		else if (std::regex_search(line, match, RE_WATCHPOINT_HIT)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = current_debugger;
@@ -319,7 +324,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string &content, std::vector<duckdb:
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
 			events.push_back(event);
-		} else if (std::regex_search(line, match, watchpoint_set)) {
+		} else if (std::regex_search(line, match, RE_WATCHPOINT_SET)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = current_debugger;
@@ -336,7 +341,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string &content, std::vector<duckdb:
 		}
 
 		// Memory access errors
-		else if (std::regex_search(line, match, memory_access)) {
+		else if (std::regex_search(line, match, RE_MEMORY_ACCESS)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = current_debugger;
@@ -353,7 +358,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string &content, std::vector<duckdb:
 		}
 
 		// Thread information
-		else if (std::regex_search(line, match, thread_info)) {
+		else if (std::regex_search(line, match, RE_THREAD_INFO)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = current_debugger;
@@ -367,7 +372,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string &content, std::vector<duckdb:
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
 			events.push_back(event);
-		} else if (std::regex_search(line, match, gdb_thread_info)) {
+		} else if (std::regex_search(line, match, RE_GDB_THREAD_INFO)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = current_debugger;

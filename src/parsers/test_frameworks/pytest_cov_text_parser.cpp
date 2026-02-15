@@ -5,6 +5,34 @@
 
 namespace duckdb {
 
+// Pre-compiled regex patterns for pytest-cov text parsing (compiled once, reused)
+namespace {
+static const std::regex RE_TEST_SESSION_START(R"(={3,} test session starts ={3,})");
+static const std::regex RE_PLATFORM_INFO(R"(platform (.+) -- Python (.+), pytest-(.+), pluggy-(.+))");
+static const std::regex RE_PYTEST_COV_PLUGIN(R"(plugins: cov-(.+))");
+static const std::regex RE_ROOTDIR_INFO(R"(rootdir: (.+))");
+static const std::regex RE_COLLECTED_ITEMS(R"(collected (\d+) items?)");
+static const std::regex RE_TEST_RESULT(R"((.+\.py)::(.+)\s+(PASSED|FAILED|SKIPPED|ERROR)\s+\[([^\]]+)\])");
+static const std::regex RE_TEST_FAILURE_SECTION(R"(={3,} FAILURES ={3,})");
+static const std::regex RE_TEST_SHORT_SUMMARY(R"(={3,} short test summary info ={3,})");
+static const std::regex RE_TEST_SUMMARY_LINE(R"(={3,} (\d+) failed, (\d+) passed(?:, (\d+) skipped)? in ([\d\.]+)s ={3,})");
+static const std::regex RE_COVERAGE_SECTION(R"(----------- coverage: platform (.+), python (.+) -----------)");
+static const std::regex RE_COVERAGE_HEADER(R"(Name\s+Stmts\s+Miss\s+Cover(?:\s+Missing)?)");
+static const std::regex RE_COVERAGE_BRANCH_HEADER(R"(Name\s+Stmts\s+Miss\s+Branch\s+BrPart\s+Cover(?:\s+Missing)?)");
+static const std::regex RE_COVERAGE_ROW(R"(^([^\s]+(?:\.[^\s]+)*)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
+static const std::regex RE_COVERAGE_BRANCH_ROW(
+    R"(^([^\s]+(?:\.[^\s]+)*)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
+static const std::regex RE_TOTAL_COVERAGE(R"(^TOTAL\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
+static const std::regex RE_TOTAL_BRANCH_COVERAGE(R"(^TOTAL\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
+static const std::regex RE_COVERAGE_THRESHOLD_FAIL(R"(Coverage threshold check failed\. Expected: >= (\d+)%, got: ([\d\.]+%))");
+static const std::regex RE_REQUIRED_COVERAGE_FAIL(R"(Required test coverage of (\d+)% not met\. Total coverage: ([\d\.]+%))");
+static const std::regex RE_COVERAGE_XML_WRITTEN(R"(Coverage XML written to (.+))");
+static const std::regex RE_COVERAGE_HTML_WRITTEN(R"(Coverage HTML written to dir (.+))");
+static const std::regex RE_COVERAGE_DATA_NOT_FOUND(R"(pytest-cov: Coverage data was not found for source '(.+)')");
+static const std::regex RE_MODULE_NEVER_IMPORTED(R"(pytest-cov: Module '(.+)' was never imported\.)");
+static const std::regex RE_ASSERTION_ERROR(R"(E\s+(AssertionError: .+))");
+} // anonymous namespace
+
 bool PytestCovTextParser::canParse(const std::string &content) const {
 	// Only match when actual coverage DATA is present, not just pytest-cov plugin installed
 	// Require coverage section markers or coverage table to be present
@@ -44,35 +72,12 @@ static void parsePytestCovTextImpl(const std::string &content, std::vector<Valid
 	std::string line;
 	int64_t event_id = 1;
 
-	// Regex patterns for pytest-cov output
-	std::regex test_session_start(R"(={3,} test session starts ={3,})");
-	std::regex platform_info(R"(platform (.+) -- Python (.+), pytest-(.+), pluggy-(.+))");
-	std::regex pytest_cov_plugin(R"(plugins: cov-(.+))");
-	std::regex rootdir_info(R"(rootdir: (.+))");
-	std::regex collected_items(R"(collected (\d+) items?)");
-	std::regex test_result(R"((.+\.py)::(.+)\s+(PASSED|FAILED|SKIPPED|ERROR)\s+\[([^\]]+)\])");
-	std::regex test_failure_section(R"(={3,} FAILURES ={3,})");
-	std::regex test_short_summary(R"(={3,} short test summary info ={3,})");
-	std::regex test_summary_line(R"(={3,} (\d+) failed, (\d+) passed(?:, (\d+) skipped)? in ([\d\.]+)s ={3,})");
-	std::regex coverage_section(R"(----------- coverage: platform (.+), python (.+) -----------)");
-	std::regex coverage_header(R"(Name\s+Stmts\s+Miss\s+Cover(?:\s+Missing)?)");
-	std::regex coverage_branch_header(R"(Name\s+Stmts\s+Miss\s+Branch\s+BrPart\s+Cover(?:\s+Missing)?)");
-	std::regex coverage_row(R"(^([^\s]+(?:\.[^\s]+)*)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
-	std::regex coverage_branch_row(
-	    R"(^([^\s]+(?:\.[^\s]+)*)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
-	std::regex total_coverage(R"(^TOTAL\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
-	std::regex total_branch_coverage(R"(^TOTAL\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
-	std::regex coverage_threshold_fail(R"(Coverage threshold check failed\. Expected: >= (\d+)%, got: ([\d\.]+%))");
-	std::regex required_coverage_fail(R"(Required test coverage of (\d+)% not met\. Total coverage: ([\d\.]+%))");
-	std::regex coverage_xml_written(R"(Coverage XML written to (.+))");
-	std::regex coverage_html_written(R"(Coverage HTML written to dir (.+))");
-	std::regex coverage_data_not_found(R"(pytest-cov: Coverage data was not found for source '(.+)')");
-	std::regex module_never_imported(R"(pytest-cov: Module '(.+)' was never imported\.)");
-	std::regex assertion_error(R"(E\s+(AssertionError: .+))");
+	// Reserve space for events (estimate based on content size)
+	events.reserve(content.size() / 100);
 
 	std::smatch match;
 	bool in_test_execution = false;
-	bool in_coverage_section = false;
+	bool in_RE_COVERAGE_SECTION = false;
 	bool in_failure_section = false;
 	bool in_coverage_table = false;
 	bool in_branch_table = false;
@@ -80,7 +85,7 @@ static void parsePytestCovTextImpl(const std::string &content, std::vector<Valid
 
 	while (std::getline(stream, line)) {
 		// Handle test session start
-		if (std::regex_search(line, match, test_session_start)) {
+		if (std::regex_search(line, match, RE_TEST_SESSION_START)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
@@ -101,7 +106,7 @@ static void parsePytestCovTextImpl(const std::string &content, std::vector<Valid
 		}
 
 		// Handle platform and pytest info
-		if (std::regex_search(line, match, platform_info)) {
+		if (std::regex_search(line, match, RE_PLATFORM_INFO)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
@@ -123,7 +128,7 @@ static void parsePytestCovTextImpl(const std::string &content, std::vector<Valid
 		}
 
 		// Handle pytest-cov plugin detection
-		if (std::regex_search(line, match, pytest_cov_plugin)) {
+		if (std::regex_search(line, match, RE_PYTEST_COV_PLUGIN)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
@@ -144,7 +149,7 @@ static void parsePytestCovTextImpl(const std::string &content, std::vector<Valid
 		}
 
 		// Handle collected items
-		if (std::regex_search(line, match, collected_items)) {
+		if (std::regex_search(line, match, RE_COLLECTED_ITEMS)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
@@ -166,7 +171,7 @@ static void parsePytestCovTextImpl(const std::string &content, std::vector<Valid
 		}
 
 		// Handle individual test results
-		if (in_test_execution && std::regex_search(line, match, test_result)) {
+		if (in_test_execution && std::regex_search(line, match, RE_TEST_RESULT)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
@@ -201,20 +206,20 @@ static void parsePytestCovTextImpl(const std::string &content, std::vector<Valid
 		}
 
 		// Handle test failure section
-		if (std::regex_search(line, match, test_failure_section)) {
+		if (std::regex_search(line, match, RE_TEST_FAILURE_SECTION)) {
 			in_failure_section = true;
 			in_test_execution = false;
 			continue;
 		}
 
 		// Handle test summary section
-		if (std::regex_search(line, match, test_short_summary)) {
+		if (std::regex_search(line, match, RE_TEST_SHORT_SUMMARY)) {
 			in_failure_section = false;
 			continue;
 		}
 
 		// Handle test execution summary
-		if (std::regex_search(line, match, test_summary_line)) {
+		if (std::regex_search(line, match, RE_TEST_SUMMARY_LINE)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
@@ -248,8 +253,8 @@ static void parsePytestCovTextImpl(const std::string &content, std::vector<Valid
 		}
 
 		// Handle coverage section start
-		if (std::regex_search(line, match, coverage_section)) {
-			in_coverage_section = true;
+		if (std::regex_search(line, match, RE_COVERAGE_SECTION)) {
+			in_RE_COVERAGE_SECTION = true;
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -271,20 +276,20 @@ static void parsePytestCovTextImpl(const std::string &content, std::vector<Valid
 		}
 
 		// Handle coverage table headers
-		if (in_coverage_section && std::regex_search(line, match, coverage_header)) {
+		if (in_RE_COVERAGE_SECTION && std::regex_search(line, match, RE_COVERAGE_HEADER)) {
 			in_coverage_table = true;
 			in_branch_table = false;
 			continue;
 		}
 
-		if (in_coverage_section && std::regex_search(line, match, coverage_branch_header)) {
+		if (in_RE_COVERAGE_SECTION && std::regex_search(line, match, RE_COVERAGE_BRANCH_HEADER)) {
 			in_coverage_table = true;
 			in_branch_table = true;
 			continue;
 		}
 
 		// Handle coverage rows
-		if (in_coverage_table && !in_branch_table && std::regex_search(line, match, coverage_row)) {
+		if (in_coverage_table && !in_branch_table && std::regex_search(line, match, RE_COVERAGE_ROW)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
@@ -329,7 +334,7 @@ static void parsePytestCovTextImpl(const std::string &content, std::vector<Valid
 		}
 
 		// Handle branch coverage rows
-		if (in_coverage_table && in_branch_table && std::regex_search(line, match, coverage_branch_row)) {
+		if (in_coverage_table && in_branch_table && std::regex_search(line, match, RE_COVERAGE_BRANCH_ROW)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
@@ -377,7 +382,7 @@ static void parsePytestCovTextImpl(const std::string &content, std::vector<Valid
 		}
 
 		// Handle total coverage
-		if (in_coverage_section && std::regex_search(line, match, total_coverage)) {
+		if (in_RE_COVERAGE_SECTION && std::regex_search(line, match, RE_TOTAL_COVERAGE)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
@@ -418,7 +423,7 @@ static void parsePytestCovTextImpl(const std::string &content, std::vector<Valid
 		}
 
 		// Handle total branch coverage
-		if (in_coverage_section && std::regex_search(line, match, total_branch_coverage)) {
+		if (in_RE_COVERAGE_SECTION && std::regex_search(line, match, RE_TOTAL_BRANCH_COVERAGE)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
@@ -461,7 +466,7 @@ static void parsePytestCovTextImpl(const std::string &content, std::vector<Valid
 		}
 
 		// Handle coverage threshold failures
-		if (std::regex_search(line, match, coverage_threshold_fail)) {
+		if (std::regex_search(line, match, RE_COVERAGE_THRESHOLD_FAIL)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
@@ -481,7 +486,7 @@ static void parsePytestCovTextImpl(const std::string &content, std::vector<Valid
 			continue;
 		}
 
-		if (std::regex_search(line, match, required_coverage_fail)) {
+		if (std::regex_search(line, match, RE_REQUIRED_COVERAGE_FAIL)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
@@ -502,7 +507,7 @@ static void parsePytestCovTextImpl(const std::string &content, std::vector<Valid
 		}
 
 		// Handle coverage report generation
-		if (std::regex_search(line, match, coverage_xml_written)) {
+		if (std::regex_search(line, match, RE_COVERAGE_XML_WRITTEN)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
@@ -522,7 +527,7 @@ static void parsePytestCovTextImpl(const std::string &content, std::vector<Valid
 			continue;
 		}
 
-		if (std::regex_search(line, match, coverage_html_written)) {
+		if (std::regex_search(line, match, RE_COVERAGE_HTML_WRITTEN)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
@@ -543,7 +548,7 @@ static void parsePytestCovTextImpl(const std::string &content, std::vector<Valid
 		}
 
 		// Handle assertion errors in failure section
-		if (in_failure_section && std::regex_search(line, match, assertion_error)) {
+		if (in_failure_section && std::regex_search(line, match, RE_ASSERTION_ERROR)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
@@ -564,7 +569,7 @@ static void parsePytestCovTextImpl(const std::string &content, std::vector<Valid
 		}
 
 		// Handle configuration warnings/errors
-		if (std::regex_search(line, match, coverage_data_not_found)) {
+		if (std::regex_search(line, match, RE_COVERAGE_DATA_NOT_FOUND)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
@@ -584,7 +589,7 @@ static void parsePytestCovTextImpl(const std::string &content, std::vector<Valid
 			continue;
 		}
 
-		if (std::regex_search(line, match, module_never_imported)) {
+		if (std::regex_search(line, match, RE_MODULE_NEVER_IMPORTED)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
