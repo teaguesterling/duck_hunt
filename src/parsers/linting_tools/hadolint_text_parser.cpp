@@ -1,4 +1,5 @@
 #include "hadolint_text_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 
@@ -72,7 +73,7 @@ std::vector<ValidationEvent> HadolintTextParser::parse(const std::string &conten
 		if (matched) {
 			int32_t line_number = 0;
 			try {
-				line_number = std::stoi(line_str);
+				line_number = SafeParsing::SafeStoi(line_str);
 			} catch (...) {
 				// Keep as 0 if parsing fails
 			}

@@ -1,4 +1,5 @@
 #include "kubernetes_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include "duckdb/common/string_util.hpp"
 #include <sstream>
 #include <regex>
@@ -79,7 +80,7 @@ static bool ParseKubernetesLine(const std::string &line, ValidationEvent &event,
 
 		// Parse line number
 		try {
-			event.ref_line = std::stoi(line_num_str);
+			event.ref_line = SafeParsing::SafeStoi(line_num_str);
 		} catch (...) {
 			event.ref_line = -1;
 		}

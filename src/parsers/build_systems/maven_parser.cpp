@@ -81,7 +81,7 @@ std::vector<ValidationEvent> MavenParser::parse(const std::string &content) cons
 			event.event_type = ValidationEventType::TEST_RESULT;
 			event.function_name = match[1].str();
 			event.test_name = match[2].str() + "." + match[1].str();
-			event.execution_time = std::stod(match[3].str());
+			event.execution_time = SafeParsing::SafeStod(match[3].str());
 			event.status = (match[4].str() == "FAILURE") ? ValidationEventStatus::FAIL : ValidationEventStatus::ERROR;
 			event.severity = (match[4].str() == "FAILURE") ? "error" : "critical";
 			event.category = (match[4].str() == "FAILURE") ? "test_failure" : "test_error";

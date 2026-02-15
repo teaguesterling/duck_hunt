@@ -1,4 +1,5 @@
 #include "parsers/workflow_engines/github_actions_zip_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include "parsers/workflow_engines/github_actions_parser.hpp"
 #include "read_duck_hunt_log_function.hpp"
 #include "core/zipfs_integration.hpp"
@@ -60,7 +61,7 @@ GitHubActionsZipParser::JobMetadata GitHubActionsZipParser::extractJobMetadata(c
 	std::smatch match;
 
 	if (std::regex_match(filename, match, RE_JOB_FILE_PATTERN)) {
-		meta.job_order = std::stoi(match[1].str());
+		meta.job_order = SafeParsing::SafeStoi(match[1].str());
 		meta.job_name = match[2].str();
 	} else {
 		// Fallback: just use the filename without extension as job name

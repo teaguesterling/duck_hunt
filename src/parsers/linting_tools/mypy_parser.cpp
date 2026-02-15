@@ -1,4 +1,5 @@
 #include "mypy_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <sstream>
 
 namespace duckdb {
@@ -91,7 +92,7 @@ std::vector<ValidationEvent> MypyParser::parse(const std::string &content) const
 			int64_t line_number = 0;
 
 			try {
-				line_number = std::stoi(line_str);
+				line_number = SafeParsing::SafeStoi(line_str);
 			} catch (...) {
 				// If parsing fails, keep as 0
 			}
@@ -143,7 +144,7 @@ std::vector<ValidationEvent> MypyParser::parse(const std::string &content) const
 			int64_t line_number = 0;
 
 			try {
-				line_number = std::stoi(line_str);
+				line_number = SafeParsing::SafeStoi(line_str);
 			} catch (...) {
 				// If parsing fails, keep as 0
 			}

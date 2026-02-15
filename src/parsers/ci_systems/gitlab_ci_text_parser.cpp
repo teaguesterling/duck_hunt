@@ -1,4 +1,5 @@
 #include "gitlab_ci_text_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 
@@ -155,7 +156,7 @@ std::vector<ValidationEvent> GitLabCITextParser::parse(const std::string &conten
 		}
 		// Exit code in error context
 		else if (std::regex_search(line, match, RE_EXIT_CODE)) {
-			int code = std::stoi(match[1].str());
+			int code = SafeParsing::SafeStoi(match[1].str());
 			if (code != 0) {
 				ValidationEvent event;
 				event.event_id = event_id++;

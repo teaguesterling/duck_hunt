@@ -1,4 +1,5 @@
 #include "gotest_text_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <sstream>
 #include <unordered_map>
 
@@ -90,7 +91,7 @@ std::vector<ValidationEvent> GoTestTextParser::parse(const std::string &content)
 			std::string file = match[1].str();
 			int32_t err_line = 0;
 			try {
-				err_line = std::stoi(match[2].str());
+				err_line = SafeParsing::SafeStoi(match[2].str());
 			} catch (...) {
 			}
 			std::string message = match[3].str();
@@ -104,7 +105,7 @@ std::vector<ValidationEvent> GoTestTextParser::parse(const std::string &content)
 			std::string test_name = match[2].str();
 			double duration = 0.0;
 			try {
-				duration = std::stod(match[3].str());
+				duration = SafeParsing::SafeStod(match[3].str());
 			} catch (...) {
 			}
 
@@ -135,7 +136,7 @@ std::vector<ValidationEvent> GoTestTextParser::parse(const std::string &content)
 			std::string package = match[2].str();
 			double duration = 0.0;
 			try {
-				duration = std::stod(match[3].str());
+				duration = SafeParsing::SafeStod(match[3].str());
 			} catch (...) {
 			}
 

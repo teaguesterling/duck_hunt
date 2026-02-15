@@ -1,4 +1,5 @@
 #include "docker_build_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 
@@ -80,8 +81,8 @@ std::vector<ValidationEvent> DockerBuildParser::parse(const std::string &content
 
 		// Traditional Docker build step
 		if (std::regex_search(line, match, RE_STEP_LINE)) {
-			current_step_num = std::stoi(match[1].str());
-			total_steps = std::stoi(match[2].str());
+			current_step_num = SafeParsing::SafeStoi(match[1].str());
+			total_steps = SafeParsing::SafeStoi(match[2].str());
 			current_step = match[3].str();
 
 			ValidationEvent event;
@@ -191,7 +192,7 @@ std::vector<ValidationEvent> DockerBuildParser::parse(const std::string &content
 		}
 		// Security vulnerabilities
 		else if (std::regex_search(line, match, RE_VULN_FOUND)) {
-			int count = std::stoi(match[1].str());
+			int count = SafeParsing::SafeStoi(match[1].str());
 			std::string severity = match[2].str();
 
 			ValidationEvent event;

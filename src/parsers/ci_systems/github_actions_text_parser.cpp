@@ -1,4 +1,5 @@
 #include "github_actions_text_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 
@@ -88,7 +89,7 @@ std::vector<ValidationEvent> GitHubActionsTextParser::parse(const std::string &c
 				event.ref_file = match[1].str();
 			}
 			if (match[2].matched) {
-				event.ref_line = std::stoi(match[2].str());
+				event.ref_line = SafeParsing::SafeStoi(match[2].str());
 			}
 			event.tool_name = "github_actions";
 			event.category = "github_actions_text";
@@ -112,7 +113,7 @@ std::vector<ValidationEvent> GitHubActionsTextParser::parse(const std::string &c
 				event.ref_file = match[1].str();
 			}
 			if (match[2].matched) {
-				event.ref_line = std::stoi(match[2].str());
+				event.ref_line = SafeParsing::SafeStoi(match[2].str());
 			}
 			event.tool_name = "github_actions";
 			event.category = "github_actions_text";
@@ -136,7 +137,7 @@ std::vector<ValidationEvent> GitHubActionsTextParser::parse(const std::string &c
 				event.ref_file = match[1].str();
 			}
 			if (match[2].matched) {
-				event.ref_line = std::stoi(match[2].str());
+				event.ref_line = SafeParsing::SafeStoi(match[2].str());
 			}
 			event.tool_name = "github_actions";
 			event.category = "github_actions_text";
@@ -195,7 +196,7 @@ std::vector<ValidationEvent> GitHubActionsTextParser::parse(const std::string &c
 		}
 		// Exit code error
 		else if (std::regex_search(line, match, RE_EXIT_CODE)) {
-			int code = std::stoi(match[1].str());
+			int code = SafeParsing::SafeStoi(match[1].str());
 			if (code != 0) {
 				ValidationEvent event;
 				event.event_id = event_id++;

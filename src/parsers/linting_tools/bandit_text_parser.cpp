@@ -1,4 +1,5 @@
 #include "bandit_text_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 
@@ -121,9 +122,9 @@ std::vector<ValidationEvent> BanditTextParser::parse(const std::string &content)
 		// Location
 		else if (in_issue && std::regex_search(line, match, RE_LOCATION_LINE)) {
 			current_event.ref_file = match[1].str();
-			current_event.ref_line = std::stoi(match[2].str());
+			current_event.ref_line = SafeParsing::SafeStoi(match[2].str());
 			if (match[3].matched) {
-				current_event.ref_column = std::stoi(match[3].str());
+				current_event.ref_column = SafeParsing::SafeStoi(match[3].str());
 			}
 			current_event.log_line_end = line_num;
 		}
@@ -155,7 +156,7 @@ std::vector<ValidationEvent> BanditTextParser::parse(const std::string &content)
 		}
 		// Summary: total issues
 		else if (std::regex_search(line, match, RE_SUMMARY_ISSUES)) {
-			int issue_count = std::stoi(match[1].str());
+			int issue_count = SafeParsing::SafeStoi(match[1].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;

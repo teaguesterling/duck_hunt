@@ -140,7 +140,7 @@ void RegexpParser::ParseWithRegexp(const std::string &content, const std::string
 			std::string line_str = getGroupValue(match, {"line", "line_number", "lineno", "line_num"});
 			if (!line_str.empty()) {
 				try {
-					event.ref_line = std::stoi(line_str);
+					event.ref_line = SafeParsing::SafeStoi(line_str);
 				} catch (...) {
 					event.ref_line = line_num; // Fall back to input line number
 				}
@@ -152,7 +152,7 @@ void RegexpParser::ParseWithRegexp(const std::string &content, const std::string
 			std::string col_str = getGroupValue(match, {"column", "col", "ref_column", "colno"});
 			if (!col_str.empty()) {
 				try {
-					event.ref_column = std::stoi(col_str);
+					event.ref_column = SafeParsing::SafeStoi(col_str);
 				} catch (...) {
 					event.ref_column = -1;
 				}

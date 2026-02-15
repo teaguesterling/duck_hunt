@@ -1,4 +1,5 @@
 #include "shellcheck_text_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 
@@ -57,7 +58,7 @@ std::vector<ValidationEvent> ShellcheckTextParser::parse(const std::string &cont
 		if (std::regex_match(line, match, RE_HEADER_PATTERN)) {
 			current_file = match[1].str();
 			try {
-				current_ref_line = std::stoi(match[2].str());
+				current_ref_line = SafeParsing::SafeStoi(match[2].str());
 			} catch (...) {
 				current_ref_line = 0;
 			}
@@ -93,7 +94,7 @@ std::vector<ValidationEvent> ShellcheckTextParser::parse(const std::string &cont
 			if (severity_str == "error" || severity_str.empty()) {
 				// Default to warning, check SC code range for errors
 				// SC1xxx = parsing errors, SC2xxx = semantic issues
-				int code_num = std::stoi(match[1].str());
+				int code_num = SafeParsing::SafeStoi(match[1].str());
 				if (code_num < 2000) {
 					event.severity = "error";
 					event.status = ValidationEventStatus::ERROR;

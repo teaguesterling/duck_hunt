@@ -1,4 +1,5 @@
 #include "junit_xml_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include "yyjson.hpp"
 #include <sstream>
 
@@ -128,7 +129,7 @@ static void ParseTestCaseFromJson(yyjson_val *testcase, const std::string &suite
 	yyjson_val *time_val = yyjson_obj_get(testcase, "@time");
 	if (time_val && yyjson_is_str(time_val)) {
 		try {
-			event.execution_time = std::stod(yyjson_get_str(time_val));
+			event.execution_time = SafeParsing::SafeStod(yyjson_get_str(time_val));
 		} catch (...) {
 			event.execution_time = 0.0;
 		}

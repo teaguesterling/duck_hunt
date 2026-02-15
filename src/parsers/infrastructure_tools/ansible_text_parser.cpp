@@ -1,4 +1,5 @@
 #include "ansible_text_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 
@@ -258,8 +259,8 @@ std::vector<ValidationEvent> AnsibleTextParser::parse(const std::string &content
 			event.ref_column = -1;
 
 			// Determine overall status based on failed/unreachable counts
-			int failed = std::stoi(match[5].str());
-			int unreachable = std::stoi(match[4].str());
+			int failed = SafeParsing::SafeStoi(match[5].str());
+			int unreachable = SafeParsing::SafeStoi(match[4].str());
 			if (failed > 0 || unreachable > 0) {
 				event.status = ValidationEventStatus::ERROR;
 				event.severity = "error";

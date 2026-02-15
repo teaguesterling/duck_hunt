@@ -162,7 +162,7 @@ static void parseNUnitXUnitImpl(const std::string &content, std::vector<Validati
 		}
 		// NUnit Duration
 		else if (std::regex_search(line, match, RE_NUNIT_DURATION)) {
-			double duration_seconds = std::stod(match[1].str());
+			double duration_seconds = SafeParsing::SafeStod(match[1].str());
 			int64_t duration_ms = static_cast<int64_t>(duration_seconds * 1000);
 
 			ValidationEvent event;
@@ -299,7 +299,7 @@ static void parseNUnitXUnitImpl(const std::string &content, std::vector<Validati
 		}
 		// xUnit Time Summary
 		else if (std::regex_search(line, match, RE_XUNIT_TIME_SUMMARY)) {
-			double duration_seconds = std::stod(match[1].str());
+			double duration_seconds = SafeParsing::SafeStod(match[1].str());
 			int64_t duration_ms = static_cast<int64_t>(duration_seconds * 1000);
 
 			ValidationEvent event;

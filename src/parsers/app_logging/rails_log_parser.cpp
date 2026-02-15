@@ -1,4 +1,5 @@
 #include "rails_log_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include "duckdb/common/string_util.hpp"
 #include <sstream>
 #include <regex>
@@ -84,7 +85,7 @@ static bool ParseRailsLine(const std::string &line, RailsRequest &request, int l
 	}
 
 	if (std::regex_match(line, match, completed_pattern)) {
-		request.status_code = std::stoi(match[1].str());
+		request.status_code = SafeParsing::SafeStoi(match[1].str());
 		request.duration = match[2].str();
 		if (match[3].matched)
 			request.views_time = match[3].str();
@@ -115,7 +116,7 @@ static void CreateEventFromRequest(const RailsRequest &request, ValidationEvent 
 			if (dur.back() == 's' && dur[dur.size() - 2] == 'm') {
 				dur = dur.substr(0, dur.size() - 2);
 			}
-			event.execution_time = std::stod(dur);
+			event.execution_time = SafeParsing::SafeStod(dur);
 		} catch (...) {
 			event.execution_time = 0.0;
 		}

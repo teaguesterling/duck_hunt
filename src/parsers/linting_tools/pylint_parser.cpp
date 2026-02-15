@@ -1,4 +1,5 @@
 #include "pylint_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <sstream>
 
 namespace duckdb {
@@ -80,8 +81,8 @@ std::vector<ValidationEvent> PylintParser::parse(const std::string &content) con
 			int64_t column_number = 0;
 
 			try {
-				line_number = std::stoi(line_str);
-				column_number = std::stoi(column_str);
+				line_number = SafeParsing::SafeStoi(line_str);
+				column_number = SafeParsing::SafeStoi(column_str);
 			} catch (...) {
 			}
 
@@ -131,8 +132,8 @@ std::vector<ValidationEvent> PylintParser::parse(const std::string &content) con
 			int64_t column_number = 0;
 
 			try {
-				line_number = std::stoi(line_str);
-				column_number = std::stoi(column_str);
+				line_number = SafeParsing::SafeStoi(line_str);
+				column_number = SafeParsing::SafeStoi(column_str);
 			} catch (...) {
 			}
 
@@ -181,8 +182,8 @@ std::vector<ValidationEvent> PylintParser::parse(const std::string &content) con
 			int64_t column_number = 0;
 
 			try {
-				line_number = std::stoi(line_str);
-				column_number = std::stoi(column_str);
+				line_number = SafeParsing::SafeStoi(line_str);
+				column_number = SafeParsing::SafeStoi(column_str);
 			} catch (...) {
 			}
 
@@ -230,8 +231,8 @@ std::vector<ValidationEvent> PylintParser::parse(const std::string &content) con
 			int64_t column_number = 0;
 
 			try {
-				line_number = std::stoi(line_str);
-				column_number = std::stoi(column_str);
+				line_number = SafeParsing::SafeStoi(line_str);
+				column_number = SafeParsing::SafeStoi(column_str);
 			} catch (...) {
 			}
 

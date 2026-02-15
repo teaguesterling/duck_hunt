@@ -54,8 +54,8 @@ std::vector<ValidationEvent> CargoParser::parse(const std::string &content) cons
 					event.tool_name = "rustc";
 					event.event_type = ValidationEventType::BUILD_ERROR;
 					event.ref_file = loc_match[1].str();
-					event.ref_line = std::stoi(loc_match[2].str());
-					event.ref_column = std::stoi(loc_match[3].str());
+					event.ref_line = SafeParsing::SafeStoi(loc_match[2].str());
+					event.ref_column = SafeParsing::SafeStoi(loc_match[3].str());
 					event.status = ValidationEventStatus::ERROR;
 					event.severity = "error";
 					event.category = "compilation";
@@ -89,8 +89,8 @@ std::vector<ValidationEvent> CargoParser::parse(const std::string &content) cons
 						event.tool_name = "rustc";
 						event.event_type = ValidationEventType::LINT_ISSUE;
 						event.ref_file = loc_match[1].str();
-						event.ref_line = std::stoi(loc_match[2].str());
-						event.ref_column = std::stoi(loc_match[3].str());
+						event.ref_line = SafeParsing::SafeStoi(loc_match[2].str());
+						event.ref_column = SafeParsing::SafeStoi(loc_match[3].str());
 						event.status = ValidationEventStatus::WARNING;
 						event.severity = "warning";
 						event.category = "compilation";
@@ -142,8 +142,8 @@ std::vector<ValidationEvent> CargoParser::parse(const std::string &content) cons
 				event.test_name = panic_match[1].str();
 				event.function_name = panic_match[1].str();
 				event.ref_file = panic_match[3].str();
-				event.ref_line = std::stoi(panic_match[4].str());
-				event.ref_column = std::stoi(panic_match[5].str());
+				event.ref_line = SafeParsing::SafeStoi(panic_match[4].str());
+				event.ref_column = SafeParsing::SafeStoi(panic_match[5].str());
 				event.status = ValidationEventStatus::ERROR;
 				event.severity = "error";
 				event.category = "test_panic";
@@ -248,7 +248,7 @@ std::vector<ValidationEvent> CargoParser::parse(const std::string &content) cons
 				event.tool_name = "rustfmt";
 				event.event_type = ValidationEventType::LINT_ISSUE;
 				event.ref_file = fmt_match[1].str();
-				event.ref_line = std::stoi(fmt_match[2].str());
+				event.ref_line = SafeParsing::SafeStoi(fmt_match[2].str());
 				event.ref_column = -1;
 				event.status = ValidationEventStatus::WARNING;
 				event.severity = "warning";

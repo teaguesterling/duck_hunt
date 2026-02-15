@@ -1,4 +1,5 @@
 #include "rubocop_text_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 
@@ -62,8 +63,8 @@ std::vector<ValidationEvent> RubocopTextParser::parse(const std::string &content
 			int32_t column_number = 0;
 
 			try {
-				line_number = std::stoi(match[2].str());
-				column_number = std::stoi(match[3].str());
+				line_number = SafeParsing::SafeStoi(match[2].str());
+				column_number = SafeParsing::SafeStoi(match[3].str());
 			} catch (...) {
 				// Keep as 0 if parsing fails
 			}

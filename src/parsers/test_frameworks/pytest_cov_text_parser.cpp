@@ -1,4 +1,5 @@
 #include "pytest_cov_text_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 #include <string>
@@ -244,7 +245,7 @@ static void parsePytestCovTextImpl(const std::string &content, std::vector<Valid
 			event.category = "test_summary";
 			event.message = "Tests completed: " + failed + " failed, " + passed + " passed, " + skipped +
 			                " skipped in " + duration + "s";
-			event.execution_time = std::stod(duration);
+			event.execution_time = SafeParsing::SafeStod(duration);
 			event.log_content = content;
 			event.structured_data = "pytest_cov_text";
 
@@ -305,7 +306,7 @@ static void parsePytestCovTextImpl(const std::string &content, std::vector<Valid
 			// Remove % sign and convert to number for severity calculation
 			std::string pct_str = coverage_pct;
 			pct_str.erase(pct_str.find('%'));
-			double coverage_value = std::stod(pct_str);
+			double coverage_value = SafeParsing::SafeStod(pct_str);
 
 			if (coverage_value >= 90.0) {
 				event.status = ValidationEventStatus::PASS;
@@ -352,7 +353,7 @@ static void parsePytestCovTextImpl(const std::string &content, std::vector<Valid
 			// Remove % sign and convert to number for severity calculation
 			std::string pct_str = coverage_pct;
 			pct_str.erase(pct_str.find('%'));
-			double coverage_value = std::stod(pct_str);
+			double coverage_value = SafeParsing::SafeStod(pct_str);
 
 			if (coverage_value >= 90.0) {
 				event.status = ValidationEventStatus::PASS;
@@ -398,7 +399,7 @@ static void parsePytestCovTextImpl(const std::string &content, std::vector<Valid
 			// Remove % sign and convert to number for severity calculation
 			std::string pct_str = coverage_pct;
 			pct_str.erase(pct_str.find('%'));
-			double coverage_value = std::stod(pct_str);
+			double coverage_value = SafeParsing::SafeStod(pct_str);
 
 			if (coverage_value >= 90.0) {
 				event.status = ValidationEventStatus::PASS;
@@ -441,7 +442,7 @@ static void parsePytestCovTextImpl(const std::string &content, std::vector<Valid
 			// Remove % sign and convert to number for severity calculation
 			std::string pct_str = coverage_pct;
 			pct_str.erase(pct_str.find('%'));
-			double coverage_value = std::stod(pct_str);
+			double coverage_value = SafeParsing::SafeStod(pct_str);
 
 			if (coverage_value >= 90.0) {
 				event.status = ValidationEventStatus::PASS;

@@ -1,4 +1,5 @@
 #include "valgrind_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 #include <string>
@@ -166,7 +167,7 @@ void ValgrindParser::ParseValgrind(const std::string &content, std::vector<duckd
 		if (std::regex_search(line, match, RE_AT_LOCATION)) {
 			current_location = match[2].str();
 			current_file = match[3].str();
-			current_line = std::stoi(match[4].str());
+			current_line = duckdb::SafeParsing::SafeStoi(match[4].str());
 			stack_trace.push_back(line);
 
 			if (in_error_block && !current_error_type.empty()) {
@@ -296,9 +297,9 @@ void ValgrindParser::ParseValgrind(const std::string &content, std::vector<duckd
 			event.event_id = event_id++;
 			event.tool_name = current_tool;
 			event.event_type = duckdb::ValidationEventType::SUMMARY;
-			event.status = (std::stoi(match[1].str()) > 0) ? duckdb::ValidationEventStatus::FAIL
+			event.status = (duckdb::SafeParsing::SafeStoi(match[1].str()) > 0) ? duckdb::ValidationEventStatus::FAIL
 			                                               : duckdb::ValidationEventStatus::PASS;
-			event.severity = (std::stoi(match[1].str()) > 0) ? "error" : "info";
+			event.severity = (duckdb::SafeParsing::SafeStoi(match[1].str()) > 0) ? "error" : "info";
 			event.category = "error_summary";
 			event.message = "Error summary: " + match[1].str() + " errors from " + match[2].str() + " contexts";
 			event.execution_time = 0;

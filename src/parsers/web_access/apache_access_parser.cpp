@@ -1,4 +1,5 @@
 #include "apache_access_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include "duckdb/common/string_util.hpp"
 #include <sstream>
 #include <regex>
@@ -68,7 +69,7 @@ static bool ParseAccessLogLine(const std::string &line, ValidationEvent &event, 
 	// Status code determines severity
 	int status_code = 0;
 	try {
-		status_code = std::stoi(status_str);
+		status_code = SafeParsing::SafeStoi(status_str);
 	} catch (...) {
 	}
 	event.severity = MapStatusCodeToSeverity(status_code);

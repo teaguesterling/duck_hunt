@@ -294,7 +294,7 @@ std::vector<ValidationEvent> Autopep8TextParser::parse(const std::string &conten
 			event.severity = "info";
 			event.category = "performance";
 			event.message = "Execution time: " + match[1].str() + "s";
-			event.execution_time = std::stod(match[1].str());
+			event.execution_time = SafeParsing::SafeStod(match[1].str());
 			event.log_content = content;
 			event.structured_data = "autopep8_text";
 

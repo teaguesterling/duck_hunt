@@ -1,4 +1,5 @@
 #include "gtest_text_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 #include <string>
@@ -238,7 +239,7 @@ std::vector<ValidationEvent> GTestTextParser::parse(const std::string &content) 
 			int line_number = 0;
 
 			try {
-				line_number = std::stoi(line_str);
+				line_number = SafeParsing::SafeStoi(line_str);
 			} catch (...) {
 				// If parsing line number fails, keep it as 0
 			}

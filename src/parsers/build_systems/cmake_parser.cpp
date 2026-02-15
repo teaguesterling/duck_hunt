@@ -56,7 +56,7 @@ std::vector<ValidationEvent> CMakeParser::parse(const std::string &content) cons
 			std::smatch cmake_match;
 			if (SafeParsing::SafeRegexSearch(line, cmake_match, cmake_error_pattern)) {
 				event.ref_file = cmake_match[1].str();
-				event.ref_line = std::stoi(cmake_match[2].str());
+				event.ref_line = SafeParsing::SafeStoi(cmake_match[2].str());
 			}
 
 			event.message = line;
@@ -83,7 +83,7 @@ std::vector<ValidationEvent> CMakeParser::parse(const std::string &content) cons
 			std::smatch cmake_match;
 			if (SafeParsing::SafeRegexSearch(line, cmake_match, cmake_warning_pattern)) {
 				event.ref_file = cmake_match[1].str();
-				event.ref_line = std::stoi(cmake_match[2].str());
+				event.ref_line = SafeParsing::SafeStoi(cmake_match[2].str());
 			}
 
 			event.message = line;

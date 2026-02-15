@@ -1,4 +1,5 @@
 #include "jenkins_text_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 
@@ -140,7 +141,7 @@ std::vector<ValidationEvent> JenkinsTextParser::parse(const std::string &content
 				ValidationEvent &last = events.back();
 				if (last.ref_file.empty() && last.category == "jenkins_text") {
 					last.ref_file = match[2].str();
-					last.ref_line = std::stoi(match[3].str());
+					last.ref_line = SafeParsing::SafeStoi(match[3].str());
 					last.log_line_end = line_num;
 				}
 			}
@@ -165,9 +166,9 @@ std::vector<ValidationEvent> JenkinsTextParser::parse(const std::string &content
 		}
 		// JUnit test results
 		else if (std::regex_search(line, match, RE_JUNIT_RESULT)) {
-			int tests = std::stoi(match[1].str());
-			int failures = std::stoi(match[2].str());
-			int errors = std::stoi(match[3].str());
+			int tests = SafeParsing::SafeStoi(match[1].str());
+			int failures = SafeParsing::SafeStoi(match[2].str());
+			int errors = SafeParsing::SafeStoi(match[3].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;

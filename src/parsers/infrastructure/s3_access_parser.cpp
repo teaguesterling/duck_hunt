@@ -1,4 +1,5 @@
 #include "s3_access_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include "duckdb/common/string_util.hpp"
 #include <sstream>
 #include <regex>
@@ -75,7 +76,7 @@ static bool ParseS3AccessLine(const std::string &line, ValidationEvent &event, i
 	// Determine severity based on HTTP status
 	int status_code = 0;
 	try {
-		status_code = std::stoi(http_status);
+		status_code = SafeParsing::SafeStoi(http_status);
 	} catch (...) {
 	}
 

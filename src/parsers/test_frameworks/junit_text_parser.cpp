@@ -82,7 +82,7 @@ static void parseJUnitTextImpl(const std::string &content, std::vector<Validatio
 			int failures = SafeParsing::SafeStoi(match[2].str());
 			int errors = SafeParsing::SafeStoi(match[3].str());
 			int skipped = SafeParsing::SafeStoi(match[4].str());
-			double time_elapsed = std::stod(match[5].str());
+			double time_elapsed = SafeParsing::SafeStod(match[5].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -108,7 +108,7 @@ static void parseJUnitTextImpl(const std::string &content, std::vector<Validatio
 		else if (std::regex_search(line, match, RE_JUNIT4_TEST)) {
 			std::string test_method = match[1].str();
 			std::string test_class = match[2].str();
-			double time_elapsed = std::stod(match[3].str());
+			double time_elapsed = SafeParsing::SafeStod(match[3].str());
 			std::string result = match[4].str();
 
 			ValidationEvent event;
@@ -222,7 +222,7 @@ static void parseJUnitTextImpl(const std::string &content, std::vector<Validatio
 		else if (std::regex_search(line, match, RE_SUREFIRE_TEST)) {
 			std::string test_method = match[1].str();
 			std::string test_class = match[2].str();
-			double time_elapsed = std::stod(match[3].str());
+			double time_elapsed = SafeParsing::SafeStod(match[3].str());
 			std::string result = match[4].str();
 
 			ValidationEvent event;

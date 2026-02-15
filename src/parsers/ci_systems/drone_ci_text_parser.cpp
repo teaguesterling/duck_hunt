@@ -213,7 +213,7 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 		// Parse NPM operations
 		if (std::regex_search(line, match, RE_NPM_INSTALL)) {
 			int package_count = SafeParsing::SafeStoi(match[1].str());
-			double install_time = std::stod(match[2].str());
+			double install_time = SafeParsing::SafeStod(match[2].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -264,7 +264,7 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 		// Parse Jest test results
 		if (std::regex_search(line, match, RE_JEST_TEST_PASS)) {
 			std::string test_file = match[1].str();
-			double test_time = std::stod(match[2].str());
+			double test_time = SafeParsing::SafeStod(match[2].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -289,7 +289,7 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 
 		if (std::regex_search(line, match, RE_JEST_TEST_FAIL)) {
 			std::string test_file = match[1].str();
-			double test_time = std::stod(match[2].str());
+			double test_time = SafeParsing::SafeStod(match[2].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -338,7 +338,7 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 
 		if (std::regex_search(line, match, RE_JEST_TEST_FAIL_ITEM)) {
 			std::string test_name = match[1].str();
-			double test_time = std::stod(match[2].str());
+			double test_time = SafeParsing::SafeStod(match[2].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -418,7 +418,7 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 		}
 
 		if (std::regex_search(line, match, RE_JEST_TIMING)) {
-			double total_time = std::stod(match[1].str());
+			double total_time = SafeParsing::SafeStod(match[1].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;

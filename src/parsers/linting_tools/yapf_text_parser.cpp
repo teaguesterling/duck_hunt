@@ -1,4 +1,5 @@
 #include "yapf_text_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 
@@ -296,7 +297,7 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string &content) c
 			event.severity = "info";
 			event.category = "performance";
 			event.message = "Execution time: " + match[1].str() + "s";
-			event.execution_time = std::stod(match[1].str());
+			event.execution_time = SafeParsing::SafeStod(match[1].str());
 			event.log_content = content;
 			event.structured_data = "yapf_text";
 			event.log_line_start = current_line_num;
@@ -400,8 +401,8 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string &content) c
 			event.tool_name = "yapf";
 			event.event_type = ValidationEventType::LINT_ISSUE;
 			event.ref_file = match[1].str();
-			event.ref_line = std::stoi(match[2].str());
-			event.ref_column = std::stoi(match[3].str());
+			event.ref_line = SafeParsing::SafeStoi(match[2].str());
+			event.ref_column = SafeParsing::SafeStoi(match[3].str());
 			event.status = ValidationEventStatus::ERROR;
 			event.severity = "error";
 			event.category = "syntax";

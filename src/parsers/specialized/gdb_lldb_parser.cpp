@@ -1,4 +1,5 @@
 #include "gdb_lldb_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 #include <string>
@@ -181,7 +182,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string &content, std::vector<duckdb:
 				last_event.function_name = match[2].str();
 				last_event.ref_file = match[3].str();
 				try {
-					last_event.ref_line = std::stoi(match[4].str());
+					last_event.ref_line = duckdb::SafeParsing::SafeStoi(match[4].str());
 				} catch (...) {
 					last_event.ref_line = -1;
 				}
@@ -192,8 +193,8 @@ void GdbLldbParser::ParseGdbLldb(const std::string &content, std::vector<duckdb:
 				last_event.function_name = match[2].str();
 				last_event.ref_file = match[3].str();
 				try {
-					last_event.ref_line = std::stoi(match[4].str());
-					last_event.ref_column = std::stoi(match[5].str());
+					last_event.ref_line = duckdb::SafeParsing::SafeStoi(match[4].str());
+					last_event.ref_column = duckdb::SafeParsing::SafeStoi(match[5].str());
 				} catch (...) {
 					last_event.ref_line = -1;
 					last_event.ref_column = -1;
@@ -215,7 +216,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string &content, std::vector<duckdb:
 						last_event.function_name = match[3].str();
 						last_event.ref_file = match[4].str();
 						try {
-							last_event.ref_line = std::stoi(match[5].str());
+							last_event.ref_line = duckdb::SafeParsing::SafeStoi(match[5].str());
 						} catch (...) {
 							last_event.ref_line = -1;
 						}
@@ -235,8 +236,8 @@ void GdbLldbParser::ParseGdbLldb(const std::string &content, std::vector<duckdb:
 						last_event.function_name = match[3].str();
 						last_event.ref_file = match[4].str();
 						try {
-							last_event.ref_line = std::stoi(match[5].str());
-							last_event.ref_column = std::stoi(match[6].str());
+							last_event.ref_line = duckdb::SafeParsing::SafeStoi(match[5].str());
+							last_event.ref_column = duckdb::SafeParsing::SafeStoi(match[6].str());
 						} catch (...) {
 							last_event.ref_line = -1;
 							last_event.ref_column = -1;
@@ -262,7 +263,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string &content, std::vector<duckdb:
 			event.function_name = match[2].str();
 			event.ref_file = match[3].str();
 			try {
-				event.ref_line = std::stoi(match[4].str());
+				event.ref_line = duckdb::SafeParsing::SafeStoi(match[4].str());
 			} catch (...) {
 				event.ref_line = -1;
 			}
@@ -297,7 +298,7 @@ void GdbLldbParser::ParseGdbLldb(const std::string &content, std::vector<duckdb:
 			event.function_name = match[2].str();
 			event.ref_file = match[3].str();
 			try {
-				event.ref_line = std::stoi(match[4].str());
+				event.ref_line = duckdb::SafeParsing::SafeStoi(match[4].str());
 			} catch (...) {
 				event.ref_line = -1;
 			}

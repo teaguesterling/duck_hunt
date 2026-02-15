@@ -1,4 +1,5 @@
 #include "eslint_text_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <sstream>
 
 namespace duckdb {
@@ -67,8 +68,8 @@ std::vector<ValidationEvent> EslintTextParser::parse(const std::string &content)
 			int32_t column_number = 0;
 
 			try {
-				line_number = std::stoi(match[1].str());
-				column_number = std::stoi(match[2].str());
+				line_number = SafeParsing::SafeStoi(match[1].str());
+				column_number = SafeParsing::SafeStoi(match[2].str());
 			} catch (...) {
 				// Keep as 0 if parsing fails
 			}

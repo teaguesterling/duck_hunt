@@ -1,4 +1,5 @@
 #include "python_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 #include <string>
@@ -96,8 +97,8 @@ std::vector<ValidationEvent> PythonBuildParser::parse(const std::string &content
 			std::smatch c_match;
 			if (std::regex_search(line, c_match, c_error_pattern)) {
 				event.ref_file = c_match[1].str();
-				event.ref_line = std::stoi(c_match[2].str());
-				event.ref_column = c_match[3].str().empty() ? -1 : std::stoi(c_match[3].str());
+				event.ref_line = SafeParsing::SafeStoi(c_match[2].str());
+				event.ref_column = c_match[3].str().empty() ? -1 : SafeParsing::SafeStoi(c_match[3].str());
 				event.message = c_match[4].str();
 			}
 			event.log_line_start = current_line_num;
@@ -195,7 +196,7 @@ std::vector<ValidationEvent> PythonBuildParser::parse(const std::string &content
 				event.category = "traceback";
 				event.severity = "info";
 				event.ref_file = loc_match[1].str();
-				event.ref_line = std::stoi(loc_match[2].str());
+				event.ref_line = SafeParsing::SafeStoi(loc_match[2].str());
 				event.function_name = loc_match[3].str();
 				event.message = line;
 				event.log_content = content;
@@ -250,8 +251,8 @@ std::vector<ValidationEvent> PythonBuildParser::parse(const std::string &content
 			std::smatch c_match;
 			if (std::regex_search(line, c_match, c_warn_pattern)) {
 				event.ref_file = c_match[1].str();
-				event.ref_line = std::stoi(c_match[2].str());
-				event.ref_column = c_match[3].str().empty() ? -1 : std::stoi(c_match[3].str());
+				event.ref_line = SafeParsing::SafeStoi(c_match[2].str());
+				event.ref_column = c_match[3].str().empty() ? -1 : SafeParsing::SafeStoi(c_match[3].str());
 				event.message = c_match[4].str();
 			}
 			event.log_line_start = current_line_num;

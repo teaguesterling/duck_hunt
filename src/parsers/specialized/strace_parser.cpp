@@ -1,4 +1,5 @@
 #include "strace_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 #include <string>
@@ -177,7 +178,7 @@ void StraceParser::ParseStrace(const std::string &content, std::vector<duckdb::V
 			event.function_name = "exit";
 			event.error_code = match[1].str();
 
-			int exit_code = std::stoi(match[1].str());
+			int exit_code = duckdb::SafeParsing::SafeStoi(match[1].str());
 			event.status = (exit_code == 0) ? duckdb::ValidationEventStatus::PASS : duckdb::ValidationEventStatus::FAIL;
 			event.message = "Process exited with code " + match[1].str();
 			event.log_content = line;
@@ -299,7 +300,7 @@ void StraceParser::ParseStrace(const std::string &content, std::vector<duckdb::V
 					if (!duration.empty()) {
 						try {
 							// Convert seconds to milliseconds
-							event.execution_time = std::stod(duration) * 1000.0;
+							event.execution_time = duckdb::SafeParsing::SafeStod(duration) * 1000.0;
 						} catch (...) {
 							// Ignore parse errors
 						}

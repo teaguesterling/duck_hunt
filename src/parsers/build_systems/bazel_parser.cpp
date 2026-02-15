@@ -109,7 +109,7 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string &content) cons
 		}
 		// Check for elapsed time
 		else if (SafeParsing::SafeRegexSearch(line, match, bazel_build_elapsed)) {
-			double elapsed = std::stod(match[1].str());
+			double elapsed = SafeParsing::SafeStod(match[1].str());
 			// Note: critical_path (match[2]) available but not currently used
 
 			ValidationEvent event;
@@ -130,7 +130,7 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string &content) cons
 		// Check for passed tests
 		else if (SafeParsing::SafeRegexSearch(line, match, bazel_test_passed)) {
 			std::string target = match[1].str();
-			double duration = std::stod(match[2].str());
+			double duration = SafeParsing::SafeStod(match[2].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -150,7 +150,7 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string &content) cons
 		// Check for failed tests
 		else if (SafeParsing::SafeRegexSearch(line, match, bazel_test_failed)) {
 			std::string target = match[1].str();
-			double duration = std::stod(match[2].str());
+			double duration = SafeParsing::SafeStod(match[2].str());
 			int current_attempt = SafeParsing::SafeStoi(match[3].str());
 			int total_attempts = SafeParsing::SafeStoi(match[4].str());
 
@@ -175,7 +175,7 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string &content) cons
 		// Check for timeout tests
 		else if (SafeParsing::SafeRegexSearch(line, match, bazel_test_timeout)) {
 			std::string target = match[1].str();
-			double duration = std::stod(match[2].str());
+			double duration = SafeParsing::SafeStod(match[2].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;

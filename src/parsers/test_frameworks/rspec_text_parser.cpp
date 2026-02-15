@@ -1,4 +1,5 @@
 #include "rspec_text_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 #include <string>
@@ -114,7 +115,7 @@ static void parseRSpecTextImpl(const std::string &content, std::vector<Validatio
 			event.severity = "error";
 			event.category = "test_failure";
 			event.ref_file = match[1].str();
-			event.ref_line = std::stoi(match[2].str());
+			event.ref_line = SafeParsing::SafeStoi(match[2].str());
 			event.test_name = match[3].str();
 			event.message = "Test failed: " + match[3].str();
 			event.log_content = line;
@@ -291,7 +292,7 @@ static void parseRSpecTextImpl(const std::string &content, std::vector<Validatio
 		// Parse file and line information
 		else if (std::regex_search(line, match, RE_FILE_LINE_PATTERN)) {
 			current_failure_file = match[1].str();
-			current_failure_line = std::stoi(match[2].str());
+			current_failure_line = SafeParsing::SafeStoi(match[2].str());
 
 			// Update the most recent failed test event with file/line info
 			for (auto it = events.rbegin(); it != events.rend(); ++it) {
@@ -317,16 +318,16 @@ static void parseRSpecTextImpl(const std::string &content, std::vector<Validatio
 			event.category = "test_summary";
 
 			std::string execution_time = match[1].str();
-			int total_examples = std::stoi(match[2].str());
-			int failures = std::stoi(match[3].str());
+			int total_examples = SafeParsing::SafeStoi(match[2].str());
+			int failures = SafeParsing::SafeStoi(match[3].str());
 			int pending = 0;
 			if (match[5].matched) {
-				pending = std::stoi(match[5].str());
+				pending = SafeParsing::SafeStoi(match[5].str());
 			}
 
 			event.message = "Test run completed: " + std::to_string(total_examples) + " examples, " +
 			                std::to_string(failures) + " failures, " + std::to_string(pending) + " pending";
-			event.execution_time = std::stod(execution_time);
+			event.execution_time = SafeParsing::SafeStod(execution_time);
 			event.log_content = line;
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;

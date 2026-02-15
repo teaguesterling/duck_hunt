@@ -1,4 +1,5 @@
 #include "cisco_asa_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include "duckdb/common/string_util.hpp"
 #include <sstream>
 #include <regex>
@@ -50,7 +51,7 @@ static bool ParseCiscoAsaLine(const std::string &line, ValidationEvent &event, i
 	event.ref_line = -1;
 	event.ref_column = -1;
 
-	int severity_level = std::stoi(match[1].str());
+	int severity_level = SafeParsing::SafeStoi(match[1].str());
 	std::string message_id = match[2].str();
 	std::string message_text = match[3].str();
 
