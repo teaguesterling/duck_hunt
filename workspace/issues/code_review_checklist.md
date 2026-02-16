@@ -31,15 +31,15 @@ Generated: 2026-02-14
 ## Medium Priority Issues
 
 ### Security
-- [ ] **No input size limits** - `file_utils.cpp:130-168` - Multi-GB files can exhaust memory
-- [ ] **Glob pattern injection** - `file_utils.cpp:199` - User patterns passed directly to GlobFiles
+- [x] **No input size limits** - Added 100MB limit in ReadContentFromSource
+- [x] **Glob pattern injection** - Added ValidatePath() to reject traversal patterns
 - [ ] **Error message information leakage** - `regexp_parser.cpp:53` - Patterns included verbatim in errors
 
 ### Performance
 - [ ] **Mutex contention in registry** - `parser_registry.cpp:119-134` - Global lock during canParse() calls
 - [ ] **No streaming implementation** - Framework exists but 0 parsers implement supportsStreaming()
 - [ ] **Redundant string copies in context** - `context_extraction.cpp:100-112` - Lines copied multiple times
-- [ ] **Small file buffer** - `file_utils.cpp:156` - 8KB chunks, should be 64-128KB
+- [x] **Small file buffer** - Increased chunk_size to 64KB
 
 ### Quality
 - [ ] **Naming inconsistency** - Mixed camelCase/snake_case/PascalCase across codebase
@@ -120,9 +120,9 @@ No remaining parsers with non-static patterns.
 3. [x] Wrap stoi/stol/stod in try-catch consistently (SafeParsing utilities)
 
 ### Phase 2: Security Hardening
-4. [ ] Add file size limit (100MB default)
-5. [ ] Migrate remaining parsers to SafeParsing utilities
-6. [ ] Add path validation
+4. [x] Add file size limit (100MB default)
+5. [~] Migrate remaining parsers to SafeParsing utilities (stoi/stod done, SafeRegex partial)
+6. [x] Add path validation
 
 ### Phase 3: Performance Optimization
 7. [ ] Fix O(n²) in error_patterns.cpp
