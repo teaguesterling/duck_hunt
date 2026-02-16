@@ -137,6 +137,7 @@ void DuckDBTestParser::ParseDuckDBTestOutput(const std::string &content, std::ve
 			event.ref_column = -1;
 			event.function_name = failure_query.empty() ? "unknown" : failure_query.substr(0, 50);
 			event.status = ValidationEventStatus::FAIL;
+			event.severity = "error";
 			event.category = "test_failure";
 
 			// Enhanced message with mismatch details
@@ -210,6 +211,7 @@ void DuckDBTestParser::ParseDuckDBTestOutput(const std::string &content, std::ve
 						summary_event.tool_name = "duckdb_test";
 						summary_event.event_type = ValidationEventType::TEST_RESULT;
 						summary_event.status = ValidationEventStatus::INFO;
+						summary_event.severity = "info";
 						summary_event.category = "test_summary";
 						summary_event.message = "Test summary: " + std::to_string(passed_count) + " tests passed";
 						summary_event.ref_line = -1;
@@ -232,6 +234,7 @@ void DuckDBTestParser::ParseDuckDBTestOutput(const std::string &content, std::ve
 		summary_event.tool_name = "duckdb_test";
 		summary_event.event_type = ValidationEventType::TEST_RESULT;
 		summary_event.status = ValidationEventStatus::INFO;
+		summary_event.severity = "info";
 		summary_event.category = "test_summary";
 		summary_event.message = "DuckDB test output parsed (no specific test results found)";
 		summary_event.ref_line = -1;

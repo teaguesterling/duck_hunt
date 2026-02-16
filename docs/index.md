@@ -1,6 +1,6 @@
 # Duck Hunt
 
-A DuckDB extension for parsing test results, build outputs, and CI/CD logs from 105 development tools.
+A DuckDB extension for parsing test results, build outputs, and CI/CD logs from 109 development tools.
 
 ## Installation
 
@@ -20,6 +20,8 @@ parse_duck_hunt_log(content, format := 'auto', severity_threshold := 'all', cont
 read_duck_hunt_workflow_log(file_path, format := 'auto', severity_threshold := 'all')
 parse_duck_hunt_workflow_log(content, format := 'auto', severity_threshold := 'all')
 duck_hunt_formats()                               -- List all supported formats
+duck_hunt_load_parser_config(json)                -- Load custom parser from JSON
+duck_hunt_unload_parser(name)                     -- Unload a custom parser
 ```
 
 **Parameters:**
@@ -100,7 +102,7 @@ SELECT status_badge(
 | `valgrind` | Valgrind | Memory checker output |
 | `generic_lint` | Generic | `file:line:col: severity: message` |
 
-See [Supported Formats](formats.md) for the complete list of 105 formats.
+See [Supported Formats](formats.md) for the complete list of 109 formats.
 
 ## Compression Support
 
@@ -142,7 +144,8 @@ See [Schema Reference](schema.md) for complete field documentation.
 
 ## Next Steps
 
-- **[Supported Formats](formats.md)** - All 105 supported formats with examples
+- **[Supported Formats](formats.md)** - All 109 supported formats with examples
+- **[Custom Parsers](custom-parsers.md)** - Define your own parsers with JSON configuration
 - **[Workflow Formats](workflow-formats.md)** - CI/CD workflow parsing (GitHub Actions, GitLab CI, Jenkins)
 - **[Usage Examples](examples.md)** - Detailed examples for common scenarios
 - **[Schema Reference](schema.md)** - Complete field documentation

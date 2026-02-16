@@ -97,6 +97,9 @@ void InitializeAllParsers() {
 		RegisterCoverageParsers(registry);
 		PARSER_TRACE("Registering DistributedSystems category...");
 		RegisterDistributedSystemsParsers(registry);
+
+		// Mark initialization as complete - new parsers are now custom
+		registry.markInitializationComplete();
 		PARSER_TRACE("=== Parser initialization complete ===");
 	});
 }
@@ -121,10 +124,18 @@ void ParserRegistry::registerParser(ParserPtr parser) {
 	PARSER_TRACE("Registering parser: " << format_name);
 	format_map_[format_name] = parser.get();
 
+	// Track as built-in if we're still in initialization phase
+	if (!initialization_complete_) {
+		builtin_formats_[format_name] = true;
+	}
+
 	// Register aliases
 	for (const auto &alias : parser->getAliases()) {
 		PARSER_TRACE("  Adding alias: " << alias);
 		format_map_[alias] = parser.get();
+		if (!initialization_complete_) {
+			builtin_formats_[alias] = true;
+		}
 	}
 
 	parsers_.push_back(std::move(parser));
@@ -433,7 +444,53 @@ void ParserRegistry::clear() {
 	parsers_.clear();
 	sorted_parsers_.clear();
 	format_map_.clear();
+	builtin_formats_.clear();
 	needs_resort_ = false;
+	initialization_complete_ = false;
+}
+
+void ParserRegistry::markInitializationComplete() {
+	std::lock_guard<std::mutex> lock(registry_mutex_);
+	initialization_complete_ = true;
+}
+
+bool ParserRegistry::isBuiltIn(const std::string &format_name) const {
+	std::lock_guard<std::mutex> lock(registry_mutex_);
+	return builtin_formats_.find(format_name) != builtin_formats_.end();
+}
+
+bool ParserRegistry::unregisterParser(const std::string &format_name) {
+	std::lock_guard<std::mutex> lock(registry_mutex_);
+
+	// Check if format exists
+	auto it = format_map_.find(format_name);
+	if (it == format_map_.end()) {
+		return false;
+	}
+
+	// Cannot unregister built-in parsers
+	if (builtin_formats_.find(format_name) != builtin_formats_.end()) {
+		return false;
+	}
+
+	IParser *parser = it->second;
+	std::string primary_name = parser->getFormatName();
+
+	// Remove from format_map (primary name and all aliases)
+	format_map_.erase(primary_name);
+	for (const auto &alias : parser->getAliases()) {
+		format_map_.erase(alias);
+	}
+
+	// Remove from parsers_ vector
+	parsers_.erase(
+		std::remove_if(parsers_.begin(), parsers_.end(),
+			[&primary_name](const ParserPtr &p) { return p->getFormatName() == primary_name; }),
+		parsers_.end()
+	);
+
+	needs_resort_ = true;
+	return true;
 }
 
 void ParserRegistry::ensureSortedLocked() const {

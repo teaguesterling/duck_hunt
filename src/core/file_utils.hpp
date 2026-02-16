@@ -24,6 +24,15 @@
 namespace duckdb {
 
 /**
+ * Read file content from a source path.
+ * Supports compression detection via file extension (.gz, .zst, etc.)
+ * @param context ClientContext for file system access
+ * @param source File path to read
+ * @return File content as string
+ */
+std::string ReadContentFromSource(ClientContext &context, const std::string &source);
+
+/**
  * LineReader provides buffered, line-by-line reading of files.
  * Used for streaming parsers to enable:
  * - Early termination with LIMIT without reading entire file

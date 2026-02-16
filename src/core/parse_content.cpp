@@ -1,8 +1,44 @@
 #include "parse_content.hpp"
 #include "parser_registry.hpp"
+#include "file_utils.hpp"
 #include "../parsers/tool_outputs/regexp_parser.hpp"
+#include "../parsers/config_based/config_parser.hpp"
+#include <algorithm>
 
 namespace duckdb {
+
+// Check if format string looks like a config file path
+static bool IsConfigFilePath(const std::string &format_name) {
+	// Check for explicit config: prefix
+	if (format_name.substr(0, 7) == "config:") {
+		return true;
+	}
+
+	// Check for .json extension
+	if (format_name.length() > 5) {
+		std::string ext = format_name.substr(format_name.length() - 5);
+		std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+		if (ext == ".json") {
+			return true;
+		}
+	}
+
+	// Check for URL patterns that might be config files
+	if ((format_name.substr(0, 7) == "http://" || format_name.substr(0, 8) == "https://") &&
+	    format_name.find(".json") != std::string::npos) {
+		return true;
+	}
+
+	return false;
+}
+
+// Extract config file path from format string
+static std::string ExtractConfigPath(const std::string &format_name) {
+	if (format_name.substr(0, 7) == "config:") {
+		return format_name.substr(7);
+	}
+	return format_name;
+}
 
 std::vector<ValidationEvent> ParseContent(ClientContext &context, const std::string &content,
                                           const std::string &format_name) {
@@ -10,6 +46,28 @@ std::vector<ValidationEvent> ParseContent(ClientContext &context, const std::str
 
 	if (format_name.empty() || format_name == "unknown" || format_name == "auto") {
 		return events; // Invalid format, return empty
+	}
+
+	// Check if this is an inline config file path
+	if (IsConfigFilePath(format_name)) {
+		std::string config_path = ExtractConfigPath(format_name);
+
+		// Read config file content
+		std::string config_content = ReadContentFromSource(context, config_path);
+		if (config_content.empty()) {
+			return events; // Could not read config file
+		}
+
+		// Create temporary parser from config
+		try {
+			auto parser = ConfigBasedParser::FromJson(config_content);
+			events = parser->parse(content);
+		} catch (const std::exception &) {
+			// Config parsing failed, return empty
+			return events;
+		}
+
+		return events;
 	}
 
 	auto &registry = ParserRegistry::getInstance();
@@ -77,6 +135,11 @@ bool IsValidFormat(const std::string &format_name) {
 	}
 	if (format_name == "auto") {
 		return true; // "auto" is always valid
+	}
+
+	// Config file paths are valid format specifiers
+	if (IsConfigFilePath(format_name)) {
+		return true;
 	}
 
 	auto &registry = ParserRegistry::getInstance();

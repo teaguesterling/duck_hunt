@@ -17,6 +17,7 @@
 #include "include/duck_hunt_diagnose_function.hpp"
 #include "include/duck_hunt_detect_format_function.hpp"
 #include "include/duck_hunt_macros.hpp"
+#include "include/config_parser_functions.hpp"
 #include "core/parser_registry.hpp" // Modular parser registry
 
 // Workflow engine interface for registry
@@ -63,6 +64,13 @@ static void LoadInternal(ExtensionLoader &loader) {
 
 	// Register table macros
 	RegisterDuckHuntMacros(loader);
+
+	// Register custom parser configuration functions
+	auto load_parser_config_function = GetDuckHuntLoadParserConfigFunction();
+	loader.RegisterFunction(load_parser_config_function);
+
+	auto unload_parser_function = GetDuckHuntUnloadParserFunction();
+	loader.RegisterFunction(unload_parser_function);
 }
 
 void DuckHuntExtension::Load(ExtensionLoader &loader) {

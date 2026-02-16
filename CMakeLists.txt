@@ -167,6 +167,10 @@ set(EXTENSION_SOURCES
 
     # Scalar utility functions
     src/status_badge_function.cpp
+    src/config_parser_functions.cpp
+
+    # Config-based parser implementation
+    src/parsers/config_based/config_parser.cpp
 
     # Format discovery function
     src/duck_hunt_formats_function.cpp

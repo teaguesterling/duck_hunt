@@ -1,8 +1,10 @@
 # Supported Formats
 
-Duck Hunt supports 108 format strings for parsing development tool outputs. Use these with `read_duck_hunt_log()` or `parse_duck_hunt_log()`.
+Duck Hunt supports 109 format strings for parsing development tool outputs. Use these with `read_duck_hunt_log()` or `parse_duck_hunt_log()`.
 
 > **See also:** [Format Maturity Levels](format-maturity.md) for test coverage and stability ratings.
+>
+> **See also:** [Custom Parsers](custom-parsers.md) for defining your own parsers via JSON configuration.
 
 ## Format Groups
 
@@ -33,6 +35,8 @@ SELECT * FROM parse_duck_hunt_log(content, 'ci');
 | `swift` | Swift tools (swiftlint) | 1 |
 | `php` | PHP tools (phpstan) | 1 |
 | `mobile` | Mobile platforms (android) | 1 |
+| `csharp` | C#/Unity tools (unity_editor) | 1 |
+| `gamedev` | Game development tools (unity_editor) | 1 |
 
 ### Tool-Type Groups
 
@@ -43,7 +47,7 @@ SELECT * FROM parse_duck_hunt_log(content, 'ci');
 | `test` | Test frameworks & runners | 15 |
 | `logging` | Logging frameworks & formats | 13 |
 | `security` | Security scanning & audit tools | 11 |
-| `build` | Build systems & compilers | 11 |
+| `build` | Build systems & compilers | 12 |
 | `cloud` | Cloud platform logs & services | 7 |
 | `ci` | CI/CD systems | 7 |
 | `distributed` | Distributed systems logs | 6 |
@@ -156,6 +160,7 @@ The function analyzes content patterns and returns the best-matching format stri
 | `gradle_build` | Gradle | java, build | [gradle_build_failures.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/build_systems/gradle_build_failures.txt) |
 | `msbuild` | MSBuild (.NET) | dotnet, build | [msbuild_errors.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/build_systems/msbuild_errors.txt) |
 | `bazel_build` | Bazel | c_cpp, java, build | [bazel_build_errors.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/build_systems/bazel_build_errors.txt) |
+| `unity_editor` | Unity Editor | csharp, gamedev, build | [unity_build.log](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/unity_build.log) |
 | `docker_build` | Docker | infrastructure, build | [docker_logs.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/infrastructure/docker_logs.txt) |
 
 ### Infrastructure & Security
@@ -387,6 +392,45 @@ Go test framework JSON output (use `go test -json`).
 SELECT test_name, status, execution_time
 FROM read_duck_hunt_log('test/samples/gotest.json', 'gotest_json');
 ```
+
+---
+
+### unity_editor
+
+Unity Editor build and test log output. Handles C# compiler errors, Unity-specific messages, and test runner output.
+
+**Aliases:** `unity`, `unity_build`
+
+**Sample Input:**
+```
+Unity Editor version:    6000.3.8f1 (1c7db571dde0)
+Branch:                  6000.3/staging
+Build type:              Release
+Batch mode:              YES
+
+[Licensing::Module] Trying to connect to existing licensing client channel...
+[Licensing::Module] Error: Access token is unavailable; failed to update
+
+## Script Compilation Error for: Csc Library/Bee/artifacts/MyGame.Tests.dll (+2 others)
+Assets/Scripts/Player/Movement.cs(42,15): error CS0234: The type or namespace name 'Physics2D' does not exist in the namespace 'UnityEngine'
+Assets/Scripts/UI/HealthBar.cs(15,9): warning CS0618: 'Component.rigidbody' is obsolete
+
+Build succeeded.
+```
+
+**Query:**
+```sql
+SELECT ref_file, ref_line, error_code, severity, message
+FROM read_duck_hunt_log('unity_build.log', 'unity_editor')
+WHERE severity = 'error';
+```
+
+**Notes:**
+- Parses C# compiler diagnostics in Unity's `file.cs(line,col): severity CSxxxx: message` format
+- Captures `[Module::Component]` style Unity module messages
+- Detects build results (succeeded/failed) as summary events
+- Supports streaming for efficient line-by-line parsing
+- Higher priority than MSBuild since Unity uses Roslyn but has distinct format markers
 
 ---
 

@@ -93,6 +93,18 @@ public:
 	bool hasFormat(const std::string &format_name) const;
 
 	/**
+	 * Unregister a parser by format name.
+	 * Returns true if parser was found and removed, false otherwise.
+	 * Note: Built-in parsers (those registered during initialization) cannot be unregistered.
+	 */
+	bool unregisterParser(const std::string &format_name);
+
+	/**
+	 * Check if a format is a built-in (registered during initialization).
+	 */
+	bool isBuiltIn(const std::string &format_name) const;
+
+	/**
 	 * Get singleton instance.
 	 */
 	static ParserRegistry &getInstance();
@@ -101,6 +113,12 @@ public:
 	 * Clear registry (for testing).
 	 */
 	void clear();
+
+	/**
+	 * Mark initialization as complete.
+	 * Called after all built-in parsers are registered.
+	 */
+	void markInitializationComplete();
 
 private:
 	ParserRegistry() = default;
@@ -111,8 +129,10 @@ private:
 
 	std::vector<ParserPtr> parsers_;
 	std::unordered_map<std::string, IParser *> format_map_; // format_name -> parser
+	std::unordered_map<std::string, bool> builtin_formats_; // tracks formats registered during init
 	mutable std::vector<IParser *> sorted_parsers_;
 	mutable bool needs_resort_ = false;
+	bool initialization_complete_ = false;
 
 	// Internal helper - must be called with registry_mutex_ held
 	void ensureSortedLocked() const;

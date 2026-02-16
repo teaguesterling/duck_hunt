@@ -1,0 +1,600 @@
+# name: test/sql/config_parser.test
+# description: Test JSON-based config parser system
+# group: [sql]
+
+require duck_hunt
+
+# =============================================================================
+# Basic Config Parser Loading
+# =============================================================================
+
+# Test loading a single parser config from JSON string
+statement ok
+SELECT duck_hunt_load_parser_config('{
+  "name": "simple_test",
+  "aliases": ["simple"],
+  "priority": 50,
+  "category": "test_framework",
+  "groups": ["custom"],
+  "detection": {
+    "contains": ["[SIMPLE]"]
+  },
+  "patterns": [
+    {
+      "regex": "\\[SIMPLE\\] (?P<severity>PASS|FAIL): (?P<message>.*)",
+      "event_type": "TEST_RESULT"
+    }
+  ]
+}');
+
+# Verify the parser was registered
+query I
+SELECT COUNT(*) FROM duck_hunt_formats() WHERE format = 'simple_test';
+----
+1
+
+# Verify aliases work (use alias in parse function)
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log('[SIMPLE] PASS: test_works', 'simple');
+----
+1
+
+# Test parsing with the loaded config
+query III
+SELECT status, severity, message
+FROM parse_duck_hunt_log('[SIMPLE] PASS: test_addition works', 'simple_test');
+----
+PASS	info	test_addition works
+
+query III
+SELECT status, severity, message
+FROM parse_duck_hunt_log('[SIMPLE] FAIL: test_subtraction broken', 'simple_test');
+----
+FAIL	error	test_subtraction broken
+
+# =============================================================================
+# Detection Methods
+# =============================================================================
+
+# Test 'contains' detection (multiple markers)
+statement ok
+SELECT duck_hunt_load_parser_config('{
+  "name": "multi_marker",
+  "detection": {
+    "contains": ["MARKER_A", "MARKER_B"]
+  },
+  "patterns": [
+    {"regex": "(?P<message>.*)", "event_type": "LINT_ISSUE"}
+  ]
+}');
+
+# Should match when any marker is present
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log('MARKER_A: hello', 'multi_marker');
+----
+1
+
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log('MARKER_B: world', 'multi_marker');
+----
+1
+
+# Test 'contains_all' detection (all markers required)
+statement ok
+SELECT duck_hunt_load_parser_config('{
+  "name": "all_markers",
+  "detection": {
+    "contains_all": ["START", "END"]
+  },
+  "patterns": [
+    {"regex": "(?P<message>.*)", "event_type": "LINT_ISSUE"}
+  ]
+}');
+
+# Test 'regex' detection
+statement ok
+SELECT duck_hunt_load_parser_config('{
+  "name": "regex_detect",
+  "detection": {
+    "regex": "^\\[v\\d+\\.\\d+\\]"
+  },
+  "patterns": [
+    {"regex": "\\[v(?P<version>[0-9.]+)\\] (?P<message>.*)", "event_type": "LINT_ISSUE"}
+  ]
+}');
+
+query II
+SELECT tool_name, message
+FROM parse_duck_hunt_log('[v1.2] Starting application', 'regex_detect');
+----
+regex_detect	Starting application
+
+# =============================================================================
+# Pattern Features
+# =============================================================================
+
+# Test multiple patterns (first match wins)
+statement ok
+SELECT duck_hunt_load_parser_config('{
+  "name": "multi_pattern",
+  "detection": {"contains": ["ERROR:", "WARN:", "INFO:"]},
+  "patterns": [
+    {
+      "regex": "ERROR: (?P<message>.*)",
+      "event_type": "BUILD_ERROR",
+      "severity": "error"
+    },
+    {
+      "regex": "WARN: (?P<message>.*)",
+      "event_type": "BUILD_ERROR",
+      "severity": "warning"
+    },
+    {
+      "regex": "INFO: (?P<message>.*)",
+      "event_type": "LINT_ISSUE",
+      "severity": "info"
+    }
+  ]
+}');
+
+query II
+SELECT severity, message FROM parse_duck_hunt_log('ERROR: disk full', 'multi_pattern');
+----
+error	disk full
+
+query II
+SELECT severity, message FROM parse_duck_hunt_log('WARN: low memory', 'multi_pattern');
+----
+warning	low memory
+
+query II
+SELECT severity, message FROM parse_duck_hunt_log('INFO: started', 'multi_pattern');
+----
+info	started
+
+# Test severity_map for dynamic severity
+statement ok
+SELECT duck_hunt_load_parser_config('{
+  "name": "severity_mapped",
+  "detection": {"contains": ["[LOG]"]},
+  "patterns": [
+    {
+      "regex": "\\[LOG\\] (?P<level>DEBUG|INFO|WARNING|ERROR|CRITICAL): (?P<message>.*)",
+      "event_type": "LINT_ISSUE",
+      "severity_map": {
+        "DEBUG": "debug",
+        "INFO": "info",
+        "WARNING": "warning",
+        "ERROR": "error",
+        "CRITICAL": "critical"
+      }
+    }
+  ]
+}');
+
+query II
+SELECT severity, message FROM parse_duck_hunt_log('[LOG] WARNING: deprecated API', 'severity_mapped');
+----
+warning	deprecated API
+
+query II
+SELECT severity, message FROM parse_duck_hunt_log('[LOG] CRITICAL: system crash', 'severity_mapped');
+----
+critical	system crash
+
+# Test status_map for test results
+statement ok
+SELECT duck_hunt_load_parser_config('{
+  "name": "status_mapped",
+  "detection": {"contains": ["TEST:"]},
+  "patterns": [
+    {
+      "regex": "TEST: (?P<result>ok|FAILED|skip) - (?P<test_name>.*)",
+      "event_type": "TEST_RESULT",
+      "status_map": {
+        "ok": "PASS",
+        "FAILED": "FAIL",
+        "skip": "SKIP"
+      }
+    }
+  ]
+}');
+
+query III
+SELECT status, test_name, severity FROM parse_duck_hunt_log('TEST: ok - test_math', 'status_mapped');
+----
+PASS	test_math	info
+
+query III
+SELECT status, test_name, severity FROM parse_duck_hunt_log('TEST: FAILED - test_io', 'status_mapped');
+----
+FAIL	test_io	error
+
+# =============================================================================
+# Field Mappings
+# =============================================================================
+
+# Test file/line/column extraction
+statement ok
+SELECT duck_hunt_load_parser_config('{
+  "name": "file_location",
+  "detection": {"regex": "\\w+\\.\\w+:\\d+"},
+  "patterns": [
+    {
+      "regex": "(?P<file>[^:]+):(?P<line>\\d+):(?P<column>\\d+): (?P<severity>error|warning): (?P<message>.*)",
+      "event_type": "BUILD_ERROR"
+    },
+    {
+      "regex": "(?P<file>[^:]+):(?P<line>\\d+): (?P<severity>error|warning): (?P<message>.*)",
+      "event_type": "BUILD_ERROR"
+    }
+  ]
+}');
+
+query IIIII
+SELECT ref_file, ref_line, ref_column, severity, message
+FROM parse_duck_hunt_log('src/main.c:42:10: error: undefined reference', 'file_location');
+----
+src/main.c	42	10	error	undefined reference
+
+query IIII
+SELECT ref_file, ref_line, severity, message
+FROM parse_duck_hunt_log('lib/utils.py:100: warning: unused import', 'file_location');
+----
+lib/utils.py	100	warning	unused import
+
+# Test error_code extraction
+statement ok
+SELECT duck_hunt_load_parser_config('{
+  "name": "error_codes",
+  "detection": {"contains": ["[E", "[W"]},
+  "patterns": [
+    {
+      "regex": "\\[(?P<error_code>[EW]\\d+)\\] (?P<message>.*)",
+      "event_type": "LINT_ISSUE"
+    }
+  ]
+}');
+
+query II
+SELECT error_code, message FROM parse_duck_hunt_log('[E501] line too long (120 > 80)', 'error_codes');
+----
+E501	line too long (120 > 80)
+
+# Test function_name extraction
+statement ok
+SELECT duck_hunt_load_parser_config('{
+  "name": "func_extract",
+  "detection": {"contains": ["in function"]},
+  "patterns": [
+    {
+      "regex": "(?P<file>[^:]+):(?P<line>\\d+): in function `(?P<function_name>[^`]+)`: (?P<message>.*)",
+      "event_type": "BUILD_ERROR",
+      "severity": "error"
+    }
+  ]
+}');
+
+query III
+SELECT ref_file, function_name, message
+FROM parse_duck_hunt_log('main.c:50: in function `process_data`: null pointer', 'func_extract');
+----
+main.c	process_data	null pointer
+
+# =============================================================================
+# Hierarchical Context
+# =============================================================================
+
+# Test scope/group/unit extraction for CI-like logs
+statement ok
+SELECT duck_hunt_load_parser_config('{
+  "name": "ci_context",
+  "detection": {"contains": ["::"]},
+  "patterns": [
+    {
+      "regex": "(?P<scope>[^:]+)::(?P<group>[^:]+)::(?P<unit>[^:]+): (?P<status>PASS|FAIL) - (?P<message>.*)",
+      "event_type": "TEST_RESULT"
+    }
+  ]
+}');
+
+query IIII
+SELECT scope, "group", unit, message
+FROM parse_duck_hunt_log('workflow-1::job-build::step-compile: PASS - compiled successfully', 'ci_context');
+----
+workflow-1	job-build	step-compile	compiled successfully
+
+# =============================================================================
+# Loading from Files
+# =============================================================================
+
+# Test loading parser config from a file path
+# (This test verifies the file loading mechanism works)
+# Note: We'll create the test file in the implementation
+
+# =============================================================================
+# Loading Multiple Parsers
+# =============================================================================
+
+# Test loading multiple configs from a glob pattern
+# duck_hunt_load_parser_configs('config/parsers/*.json')
+
+# =============================================================================
+# Auto-Detection with Custom Parsers
+# =============================================================================
+
+# Test that custom parser participates in auto-detection
+query I
+SELECT tool_name FROM parse_duck_hunt_log('[SIMPLE] PASS: test works');
+----
+simple_test
+
+# Test priority ordering (higher priority wins)
+statement ok
+SELECT duck_hunt_load_parser_config('{
+  "name": "high_priority_test",
+  "priority": 100,
+  "detection": {"contains": ["[SIMPLE]"]},
+  "patterns": [
+    {"regex": "\\[SIMPLE\\] (?P<message>.*)", "event_type": "LINT_ISSUE", "severity": "info"}
+  ]
+}');
+
+# High priority parser should be chosen over simple_test (priority 50)
+query I
+SELECT tool_name FROM parse_duck_hunt_log('[SIMPLE] PASS: test works');
+----
+high_priority_test
+
+# =============================================================================
+# Error Handling
+# =============================================================================
+
+# Test invalid JSON
+statement error
+SELECT duck_hunt_load_parser_config('not valid json');
+----
+Invalid JSON
+
+# Test missing required field (name)
+statement error
+SELECT duck_hunt_load_parser_config('{"patterns": []}');
+----
+Missing required field
+
+# Test invalid regex pattern
+statement error
+SELECT duck_hunt_load_parser_config('{"name": "bad_regex","patterns": [{"regex": "[invalid(regex", "event_type": "LINT_ISSUE"}]}');
+----
+Invalid regex
+
+# Test invalid event_type
+statement error
+SELECT duck_hunt_load_parser_config('{"name": "bad_event_type","patterns": [{"regex": ".*", "event_type": "NOT_A_REAL_TYPE"}]}');
+----
+Invalid event_type
+
+# =============================================================================
+# Unloading Parsers
+# =============================================================================
+
+# Test unloading a custom parser
+statement ok
+SELECT duck_hunt_unload_parser('high_priority_test');
+
+# Verify it's gone
+query I
+SELECT COUNT(*) FROM duck_hunt_formats() WHERE format = 'high_priority_test';
+----
+0
+
+# Cannot unload built-in parsers
+statement error
+SELECT duck_hunt_unload_parser('pytest_json');
+----
+Cannot unload built-in parser
+
+# =============================================================================
+# Streaming Support
+# =============================================================================
+
+# Config parsers should support streaming by default (line-by-line)
+query I
+SELECT COUNT(*) FROM (
+  SELECT * FROM parse_duck_hunt_log(
+    '[SIMPLE] PASS: test1
+[SIMPLE] PASS: test2
+[SIMPLE] FAIL: test3
+[SIMPLE] PASS: test4', 'simple_test')
+  LIMIT 2
+);
+----
+2
+
+# =============================================================================
+# Integration with read_duck_hunt_log
+# =============================================================================
+
+# Custom parsers should work with file-based function too
+# (Assuming test file exists)
+
+# =============================================================================
+# Config Schema Validation
+# =============================================================================
+
+# Test that tool_name override works
+statement ok
+SELECT duck_hunt_load_parser_config('{
+  "name": "custom_tool_name",
+  "tool_name": "my_custom_tool",
+  "detection": {"contains": ["[CUSTOM]"]},
+  "patterns": [
+    {"regex": "\\[CUSTOM\\] (?P<message>.*)", "event_type": "LINT_ISSUE"}
+  ]
+}');
+
+query I
+SELECT tool_name FROM parse_duck_hunt_log('[CUSTOM] hello world', 'custom_tool_name');
+----
+my_custom_tool
+
+# Test category assignment
+query I
+SELECT category FROM duck_hunt_formats() WHERE format = 'custom_tool_name';
+----
+tool_output
+
+# Test groups assignment
+statement ok
+SELECT duck_hunt_load_parser_config('{
+  "name": "grouped_parser",
+  "groups": ["python", "lint", "custom"],
+  "detection": {"contains": ["[GP]"]},
+  "patterns": [
+    {"regex": "\\[GP\\] (?P<message>.*)", "event_type": "LINT_ISSUE"}
+  ]
+}');
+
+query I
+SELECT groups FROM duck_hunt_formats() WHERE format = 'grouped_parser';
+----
+[python, lint, custom]
+
+# =============================================================================
+# Complex Real-World Example
+# =============================================================================
+
+# Simulate a custom application log format
+statement ok
+SELECT duck_hunt_load_parser_config('{"name": "myapp_log", "aliases": ["myapp"], "priority": 75, "category": "app_logging", "tool_name": "myapp", "groups": ["custom", "logging"], "description": "Custom application log format", "detection": {"contains": ["[MyApp]"], "regex": "\\[MyApp\\].*\\[\\w+\\]"}, "patterns": [{"name": "error_with_trace", "regex": "\\[MyApp\\] \\[(?P<level>ERROR|CRITICAL)\\] (?P<timestamp>[^|]+)\\| (?P<file>[^:]+):(?P<line>\\d+) \\| (?P<message>.*)", "event_type": "BUILD_ERROR", "severity_map": {"ERROR": "error", "CRITICAL": "critical"}}, {"name": "warning", "regex": "\\[MyApp\\] \\[WARNING\\] (?P<timestamp>[^|]+)\\| (?P<message>.*)", "event_type": "LINT_ISSUE", "severity": "warning"}, {"name": "info", "regex": "\\[MyApp\\] \\[INFO\\] (?P<timestamp>[^|]+)\\| (?P<message>.*)", "event_type": "LINT_ISSUE", "severity": "info"}]}');
+
+# Test the complex parser
+query IIIII
+SELECT tool_name, severity, ref_file, ref_line, message
+FROM parse_duck_hunt_log('[MyApp] [ERROR] 2024-01-15T10:30:00| src/handler.py:42 | Connection refused', 'myapp_log');
+----
+myapp	error	src/handler.py	42	Connection refused
+
+query III
+SELECT tool_name, severity, message
+FROM parse_duck_hunt_log('[MyApp] [WARNING] 2024-01-15T10:31:00| Retrying connection', 'myapp_log');
+----
+myapp	warning	Retrying connection
+
+# Verify it appears in formats list with correct metadata
+query IIII
+SELECT format, category, priority, description
+FROM duck_hunt_formats()
+WHERE format = 'myapp_log';
+----
+myapp_log	app_logging	75	Custom application log format
+
+# =============================================================================
+# Persistence (Session-scoped)
+# =============================================================================
+
+# Custom parsers are session-scoped by default
+# They persist within the connection but not across connections
+# This test documents the expected behavior
+
+# =============================================================================
+# Inline Config File as Format String
+# =============================================================================
+
+# Test using a JSON file path directly as format string (config: prefix)
+# This allows one-off parsing without explicit registration
+
+# First, write a test config file
+statement ok
+COPY (SELECT '{
+  "name": "inline_test",
+  "detection": {"contains": ["[INLINE]"]},
+  "patterns": [
+    {"regex": "\\[INLINE\\] (?P<severity>ERROR|INFO): (?P<message>.*)", "event_type": "LINT_ISSUE"}
+  ]
+}' AS content) TO '__TEST_DIR__/inline_parser.json' (FORMAT 'csv', HEADER false, QUOTE '');
+
+# Use config: prefix to reference the file
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log('[INLINE] ERROR: something went wrong', 'config:__TEST_DIR__/inline_parser.json');
+----
+error	something went wrong
+
+# Also works without the prefix if file ends in .json
+query II
+SELECT severity, message
+FROM parse_duck_hunt_log('[INLINE] INFO: status update', '__TEST_DIR__/inline_parser.json');
+----
+info	status update
+
+# Inline config does NOT register the parser permanently
+query I
+SELECT COUNT(*) FROM duck_hunt_formats() WHERE format = 'inline_test';
+----
+0
+
+# Works with read_duck_hunt_log too
+statement ok
+COPY (SELECT '[INLINE] ERROR: file error' AS line) TO '__TEST_DIR__/inline_log.txt' (FORMAT 'csv', HEADER false, QUOTE '');
+
+query II
+SELECT severity, message
+FROM read_duck_hunt_log('__TEST_DIR__/inline_log.txt', 'config:__TEST_DIR__/inline_parser.json');
+----
+error	file error
+
+# Test with URL-based config (http/https)
+# Note: This test is commented out since it requires network access
+# query II
+# SELECT severity, message
+# FROM parse_duck_hunt_log('[INLINE] ERROR: test', 'https://example.com/parser.json');
+# ----
+# error	test
+
+# =============================================================================
+# Cleanup
+# =============================================================================
+
+# Unload test parsers to avoid affecting other tests
+statement ok
+SELECT duck_hunt_unload_parser('simple_test');
+
+statement ok
+SELECT duck_hunt_unload_parser('multi_marker');
+
+statement ok
+SELECT duck_hunt_unload_parser('all_markers');
+
+statement ok
+SELECT duck_hunt_unload_parser('regex_detect');
+
+statement ok
+SELECT duck_hunt_unload_parser('multi_pattern');
+
+statement ok
+SELECT duck_hunt_unload_parser('severity_mapped');
+
+statement ok
+SELECT duck_hunt_unload_parser('status_mapped');
+
+statement ok
+SELECT duck_hunt_unload_parser('file_location');
+
+statement ok
+SELECT duck_hunt_unload_parser('error_codes');
+
+statement ok
+SELECT duck_hunt_unload_parser('func_extract');
+
+statement ok
+SELECT duck_hunt_unload_parser('ci_context');
+
+statement ok
+SELECT duck_hunt_unload_parser('custom_tool_name');
+
+statement ok
+SELECT duck_hunt_unload_parser('grouped_parser');
+
+statement ok
+SELECT duck_hunt_unload_parser('myapp_log');
