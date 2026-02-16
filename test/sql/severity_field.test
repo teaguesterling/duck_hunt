@@ -1,0 +1,124 @@
+# name: test/sql/severity_field.test
+# description: Test that parsers correctly set the severity field alongside status
+# group: [sql]
+
+require duck_hunt
+
+# =============================================================================
+# This test verifies that when parsers set status=FAIL, they also set severity='error'
+# This is critical for tools like blq that query events by severity.
+#
+# The key invariant: NO FAIL events should have empty/NULL severity
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# duckdb_test parser: All FAIL events must have severity='error'
+# -----------------------------------------------------------------------------
+query I
+SELECT COUNT(*)
+FROM read_duck_hunt_log('test/samples/test_frameworks/duckdb_test_failures.txt', 'duckdb_test')
+WHERE status = 'FAIL' AND (severity IS NULL OR severity = '' OR severity != 'error');
+----
+0
+
+# Verify there ARE failures being detected (sanity check)
+query I
+SELECT COUNT(*) > 0
+FROM read_duck_hunt_log('test/samples/test_frameworks/duckdb_test_failures.txt', 'duckdb_test')
+WHERE status = 'FAIL';
+----
+true
+
+# INFO status should have severity='info'
+query I
+SELECT COUNT(*)
+FROM read_duck_hunt_log('test/samples/test_frameworks/duckdb_test_failures.txt', 'duckdb_test')
+WHERE status = 'INFO' AND (severity IS NULL OR severity = '' OR severity != 'info');
+----
+0
+
+# -----------------------------------------------------------------------------
+# gtest_text parser: All FAIL events must have severity='error'
+# -----------------------------------------------------------------------------
+query I
+SELECT COUNT(*)
+FROM read_duck_hunt_log('test/samples/test_frameworks/gtest_failures.txt', 'gtest_text')
+WHERE status = 'FAIL' AND (severity IS NULL OR severity = '' OR severity != 'error');
+----
+0
+
+# Verify there ARE failures being detected
+query I
+SELECT COUNT(*) > 0
+FROM read_duck_hunt_log('test/samples/test_frameworks/gtest_failures.txt', 'gtest_text')
+WHERE status = 'FAIL';
+----
+true
+
+# -----------------------------------------------------------------------------
+# mocha_text parser: All FAIL events must have severity='error'
+# -----------------------------------------------------------------------------
+query I
+SELECT COUNT(*)
+FROM read_duck_hunt_log('test/samples/test_frameworks/mocha_failures.txt', 'mocha_chai_text')
+WHERE status = 'FAIL' AND (severity IS NULL OR severity = '' OR severity != 'error');
+----
+0
+
+# Verify there ARE failures being detected
+query I
+SELECT COUNT(*) > 0
+FROM read_duck_hunt_log('test/samples/test_frameworks/mocha_failures.txt', 'mocha_chai_text')
+WHERE status = 'FAIL';
+----
+true
+
+# -----------------------------------------------------------------------------
+# github_actions_text parser: All FAIL events must have severity='error'
+# -----------------------------------------------------------------------------
+query I
+SELECT COUNT(*)
+FROM read_duck_hunt_log('test/samples/ci_systems/github_actions_workflow.txt', 'github_actions_text')
+WHERE status = 'FAIL' AND (severity IS NULL OR severity = '' OR severity != 'error');
+----
+0
+
+# -----------------------------------------------------------------------------
+# gitlab_ci_text parser: All FAIL events must have severity='error'
+# -----------------------------------------------------------------------------
+query I
+SELECT COUNT(*)
+FROM read_duck_hunt_log('test/samples/ci_systems/gitlab_ci_output.txt', 'gitlab_ci_text')
+WHERE status = 'FAIL' AND (severity IS NULL OR severity = '' OR severity != 'error');
+----
+0
+
+# -----------------------------------------------------------------------------
+# jenkins_text parser: All FAIL events must have severity='error'
+# -----------------------------------------------------------------------------
+query I
+SELECT COUNT(*)
+FROM read_duck_hunt_log('test/samples/ci_systems/jenkins_console_output.txt', 'jenkins_text')
+WHERE status = 'FAIL' AND (severity IS NULL OR severity = '' OR severity != 'error');
+----
+0
+
+# -----------------------------------------------------------------------------
+# bazel parser: All ERROR events must have severity='error'
+# (bazel uses ERROR status not FAIL for build failures)
+# -----------------------------------------------------------------------------
+query I
+SELECT COUNT(*)
+FROM read_duck_hunt_log('test/samples/build_systems/bazel_build_errors.txt', 'bazel_build')
+WHERE status = 'ERROR' AND (severity IS NULL OR severity = '' OR severity != 'error');
+----
+0
+
+# Verify there ARE errors being detected
+query I
+SELECT COUNT(*) > 0
+FROM read_duck_hunt_log('test/samples/build_systems/bazel_build_errors.txt', 'bazel_build')
+WHERE status = 'ERROR';
+----
+true
+
