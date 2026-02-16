@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <mutex>
 #include <regex>
+#include <unordered_map>
 
 // Parser tracing disabled - no-op macro
 #define PARSER_TRACE(msg)                                                                                              \
@@ -9,6 +10,29 @@
 	} while (0)
 
 namespace duckdb {
+
+// Regex cache to avoid recompiling patterns on every match
+// Thread-safe: protected by mutex
+namespace {
+std::unordered_map<std::string, std::regex> regex_cache_;
+std::mutex regex_cache_mutex_;
+
+// Get or compile a regex pattern (thread-safe, cached)
+const std::regex *GetCachedRegex(const std::string &pattern, bool ignore_case = true) {
+	std::lock_guard<std::mutex> lock(regex_cache_mutex_);
+	auto it = regex_cache_.find(pattern);
+	if (it != regex_cache_.end()) {
+		return &it->second;
+	}
+	try {
+		auto flags = ignore_case ? std::regex::icase : std::regex::ECMAScript;
+		auto result = regex_cache_.emplace(pattern, std::regex(pattern, flags));
+		return &result.first->second;
+	} catch (const std::regex_error &) {
+		return nullptr;
+	}
+}
+} // anonymous namespace
 
 // Forward declarations of all category registration functions
 // These are defined in each category's init.cpp
@@ -133,8 +157,8 @@ IParser *ParserRegistry::findParser(const std::string &content) const {
 	return nullptr;
 }
 
-// Helper for SQL LIKE pattern matching
-static bool matchLikePattern(const std::string &str, const std::string &pattern) {
+// Convert SQL LIKE pattern to regex pattern string
+static std::string likePatternToRegex(const std::string &pattern) {
 	// Convert SQL LIKE pattern to regex
 	// % matches any sequence, _ matches any single character
 	std::string regex_pattern;
@@ -169,13 +193,18 @@ static bool matchLikePattern(const std::string &str, const std::string &pattern)
 			break;
 		}
 	}
+	return regex_pattern;
+}
 
-	try {
-		std::regex re(regex_pattern, std::regex::icase);
-		return std::regex_match(str, re);
-	} catch (const std::regex_error &) {
+// Helper for SQL LIKE pattern matching (uses cached regex)
+static bool matchLikePattern(const std::string &str, const std::string &pattern) {
+	// Use a prefix to distinguish LIKE patterns in the cache
+	std::string cache_key = "LIKE:" + pattern;
+	const std::regex *re = GetCachedRegex(likePatternToRegex(pattern));
+	if (!re) {
 		return false;
 	}
+	return std::regex_match(str, *re);
 }
 
 // Normalize command by stripping path prefix from the executable.
@@ -230,11 +259,9 @@ IParser *ParserRegistry::findParserByCommand(const std::string &command) const {
 			} else if (cp.pattern_type == "like") {
 				matched = matchLikePattern(normalized, cp.pattern);
 			} else if (cp.pattern_type == "regexp") {
-				try {
-					std::regex re(cp.pattern, std::regex::icase);
-					matched = std::regex_search(normalized, re);
-				} catch (const std::regex_error &) {
-					matched = false;
+				const std::regex *re = GetCachedRegex(cp.pattern);
+				if (re) {
+					matched = std::regex_search(normalized, *re);
 				}
 			}
 
