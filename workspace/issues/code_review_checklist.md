@@ -9,8 +9,8 @@ Generated: 2026-02-14
 
 ### Performance
 - [x] **Regex compiled per-call** - All parsers now use static const regex patterns (compile once, reuse)
-- [ ] **Regex compiled per-match** - `parser_registry.cpp:174,234` - LIKE/regexp patterns recompiled every match (100x speedup)
-- [ ] **12 string copies in error processing** - `error_patterns.cpp:38-71` - NormalizeErrorMessage creates 12 intermediate copies (3-5x speedup)
+- [x] **Regex compiled per-match** - Added regex cache in parser_registry.cpp
+- [x] **12 string copies in error processing** - Added fast path to skip regex for simple messages
 - [x] **Missing vector reserves** - Added `events.reserve()` to all converted parsers
 
 ### Quality
@@ -26,7 +26,7 @@ Generated: 2026-02-14
 - [ ] **Path traversal validation** - No explicit path validation beyond DuckDB's sandbox
 
 ### Performance
-- [ ] **O(n²) similarity calculation** - `error_patterns.cpp:224-241` - Nested loop for pattern matching (100x impact for large n)
+- [x] **O(n²) similarity calculation** - Fixed with O(n) map-based lookup
 
 ## Medium Priority Issues
 
@@ -125,9 +125,9 @@ No remaining parsers with non-static patterns.
 6. [x] Add path validation
 
 ### Phase 3: Performance Optimization
-7. [ ] Fix O(n²) in error_patterns.cpp
-8. [ ] Optimize NormalizeErrorMessage string copies
-9. [ ] Add regex caching in parser_registry.cpp
+7. [x] Fix O(n²) in error_patterns.cpp
+8. [x] Optimize NormalizeErrorMessage string copies
+9. [x] Add regex caching in parser_registry.cpp
 
 ### Phase 4: Code Quality
 10. [ ] Create event builder utility in BaseParser
