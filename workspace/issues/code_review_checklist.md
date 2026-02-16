@@ -14,9 +14,9 @@ Generated: 2026-02-14
 - [x] **Missing vector reserves** - Added `events.reserve()` to all converted parsers
 
 ### Quality
-- [ ] **Event creation boilerplate** - 423 occurrences of repetitive ValidationEvent initialization
+- [x] **Event creation boilerplate** - Added EventBuilder class with fluent API
 - [ ] **Inconsistent SafeParsing adoption** - 69 files use raw regex, only 16 use SafeParsing utilities
-- [ ] **Dead code (enum system)** - `read_duck_hunt_log_function.hpp:23-125` - ~400 lines potentially unused
+- [x] **Dead code (enum system)** - Audited: TestResultFormat is actively used (262 refs)
 
 ## High Priority Issues
 
@@ -130,6 +130,6 @@ No remaining parsers with non-static patterns.
 9. [x] Add regex caching in parser_registry.cpp
 
 ### Phase 4: Code Quality
-10. [ ] Create event builder utility in BaseParser
-11. [ ] Audit and potentially remove TestResultFormat enum
+10. [x] Create event builder utility - Added EventBuilder class with fluent API
+11. [x] Audit TestResultFormat enum - Actively used (262 refs), not dead code
 12. [ ] Standardize naming conventions
