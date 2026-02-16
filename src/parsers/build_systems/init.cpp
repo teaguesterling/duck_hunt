@@ -6,6 +6,7 @@
 #include "maven_parser.hpp"
 #include "gradle_parser.hpp"
 #include "msbuild_parser.hpp"
+#include "unity_editor_parser.hpp"
 #include "cargo_parser.hpp"
 #include "node_parser.hpp"
 #include "python_parser.hpp"
@@ -58,6 +59,12 @@ void RegisterBuildSystemsParsers(ParserRegistry &registry) {
 	registry.registerParser(make_uniq<DelegatingParser<MSBuildParser>>(
 	    "msbuild", "MSBuild Parser", ParserCategory::BUILD_SYSTEM, "Microsoft MSBuild output", ParserPriority::HIGH,
 	    std::vector<std::string> {}, std::vector<std::string> {"dotnet", "build"}));
+
+	// Unity Editor - higher priority than MSBuild since Unity uses Roslyn but has specific format
+	registry.registerParser(make_uniq<DelegatingParser<UnityEditorParser>>(
+	    "unity_editor", "Unity Editor Parser", ParserCategory::BUILD_SYSTEM, "Unity Editor build and test logs",
+	    ParserPriority::VERY_HIGH, std::vector<std::string> {"unity", "unity_build"},
+	    std::vector<std::string> {"csharp", "gamedev", "build"}));
 
 	// Language-specific build systems
 	registry.registerParser(make_uniq<DelegatingParser<CargoParser>>(

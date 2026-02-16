@@ -120,6 +120,7 @@ set(EXTENSION_SOURCES
     
     # Phase 8: Build System Parser Extraction - Batch 2
     src/parsers/build_systems/msbuild_parser.cpp
+    src/parsers/build_systems/unity_editor_parser.cpp
     src/parsers/build_systems/node_parser.cpp
     src/parsers/build_systems/python_parser.cpp
     
