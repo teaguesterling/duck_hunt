@@ -1,4 +1,5 @@
 #include "duckdb_test_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <sstream>
 #include <string>
 
@@ -83,7 +84,7 @@ void DuckDBTestParser::ParseDuckDBTestOutput(const std::string &content, std::ve
 				if (colon_pos != std::string::npos) {
 					current_test_file = location.substr(0, colon_pos);
 					try {
-						failure_line = std::stoi(location.substr(colon_pos + 1));
+						failure_line = SafeParsing::SafeStoi(location.substr(colon_pos + 1));
 					} catch (...) {
 						failure_line = -1;
 					}
@@ -201,7 +202,7 @@ void DuckDBTestParser::ParseDuckDBTestOutput(const std::string &content, std::ve
 				if (passed_start != std::string::npos) {
 					try {
 						int passed_count =
-						    std::stoi(summary_line.substr(passed_start + 1, passed_pos - passed_start - 1));
+						    SafeParsing::SafeStoi(summary_line.substr(passed_start + 1, passed_pos - passed_start - 1));
 
 						// Create passed test events (summary)
 						ValidationEvent summary_event;

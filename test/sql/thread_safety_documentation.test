@@ -1,0 +1,80 @@
+# name: test/sql/thread_safety_documentation.test
+# description: Documentation tests for thread safety fixes (Issue #1, #5 from code review)
+# group: [sql]
+
+# =============================================================================
+# Thread Safety Fixes Documentation
+# =============================================================================
+#
+# This test file documents the thread safety issues fixed in ParserRegistry.
+# True concurrency testing requires C++ unit tests with multiple threads.
+# These SQL tests verify the code paths work correctly in single-threaded mode.
+#
+# ISSUES FIXED:
+#
+# Issue 1: ensureSorted() data race
+# ---------------------------------
+# The ensureSorted() method modifies mutable members (sorted_parsers_, needs_resort_)
+# from const methods like findParser(). Without synchronization, concurrent calls
+# could corrupt the sorted_parsers_ vector.
+#
+# Fix: Added mutable std::mutex registry_mutex_ and lock_guard protection.
+#
+# Issue 5: registerParser() not synchronized
+# -------------------------------------------
+# The registerParser() method modifies format_map_, parsers_, and needs_resort_
+# without locks, which could race with concurrent reads.
+#
+# Fix: Same mutex protects all write operations.
+#
+# =============================================================================
+
+require duck_hunt
+
+# Test 1: Parser lookup works (exercises getParser -> ensureSorted path)
+query I
+SELECT duck_hunt_detect_format('{\"level\":\"error\"}') IS NOT NULL;
+----
+true
+
+# Test 2: Format auto-detection works (exercises findParser -> ensureSorted path)
+query I
+SELECT tool_name FROM parse_duck_hunt_log('main.c:10:5: error: test', 'auto') LIMIT 1;
+----
+compiler
+
+# Test 3: Multiple parsers can be queried sequentially (no corruption)
+query III
+SELECT
+  (SELECT COUNT(*) FROM duck_hunt_formats() WHERE format = 'gcc_text') as has_gcc,
+  (SELECT COUNT(*) FROM duck_hunt_formats() WHERE format = 'pytest_text') as has_pytest,
+  (SELECT COUNT(*) FROM duck_hunt_formats() WHERE format = 'jsonl') as has_jsonl;
+----
+1	1	1
+
+# Test 4: Command pattern matching works (exercises findParserByCommand -> ensureSorted)
+query I
+SELECT duck_hunt_detect_format('pytest tests/ -v') IS NOT NULL;
+----
+true
+
+# Test 5: Category queries work (exercises getParsersByCategory)
+query I
+SELECT COUNT(*) > 0 FROM duck_hunt_formats() WHERE category = 'build_system';
+----
+true
+
+# Test 6: Group queries work (exercises getParsersByGroup)
+query I
+SELECT COUNT(*) > 0 FROM duck_hunt_formats() WHERE list_contains(groups, 'python');
+----
+true
+
+# Test 7: Multiple format detections in single query (multiple ensureSorted calls)
+query II
+SELECT
+  duck_hunt_detect_format('main.c:1: error: x') as fmt1,
+  duck_hunt_detect_format('test.py:1:1: E001 error') as fmt2;
+----
+gcc_text	flake8_text
+

@@ -118,6 +118,208 @@ struct ValidationEvent {
 	}
 };
 
+/**
+ * Fluent builder for ValidationEvent to reduce boilerplate.
+ *
+ * Usage:
+ *   auto event = EventBuilder(event_id++)
+ *       .tool("eslint")
+ *       .type(ValidationEventType::LINT_ISSUE)
+ *       .error("E001", "Unexpected token")
+ *       .at("src/main.js", 42, 10)
+ *       .logLine(line, line_num)
+ *       .build();
+ */
+class EventBuilder {
+public:
+	explicit EventBuilder(int64_t id) {
+		event_.event_id = id;
+	}
+
+	// Core identification
+	EventBuilder &tool(const std::string &name) {
+		event_.tool_name = name;
+		return *this;
+	}
+
+	EventBuilder &type(ValidationEventType t) {
+		event_.event_type = t;
+		return *this;
+	}
+
+	// Status and severity
+	EventBuilder &pass() {
+		event_.status = ValidationEventStatus::PASS;
+		event_.severity = "info";
+		return *this;
+	}
+
+	EventBuilder &fail() {
+		event_.status = ValidationEventStatus::FAIL;
+		event_.severity = "error";
+		return *this;
+	}
+
+	EventBuilder &skip() {
+		event_.status = ValidationEventStatus::SKIP;
+		event_.severity = "warning";
+		return *this;
+	}
+
+	EventBuilder &error() {
+		event_.status = ValidationEventStatus::ERROR;
+		event_.severity = "error";
+		return *this;
+	}
+
+	EventBuilder &warning() {
+		event_.status = ValidationEventStatus::WARNING;
+		event_.severity = "warning";
+		return *this;
+	}
+
+	EventBuilder &info() {
+		event_.status = ValidationEventStatus::INFO;
+		event_.severity = "info";
+		return *this;
+	}
+
+	EventBuilder &severity(const std::string &sev) {
+		event_.severity = sev;
+		return *this;
+	}
+
+	EventBuilder &status(ValidationEventStatus s) {
+		event_.status = s;
+		return *this;
+	}
+
+	// Content
+	EventBuilder &message(const std::string &msg) {
+		event_.message = msg;
+		return *this;
+	}
+
+	EventBuilder &errorCode(const std::string &code, const std::string &msg) {
+		event_.error_code = code;
+		event_.message = msg;
+		return *this;
+	}
+
+	EventBuilder &suggestion(const std::string &sug) {
+		event_.suggestion = sug;
+		return *this;
+	}
+
+	EventBuilder &category(const std::string &cat) {
+		event_.category = cat;
+		return *this;
+	}
+
+	// Location (file/line/column in source code)
+	EventBuilder &at(const std::string &file, int32_t line, int32_t col = -1) {
+		event_.ref_file = file;
+		event_.ref_line = line;
+		event_.ref_column = col;
+		return *this;
+	}
+
+	EventBuilder &function(const std::string &name) {
+		event_.function_name = name;
+		return *this;
+	}
+
+	// Log source tracking
+	EventBuilder &logLine(const std::string &content, int32_t line_num) {
+		event_.log_content = content;
+		event_.log_line_start = line_num;
+		event_.log_line_end = line_num;
+		return *this;
+	}
+
+	EventBuilder &logLines(const std::string &content, int32_t start, int32_t end) {
+		event_.log_content = content;
+		event_.log_line_start = start;
+		event_.log_line_end = end;
+		return *this;
+	}
+
+	EventBuilder &logFile(const std::string &path) {
+		event_.log_file = path;
+		return *this;
+	}
+
+	// Test-specific
+	EventBuilder &test(const std::string &name, double time_ms = 0.0) {
+		event_.test_name = name;
+		event_.execution_time = time_ms;
+		return *this;
+	}
+
+	// Structured data
+	EventBuilder &data(const std::string &json) {
+		event_.structured_data = json;
+		return *this;
+	}
+
+	// Hierarchical context
+	EventBuilder &scope(const std::string &name, const std::string &id = "", const std::string &status = "") {
+		event_.scope = name;
+		event_.scope_id = id;
+		event_.scope_status = status;
+		return *this;
+	}
+
+	EventBuilder &group(const std::string &name, const std::string &id = "", const std::string &status = "") {
+		event_.group = name;
+		event_.group_id = id;
+		event_.group_status = status;
+		return *this;
+	}
+
+	EventBuilder &unit(const std::string &name, const std::string &id = "", const std::string &status = "") {
+		event_.unit = name;
+		event_.unit_id = id;
+		event_.unit_status = status;
+		return *this;
+	}
+
+	// Identity & Network
+	EventBuilder &principal(const std::string &p) {
+		event_.principal = p;
+		return *this;
+	}
+
+	EventBuilder &origin(const std::string &o) {
+		event_.origin = o;
+		return *this;
+	}
+
+	EventBuilder &target(const std::string &t) {
+		event_.target = t;
+		return *this;
+	}
+
+	// Temporal
+	EventBuilder &timestamp(const std::string &ts) {
+		event_.started_at = ts;
+		return *this;
+	}
+
+	// Build the event
+	ValidationEvent build() {
+		return std::move(event_);
+	}
+
+	// Build and add to vector in one step
+	void addTo(std::vector<ValidationEvent> &events) {
+		events.push_back(std::move(event_));
+	}
+
+private:
+	ValidationEvent event_;
+};
+
 // Helper functions for enum conversions
 std::string ValidationEventStatusToString(ValidationEventStatus status);
 std::string ValidationEventTypeToString(ValidationEventType type);

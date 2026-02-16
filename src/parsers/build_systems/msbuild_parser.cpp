@@ -1,4 +1,5 @@
 #include "msbuild_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 #include <string>
@@ -49,8 +50,8 @@ std::vector<ValidationEvent> MSBuildParser::parse(const std::string &content) co
 			event.tool_name = "msbuild-csc";
 			event.event_type = ValidationEventType::BUILD_ERROR;
 			event.ref_file = match[1].str();
-			event.ref_line = std::stoi(match[2].str());
-			event.ref_column = std::stoi(match[3].str());
+			event.ref_line = SafeParsing::SafeStoi(match[2].str());
+			event.ref_column = SafeParsing::SafeStoi(match[3].str());
 			event.function_name = current_project;
 			event.status = ValidationEventStatus::ERROR;
 			event.severity = "error";
@@ -71,8 +72,8 @@ std::vector<ValidationEvent> MSBuildParser::parse(const std::string &content) co
 			event.tool_name = "msbuild-csc";
 			event.event_type = ValidationEventType::BUILD_ERROR;
 			event.ref_file = match[1].str();
-			event.ref_line = std::stoi(match[2].str());
-			event.ref_column = std::stoi(match[3].str());
+			event.ref_line = SafeParsing::SafeStoi(match[2].str());
+			event.ref_column = SafeParsing::SafeStoi(match[3].str());
 			event.function_name = current_project;
 			event.status = ValidationEventStatus::WARNING;
 			event.severity = "warning";
@@ -103,11 +104,11 @@ std::vector<ValidationEvent> MSBuildParser::parse(const std::string &content) co
 		}
 		// Parse .NET test results summary
 		else if (std::regex_search(line, match, test_result_pattern)) {
-			int failed = std::stoi(match[2].str());
-			int passed = std::stoi(match[3].str());
-			int skipped = std::stoi(match[4].str());
-			int total = std::stoi(match[5].str());
-			int duration = std::stoi(match[6].str());
+			int failed = SafeParsing::SafeStoi(match[2].str());
+			int passed = SafeParsing::SafeStoi(match[3].str());
+			int skipped = SafeParsing::SafeStoi(match[4].str());
+			int total = SafeParsing::SafeStoi(match[5].str());
+			int duration = SafeParsing::SafeStoi(match[6].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -189,10 +190,10 @@ std::vector<ValidationEvent> MSBuildParser::parse(const std::string &content) co
 		}
 		// Parse build timing
 		else if (std::regex_search(line, match, time_elapsed_pattern)) {
-			int hours = std::stoi(match[1].str());
-			int minutes = std::stoi(match[2].str());
-			int seconds = std::stoi(match[3].str());
-			int milliseconds = std::stoi(match[4].str());
+			int hours = SafeParsing::SafeStoi(match[1].str());
+			int minutes = SafeParsing::SafeStoi(match[2].str());
+			int seconds = SafeParsing::SafeStoi(match[3].str());
+			int milliseconds = SafeParsing::SafeStoi(match[4].str());
 
 			double total_seconds = hours * 3600 + minutes * 60 + seconds + milliseconds / 1000.0;
 
@@ -215,7 +216,7 @@ std::vector<ValidationEvent> MSBuildParser::parse(const std::string &content) co
 		}
 		// Parse error/warning summaries
 		else if (std::regex_search(line, match, error_summary_pattern)) {
-			int error_count = std::stoi(match[1].str());
+			int error_count = SafeParsing::SafeStoi(match[1].str());
 
 			if (error_count > 0) {
 				ValidationEvent event;
@@ -233,7 +234,7 @@ std::vector<ValidationEvent> MSBuildParser::parse(const std::string &content) co
 				events.push_back(event);
 			}
 		} else if (std::regex_search(line, match, warning_summary_pattern)) {
-			int warning_count = std::stoi(match[1].str());
+			int warning_count = SafeParsing::SafeStoi(match[1].str());
 
 			if (warning_count > 0) {
 				ValidationEvent event;

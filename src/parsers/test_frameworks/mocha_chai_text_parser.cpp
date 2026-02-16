@@ -1,9 +1,32 @@
 #include "mocha_chai_text_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 #include <string>
 
 namespace duckdb {
+
+// Pre-compiled regex patterns for Mocha/Chai parsing (compiled once, reused)
+namespace {
+static const std::regex RE_TEST_PASSED(R"(\s*✓\s*(.+)\s*\((\d+)ms\))");
+static const std::regex RE_TEST_FAILED(R"(\s*✗\s*(.+))");
+static const std::regex RE_TEST_PENDING(R"(\s*-\s*(.+)\s*\(pending\))");
+static const std::regex RE_TEST_PENDING_SIMPLE(R"(^\s+-\s+(.+)$)");
+static const std::regex RE_CONTEXT_START(R"(^\s*([A-Z][A-Za-z0-9\s]+)\s*$)");
+static const std::regex RE_NESTED_CONTEXT(R"(^\s{2,}([a-z#][A-Za-z0-9\s#]+)\s*$)");
+static const std::regex RE_ERROR_LINE(R"(\s*(Error|AssertionError|TypeError|ReferenceError):\s*(.+))");
+static const std::regex RE_FILE_LINE(R"(\s*at\s+Context\.<anonymous>\s+\((.+):(\d+):(\d+)\))");
+static const std::regex RE_TEST_STACK(R"(\s*at\s+Test\.Runnable\.run\s+\((.+):(\d+):(\d+)\))");
+static const std::regex RE_GENERAL_FILE_LINE(R"(\s*at\s+.+\s+\((.+):(\d+):(\d+)\))");
+static const std::regex RE_SUMMARY_LINE(R"(\s*(\d+)\s+passing\s*\(([0-9.]+s?)\))");
+static const std::regex RE_FAILING_LINE(R"(\s*(\d+)\s+failing)");
+static const std::regex RE_PENDING_LINE(R"(\s*(\d+)\s+pending)");
+static const std::regex RE_FAILED_EXAMPLE_START(R"(\s*(\d+)\)\s+(.+?):?\s*$)");
+static const std::regex RE_FAILED_EXAMPLE_CONTINUATION(R"(^\s{6,}(.+?):?\s*$)");
+static const std::regex RE_EXPECTED_GOT_LINE(R"(\s*\+(.+))");
+static const std::regex RE_ACTUAL_LINE(R"(\s*-(.+))");
+static const std::regex RE_NUMBERED_FAILED_TEST(R"(\s*(\d+)\)\s+(.+))");
+} // anonymous namespace
 
 bool MochaChaiTextParser::canParse(const std::string &content) const {
 	// Check for Mocha/Chai text patterns (should be checked before RSpec since they can share similar symbols)
@@ -16,35 +39,11 @@ bool MochaChaiTextParser::canParse(const std::string &content) const {
 
 std::vector<ValidationEvent> MochaChaiTextParser::parse(const std::string &content) const {
 	std::vector<ValidationEvent> events;
+	events.reserve(content.size() / 80); // Estimate: ~1 event per 80 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
 	int32_t current_line_num = 0;
-
-	// Regex patterns for Mocha/Chai output
-	std::regex test_passed(R"(\s*✓\s*(.+)\s*\((\d+)ms\))");
-	std::regex test_failed(R"(\s*✗\s*(.+))");
-	std::regex test_pending(R"(\s*-\s*(.+)\s*\(pending\))");
-	// Also match pending tests without (pending) suffix
-	std::regex test_pending_simple(R"(^\s+-\s+(.+)$)");
-	std::regex context_start(R"(^\s*([A-Z][A-Za-z0-9\s]+)\s*$)");
-	std::regex nested_context(R"(^\s{2,}([a-z#][A-Za-z0-9\s#]+)\s*$)");
-	std::regex error_line(R"(\s*(Error|AssertionError|TypeError|ReferenceError):\s*(.+))");
-	std::regex file_line(R"(\s*at\s+Context\.<anonymous>\s+\((.+):(\d+):(\d+)\))");
-	std::regex test_stack(R"(\s*at\s+Test\.Runnable\.run\s+\((.+):(\d+):(\d+)\))");
-	// More general file:line:col pattern for stack traces
-	std::regex general_file_line(R"(\s*at\s+.+\s+\((.+):(\d+):(\d+)\))");
-	std::regex summary_line(R"(\s*(\d+)\s+passing\s*\(([0-9.]+s?)\))");
-	std::regex failing_line(R"(\s*(\d+)\s+failing)");
-	std::regex pending_line(R"(\s*(\d+)\s+pending)");
-	// Numbered failure: "  1) Context name test name:"
-	std::regex failed_example_start(R"(\s*(\d+)\)\s+(.+?):?\s*$)");
-	// Continuation of test name (indented lines after failure number)
-	std::regex failed_example_continuation(R"(^\s{6,}(.+?):?\s*$)");
-	std::regex expected_got_line(R"(\s*\+(.+))");
-	std::regex actual_line(R"(\s*-(.+))");
-	// Numbered test markers in initial list: "      1) should set createdAt timestamp"
-	std::regex numbered_failed_test(R"(\s*(\d+)\)\s+(.+))");
 
 	std::string current_context;
 	std::string current_nested_context;
@@ -64,7 +63,7 @@ std::vector<ValidationEvent> MochaChaiTextParser::parse(const std::string &conte
 		std::smatch match;
 
 		// Check for test passed
-		if (std::regex_match(line, match, test_passed)) {
+		if (std::regex_match(line, match, RE_TEST_PASSED)) {
 			std::string test_name = match[1].str();
 			std::string time_str = match[2].str();
 			current_execution_time = std::stoll(time_str);
@@ -97,11 +96,11 @@ std::vector<ValidationEvent> MochaChaiTextParser::parse(const std::string &conte
 			current_execution_time = 0;
 		}
 		// Check for test failed
-		else if (std::regex_match(line, match, test_failed)) {
+		else if (std::regex_match(line, match, RE_TEST_FAILED)) {
 			current_test_name = match[1].str();
 		}
 		// Check for test pending
-		else if (std::regex_match(line, match, test_pending)) {
+		else if (std::regex_match(line, match, RE_TEST_PENDING)) {
 			std::string test_name = match[1].str();
 
 			ValidationEvent event;
@@ -126,23 +125,23 @@ std::vector<ValidationEvent> MochaChaiTextParser::parse(const std::string &conte
 			events.push_back(event);
 		}
 		// Check for context start
-		else if (std::regex_match(line, match, context_start)) {
+		else if (std::regex_match(line, match, RE_CONTEXT_START)) {
 			current_context = match[1].str();
 			current_nested_context = "";
 		}
 		// Check for nested context
-		else if (std::regex_match(line, match, nested_context)) {
+		else if (std::regex_match(line, match, RE_NESTED_CONTEXT)) {
 			current_nested_context = match[1].str();
 		}
 		// Check for error messages
-		else if (std::regex_search(line, match, error_line)) {
+		else if (std::regex_search(line, match, RE_ERROR_LINE)) {
 			current_error_message = match[1].str() + ": " + match[2].str();
 		}
 		// Check for file and line information (Context.<anonymous> format)
-		else if (std::regex_match(line, match, file_line)) {
+		else if (std::regex_match(line, match, RE_FILE_LINE)) {
 			current_file_path = match[1].str();
-			current_line_number = std::stoi(match[2].str());
-			current_column = std::stoi(match[3].str());
+			current_line_number = SafeParsing::SafeStoi(match[2].str());
+			current_column = SafeParsing::SafeStoi(match[3].str());
 
 			// If we have a failed test from inline ✗ marker, create the event now
 			if (!current_test_name.empty() && !current_error_message.empty() && !in_failure_details) {
@@ -174,14 +173,14 @@ std::vector<ValidationEvent> MochaChaiTextParser::parse(const std::string &conte
 			}
 		}
 		// Check for general file and line information (any "at ... (file:line:col)" format)
-		else if (in_failure_details && current_file_path.empty() && std::regex_search(line, match, general_file_line)) {
+		else if (in_failure_details && current_file_path.empty() && std::regex_search(line, match, RE_GENERAL_FILE_LINE)) {
 			current_file_path = match[1].str();
-			current_line_number = std::stoi(match[2].str());
-			current_column = std::stoi(match[3].str());
+			current_line_number = SafeParsing::SafeStoi(match[2].str());
+			current_column = SafeParsing::SafeStoi(match[3].str());
 		}
 		// Check for failed example start (in failure summary section)
 		// Format: "  1) Context name test name:" or "  1) Context name"
-		else if (std::regex_match(line, match, failed_example_start)) {
+		else if (std::regex_match(line, match, RE_FAILED_EXAMPLE_START)) {
 			// If we have a pending failure from previous block, emit it
 			if (in_failure_details && !accumulated_test_name.empty()) {
 				ValidationEvent event;
@@ -219,7 +218,7 @@ std::vector<ValidationEvent> MochaChaiTextParser::parse(const std::string &conte
 			current_column = 0;
 		}
 		// Check for continuation lines in failure details (indented test name parts)
-		else if (in_failure_details && std::regex_match(line, match, failed_example_continuation)) {
+		else if (in_failure_details && std::regex_match(line, match, RE_FAILED_EXAMPLE_CONTINUATION)) {
 			std::string continuation = match[1].str();
 			// Remove trailing colon if present
 			if (!continuation.empty() && continuation.back() == ':') {
@@ -228,8 +227,8 @@ std::vector<ValidationEvent> MochaChaiTextParser::parse(const std::string &conte
 			accumulated_test_name += " " + continuation;
 		}
 		// Check for summary lines
-		else if (std::regex_match(line, match, summary_line)) {
-			int passing_count = std::stoi(match[1].str());
+		else if (std::regex_match(line, match, RE_SUMMARY_LINE)) {
+			int passing_count = SafeParsing::SafeStoi(match[1].str());
 			std::string total_time = match[2].str();
 
 			duckdb::ValidationEvent summary_event;
@@ -251,8 +250,8 @@ std::vector<ValidationEvent> MochaChaiTextParser::parse(const std::string &conte
 			    "{\"passing_tests\": " + std::to_string(passing_count) + ", \"total_time\": \"" + total_time + "\"}";
 
 			events.push_back(summary_event);
-		} else if (std::regex_match(line, match, failing_line)) {
-			int failing_count = std::stoi(match[1].str());
+		} else if (std::regex_match(line, match, RE_FAILING_LINE)) {
+			int failing_count = SafeParsing::SafeStoi(match[1].str());
 
 			duckdb::ValidationEvent summary_event;
 			summary_event.event_id = event_id++;
@@ -272,8 +271,8 @@ std::vector<ValidationEvent> MochaChaiTextParser::parse(const std::string &conte
 			summary_event.structured_data = "{\"failing_tests\": " + std::to_string(failing_count) + "}";
 
 			events.push_back(summary_event);
-		} else if (std::regex_match(line, match, pending_line)) {
-			int pending_count = std::stoi(match[1].str());
+		} else if (std::regex_match(line, match, RE_PENDING_LINE)) {
+			int pending_count = SafeParsing::SafeStoi(match[1].str());
 
 			duckdb::ValidationEvent summary_event;
 			summary_event.event_id = event_id++;
@@ -296,7 +295,7 @@ std::vector<ValidationEvent> MochaChaiTextParser::parse(const std::string &conte
 		}
 
 		// Always add stack trace lines when we encounter them
-		if (std::regex_match(line, match, test_stack) || std::regex_match(line, match, file_line)) {
+		if (std::regex_match(line, match, RE_TEST_STACK) || std::regex_match(line, match, RE_FILE_LINE)) {
 			stack_trace.push_back(line);
 		}
 	}

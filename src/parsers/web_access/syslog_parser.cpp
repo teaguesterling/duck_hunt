@@ -1,4 +1,5 @@
 #include "syslog_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include "duckdb/common/string_util.hpp"
 #include <sstream>
 #include <regex>
@@ -123,7 +124,7 @@ static bool ParseRFC5424Syslog(const std::string &line, ValidationEvent &event, 
 	// Parse priority to get severity
 	int priority = 0;
 	try {
-		priority = std::stoi(priority_str);
+		priority = SafeParsing::SafeStoi(priority_str);
 	} catch (...) {
 	}
 	int severity_code = priority & 0x07;        // Lower 3 bits

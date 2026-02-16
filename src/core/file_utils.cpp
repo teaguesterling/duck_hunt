@@ -9,6 +9,51 @@
 
 namespace duckdb {
 
+// Maximum file size to read into memory (100MB default)
+// Prevents OOM from accidentally processing multi-GB files
+constexpr size_t MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024;
+
+/**
+ * Validate a file path or glob pattern for basic security issues.
+ * Returns true if the path appears safe, false if it should be rejected.
+ *
+ * Checks for:
+ * - Path traversal attempts (..)
+ * - Null bytes (can truncate paths in some systems)
+ * - Excessively long paths
+ */
+bool ValidatePath(const std::string &path) {
+	// Reject empty paths
+	if (path.empty()) {
+		return false;
+	}
+
+	// Reject excessively long paths (prevent buffer issues)
+	constexpr size_t MAX_PATH_LENGTH = 4096;
+	if (path.length() > MAX_PATH_LENGTH) {
+		return false;
+	}
+
+	// Reject null bytes (can truncate paths)
+	if (path.find('\0') != std::string::npos) {
+		return false;
+	}
+
+	// Reject obvious path traversal attempts
+	// Note: DuckDB's sandbox provides additional protection
+	if (path.find("..") != std::string::npos) {
+		// Allow ".." only if it's part of a longer segment like "...log"
+		// Check for actual traversal patterns
+		if (path.find("../") != std::string::npos || path.find("..\\") != std::string::npos ||
+		    path == ".." || path.rfind("/..", path.length() - 3) == path.length() - 3 ||
+		    path.rfind("\\..", path.length() - 3) == path.length() - 3) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
 // ============================================================================
 // LineReader Implementation
 // ============================================================================
@@ -128,6 +173,11 @@ std::string PeekContentFromSource(ClientContext &context, const std::string &sou
 }
 
 std::string ReadContentFromSource(ClientContext &context, const std::string &source) {
+	// Validate path before attempting to read
+	if (!ValidatePath(source)) {
+		throw InvalidInputException("Invalid file path: '%s'", source);
+	}
+
 	// Use DuckDB's FileSystem to properly handle file paths including UNITTEST_ROOT_DIRECTORY
 	auto &fs = FileSystem::GetFileSystem(context);
 
@@ -144,6 +194,12 @@ std::string ReadContentFromSource(ClientContext &context, const std::string &sou
 		// Uncompressed file - read using known size for efficiency
 		auto file_size = file_handle->GetFileSize();
 		if (file_size > 0) {
+			// Check file size limit to prevent OOM
+			if (static_cast<size_t>(file_size) > MAX_FILE_SIZE_BYTES) {
+				throw InvalidInputException("File '%s' exceeds maximum size limit of %zu MB (actual: %zu MB)",
+				                            source, MAX_FILE_SIZE_BYTES / (1024 * 1024),
+				                            static_cast<size_t>(file_size) / (1024 * 1024));
+			}
 			std::string content;
 			content.resize(static_cast<size_t>(file_size));
 			file_handle->Read((void *)content.data(), file_size);
@@ -153,7 +209,7 @@ std::string ReadContentFromSource(ClientContext &context, const std::string &sou
 
 	// Compressed files, pipes, or empty files - read in chunks until EOF
 	std::string content;
-	constexpr size_t chunk_size = 8192;
+	constexpr size_t chunk_size = 65536; // 64KB chunks for better performance
 	char buffer[chunk_size];
 
 	while (true) {
@@ -162,6 +218,13 @@ std::string ReadContentFromSource(ClientContext &context, const std::string &sou
 			break; // EOF
 		}
 		content.append(buffer, static_cast<size_t>(bytes_read));
+
+		// Check size limit during streaming read to prevent OOM
+		if (content.size() > MAX_FILE_SIZE_BYTES) {
+			throw InvalidInputException("File '%s' exceeds maximum size limit of %zu MB (read so far: %zu MB)",
+			                            source, MAX_FILE_SIZE_BYTES / (1024 * 1024),
+			                            content.size() / (1024 * 1024));
+		}
 	}
 
 	return content;
@@ -175,6 +238,11 @@ bool IsValidJSON(const std::string &content) {
 }
 
 std::vector<std::string> GetGlobFiles(ClientContext &context, const std::string &pattern) {
+	// Validate pattern before attempting glob
+	if (!ValidatePath(pattern)) {
+		throw InvalidInputException("Invalid glob pattern: '%s'", pattern);
+	}
+
 	auto &fs = FileSystem::GetFileSystem(context);
 	std::vector<std::string> result;
 

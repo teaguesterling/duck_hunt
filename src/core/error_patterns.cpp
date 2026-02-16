@@ -34,14 +34,48 @@ const std::regex RE_INTEGER(R"(\b\d+\b)");
 const std::regex RE_WHITESPACE(R"(\s+)");
 } // namespace
 
+// Check if message likely contains content that needs normalization
+// Used as a fast path to skip expensive regex operations
+inline bool NeedsNormalization(const std::string &message) {
+	for (char c : message) {
+		// Check for characters that indicate normalizable content
+		if (c == '/' || c == '\\' || c == ':' || c == '\'' || c == '"' ||
+		    (c >= '0' && c <= '9') || c == '\t' || c == '\n') {
+			return true;
+		}
+	}
+	return false;
+}
+
 // Normalize error message for fingerprinting by removing variable content
+// Optimized to reduce string copies where possible
 std::string NormalizeErrorMessage(const std::string &message) {
-	std::string normalized = message;
+	// Fast path: empty or very short messages don't need processing
+	if (message.empty()) {
+		return message;
+	}
+
+	// Reserve capacity to reduce reallocations
+	std::string normalized;
+	normalized.reserve(message.size());
+	normalized = message;
 
 	// Convert to lowercase for case-insensitive comparison
 	std::transform(normalized.begin(), normalized.end(), normalized.begin(), ::tolower);
 
-	// Remove file paths (anything that looks like a path)
+	// Fast path: if message has no normalizable content, skip regex operations
+	if (!NeedsNormalization(normalized)) {
+		// Just trim and return
+		auto start = normalized.find_first_not_of(" \t");
+		auto end = normalized.find_last_not_of(" \t");
+		if (start != std::string::npos && end != std::string::npos && (start > 0 || end < normalized.size() - 1)) {
+			return normalized.substr(start, end - start + 1);
+		}
+		return normalized;
+	}
+
+	// Apply regex replacements - order matters for efficiency
+	// Do path replacements first (most specific to most general)
 	normalized = std::regex_replace(normalized, RE_FILE_EXT, " <file> ");
 	normalized = std::regex_replace(normalized, RE_UNIX_PATH, "/<path>/");
 	normalized = std::regex_replace(normalized, RE_WIN_PATH, "\\<path>\\");
@@ -74,7 +108,7 @@ std::string NormalizeErrorMessage(const std::string &message) {
 	auto start = normalized.find_first_not_of(" \t");
 	auto end = normalized.find_last_not_of(" \t");
 	if (start != std::string::npos && end != std::string::npos) {
-		normalized = normalized.substr(start, end - start + 1);
+		return normalized.substr(start, end - start + 1);
 	}
 
 	return normalized;
@@ -210,33 +244,33 @@ void ProcessErrorPatterns(std::vector<ValidationEvent> &events) {
 	}
 
 	// Step 2: Assign pattern IDs based on fingerprint clustering
+	// Also track the representative (first) message for each pattern - O(n) instead of O(n²)
 	std::map<std::string, int64_t> fingerprint_to_pattern_id;
+	std::map<int64_t, std::string> pattern_id_to_representative;
 	int64_t next_pattern_id = 1;
 
 	for (auto &event : events) {
-		if (fingerprint_to_pattern_id.find(event.fingerprint) == fingerprint_to_pattern_id.end()) {
-			fingerprint_to_pattern_id[event.fingerprint] = next_pattern_id++;
+		auto it = fingerprint_to_pattern_id.find(event.fingerprint);
+		if (it == fingerprint_to_pattern_id.end()) {
+			int64_t pattern_id = next_pattern_id++;
+			fingerprint_to_pattern_id[event.fingerprint] = pattern_id;
+			// First occurrence becomes the representative message
+			pattern_id_to_representative[pattern_id] = event.message;
+			event.pattern_id = pattern_id;
+		} else {
+			event.pattern_id = it->second;
 		}
-		event.pattern_id = fingerprint_to_pattern_id[event.fingerprint];
 	}
 
-	// Step 3: Calculate similarity scores within pattern groups
+	// Step 3: Calculate similarity scores within pattern groups - O(n) lookup
 	for (auto &event : events) {
 		if (event.pattern_id == -1)
 			continue;
 
-		// Find the representative message for this pattern (first occurrence)
-		std::string representative_message;
-		for (const auto &other_event : events) {
-			if (other_event.pattern_id == event.pattern_id) {
-				representative_message = other_event.message;
-				break;
-			}
-		}
-
-		// Calculate similarity to representative message
-		if (!representative_message.empty()) {
-			event.similarity_score = CalculateMessageSimilarity(event.message, representative_message);
+		// Look up representative message in O(1)
+		auto it = pattern_id_to_representative.find(event.pattern_id);
+		if (it != pattern_id_to_representative.end() && !it->second.empty()) {
+			event.similarity_score = CalculateMessageSimilarity(event.message, it->second);
 		}
 	}
 }

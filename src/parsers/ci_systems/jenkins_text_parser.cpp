@@ -1,8 +1,26 @@
 #include "jenkins_text_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 
 namespace duckdb {
+
+// Pre-compiled regex patterns for Jenkins text parsing (compiled once, reused)
+namespace {
+static const std::regex RE_PIPELINE_STEP(R"(\[Pipeline\]\s*(.+))");
+static const std::regex RE_STAGE_START(R"(\[Pipeline\]\s*stage\s*\(([^)]+)\))");
+static const std::regex RE_NODE_BLOCK(R"(\[Pipeline\]\s*node\s*\{)");
+static const std::regex RE_BUILD_RESULT(R"(Finished:\s*(SUCCESS|FAILURE|UNSTABLE|ABORTED))");
+static const std::regex RE_STARTED_BY(R"(Started by\s+(.+))");
+static const std::regex RE_BUILDING_IN(R"(Building in workspace\s+(.+))");
+static const std::regex RE_SHELL_CMD(R"(\[.+\]\s*\$\s*(.+))");
+static const std::regex RE_ERROR_LINE(R"(^\s*(ERROR|FATAL|Exception|java\.lang\.\w+Exception):?\s*(.+))");
+static const std::regex RE_WARNING_LINE(R"(^\s*WARNING:?\s*(.+))");
+static const std::regex RE_STACK_TRACE(R"(^\s+at\s+(\S+)\(([^:]+):(\d+)\))");
+static const std::regex RE_BUILD_STEP(R"(^\[(.+)\]\s+(.+))");
+static const std::regex RE_JUNIT_RESULT(R"(Tests run:\s*(\d+),\s*Failures:\s*(\d+),\s*Errors:\s*(\d+))");
+static const std::regex RE_ARCHIVE_ARTIFACTS(R"(Archiving artifacts)");
+} // anonymous namespace
 
 bool JenkinsTextParser::canParse(const std::string &content) const {
 	// Jenkins specific markers
@@ -47,25 +65,11 @@ bool JenkinsTextParser::canParse(const std::string &content) const {
 
 std::vector<ValidationEvent> JenkinsTextParser::parse(const std::string &content) const {
 	std::vector<ValidationEvent> events;
+	events.reserve(content.size() / 100); // Estimate: ~1 event per 100 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
 	int32_t line_num = 0;
-
-	// Patterns for Jenkins output
-	std::regex pipeline_step(R"(\[Pipeline\]\s*(.+))");
-	std::regex stage_start(R"(\[Pipeline\]\s*stage\s*\(([^)]+)\))");
-	std::regex node_block(R"(\[Pipeline\]\s*node\s*\{)");
-	std::regex build_result(R"(Finished:\s*(SUCCESS|FAILURE|UNSTABLE|ABORTED))");
-	std::regex started_by(R"(Started by\s+(.+))");
-	std::regex building_in(R"(Building in workspace\s+(.+))");
-	std::regex shell_cmd(R"(\[.+\]\s*\$\s*(.+))");
-	std::regex error_line(R"(^\s*(ERROR|FATAL|Exception|java\.lang\.\w+Exception):?\s*(.+))");
-	std::regex warning_line(R"(^\s*WARNING:?\s*(.+))");
-	std::regex stack_trace(R"(^\s+at\s+(\S+)\(([^:]+):(\d+)\))");
-	std::regex build_step(R"(^\[(.+)\]\s+(.+))");
-	std::regex junit_result(R"(Tests run:\s*(\d+),\s*Failures:\s*(\d+),\s*Errors:\s*(\d+))");
-	std::regex archive_artifacts(R"(Archiving artifacts)");
 
 	std::string current_stage;
 	bool in_error_block = false;
@@ -77,7 +81,7 @@ std::vector<ValidationEvent> JenkinsTextParser::parse(const std::string &content
 		std::smatch match;
 
 		// Build result
-		if (std::regex_search(line, match, build_result)) {
+		if (std::regex_search(line, match, RE_BUILD_RESULT)) {
 			std::string result = match[1].str();
 			bool is_failure = (result == "FAILURE" || result == "UNSTABLE" || result == "ABORTED");
 
@@ -95,7 +99,7 @@ std::vector<ValidationEvent> JenkinsTextParser::parse(const std::string &content
 			events.push_back(event);
 		}
 		// Stage start
-		else if (std::regex_search(line, match, stage_start)) {
+		else if (std::regex_search(line, match, RE_STAGE_START)) {
 			current_stage = match[1].str();
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -112,7 +116,7 @@ std::vector<ValidationEvent> JenkinsTextParser::parse(const std::string &content
 			events.push_back(event);
 		}
 		// Error/Exception lines
-		else if (std::regex_search(line, match, error_line)) {
+		else if (std::regex_search(line, match, RE_ERROR_LINE)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.event_type = ValidationEventType::BUILD_ERROR;
@@ -132,18 +136,18 @@ std::vector<ValidationEvent> JenkinsTextParser::parse(const std::string &content
 			error_start_line = line_num;
 		}
 		// Stack trace line - add file/line info to previous error
-		else if (in_error_block && std::regex_search(line, match, stack_trace)) {
+		else if (in_error_block && std::regex_search(line, match, RE_STACK_TRACE)) {
 			if (!events.empty()) {
 				ValidationEvent &last = events.back();
 				if (last.ref_file.empty() && last.category == "jenkins_text") {
 					last.ref_file = match[2].str();
-					last.ref_line = std::stoi(match[3].str());
+					last.ref_line = SafeParsing::SafeStoi(match[3].str());
 					last.log_line_end = line_num;
 				}
 			}
 		}
 		// Warning lines
-		else if (std::regex_search(line, match, warning_line)) {
+		else if (std::regex_search(line, match, RE_WARNING_LINE)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.event_type = ValidationEventType::LINT_ISSUE;
@@ -161,10 +165,10 @@ std::vector<ValidationEvent> JenkinsTextParser::parse(const std::string &content
 			events.push_back(event);
 		}
 		// JUnit test results
-		else if (std::regex_search(line, match, junit_result)) {
-			int tests = std::stoi(match[1].str());
-			int failures = std::stoi(match[2].str());
-			int errors = std::stoi(match[3].str());
+		else if (std::regex_search(line, match, RE_JUNIT_RESULT)) {
+			int tests = SafeParsing::SafeStoi(match[1].str());
+			int failures = SafeParsing::SafeStoi(match[2].str());
+			int errors = SafeParsing::SafeStoi(match[3].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;

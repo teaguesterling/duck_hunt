@@ -1,4 +1,5 @@
 #include "vpc_flow_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include "duckdb/common/string_util.hpp"
 #include <sstream>
 #include <regex>
@@ -54,7 +55,7 @@ static bool ParseVpcFlowLine(const std::string &line, ValidationEvent &event, in
 	// Check if first field is version number (should be "2" or higher)
 	bool is_valid = false;
 	try {
-		int version = std::stoi(fields[0]);
+		int version = SafeParsing::SafeStoi(fields[0]);
 		is_valid = (version >= 2);
 	} catch (...) {
 		return false;

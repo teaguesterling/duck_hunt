@@ -1,9 +1,56 @@
 #include "coverage_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 #include <string>
 
 namespace duck_hunt {
+
+// Pre-compiled regex patterns for coverage.py parsing (compiled once, reused)
+namespace {
+// Coverage.py patterns
+static const std::regex RE_COVERAGE_HEADER(R"(Name\s+Stmts\s+Miss\s+Cover(?:\s+Missing)?)");
+static const std::regex RE_COVERAGE_BRANCH_HEADER(R"(Name\s+Stmts\s+Miss\s+Branch\s+BrPart\s+Cover(?:\s+Missing)?)");
+static const std::regex RE_SEPARATOR_LINE(R"(^-+$)");
+static const std::regex RE_COVERAGE_ROW(R"(^([^\s]+(?:\.[^\s]+)*)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
+static const std::regex RE_COVERAGE_BRANCH_ROW(
+    R"(^([^\s]+(?:\.[^\s]+)*)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
+static const std::regex RE_TOTAL_ROW(R"(^TOTAL\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
+static const std::regex RE_TOTAL_BRANCH_ROW(R"(^TOTAL\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
+static const std::regex RE_COVERAGE_RUN(R"(coverage run (.+))");
+static const std::regex RE_COVERAGE_COMMAND(R"(coverage (html|xml|json|report|erase|combine|debug))");
+static const std::regex RE_REPORT_GENERATED(R"(Coverage report generated in ([\d\.]+) seconds)");
+static const std::regex RE_WROTE_REPORT(R"(Wrote (HTML|XML|JSON) report to (.+))");
+static const std::regex RE_COVERAGE_FAILURE(R"(Coverage failure: total of (\d+%|\d+\.\d+%) is below --fail-under=(\d+%))");
+static const std::regex RE_NO_DATA(R"(coverage: No data to report\.)");
+static const std::regex RE_NO_DATA_COLLECTED(R"(coverage: CoverageWarning: No data was collected\. \(no-data-collected\))");
+static const std::regex RE_CONTEXT_RECORDED(R"(Context '(.+)' recorded)");
+static const std::regex RE_COMBINED_DATA(R"(Combined data file (.+))");
+static const std::regex RE_WROTE_COMBINED(R"(Wrote combined data to (.+))");
+static const std::regex RE_ERASED_COVERAGE(R"(Erased (.coverage))");
+static const std::regex RE_DELTA_SUMMARY(R"(Total coverage: ([\d\.]+%))");
+static const std::regex RE_FILES_CHANGED(R"(Files changed: (\d+))");
+static const std::regex RE_LINES_ADDED(R"(Lines added: (\d+))");
+static const std::regex RE_LINES_COVERED(R"(Lines covered: (\d+))");
+static const std::regex RE_PERCENTAGE_COVERED(R"(Percentage covered: ([\d\.]+%))");
+
+// Pytest-cov patterns
+static const std::regex RE_TEST_SESSION_START(R"(={3,} test session starts ={3,})");
+static const std::regex RE_PLATFORM_INFO(R"(platform (.+) -- Python (.+), pytest-(.+), pluggy-(.+))");
+static const std::regex RE_PYTEST_COV_PLUGIN(R"(plugins: cov-(.+))");
+static const std::regex RE_COLLECTED_ITEMS(R"(collected (\d+) items?)");
+static const std::regex RE_TEST_RESULT(R"((.+\.py)::(.+)\s+(PASSED|FAILED|SKIPPED|ERROR)\s+\[([^\]]+)\])");
+static const std::regex RE_TEST_SUMMARY_LINE(R"(={3,} (\d+) failed, (\d+) passed(?:, (\d+) skipped)? in ([\d\.]+)s ={3,})");
+static const std::regex RE_COVERAGE_SECTION(R"(----------- coverage: platform (.+), python (.+) -----------)");
+static const std::regex RE_TOTAL_COVERAGE(R"(^TOTAL\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
+static const std::regex RE_TOTAL_BRANCH_COVERAGE(R"(^TOTAL\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
+static const std::regex RE_COVERAGE_THRESHOLD_FAIL(R"(Coverage threshold check failed\. Expected: >= (\d+)%, got: ([\d\.]+%))");
+static const std::regex RE_REQUIRED_COVERAGE_FAIL(R"(Required test coverage of (\d+)% not met\. Total coverage: ([\d\.]+%))");
+static const std::regex RE_COVERAGE_XML_WRITTEN(R"(Coverage XML written to (.+))");
+static const std::regex RE_COVERAGE_HTML_WRITTEN(R"(Coverage HTML written to dir (.+))");
+static const std::regex RE_COVERAGE_DATA_NOT_FOUND(R"(pytest-cov: Coverage data was not found for source '(.+)')");
+static const std::regex RE_MODULE_NEVER_IMPORTED(R"(pytest-cov: Module '(.+)' was never imported\.)");
+} // anonymous namespace
 
 bool CoverageParser::CanParse(const std::string &content) const {
 	// Check for coverage.py patterns
@@ -45,36 +92,11 @@ void CoverageParser::Parse(const std::string &content, std::vector<duckdb::Valid
 }
 
 void CoverageParser::ParseCoverageText(const std::string &content, std::vector<duckdb::ValidationEvent> &events) {
+	events.reserve(content.size() / 100); // Estimate: ~1 event per 100 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
 	int32_t current_line_num = 0;
-
-	// Regex patterns for coverage.py output
-	std::regex coverage_header(R"(Name\s+Stmts\s+Miss\s+Cover(?:\s+Missing)?)");
-	std::regex coverage_branch_header(R"(Name\s+Stmts\s+Miss\s+Branch\s+BrPart\s+Cover(?:\s+Missing)?)");
-	std::regex separator_line(R"(^-+$)");
-	std::regex coverage_row(R"(^([^\s]+(?:\.[^\s]+)*)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
-	std::regex coverage_branch_row(
-	    R"(^([^\s]+(?:\.[^\s]+)*)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
-	std::regex total_row(R"(^TOTAL\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
-	std::regex total_branch_row(R"(^TOTAL\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
-	std::regex coverage_run(R"(coverage run (.+))");
-	std::regex coverage_command(R"(coverage (html|xml|json|report|erase|combine|debug))");
-	std::regex report_generated(R"(Coverage report generated in ([\d\.]+) seconds)");
-	std::regex wrote_report(R"(Wrote (HTML|XML|JSON) report to (.+))");
-	std::regex coverage_failure(R"(Coverage failure: total of (\d+%|\d+\.\d+%) is below --fail-under=(\d+%))");
-	std::regex no_data(R"(coverage: No data to report\.)");
-	std::regex no_data_collected(R"(coverage: CoverageWarning: No data was collected\. \(no-data-collected\))");
-	std::regex context_recorded(R"(Context '(.+)' recorded)");
-	std::regex combined_data(R"(Combined data file (.+))");
-	std::regex wrote_combined(R"(Wrote combined data to (.+))");
-	std::regex erased_coverage(R"(Erased (.coverage))");
-	std::regex delta_summary(R"(Total coverage: ([\d\.]+%))");
-	std::regex files_changed(R"(Files changed: (\d+))");
-	std::regex lines_added(R"(Lines added: (\d+))");
-	std::regex lines_covered(R"(Lines covered: (\d+))");
-	std::regex percentage_covered(R"(Percentage covered: ([\d\.]+%))");
 
 	std::smatch match;
 	bool in_coverage_table = false;
@@ -83,7 +105,7 @@ void CoverageParser::ParseCoverageText(const std::string &content, std::vector<d
 	while (std::getline(stream, line)) {
 		current_line_num++;
 		// Handle coverage table headers
-		if (std::regex_search(line, match, coverage_header)) {
+		if (std::regex_search(line, match, RE_COVERAGE_HEADER)) {
 			in_coverage_table = true;
 			in_branch_table = false;
 
@@ -109,7 +131,7 @@ void CoverageParser::ParseCoverageText(const std::string &content, std::vector<d
 		}
 
 		// Handle branch coverage table headers
-		if (std::regex_search(line, match, coverage_branch_header)) {
+		if (std::regex_search(line, match, RE_COVERAGE_BRANCH_HEADER)) {
 			in_coverage_table = true;
 			in_branch_table = true;
 
@@ -135,12 +157,12 @@ void CoverageParser::ParseCoverageText(const std::string &content, std::vector<d
 		}
 
 		// Handle separator lines
-		if (std::regex_search(line, match, separator_line)) {
+		if (std::regex_search(line, match, RE_SEPARATOR_LINE)) {
 			continue; // Skip separator lines
 		}
 
 		// Handle branch coverage rows
-		if (in_branch_table && std::regex_search(line, match, coverage_branch_row)) {
+		if (in_branch_table && std::regex_search(line, match, RE_COVERAGE_BRANCH_ROW)) {
 			std::string file_path = match[1].str();
 			std::string stmts = match[2].str();
 			std::string miss = match[3].str();
@@ -158,7 +180,7 @@ void CoverageParser::ParseCoverageText(const std::string &content, std::vector<d
 			event.ref_column = -1;
 
 			// Set status based on coverage percentage
-			double coverage_pct = std::stod(cover.substr(0, cover.length() - 1));
+			double coverage_pct = duckdb::SafeParsing::SafeStod(cover.substr(0, cover.length() - 1));
 			if (coverage_pct >= 90.0) {
 				event.status = duckdb::ValidationEventStatus::INFO;
 				event.severity = "info";
@@ -187,7 +209,7 @@ void CoverageParser::ParseCoverageText(const std::string &content, std::vector<d
 		}
 
 		// Handle regular coverage rows
-		if (in_coverage_table && !in_branch_table && std::regex_search(line, match, coverage_row)) {
+		if (in_coverage_table && !in_branch_table && std::regex_search(line, match, RE_COVERAGE_ROW)) {
 			std::string file_path = match[1].str();
 			std::string stmts = match[2].str();
 			std::string miss = match[3].str();
@@ -203,7 +225,7 @@ void CoverageParser::ParseCoverageText(const std::string &content, std::vector<d
 			event.ref_column = -1;
 
 			// Set status based on coverage percentage
-			double coverage_pct = std::stod(cover.substr(0, cover.length() - 1));
+			double coverage_pct = duckdb::SafeParsing::SafeStod(cover.substr(0, cover.length() - 1));
 			if (coverage_pct >= 90.0) {
 				event.status = duckdb::ValidationEventStatus::INFO;
 				event.severity = "info";
@@ -231,7 +253,7 @@ void CoverageParser::ParseCoverageText(const std::string &content, std::vector<d
 		}
 
 		// Handle TOTAL rows for branch coverage
-		if (in_branch_table && std::regex_search(line, match, total_branch_row)) {
+		if (in_branch_table && std::regex_search(line, match, RE_TOTAL_BRANCH_ROW)) {
 			in_coverage_table = false;
 			in_branch_table = false;
 
@@ -251,7 +273,7 @@ void CoverageParser::ParseCoverageText(const std::string &content, std::vector<d
 			event.ref_column = -1;
 
 			// Set status based on coverage percentage
-			double coverage_pct = std::stod(cover.substr(0, cover.length() - 1));
+			double coverage_pct = duckdb::SafeParsing::SafeStod(cover.substr(0, cover.length() - 1));
 			if (coverage_pct >= 90.0) {
 				event.status = duckdb::ValidationEventStatus::INFO;
 				event.severity = "info";
@@ -277,7 +299,7 @@ void CoverageParser::ParseCoverageText(const std::string &content, std::vector<d
 		}
 
 		// Handle TOTAL rows for regular coverage
-		if (in_coverage_table && !in_branch_table && std::regex_search(line, match, total_row)) {
+		if (in_coverage_table && !in_branch_table && std::regex_search(line, match, RE_TOTAL_ROW)) {
 			in_coverage_table = false;
 
 			std::string stmts = match[1].str();
@@ -294,7 +316,7 @@ void CoverageParser::ParseCoverageText(const std::string &content, std::vector<d
 			event.ref_column = -1;
 
 			// Set status based on coverage percentage
-			double coverage_pct = std::stod(cover.substr(0, cover.length() - 1));
+			double coverage_pct = duckdb::SafeParsing::SafeStod(cover.substr(0, cover.length() - 1));
 			if (coverage_pct >= 90.0) {
 				event.status = duckdb::ValidationEventStatus::INFO;
 				event.severity = "info";
@@ -319,7 +341,7 @@ void CoverageParser::ParseCoverageText(const std::string &content, std::vector<d
 		}
 
 		// Handle coverage run commands
-		if (std::regex_search(line, match, coverage_run)) {
+		if (std::regex_search(line, match, RE_COVERAGE_RUN)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "coverage";
@@ -342,7 +364,7 @@ void CoverageParser::ParseCoverageText(const std::string &content, std::vector<d
 		}
 
 		// Handle coverage commands
-		if (std::regex_search(line, match, coverage_command)) {
+		if (std::regex_search(line, match, RE_COVERAGE_COMMAND)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "coverage";
@@ -365,7 +387,7 @@ void CoverageParser::ParseCoverageText(const std::string &content, std::vector<d
 		}
 
 		// Handle report generation
-		if (std::regex_search(line, match, report_generated)) {
+		if (std::regex_search(line, match, RE_REPORT_GENERATED)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "coverage";
@@ -377,7 +399,7 @@ void CoverageParser::ParseCoverageText(const std::string &content, std::vector<d
 			event.severity = "info";
 			event.category = "performance";
 			event.message = "Coverage report generated";
-			event.execution_time = std::stod(match[1].str());
+			event.execution_time = duckdb::SafeParsing::SafeStod(match[1].str());
 			event.log_content = content;
 			event.structured_data = "coverage_text";
 			event.log_line_start = current_line_num;
@@ -388,7 +410,7 @@ void CoverageParser::ParseCoverageText(const std::string &content, std::vector<d
 		}
 
 		// Handle report writing
-		if (std::regex_search(line, match, wrote_report)) {
+		if (std::regex_search(line, match, RE_WROTE_REPORT)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "coverage";
@@ -411,7 +433,7 @@ void CoverageParser::ParseCoverageText(const std::string &content, std::vector<d
 		}
 
 		// Handle coverage failure
-		if (std::regex_search(line, match, coverage_failure)) {
+		if (std::regex_search(line, match, RE_COVERAGE_FAILURE)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "coverage";
@@ -434,7 +456,7 @@ void CoverageParser::ParseCoverageText(const std::string &content, std::vector<d
 		}
 
 		// Handle no data cases
-		if (std::regex_search(line, match, no_data)) {
+		if (std::regex_search(line, match, RE_NO_DATA)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "coverage";
@@ -456,7 +478,7 @@ void CoverageParser::ParseCoverageText(const std::string &content, std::vector<d
 			continue;
 		}
 
-		if (std::regex_search(line, match, no_data_collected)) {
+		if (std::regex_search(line, match, RE_NO_DATA_COLLECTED)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "coverage";
@@ -481,32 +503,11 @@ void CoverageParser::ParseCoverageText(const std::string &content, std::vector<d
 }
 
 void CoverageParser::ParsePytestCovText(const std::string &content, std::vector<duckdb::ValidationEvent> &events) {
+	events.reserve(content.size() / 100); // Estimate: ~1 event per 100 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
 	int32_t current_line_num = 0;
-
-	// Regex patterns for pytest-cov output
-	std::regex test_session_start(R"(={3,} test session starts ={3,})");
-	std::regex platform_info(R"(platform (.+) -- Python (.+), pytest-(.+), pluggy-(.+))");
-	std::regex pytest_cov_plugin(R"(plugins: cov-(.+))");
-	std::regex collected_items(R"(collected (\d+) items?)");
-	std::regex test_result(R"((.+\.py)::(.+)\s+(PASSED|FAILED|SKIPPED|ERROR)\s+\[([^\]]+)\])");
-	std::regex test_summary_line(R"(={3,} (\d+) failed, (\d+) passed(?:, (\d+) skipped)? in ([\d\.]+)s ={3,})");
-	std::regex coverage_section(R"(----------- coverage: platform (.+), python (.+) -----------)");
-	std::regex coverage_header(R"(Name\s+Stmts\s+Miss\s+Cover(?:\s+Missing)?)");
-	std::regex coverage_branch_header(R"(Name\s+Stmts\s+Miss\s+Branch\s+BrPart\s+Cover(?:\s+Missing)?)");
-	std::regex coverage_row(R"(^([^\s]+(?:\.[^\s]+)*)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
-	std::regex coverage_branch_row(
-	    R"(^([^\s]+(?:\.[^\s]+)*)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
-	std::regex total_coverage(R"(^TOTAL\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
-	std::regex total_branch_coverage(R"(^TOTAL\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
-	std::regex coverage_threshold_fail(R"(Coverage threshold check failed\. Expected: >= (\d+)%, got: ([\d\.]+%))");
-	std::regex required_coverage_fail(R"(Required test coverage of (\d+)% not met\. Total coverage: ([\d\.]+%))");
-	std::regex coverage_xml_written(R"(Coverage XML written to (.+))");
-	std::regex coverage_html_written(R"(Coverage HTML written to dir (.+))");
-	std::regex coverage_data_not_found(R"(pytest-cov: Coverage data was not found for source '(.+)')");
-	std::regex module_never_imported(R"(pytest-cov: Module '(.+)' was never imported\.)");
 
 	std::smatch match;
 	bool in_test_execution = false;
@@ -517,7 +518,7 @@ void CoverageParser::ParsePytestCovText(const std::string &content, std::vector<
 	while (std::getline(stream, line)) {
 		current_line_num++;
 		// Handle test session start
-		if (std::regex_search(line, match, test_session_start)) {
+		if (std::regex_search(line, match, RE_TEST_SESSION_START)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
@@ -540,7 +541,7 @@ void CoverageParser::ParsePytestCovText(const std::string &content, std::vector<
 		}
 
 		// Handle platform and pytest info
-		if (std::regex_search(line, match, platform_info)) {
+		if (std::regex_search(line, match, RE_PLATFORM_INFO)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
@@ -564,7 +565,7 @@ void CoverageParser::ParsePytestCovText(const std::string &content, std::vector<
 		}
 
 		// Handle pytest-cov plugin detection
-		if (std::regex_search(line, match, pytest_cov_plugin)) {
+		if (std::regex_search(line, match, RE_PYTEST_COV_PLUGIN)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
@@ -587,7 +588,7 @@ void CoverageParser::ParsePytestCovText(const std::string &content, std::vector<
 		}
 
 		// Handle collected items
-		if (std::regex_search(line, match, collected_items)) {
+		if (std::regex_search(line, match, RE_COLLECTED_ITEMS)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
@@ -609,7 +610,7 @@ void CoverageParser::ParsePytestCovText(const std::string &content, std::vector<
 		}
 
 		// Handle individual test results
-		if (in_test_execution && std::regex_search(line, match, test_result)) {
+		if (in_test_execution && std::regex_search(line, match, RE_TEST_RESULT)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
@@ -646,7 +647,7 @@ void CoverageParser::ParsePytestCovText(const std::string &content, std::vector<
 		}
 
 		// Handle test execution summary
-		if (std::regex_search(line, match, test_summary_line)) {
+		if (std::regex_search(line, match, RE_TEST_SUMMARY_LINE)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
@@ -671,7 +672,7 @@ void CoverageParser::ParsePytestCovText(const std::string &content, std::vector<
 			event.category = "test_summary";
 			event.message = "Tests completed: " + failed + " failed, " + passed + " passed, " + skipped +
 			                " skipped in " + duration + "s";
-			event.execution_time = std::stod(duration);
+			event.execution_time = duckdb::SafeParsing::SafeStod(duration);
 			event.log_content = content;
 			event.structured_data = "pytest_cov_text";
 			event.log_line_start = current_line_num;
@@ -682,7 +683,7 @@ void CoverageParser::ParsePytestCovText(const std::string &content, std::vector<
 		}
 
 		// Handle coverage section start
-		if (std::regex_search(line, match, coverage_section)) {
+		if (std::regex_search(line, match, RE_COVERAGE_SECTION)) {
 			in_coverage_section = true;
 
 			duckdb::ValidationEvent event;
@@ -707,20 +708,20 @@ void CoverageParser::ParsePytestCovText(const std::string &content, std::vector<
 		}
 
 		// Handle coverage table headers
-		if (in_coverage_section && std::regex_search(line, match, coverage_header)) {
+		if (in_coverage_section && std::regex_search(line, match, RE_COVERAGE_HEADER)) {
 			in_coverage_table = true;
 			in_branch_table = false;
 			continue;
 		}
 
-		if (in_coverage_section && std::regex_search(line, match, coverage_branch_header)) {
+		if (in_coverage_section && std::regex_search(line, match, RE_COVERAGE_BRANCH_HEADER)) {
 			in_coverage_table = true;
 			in_branch_table = true;
 			continue;
 		}
 
 		// Handle coverage rows
-		if (in_coverage_table && !in_branch_table && std::regex_search(line, match, coverage_row)) {
+		if (in_coverage_table && !in_branch_table && std::regex_search(line, match, RE_COVERAGE_ROW)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
@@ -736,7 +737,7 @@ void CoverageParser::ParsePytestCovText(const std::string &content, std::vector<
 			// Remove % sign and convert to number for severity calculation
 			std::string pct_str = coverage_pct;
 			pct_str.erase(pct_str.find('%'));
-			double coverage_value = std::stod(pct_str);
+			double coverage_value = duckdb::SafeParsing::SafeStod(pct_str);
 
 			if (coverage_value >= 90.0) {
 				event.status = duckdb::ValidationEventStatus::PASS;
@@ -767,7 +768,7 @@ void CoverageParser::ParsePytestCovText(const std::string &content, std::vector<
 		}
 
 		// Handle total coverage
-		if (in_coverage_section && std::regex_search(line, match, total_coverage)) {
+		if (in_coverage_section && std::regex_search(line, match, RE_TOTAL_COVERAGE)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
@@ -783,7 +784,7 @@ void CoverageParser::ParsePytestCovText(const std::string &content, std::vector<
 			// Remove % sign and convert to number for severity calculation
 			std::string pct_str = coverage_pct;
 			pct_str.erase(pct_str.find('%'));
-			double coverage_value = std::stod(pct_str);
+			double coverage_value = duckdb::SafeParsing::SafeStod(pct_str);
 
 			if (coverage_value >= 90.0) {
 				event.status = duckdb::ValidationEventStatus::PASS;
@@ -810,7 +811,7 @@ void CoverageParser::ParsePytestCovText(const std::string &content, std::vector<
 		}
 
 		// Handle coverage threshold failures
-		if (std::regex_search(line, match, coverage_threshold_fail)) {
+		if (std::regex_search(line, match, RE_COVERAGE_THRESHOLD_FAIL)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
@@ -832,7 +833,7 @@ void CoverageParser::ParsePytestCovText(const std::string &content, std::vector<
 			continue;
 		}
 
-		if (std::regex_search(line, match, required_coverage_fail)) {
+		if (std::regex_search(line, match, RE_REQUIRED_COVERAGE_FAIL)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
@@ -855,7 +856,7 @@ void CoverageParser::ParsePytestCovText(const std::string &content, std::vector<
 		}
 
 		// Handle coverage report generation
-		if (std::regex_search(line, match, coverage_xml_written)) {
+		if (std::regex_search(line, match, RE_COVERAGE_XML_WRITTEN)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
@@ -877,7 +878,7 @@ void CoverageParser::ParsePytestCovText(const std::string &content, std::vector<
 			continue;
 		}
 
-		if (std::regex_search(line, match, coverage_html_written)) {
+		if (std::regex_search(line, match, RE_COVERAGE_HTML_WRITTEN)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
@@ -900,7 +901,7 @@ void CoverageParser::ParsePytestCovText(const std::string &content, std::vector<
 		}
 
 		// Handle configuration warnings/errors
-		if (std::regex_search(line, match, coverage_data_not_found)) {
+		if (std::regex_search(line, match, RE_COVERAGE_DATA_NOT_FOUND)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
@@ -922,7 +923,7 @@ void CoverageParser::ParsePytestCovText(const std::string &content, std::vector<
 			continue;
 		}
 
-		if (std::regex_search(line, match, module_never_imported)) {
+		if (std::regex_search(line, match, RE_MODULE_NEVER_IMPORTED)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";

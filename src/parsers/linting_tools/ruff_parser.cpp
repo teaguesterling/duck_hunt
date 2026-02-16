@@ -1,8 +1,27 @@
 #include "ruff_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 
 namespace duckdb {
+
+// Pre-compiled regex patterns for Ruff parsing (compiled once, reused)
+namespace {
+// canParse patterns
+static const std::regex RE_RULE_CODE_DETECT(R"((^|\n)[A-Z]+\d+\s+\[\*?\])");
+
+// parse patterns
+// Rule line: "F401 [*] `mcp.ClientSession` imported but unused"
+static const std::regex RE_RULE_LINE(R"(^([A-Z]+\d+)\s+(\[\*\])?\s*(.+))");
+// Location line: "   --> tests/test_inspect.py:376:25"
+static const std::regex RE_LOCATION_LINE(R"(^\s*-->\s*(.+):(\d+):(\d+))");
+// Help line: "help: Remove unused import"
+static const std::regex RE_HELP_LINE(R"(^help:\s*(.+))");
+// Summary: "Found 3 errors."
+static const std::regex RE_SUMMARY_LINE(R"(Found\s+(\d+)\s+error)");
+// Fixable summary: "[*] 3 fixable with the `--fix` option."
+static const std::regex RE_FIXABLE_LINE(R"(\[\*\]\s*(\d+)\s+fixable)");
+} // anonymous namespace
 
 bool RuffParser::canParse(const std::string &content) const {
 	// Ruff uses Rust-style diagnostics with --> file:line:col
@@ -14,7 +33,7 @@ bool RuffParser::canParse(const std::string &content) const {
 		// Check for ruff rule codes (letter + numbers like F401, E501, W503)
 		// or "Found N errors" summary
 		// Use multiline flag or match at line start with \n prefix
-		bool has_rule_code = std::regex_search(content, std::regex(R"((^|\n)[A-Z]+\d+\s+\[\*?\])"));
+		bool has_rule_code = std::regex_search(content, RE_RULE_CODE_DETECT);
 		bool has_found_errors =
 		    content.find("Found ") != std::string::npos && content.find(" error") != std::string::npos;
 		bool has_fixable = content.find("fixable with") != std::string::npos;
@@ -27,22 +46,11 @@ bool RuffParser::canParse(const std::string &content) const {
 
 std::vector<ValidationEvent> RuffParser::parse(const std::string &content) const {
 	std::vector<ValidationEvent> events;
+	events.reserve(content.size() / 100); // Estimate: ~1 event per 100 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
 	int32_t line_num = 0;
-
-	// Patterns for ruff output
-	// Rule line: "F401 [*] `mcp.ClientSession` imported but unused"
-	std::regex rule_line(R"(^([A-Z]+\d+)\s+(\[\*\])?\s*(.+))");
-	// Location line: "   --> tests/test_inspect.py:376:25"
-	std::regex location_line(R"(^\s*-->\s*(.+):(\d+):(\d+))");
-	// Help line: "help: Remove unused import"
-	std::regex help_line(R"(^help:\s*(.+))");
-	// Summary: "Found 3 errors."
-	std::regex summary_line(R"(Found\s+(\d+)\s+error)");
-	// Fixable summary: "[*] 3 fixable with the `--fix` option."
-	std::regex fixable_line(R"(\[\*\]\s*(\d+)\s+fixable)");
 
 	// State for multi-line issue parsing
 	ValidationEvent current_event;
@@ -55,7 +63,7 @@ std::vector<ValidationEvent> RuffParser::parse(const std::string &content) const
 		std::smatch match;
 
 		// Check for new rule/issue start
-		if (std::regex_search(line, match, rule_line)) {
+		if (std::regex_search(line, match, RE_RULE_LINE)) {
 			// Save previous issue if exists
 			if (in_issue && !current_event.message.empty()) {
 				current_event.log_line_end = line_num - 1;
@@ -96,18 +104,18 @@ std::vector<ValidationEvent> RuffParser::parse(const std::string &content) const
 			}
 		}
 		// Check for location line
-		else if (in_issue && std::regex_search(line, match, location_line)) {
+		else if (in_issue && std::regex_search(line, match, RE_LOCATION_LINE)) {
 			current_event.ref_file = match[1].str();
-			current_event.ref_line = std::stoi(match[2].str());
-			current_event.ref_column = std::stoi(match[3].str());
+			current_event.ref_line = SafeParsing::SafeStoi(match[2].str());
+			current_event.ref_column = SafeParsing::SafeStoi(match[3].str());
 		}
 		// Check for help line
-		else if (in_issue && std::regex_search(line, match, help_line)) {
+		else if (in_issue && std::regex_search(line, match, RE_HELP_LINE)) {
 			current_event.suggestion = match[1].str();
 			current_event.log_line_end = line_num;
 		}
 		// Summary line
-		else if (std::regex_search(line, match, summary_line)) {
+		else if (std::regex_search(line, match, RE_SUMMARY_LINE)) {
 			// Save any pending issue first
 			if (in_issue && !current_event.message.empty()) {
 				current_event.log_line_end = line_num - 1;
@@ -115,7 +123,7 @@ std::vector<ValidationEvent> RuffParser::parse(const std::string &content) const
 				in_issue = false;
 			}
 
-			int error_count = std::stoi(match[1].str());
+			int error_count = SafeParsing::SafeStoi(match[1].str());
 
 			ValidationEvent summary;
 			summary.event_id = event_id++;

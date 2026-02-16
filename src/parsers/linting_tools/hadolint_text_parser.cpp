@@ -1,7 +1,20 @@
 #include "hadolint_text_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
+#include <regex>
 #include <sstream>
 
 namespace duckdb {
+
+// Pre-compiled regex patterns for Hadolint parsing (compiled once, reused)
+namespace {
+// canParse patterns
+static const std::regex RE_DL_PATTERN(R"(DL\d{4})");
+static const std::regex RE_DOCKERFILE_PATTERN(R"(Dockerfile:\d+\s+\w+\s+(error|warning|info|style):)");
+
+// parse patterns
+static const std::regex RE_HADOLINT_PATTERN(R"(^([^:]+):(\d+)\s+(DL\d{4}|SC\d{4})\s+(error|warning|info|style):\s*(.+)$)");
+static const std::regex RE_HADOLINT_PATTERN_ALT(R"(^([^:]+):(\d+)\s+(DL\d{4}|SC\d{4})\s+(.+)$)");
+} // anonymous namespace
 
 bool HadolintTextParser::canParse(const std::string &content) const {
 	// Look for Hadolint-specific patterns:
@@ -9,14 +22,12 @@ bool HadolintTextParser::canParse(const std::string &content) const {
 	// 2. Dockerfile reference with line number
 
 	// Check for DL codes (Hadolint-specific)
-	std::regex dl_pattern(R"(DL\d{4})");
-	if (std::regex_search(content, dl_pattern)) {
+	if (std::regex_search(content, RE_DL_PATTERN)) {
 		return true;
 	}
 
 	// Check for Dockerfile:N pattern with warning/error/info
-	std::regex dockerfile_pattern(R"(Dockerfile:\d+\s+\w+\s+(error|warning|info|style):)");
-	if (std::regex_search(content, dockerfile_pattern)) {
+	if (std::regex_search(content, RE_DOCKERFILE_PATTERN)) {
 		return true;
 	}
 
@@ -25,17 +36,11 @@ bool HadolintTextParser::canParse(const std::string &content) const {
 
 std::vector<ValidationEvent> HadolintTextParser::parse(const std::string &content) const {
 	std::vector<ValidationEvent> events;
+	events.reserve(content.size() / 100); // Estimate: ~1 event per 100 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
 	int32_t current_line_num = 0;
-
-	// Pattern for hadolint output: Dockerfile:line CODE severity: message
-	// or: filename:line CODE severity: message
-	std::regex hadolint_pattern(R"(^([^:]+):(\d+)\s+(DL\d{4}|SC\d{4})\s+(error|warning|info|style):\s*(.+)$)");
-
-	// Alternative pattern without severity (some versions)
-	std::regex hadolint_pattern_alt(R"(^([^:]+):(\d+)\s+(DL\d{4}|SC\d{4})\s+(.+)$)");
 
 	int error_count = 0;
 	int warning_count = 0;
@@ -48,14 +53,14 @@ std::vector<ValidationEvent> HadolintTextParser::parse(const std::string &conten
 		bool matched = false;
 		std::string file_path, line_str, code, severity_str, message;
 
-		if (std::regex_match(line, match, hadolint_pattern)) {
+		if (std::regex_match(line, match, RE_HADOLINT_PATTERN)) {
 			file_path = match[1].str();
 			line_str = match[2].str();
 			code = match[3].str();
 			severity_str = match[4].str();
 			message = match[5].str();
 			matched = true;
-		} else if (std::regex_match(line, match, hadolint_pattern_alt)) {
+		} else if (std::regex_match(line, match, RE_HADOLINT_PATTERN_ALT)) {
 			file_path = match[1].str();
 			line_str = match[2].str();
 			code = match[3].str();
@@ -68,7 +73,7 @@ std::vector<ValidationEvent> HadolintTextParser::parse(const std::string &conten
 		if (matched) {
 			int32_t line_number = 0;
 			try {
-				line_number = std::stoi(line_str);
+				line_number = SafeParsing::SafeStoi(line_str);
 			} catch (...) {
 				// Keep as 0 if parsing fails
 			}

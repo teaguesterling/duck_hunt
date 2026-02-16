@@ -1,9 +1,38 @@
 #include "nunit_xunit_text_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 #include <string>
 
 namespace duckdb {
+
+// Pre-compiled regex patterns for NUnit/xUnit parsing (compiled once, reused)
+namespace {
+// NUnit patterns
+static const std::regex RE_NUNIT_HEADER(R"(NUnit\s+([\d\.]+))");
+static const std::regex RE_NUNIT_SUMMARY(
+    R"(Test Count:\s*(\d+),\s*Passed:\s*(\d+),\s*Failed:\s*(\d+),\s*Warnings:\s*(\d+),\s*Inconclusive:\s*(\d+),\s*Skipped:\s*(\d+))");
+static const std::regex RE_NUNIT_OVERALL_RESULT(R"(Overall result:\s*(\w+))");
+static const std::regex RE_NUNIT_DURATION(R"(Duration:\s*([\d\.]+)\s*seconds)");
+static const std::regex RE_NUNIT_FAILED_TEST(R"(\d+\)\s*(.+))");
+static const std::regex RE_NUNIT_TEST_SOURCE(R"(Source:\s*(.+):line\s*(\d+))");
+static const std::regex RE_NUNIT_TEST_ASSERTION(R"(Expected:\s*(.+)\s*But was:\s*(.+))");
+
+// xUnit patterns
+static const std::regex RE_XUNIT_HEADER(R"(xUnit\.net VSTest Adapter\s+v([\d\.]+))");
+static const std::regex RE_XUNIT_TEST_START(R"(Starting:\s*(.+))");
+static const std::regex RE_XUNIT_TEST_FINISH(R"(Finished:\s*(.+))");
+static const std::regex RE_XUNIT_TEST_PASS(R"(\s*(.+)\s*\[PASS\])");
+static const std::regex RE_XUNIT_TEST_FAIL(R"(\s*(.+)\s*\[FAIL\])");
+static const std::regex RE_XUNIT_TEST_SKIP(R"(\s*(.+)\s*\[SKIP\])");
+static const std::regex RE_XUNIT_ASSERTION_FAILURE(R"(Assert\.(\w+)\(\)\s*Failure)");
+static const std::regex RE_XUNIT_STACK_TRACE(R"(at\s+(.+)\s+in\s+(.+):line\s+(\d+))");
+static const std::regex RE_XUNIT_TOTAL_SUMMARY(R"(Total tests:\s*(\d+))");
+static const std::regex RE_XUNIT_PASSED_SUMMARY(R"(Passed:\s*(\d+))");
+static const std::regex RE_XUNIT_FAILED_SUMMARY(R"(Failed:\s*(\d+))");
+static const std::regex RE_XUNIT_SKIPPED_SUMMARY(R"(Skipped:\s*(\d+))");
+static const std::regex RE_XUNIT_TIME_SUMMARY(R"(Time:\s*([\d\.]+)s)");
+} // anonymous namespace
 
 bool NUnitXUnitTextParser::canParse(const std::string &content) const {
 	// Look for specific NUnit/xUnit markers
@@ -38,34 +67,11 @@ std::vector<ValidationEvent> NUnitXUnitTextParser::parse(const std::string &cont
 }
 
 static void parseNUnitXUnitImpl(const std::string &content, std::vector<ValidationEvent> &events) {
+	events.reserve(content.size() / 100); // Estimate: ~1 event per 100 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
 	int32_t current_line_num = 0;
-
-	// Regex patterns for NUnit/xUnit output
-	std::regex nunit_header(R"(NUnit\s+([\d\.]+))");
-	std::regex nunit_summary(
-	    R"(Test Count:\s*(\d+),\s*Passed:\s*(\d+),\s*Failed:\s*(\d+),\s*Warnings:\s*(\d+),\s*Inconclusive:\s*(\d+),\s*Skipped:\s*(\d+))");
-	std::regex nunit_overall_result(R"(Overall result:\s*(\w+))");
-	std::regex nunit_duration(R"(Duration:\s*([\d\.]+)\s*seconds)");
-	std::regex nunit_failed_test(R"(\d+\)\s*(.+))");
-	std::regex nunit_test_source(R"(Source:\s*(.+):line\s*(\d+))");
-	std::regex nunit_test_assertion(R"(Expected:\s*(.+)\s*But was:\s*(.+))");
-
-	std::regex xunit_header(R"(xUnit\.net VSTest Adapter\s+v([\d\.]+))");
-	std::regex xunit_test_start(R"(Starting:\s*(.+))");
-	std::regex xunit_test_finish(R"(Finished:\s*(.+))");
-	std::regex xunit_test_pass(R"(\s*(.+)\s*\[PASS\])");
-	std::regex xunit_test_fail(R"(\s*(.+)\s*\[FAIL\])");
-	std::regex xunit_test_skip(R"(\s*(.+)\s*\[SKIP\])");
-	std::regex xunit_assertion_failure(R"(Assert\.(\w+)\(\)\s*Failure)");
-	std::regex xunit_stack_trace(R"(at\s+(.+)\s+in\s+(.+):line\s+(\d+))");
-	std::regex xunit_total_summary(R"(Total tests:\s*(\d+))");
-	std::regex xunit_passed_summary(R"(Passed:\s*(\d+))");
-	std::regex xunit_failed_summary(R"(Failed:\s*(\d+))");
-	std::regex xunit_skipped_summary(R"(Skipped:\s*(\d+))");
-	std::regex xunit_time_summary(R"(Time:\s*([\d\.]+)s)");
 
 	std::string current_test_suite;
 	std::string current_framework = "unknown";
@@ -76,7 +82,7 @@ static void parseNUnitXUnitImpl(const std::string &content, std::vector<Validati
 		std::smatch match;
 
 		// Detect NUnit vs xUnit framework
-		if (std::regex_search(line, match, nunit_header)) {
+		if (std::regex_search(line, match, RE_NUNIT_HEADER)) {
 			current_framework = "nunit";
 
 			ValidationEvent event;
@@ -93,7 +99,7 @@ static void parseNUnitXUnitImpl(const std::string &content, std::vector<Validati
 			event.log_line_end = current_line_num;
 
 			events.push_back(event);
-		} else if (std::regex_search(line, match, xunit_header)) {
+		} else if (std::regex_search(line, match, RE_XUNIT_HEADER)) {
 			current_framework = "xunit";
 
 			ValidationEvent event;
@@ -112,11 +118,11 @@ static void parseNUnitXUnitImpl(const std::string &content, std::vector<Validati
 			events.push_back(event);
 		}
 		// NUnit Test Summary
-		else if (std::regex_search(line, match, nunit_summary)) {
-			int total_tests = std::stoi(match[1].str());
-			int passed = std::stoi(match[2].str());
-			int failed = std::stoi(match[3].str());
-			int skipped = std::stoi(match[6].str());
+		else if (std::regex_search(line, match, RE_NUNIT_SUMMARY)) {
+			int total_tests = SafeParsing::SafeStoi(match[1].str());
+			int passed = SafeParsing::SafeStoi(match[2].str());
+			int failed = SafeParsing::SafeStoi(match[3].str());
+			int skipped = SafeParsing::SafeStoi(match[6].str());
 			// Note: warnings (match[4]) and inconclusive (match[5]) are parsed but typically not critical for summaries
 
 			ValidationEvent event;
@@ -136,7 +142,7 @@ static void parseNUnitXUnitImpl(const std::string &content, std::vector<Validati
 			events.push_back(event);
 		}
 		// NUnit Overall Result
-		else if (std::regex_search(line, match, nunit_overall_result)) {
+		else if (std::regex_search(line, match, RE_NUNIT_OVERALL_RESULT)) {
 			std::string result = match[1].str();
 
 			ValidationEvent event;
@@ -155,8 +161,8 @@ static void parseNUnitXUnitImpl(const std::string &content, std::vector<Validati
 			events.push_back(event);
 		}
 		// NUnit Duration
-		else if (std::regex_search(line, match, nunit_duration)) {
-			double duration_seconds = std::stod(match[1].str());
+		else if (std::regex_search(line, match, RE_NUNIT_DURATION)) {
+			double duration_seconds = SafeParsing::SafeStod(match[1].str());
 			int64_t duration_ms = static_cast<int64_t>(duration_seconds * 1000);
 
 			ValidationEvent event;
@@ -175,7 +181,7 @@ static void parseNUnitXUnitImpl(const std::string &content, std::vector<Validati
 			events.push_back(event);
 		}
 		// xUnit Test Suite Start
-		else if (std::regex_search(line, match, xunit_test_start)) {
+		else if (std::regex_search(line, match, RE_XUNIT_TEST_START)) {
 			current_test_suite = match[1].str();
 
 			ValidationEvent event;
@@ -194,7 +200,7 @@ static void parseNUnitXUnitImpl(const std::string &content, std::vector<Validati
 			events.push_back(event);
 		}
 		// xUnit Test Suite Finish
-		else if (std::regex_search(line, match, xunit_test_finish)) {
+		else if (std::regex_search(line, match, RE_XUNIT_TEST_FINISH)) {
 			std::string suite_name = match[1].str();
 
 			ValidationEvent event;
@@ -213,7 +219,7 @@ static void parseNUnitXUnitImpl(const std::string &content, std::vector<Validati
 			events.push_back(event);
 		}
 		// xUnit Test Pass
-		else if (std::regex_search(line, match, xunit_test_pass)) {
+		else if (std::regex_search(line, match, RE_XUNIT_TEST_PASS)) {
 			std::string test_name = match[1].str();
 
 			ValidationEvent event;
@@ -233,7 +239,7 @@ static void parseNUnitXUnitImpl(const std::string &content, std::vector<Validati
 			events.push_back(event);
 		}
 		// xUnit Test Fail
-		else if (std::regex_search(line, match, xunit_test_fail)) {
+		else if (std::regex_search(line, match, RE_XUNIT_TEST_FAIL)) {
 			std::string test_name = match[1].str();
 
 			ValidationEvent event;
@@ -253,7 +259,7 @@ static void parseNUnitXUnitImpl(const std::string &content, std::vector<Validati
 			events.push_back(event);
 		}
 		// xUnit Test Skip
-		else if (std::regex_search(line, match, xunit_test_skip)) {
+		else if (std::regex_search(line, match, RE_XUNIT_TEST_SKIP)) {
 			std::string test_name = match[1].str();
 
 			ValidationEvent event;
@@ -273,8 +279,8 @@ static void parseNUnitXUnitImpl(const std::string &content, std::vector<Validati
 			events.push_back(event);
 		}
 		// xUnit Test Summary
-		else if (std::regex_search(line, match, xunit_total_summary)) {
-			int total_tests = std::stoi(match[1].str());
+		else if (std::regex_search(line, match, RE_XUNIT_TOTAL_SUMMARY)) {
+			int total_tests = SafeParsing::SafeStoi(match[1].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -292,8 +298,8 @@ static void parseNUnitXUnitImpl(const std::string &content, std::vector<Validati
 			events.push_back(event);
 		}
 		// xUnit Time Summary
-		else if (std::regex_search(line, match, xunit_time_summary)) {
-			double duration_seconds = std::stod(match[1].str());
+		else if (std::regex_search(line, match, RE_XUNIT_TIME_SUMMARY)) {
+			double duration_seconds = SafeParsing::SafeStod(match[1].str());
 			int64_t duration_ms = static_cast<int64_t>(duration_seconds * 1000);
 
 			ValidationEvent event;
@@ -312,9 +318,9 @@ static void parseNUnitXUnitImpl(const std::string &content, std::vector<Validati
 			events.push_back(event);
 		}
 		// Handle file path and line number information
-		else if (std::regex_search(line, match, nunit_test_source)) {
+		else if (std::regex_search(line, match, RE_NUNIT_TEST_SOURCE)) {
 			std::string file_path = match[1].str();
-			int line_number = std::stoi(match[2].str());
+			int line_number = SafeParsing::SafeStoi(match[2].str());
 
 			// Update the most recent test event with file/line info
 			if (!events.empty()) {
@@ -326,9 +332,9 @@ static void parseNUnitXUnitImpl(const std::string &content, std::vector<Validati
 			}
 		}
 		// Handle xUnit stack traces
-		else if (std::regex_search(line, match, xunit_stack_trace)) {
+		else if (std::regex_search(line, match, RE_XUNIT_STACK_TRACE)) {
 			std::string file_path = match[2].str();
-			int line_number = std::stoi(match[3].str());
+			int line_number = SafeParsing::SafeStoi(match[3].str());
 
 			// Update the most recent test event with file/line info
 			if (!events.empty()) {

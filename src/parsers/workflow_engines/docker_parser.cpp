@@ -2,9 +2,17 @@
 #include "read_duck_hunt_workflow_log_function.hpp"
 #include "core/parser_registry.hpp"
 #include "duckdb/common/string_util.hpp"
+#include <regex>
 #include <sstream>
 
 namespace duckdb {
+
+// Pre-compiled regex patterns for Docker parsing (compiled once, reused)
+namespace {
+static const std::regex RE_TAG_PATTERN(R"(Successfully tagged ([^\s]+))");
+static const std::regex RE_BUILD_PATTERN(R"(Successfully built ([a-f0-9]+))");
+static const std::regex RE_LAYER_PATTERN(R"(---> ([a-f0-9]+))");
+} // anonymous namespace
 
 bool DockerParser::canParse(const std::string &content) const {
 	// Docker build specific patterns
@@ -53,9 +61,8 @@ bool DockerParser::isBuildComplete(const std::string &line) const {
 
 std::string DockerParser::extractBuildName(const std::string &content) const {
 	// Try to extract from successful build message
-	std::regex tag_pattern(R"(Successfully tagged ([^\s]+))");
 	std::smatch match;
-	if (std::regex_search(content, match, tag_pattern)) {
+	if (std::regex_search(content, match, RE_TAG_PATTERN)) {
 		return match[1].str();
 	}
 
@@ -65,9 +72,8 @@ std::string DockerParser::extractBuildName(const std::string &content) const {
 
 std::string DockerParser::extractBuildId(const std::string &content) const {
 	// Try to extract from successful build message
-	std::regex build_pattern(R"(Successfully built ([a-f0-9]+))");
 	std::smatch match;
-	if (std::regex_search(content, match, build_pattern)) {
+	if (std::regex_search(content, match, RE_BUILD_PATTERN)) {
 		return match[1].str();
 	}
 
@@ -137,9 +143,8 @@ std::string DockerParser::extractCommand(const std::string &line) const {
 
 std::string DockerParser::extractLayerId(const std::string &line) const {
 	// Extract layer ID from lines like "---> a1b2c3d4e5f6"
-	std::regex layer_pattern(R"(---> ([a-f0-9]+))");
 	std::smatch match;
-	if (std::regex_search(line, match, layer_pattern)) {
+	if (std::regex_search(line, match, RE_LAYER_PATTERN)) {
 		return match[1].str();
 	}
 

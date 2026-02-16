@@ -5,6 +5,7 @@
 #include <string>
 #include <unordered_map>
 #include <functional>
+#include <mutex>
 #include "duckdb/common/unique_ptr.hpp"
 #include "duckdb/main/client_context.hpp"
 #include "parsers/base/parser_interface.hpp"
@@ -104,12 +105,17 @@ public:
 private:
 	ParserRegistry() = default;
 
+	// Mutex protects all mutable state for thread safety.
+	// Marked mutable so const methods can acquire the lock.
+	mutable std::mutex registry_mutex_;
+
 	std::vector<ParserPtr> parsers_;
 	std::unordered_map<std::string, IParser *> format_map_; // format_name -> parser
 	mutable std::vector<IParser *> sorted_parsers_;
 	mutable bool needs_resort_ = false;
 
-	void ensureSorted() const;
+	// Internal helper - must be called with registry_mutex_ held
+	void ensureSortedLocked() const;
 };
 
 /**

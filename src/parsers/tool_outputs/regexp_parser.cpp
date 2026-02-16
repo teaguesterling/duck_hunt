@@ -8,6 +8,14 @@
 
 namespace duckdb {
 
+// Pre-compiled regex patterns for regexp parsing (compiled once, reused)
+namespace {
+// Pattern to extract named group names from user patterns
+static const std::regex RE_NAME_EXTRACTOR(R"(\(\?(?:P)?<([a-zA-Z_][a-zA-Z0-9_]*)>)");
+// Pattern to strip named group syntax for std::regex compatibility
+static const std::regex RE_NAMED_GROUP_STRIP(R"(\(\?P?<[a-zA-Z_][a-zA-Z0-9_]*>)");
+} // anonymous namespace
+
 void RegexpParser::Parse(const std::string &content, const std::string &pattern, std::vector<ValidationEvent> &events,
                          bool include_unparsed) const {
 	ParseWithRegexp(content, pattern, events, include_unparsed);
@@ -22,11 +30,10 @@ void RegexpParser::ParseWithRegexp(const std::string &content, const std::string
 	// Extract named group names from the pattern
 	// Supports both Python-style (?P<name>...) and ECMAScript-style (?<name>...)
 	std::vector<std::string> group_names;
-	std::regex name_extractor(R"(\(\?(?:P)?<([a-zA-Z_][a-zA-Z0-9_]*)>)");
 	std::string::const_iterator search_start = pattern.cbegin();
 	std::smatch name_match;
 
-	while (std::regex_search(search_start, pattern.cend(), name_match, name_extractor)) {
+	while (std::regex_search(search_start, pattern.cend(), name_match, RE_NAME_EXTRACTOR)) {
 		group_names.push_back(name_match[1].str());
 		search_start = name_match.suffix().first;
 	}
@@ -34,8 +41,7 @@ void RegexpParser::ParseWithRegexp(const std::string &content, const std::string
 	// Convert Python-style named groups (?P<name>...) and ECMAScript-style (?<name>...)
 	// to regular groups (...) since std::regex doesn't support named groups.
 	// We track group names separately via name_to_index map.
-	std::string modified_pattern =
-	    std::regex_replace(pattern, std::regex(R"(\(\?P?<[a-zA-Z_][a-zA-Z0-9_]*>)"), "(");
+	std::string modified_pattern = std::regex_replace(pattern, RE_NAMED_GROUP_STRIP, "(");
 
 	std::regex user_regex;
 	try {
@@ -134,7 +140,7 @@ void RegexpParser::ParseWithRegexp(const std::string &content, const std::string
 			std::string line_str = getGroupValue(match, {"line", "line_number", "lineno", "line_num"});
 			if (!line_str.empty()) {
 				try {
-					event.ref_line = std::stoi(line_str);
+					event.ref_line = SafeParsing::SafeStoi(line_str);
 				} catch (...) {
 					event.ref_line = line_num; // Fall back to input line number
 				}
@@ -146,7 +152,7 @@ void RegexpParser::ParseWithRegexp(const std::string &content, const std::string
 			std::string col_str = getGroupValue(match, {"column", "col", "ref_column", "colno"});
 			if (!col_str.empty()) {
 				try {
-					event.ref_column = std::stoi(col_str);
+					event.ref_column = SafeParsing::SafeStoi(col_str);
 				} catch (...) {
 					event.ref_column = -1;
 				}

@@ -6,6 +6,11 @@
 
 namespace duckdb {
 
+// Pre-compiled regex patterns for logfmt parsing (compiled once, reused)
+namespace {
+static const std::regex RE_KV_PATTERN(R"(\b[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(?:"[^"]*"|[^\s]*))");
+} // anonymous namespace
+
 // Helper functions (file-local)
 static std::unordered_map<std::string, std::string> ParseLogfmtLine(const std::string &line) {
 	std::unordered_map<std::string, std::string> fields;
@@ -168,9 +173,6 @@ bool LogfmtParser::canParse(const std::string &content) const {
 	int logfmt_lines = 0;
 	int checked = 0;
 
-	// Pattern to match key=value or key="quoted value"
-	std::regex kv_pattern(R"(\b[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(?:"[^"]*"|[^\s]*))");
-
 	while (std::getline(stream, line) && checked < 5) {
 		size_t start = line.find_first_not_of(" \t\r\n");
 		if (start == std::string::npos)
@@ -186,7 +188,8 @@ bool LogfmtParser::canParse(const std::string &content) const {
 
 		checked++;
 
-		auto begin = std::sregex_iterator(line.begin(), line.end(), kv_pattern);
+		// Pattern to match key=value or key="quoted value"
+		auto begin = std::sregex_iterator(line.begin(), line.end(), RE_KV_PATTERN);
 		auto end = std::sregex_iterator();
 		int match_count = std::distance(begin, end);
 

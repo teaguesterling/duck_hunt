@@ -1,4 +1,5 @@
 #include "gradle_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <sstream>
 #include <algorithm>
 
@@ -64,7 +65,7 @@ std::vector<ValidationEvent> GradleParser::parse(const std::string &content) con
 			event.tool_name = "gradle-javac";
 			event.event_type = ValidationEventType::BUILD_ERROR;
 			event.ref_file = match[1].str();
-			event.ref_line = std::stoi(match[2].str());
+			event.ref_line = SafeParsing::SafeStoi(match[2].str());
 			event.ref_column = -1;
 			event.function_name = current_task;
 			event.status = ValidationEventStatus::ERROR;
@@ -111,9 +112,9 @@ std::vector<ValidationEvent> GradleParser::parse(const std::string &content) con
 			event.log_line_end = current_line_num;
 			events.push_back(event);
 		} else if (std::regex_search(line, match, test_summary_pattern)) {
-			int total_tests = std::stoi(match[1].str());
-			int failed_tests = match[2].matched ? std::stoi(match[2].str()) : 0;
-			int skipped_tests = match[3].matched ? std::stoi(match[3].str()) : 0;
+			int total_tests = SafeParsing::SafeStoi(match[1].str());
+			int failed_tests = match[2].matched ? SafeParsing::SafeStoi(match[2].str()) : 0;
+			int skipped_tests = match[3].matched ? SafeParsing::SafeStoi(match[3].str()) : 0;
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -135,7 +136,7 @@ std::vector<ValidationEvent> GradleParser::parse(const std::string &content) con
 			event.tool_name = "gradle-checkstyle";
 			event.event_type = ValidationEventType::LINT_ISSUE;
 			event.ref_file = match[1].str();
-			event.ref_line = std::stoi(match[2].str());
+			event.ref_line = SafeParsing::SafeStoi(match[2].str());
 			event.ref_column = -1;
 			event.function_name = current_task;
 			event.status = ValidationEventStatus::WARNING;
@@ -178,7 +179,7 @@ std::vector<ValidationEvent> GradleParser::parse(const std::string &content) con
 			event.tool_name = "gradle-android-lint";
 			event.event_type = ValidationEventType::LINT_ISSUE;
 			event.ref_file = match[1].str();
-			event.ref_line = std::stoi(match[2].str());
+			event.ref_line = SafeParsing::SafeStoi(match[2].str());
 			event.ref_column = -1;
 			event.function_name = current_task;
 
@@ -209,7 +210,7 @@ std::vector<ValidationEvent> GradleParser::parse(const std::string &content) con
 			events.push_back(event);
 		} else if (std::regex_search(line, match, build_result_pattern)) {
 			std::string result = match[1].str();
-			int duration = std::stoi(match[2].str());
+			int duration = SafeParsing::SafeStoi(match[2].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;

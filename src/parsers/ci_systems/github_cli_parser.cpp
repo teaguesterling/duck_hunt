@@ -4,6 +4,29 @@
 
 namespace duckdb {
 
+// Pre-compiled regex patterns for GitHub CLI parsing (compiled once, reused)
+namespace {
+// canParse patterns
+static const std::regex RE_RUN_ENTRY(R"([✓X]\s+\w+\s+(completed|in_progress|cancelled)\s+.+\s+\w+\s+\d+[mhd])");
+static const std::regex RE_JOB_STATUS(R"([✓X]\s+\w+\s+(Success|Failure|Cancelled|Skipped))");
+static const std::regex RE_STEP_TIMESTAMP(R"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z)");
+// parseRunsList patterns
+static const std::regex RE_RUN_PATTERN(R"(([✓X])\s+(\w+)\s+(\w+)\s+(.+?)\s+(\w+)\s+(\d+[mhd]|[a-zA-Z]+\s+\d+))");
+// parseRunView patterns
+static const std::regex RE_RUN_ID(R"(Run #?(\d+)|Run ID:\s*(\d+))");
+static const std::regex RE_STATUS_PATTERN(R"(Status:\s*(\w+))");
+static const std::regex RE_CONCLUSION_PATTERN(R"(Conclusion:\s*(\w+))");
+static const std::regex RE_JOB_RESULT(R"(([✓X])\s+(.+?)\s+(Success|Failure|Cancelled|Skipped))");
+// parseWorkflowLog patterns
+static const std::regex RE_TIMESTAMP(R"((\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z)\s*(.+))");
+static const std::regex RE_ERROR(R"(::error::(.+))");
+static const std::regex RE_WARNING(R"(::warning::(.+))");
+static const std::regex RE_NOTICE(R"(::notice::(.+))");
+static const std::regex RE_GROUP(R"(##\[group\](.+))");
+static const std::regex RE_ENDGROUP(R"(##\[endgroup\])");
+static const std::regex RE_STEP(R"(Run (.+)|Setup (.+))");
+} // anonymous namespace
+
 bool GitHubCliParser::canParse(const std::string &content) const {
 	return isGitHubRunsList(content) || isGitHubRunView(content) || isGitHubWorkflowLog(content);
 }
@@ -16,8 +39,7 @@ bool GitHubCliParser::isGitHubRunsList(const std::string &content) const {
 	}
 
 	// Also check for run entries with specific patterns
-	std::regex run_entry_pattern(R"([✓X]\s+\w+\s+(completed|in_progress|cancelled)\s+.+\s+\w+\s+\d+[mhd])");
-	return std::regex_search(content, run_entry_pattern);
+	return std::regex_search(content, RE_RUN_ENTRY);
 }
 
 bool GitHubCliParser::isGitHubRunView(const std::string &content) const {
@@ -28,8 +50,7 @@ bool GitHubCliParser::isGitHubRunView(const std::string &content) const {
 	}
 
 	// Check for job status patterns
-	std::regex job_pattern(R"([✓X]\s+\w+\s+(Success|Failure|Cancelled|Skipped))");
-	return std::regex_search(content, job_pattern);
+	return std::regex_search(content, RE_JOB_STATUS);
 }
 
 bool GitHubCliParser::isGitHubWorkflowLog(const std::string &content) const {
@@ -41,8 +62,7 @@ bool GitHubCliParser::isGitHubWorkflowLog(const std::string &content) const {
 	}
 
 	// Check for step output patterns
-	std::regex step_pattern(R"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z)");
-	if (std::regex_search(content, step_pattern)) {
+	if (std::regex_search(content, RE_STEP_TIMESTAMP)) {
 		return content.find("Run ") != std::string::npos || content.find("Setup ") != std::string::npos;
 	}
 
@@ -69,6 +89,7 @@ std::vector<ValidationEvent> GitHubCliParser::parse(const std::string &content) 
 
 std::vector<ValidationEvent> GitHubCliParser::parseRunsList(const std::string &content) const {
 	std::vector<ValidationEvent> events;
+	events.reserve(content.size() / 100); // Estimate: ~1 event per 100 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
@@ -80,13 +101,10 @@ std::vector<ValidationEvent> GitHubCliParser::parseRunsList(const std::string &c
 		// This is the header, continue to data lines
 	}
 
-	// Parse run entries: [✓X] status conclusion workflow branch time
-	std::regex run_pattern(R"(([✓X])\s+(\w+)\s+(\w+)\s+(.+?)\s+(\w+)\s+(\d+[mhd]|[a-zA-Z]+\s+\d+))");
-
 	while (std::getline(stream, line)) {
 		current_line_num++;
 		std::smatch match;
-		if (std::regex_search(line, match, run_pattern)) {
+		if (std::regex_search(line, match, RE_RUN_PATTERN)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "github-cli";
@@ -135,6 +153,7 @@ std::vector<ValidationEvent> GitHubCliParser::parseRunsList(const std::string &c
 
 std::vector<ValidationEvent> GitHubCliParser::parseRunView(const std::string &content) const {
 	std::vector<ValidationEvent> events;
+	events.reserve(content.size() / 100); // Estimate: ~1 event per 100 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
@@ -144,30 +163,24 @@ std::vector<ValidationEvent> GitHubCliParser::parseRunView(const std::string &co
 	// Parse run metadata first
 	while (std::getline(stream, line)) {
 		current_line_num++;
+		std::smatch match;
 		if (line.find("Run #") != std::string::npos || line.find("Run ID:") != std::string::npos) {
-			std::regex run_id_pattern(R"(Run #?(\d+)|Run ID:\s*(\d+))");
-			std::smatch match;
-			if (std::regex_search(line, match, run_id_pattern)) {
+			if (std::regex_search(line, match, RE_RUN_ID)) {
 				run_id = match[1].str().empty() ? match[2].str() : match[1].str();
 			}
 		} else if (line.find("Status:") != std::string::npos) {
-			std::regex status_pattern(R"(Status:\s*(\w+))");
-			std::smatch match;
-			if (std::regex_search(line, match, status_pattern)) {
+			if (std::regex_search(line, match, RE_STATUS_PATTERN)) {
 				run_status = match[1].str();
 			}
 		} else if (line.find("Conclusion:") != std::string::npos) {
-			std::regex conclusion_pattern(R"(Conclusion:\s*(\w+))");
-			std::smatch match;
-			if (std::regex_search(line, match, conclusion_pattern)) {
+			if (std::regex_search(line, match, RE_CONCLUSION_PATTERN)) {
 				run_conclusion = match[1].str();
 			}
 		}
 
 		// Parse job status lines: [✓X] job_name Success/Failure
-		std::regex job_pattern(R"(([✓X])\s+(.+?)\s+(Success|Failure|Cancelled|Skipped))");
 		std::smatch job_match;
-		if (std::regex_search(line, job_match, job_pattern)) {
+		if (std::regex_search(line, job_match, RE_JOB_RESULT)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "github-cli";
@@ -215,45 +228,37 @@ std::vector<ValidationEvent> GitHubCliParser::parseRunView(const std::string &co
 
 std::vector<ValidationEvent> GitHubCliParser::parseWorkflowLog(const std::string &content) const {
 	std::vector<ValidationEvent> events;
+	events.reserve(content.size() / 100); // Estimate: ~1 event per 100 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
 	int32_t current_line_num = 0;
 	std::string current_step;
 
-	// Parse GitHub Actions workflow log format
-	std::regex timestamp_pattern(R"((\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z)\s*(.+))");
-	std::regex error_pattern(R"(::error::(.+))");
-	std::regex warning_pattern(R"(::warning::(.+))");
-	std::regex notice_pattern(R"(::notice::(.+))");
-	std::regex group_pattern(R"(##\[group\](.+))");
-	std::regex endgroup_pattern(R"(##\[endgroup\])");
-	std::regex step_pattern(R"(Run (.+)|Setup (.+))");
-
 	while (std::getline(stream, line)) {
 		current_line_num++;
 		std::smatch match;
 
 		// Parse group markers (step names)
-		if (std::regex_search(line, match, group_pattern)) {
+		if (std::regex_search(line, match, RE_GROUP)) {
 			current_step = match[1].str();
 			continue;
 		}
 
-		if (std::regex_search(line, match, endgroup_pattern)) {
+		if (std::regex_search(line, match, RE_ENDGROUP)) {
 			current_step.clear();
 			continue;
 		}
 
 		// Parse step start markers
-		if (std::regex_search(line, match, step_pattern)) {
+		if (std::regex_search(line, match, RE_STEP)) {
 			std::string step_name = match[1].str().empty() ? match[2].str() : match[1].str();
 			current_step = step_name;
 			continue;
 		}
 
 		// Parse error messages
-		if (std::regex_search(line, match, error_pattern)) {
+		if (std::regex_search(line, match, RE_ERROR)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "github-actions";
@@ -275,7 +280,7 @@ std::vector<ValidationEvent> GitHubCliParser::parseWorkflowLog(const std::string
 		}
 
 		// Parse warning messages
-		else if (std::regex_search(line, match, warning_pattern)) {
+		else if (std::regex_search(line, match, RE_WARNING)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "github-actions";
@@ -297,7 +302,7 @@ std::vector<ValidationEvent> GitHubCliParser::parseWorkflowLog(const std::string
 		}
 
 		// Parse notice messages
-		else if (std::regex_search(line, match, notice_pattern)) {
+		else if (std::regex_search(line, match, RE_NOTICE)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "github-actions";

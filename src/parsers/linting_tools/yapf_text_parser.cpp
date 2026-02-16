@@ -1,8 +1,31 @@
 #include "yapf_text_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 
 namespace duckdb {
+
+// Pre-compiled regex patterns for YAPF text parsing (compiled once, reused)
+namespace {
+static const std::regex RE_DIFF_START_YAPF(R"(--- a/(.+) \(original\))");
+static const std::regex RE_DIFF_FIXED_YAPF(R"(\+\+\+ b/(.+) \(reformatted\))");
+static const std::regex RE_REFORMATTED_FILE(R"(Reformatted (.+))");
+static const std::regex RE_YAPF_COMMAND(R"(yapf (--[^\s]+.+))");
+static const std::regex RE_PROCESSING_VERBOSE(R"(Processing (.+))");
+static const std::regex RE_STYLE_CONFIG(R"(Style configuration: (.+))");
+static const std::regex RE_LINE_LENGTH_CONFIG(R"(Line length: (\d+))");
+static const std::regex RE_INDENT_WIDTH_CONFIG(R"(Indent width: (\d+))");
+static const std::regex RE_FILES_PROCESSED(R"(Files processed: (\d+))");
+static const std::regex RE_FILES_REFORMATTED(R"(Files reformatted: (\d+))");
+static const std::regex RE_FILES_NO_CHANGES(R"(Files with no changes: (\d+))");
+static const std::regex RE_EXECUTION_TIME(R"(Total execution time: ([\d\.]+)s)");
+static const std::regex RE_CHECK_ERROR(R"(ERROR: Files would be reformatted but yapf was run with --check)");
+static const std::regex RE_YAPF_ERROR(R"(yapf: error: (.+))");
+static const std::regex RE_SYNTAX_ERROR(R"(ERROR: ([^:]+\.py):(\d+):(\d+): (.+))");
+static const std::regex RE_ENCODING_WARNING(R"(WARNING: ([^:]+\.py): cannot determine encoding)");
+static const std::regex RE_INFO_NO_CHANGES(R"(INFO: ([^:]+\.py): no changes needed)");
+static const std::regex RE_FILES_LEFT_UNCHANGED(R"((\d+) files reformatted, (\d+) files left unchanged\.)");
+} // anonymous namespace
 
 bool YapfTextParser::canParse(const std::string &content) const {
 	// First check for exclusions - if this is Ansible output, don't parse as YAPF
@@ -21,30 +44,11 @@ bool YapfTextParser::canParse(const std::string &content) const {
 
 std::vector<ValidationEvent> YapfTextParser::parse(const std::string &content) const {
 	std::vector<ValidationEvent> events;
+	events.reserve(content.size() / 100); // Estimate: ~1 event per 100 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
 	int32_t current_line_num = 0;
-
-	// Regex patterns for yapf output
-	std::regex diff_start_yapf(R"(--- a/(.+) \(original\))");
-	std::regex diff_fixed_yapf(R"(\+\+\+ b/(.+) \(reformatted\))");
-	std::regex reformatted_file(R"(Reformatted (.+))");
-	std::regex yapf_command(R"(yapf (--[^\s]+.+))");
-	std::regex processing_verbose(R"(Processing (.+))");
-	std::regex style_config(R"(Style configuration: (.+))");
-	std::regex line_length_config(R"(Line length: (\d+))");
-	std::regex indent_width_config(R"(Indent width: (\d+))");
-	std::regex files_processed(R"(Files processed: (\d+))");
-	std::regex files_reformatted(R"(Files reformatted: (\d+))");
-	std::regex files_no_changes(R"(Files with no changes: (\d+))");
-	std::regex execution_time(R"(Total execution time: ([\d\.]+)s)");
-	std::regex check_error(R"(ERROR: Files would be reformatted but yapf was run with --check)");
-	std::regex yapf_error(R"(yapf: error: (.+))");
-	std::regex syntax_error(R"(ERROR: ([^:]+\.py):(\d+):(\d+): (.+))");
-	std::regex encoding_warning(R"(WARNING: ([^:]+\.py): cannot determine encoding)");
-	std::regex info_no_changes(R"(INFO: ([^:]+\.py): no changes needed)");
-	std::regex files_left_unchanged(R"((\d+) files reformatted, (\d+) files left unchanged\.)");
 
 	std::smatch match;
 	std::string current_file;
@@ -52,7 +56,7 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string &content) c
 	while (std::getline(stream, line)) {
 		current_line_num++;
 		// Handle yapf diff sections
-		if (std::regex_search(line, match, diff_start_yapf)) {
+		if (std::regex_search(line, match, RE_DIFF_START_YAPF)) {
 			current_file = match[1].str();
 
 			ValidationEvent event;
@@ -77,7 +81,7 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string &content) c
 		}
 
 		// Handle reformatted file patterns
-		if (std::regex_search(line, match, reformatted_file)) {
+		if (std::regex_search(line, match, RE_REFORMATTED_FILE)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "yapf";
@@ -100,7 +104,7 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string &content) c
 		}
 
 		// Handle yapf command patterns
-		if (std::regex_search(line, match, yapf_command)) {
+		if (std::regex_search(line, match, RE_YAPF_COMMAND)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "yapf";
@@ -123,7 +127,7 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string &content) c
 		}
 
 		// Handle verbose processing
-		if (std::regex_search(line, match, processing_verbose)) {
+		if (std::regex_search(line, match, RE_PROCESSING_VERBOSE)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "yapf";
@@ -146,7 +150,7 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string &content) c
 		}
 
 		// Handle style configuration
-		if (std::regex_search(line, match, style_config)) {
+		if (std::regex_search(line, match, RE_STYLE_CONFIG)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "yapf";
@@ -169,7 +173,7 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string &content) c
 		}
 
 		// Handle line length configuration
-		if (std::regex_search(line, match, line_length_config)) {
+		if (std::regex_search(line, match, RE_LINE_LENGTH_CONFIG)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "yapf";
@@ -192,7 +196,7 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string &content) c
 		}
 
 		// Handle indent width configuration
-		if (std::regex_search(line, match, indent_width_config)) {
+		if (std::regex_search(line, match, RE_INDENT_WIDTH_CONFIG)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "yapf";
@@ -215,7 +219,7 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string &content) c
 		}
 
 		// Handle summary statistics
-		if (std::regex_search(line, match, files_processed)) {
+		if (std::regex_search(line, match, RE_FILES_PROCESSED)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "yapf";
@@ -237,7 +241,7 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string &content) c
 			continue;
 		}
 
-		if (std::regex_search(line, match, files_reformatted)) {
+		if (std::regex_search(line, match, RE_FILES_REFORMATTED)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "yapf";
@@ -259,7 +263,7 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string &content) c
 			continue;
 		}
 
-		if (std::regex_search(line, match, files_no_changes)) {
+		if (std::regex_search(line, match, RE_FILES_NO_CHANGES)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "yapf";
@@ -281,7 +285,7 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string &content) c
 			continue;
 		}
 
-		if (std::regex_search(line, match, execution_time)) {
+		if (std::regex_search(line, match, RE_EXECUTION_TIME)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "yapf";
@@ -293,7 +297,7 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string &content) c
 			event.severity = "info";
 			event.category = "performance";
 			event.message = "Execution time: " + match[1].str() + "s";
-			event.execution_time = std::stod(match[1].str());
+			event.execution_time = SafeParsing::SafeStod(match[1].str());
 			event.log_content = content;
 			event.structured_data = "yapf_text";
 			event.log_line_start = current_line_num;
@@ -304,7 +308,7 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string &content) c
 		}
 
 		// Handle combined summary (e.g., "5 files reformatted, 3 files left unchanged.")
-		if (std::regex_search(line, match, files_left_unchanged)) {
+		if (std::regex_search(line, match, RE_FILES_LEFT_UNCHANGED)) {
 			ValidationEvent event1;
 			event1.event_id = event_id++;
 			event1.tool_name = "yapf";
@@ -345,7 +349,7 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string &content) c
 		}
 
 		// Handle check mode error
-		if (std::regex_search(line, match, check_error)) {
+		if (std::regex_search(line, match, RE_CHECK_ERROR)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "yapf";
@@ -368,7 +372,7 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string &content) c
 		}
 
 		// Handle yapf errors
-		if (std::regex_search(line, match, yapf_error)) {
+		if (std::regex_search(line, match, RE_YAPF_ERROR)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "yapf";
@@ -391,14 +395,14 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string &content) c
 		}
 
 		// Handle syntax errors
-		if (std::regex_search(line, match, syntax_error)) {
+		if (std::regex_search(line, match, RE_SYNTAX_ERROR)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "yapf";
 			event.event_type = ValidationEventType::LINT_ISSUE;
 			event.ref_file = match[1].str();
-			event.ref_line = std::stoi(match[2].str());
-			event.ref_column = std::stoi(match[3].str());
+			event.ref_line = SafeParsing::SafeStoi(match[2].str());
+			event.ref_column = SafeParsing::SafeStoi(match[3].str());
 			event.status = ValidationEventStatus::ERROR;
 			event.severity = "error";
 			event.category = "syntax";
@@ -415,7 +419,7 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string &content) c
 		}
 
 		// Handle encoding warnings
-		if (std::regex_search(line, match, encoding_warning)) {
+		if (std::regex_search(line, match, RE_ENCODING_WARNING)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "yapf";
@@ -438,7 +442,7 @@ std::vector<ValidationEvent> YapfTextParser::parse(const std::string &content) c
 		}
 
 		// Handle info messages (no changes needed)
-		if (std::regex_search(line, match, info_no_changes)) {
+		if (std::regex_search(line, match, RE_INFO_NO_CHANGES)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "yapf";

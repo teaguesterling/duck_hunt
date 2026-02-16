@@ -1,8 +1,24 @@
 #include "github_actions_text_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 
 namespace duckdb {
+
+// Pre-compiled regex patterns for GitHub Actions text parsing (compiled once, reused)
+namespace {
+static const std::regex RE_ERROR_CMD(R"(::error(?:\s+file=([^,]+)(?:,line=(\d+))?)?::(.+))");
+static const std::regex RE_WARNING_CMD(R"(::warning(?:\s+file=([^,]+)(?:,line=(\d+))?)?::(.+))");
+static const std::regex RE_NOTICE_CMD(R"(::notice(?:\s+file=([^,]+)(?:,line=(\d+))?)?::(.+))");
+static const std::regex RE_GROUP_CMD(R"(::group::(.+))");
+static const std::regex RE_ENDGROUP_CMD(R"(::endgroup::)");
+static const std::regex RE_BRACKET_ERROR(R"(##\[error\](.+))");
+static const std::regex RE_BRACKET_WARNING(R"(##\[warning\](.+))");
+static const std::regex RE_BRACKET_GROUP(R"(##\[group\](.+))");
+static const std::regex RE_RUN_STEP(R"(^Run\s+(.+))");
+static const std::regex RE_EXIT_CODE(R"(Process completed with exit code (\d+))");
+static const std::regex RE_SHELL_ERROR(R"(##\[error\]Process completed with exit code (\d+))");
+} // anonymous namespace
 
 bool GitHubActionsTextParser::canParse(const std::string &content) const {
 	// GitHub Actions specific markers
@@ -47,23 +63,11 @@ bool GitHubActionsTextParser::canParse(const std::string &content) const {
 
 std::vector<ValidationEvent> GitHubActionsTextParser::parse(const std::string &content) const {
 	std::vector<ValidationEvent> events;
+	events.reserve(content.size() / 100); // Estimate: ~1 event per 100 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
 	int32_t line_num = 0;
-
-	// Patterns for GitHub Actions output
-	std::regex error_cmd(R"(::error(?:\s+file=([^,]+)(?:,line=(\d+))?)?::(.+))");
-	std::regex warning_cmd(R"(::warning(?:\s+file=([^,]+)(?:,line=(\d+))?)?::(.+))");
-	std::regex notice_cmd(R"(::notice(?:\s+file=([^,]+)(?:,line=(\d+))?)?::(.+))");
-	std::regex group_cmd(R"(::group::(.+))");
-	std::regex endgroup_cmd(R"(::endgroup::)");
-	std::regex bracket_error(R"(##\[error\](.+))");
-	std::regex bracket_warning(R"(##\[warning\](.+))");
-	std::regex bracket_group(R"(##\[group\](.+))");
-	std::regex run_step(R"(^Run\s+(.+))");
-	std::regex exit_code(R"(Process completed with exit code (\d+))");
-	std::regex shell_error(R"(##\[error\]Process completed with exit code (\d+))");
 
 	std::string current_group;
 	std::vector<std::string> error_context;
@@ -74,7 +78,7 @@ std::vector<ValidationEvent> GitHubActionsTextParser::parse(const std::string &c
 		std::smatch match;
 
 		// ::error:: workflow command
-		if (std::regex_search(line, match, error_cmd)) {
+		if (std::regex_search(line, match, RE_ERROR_CMD)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.event_type = ValidationEventType::BUILD_ERROR;
@@ -85,7 +89,7 @@ std::vector<ValidationEvent> GitHubActionsTextParser::parse(const std::string &c
 				event.ref_file = match[1].str();
 			}
 			if (match[2].matched) {
-				event.ref_line = std::stoi(match[2].str());
+				event.ref_line = SafeParsing::SafeStoi(match[2].str());
 			}
 			event.tool_name = "github_actions";
 			event.category = "github_actions_text";
@@ -98,7 +102,7 @@ std::vector<ValidationEvent> GitHubActionsTextParser::parse(const std::string &c
 			events.push_back(event);
 		}
 		// ::warning:: workflow command
-		else if (std::regex_search(line, match, warning_cmd)) {
+		else if (std::regex_search(line, match, RE_WARNING_CMD)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.event_type = ValidationEventType::LINT_ISSUE;
@@ -109,7 +113,7 @@ std::vector<ValidationEvent> GitHubActionsTextParser::parse(const std::string &c
 				event.ref_file = match[1].str();
 			}
 			if (match[2].matched) {
-				event.ref_line = std::stoi(match[2].str());
+				event.ref_line = SafeParsing::SafeStoi(match[2].str());
 			}
 			event.tool_name = "github_actions";
 			event.category = "github_actions_text";
@@ -122,7 +126,7 @@ std::vector<ValidationEvent> GitHubActionsTextParser::parse(const std::string &c
 			events.push_back(event);
 		}
 		// ::notice:: workflow command
-		else if (std::regex_search(line, match, notice_cmd)) {
+		else if (std::regex_search(line, match, RE_NOTICE_CMD)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.event_type = ValidationEventType::DEBUG_INFO;
@@ -133,7 +137,7 @@ std::vector<ValidationEvent> GitHubActionsTextParser::parse(const std::string &c
 				event.ref_file = match[1].str();
 			}
 			if (match[2].matched) {
-				event.ref_line = std::stoi(match[2].str());
+				event.ref_line = SafeParsing::SafeStoi(match[2].str());
 			}
 			event.tool_name = "github_actions";
 			event.category = "github_actions_text";
@@ -143,15 +147,15 @@ std::vector<ValidationEvent> GitHubActionsTextParser::parse(const std::string &c
 			events.push_back(event);
 		}
 		// ::group:: command
-		else if (std::regex_search(line, match, group_cmd)) {
+		else if (std::regex_search(line, match, RE_GROUP_CMD)) {
 			current_group = match[1].str();
 		}
 		// ::endgroup:: command
-		else if (std::regex_search(line, match, endgroup_cmd)) {
+		else if (std::regex_search(line, match, RE_ENDGROUP_CMD)) {
 			current_group.clear();
 		}
 		// ##[error] format
-		else if (std::regex_search(line, match, bracket_error)) {
+		else if (std::regex_search(line, match, RE_BRACKET_ERROR)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.event_type = ValidationEventType::BUILD_ERROR;
@@ -169,7 +173,7 @@ std::vector<ValidationEvent> GitHubActionsTextParser::parse(const std::string &c
 			events.push_back(event);
 		}
 		// ##[warning] format
-		else if (std::regex_search(line, match, bracket_warning)) {
+		else if (std::regex_search(line, match, RE_BRACKET_WARNING)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.event_type = ValidationEventType::LINT_ISSUE;
@@ -187,12 +191,12 @@ std::vector<ValidationEvent> GitHubActionsTextParser::parse(const std::string &c
 			events.push_back(event);
 		}
 		// ##[group] format
-		else if (std::regex_search(line, match, bracket_group)) {
+		else if (std::regex_search(line, match, RE_BRACKET_GROUP)) {
 			current_group = match[1].str();
 		}
 		// Exit code error
-		else if (std::regex_search(line, match, exit_code)) {
-			int code = std::stoi(match[1].str());
+		else if (std::regex_search(line, match, RE_EXIT_CODE)) {
+			int code = SafeParsing::SafeStoi(match[1].str());
 			if (code != 0) {
 				ValidationEvent event;
 				event.event_id = event_id++;

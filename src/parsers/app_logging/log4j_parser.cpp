@@ -1,4 +1,5 @@
 #include "log4j_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include "duckdb/common/string_util.hpp"
 #include <sstream>
 #include <regex>
@@ -194,6 +195,7 @@ bool Log4jParser::canParse(const std::string &content) const {
 
 std::vector<ValidationEvent> Log4jParser::parse(const std::string &content) const {
 	std::vector<ValidationEvent> events;
+	events.reserve(content.size() / 100); // Estimate: ~1 event per 100 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
@@ -233,7 +235,7 @@ std::vector<ValidationEvent> Log4jParser::parse(const std::string &content) cons
 					if (current_event->ref_file.empty()) {
 						current_event->ref_file = match[3].str();
 						try {
-							current_event->ref_line = std::stoi(match[4].str());
+							current_event->ref_line = SafeParsing::SafeStoi(match[4].str());
 						} catch (...) {
 						}
 						current_event->function_name = match[2].str();

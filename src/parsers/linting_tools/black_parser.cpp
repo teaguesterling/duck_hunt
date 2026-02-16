@@ -1,7 +1,19 @@
 #include "black_parser.hpp"
+#include <regex>
 #include <sstream>
 
 namespace duckdb {
+
+// Pre-compiled regex patterns for Black parsing (compiled once, reused)
+namespace {
+static const std::regex RE_BLACK_REFORMAT(R"(would reformat)");
+static const std::regex RE_BLACK_SUMMARY(R"(\d+ files? would be reformatted)");
+static const std::regex RE_BLACK_SUCCESS(R"(All done! ✨ 🍰 ✨)");
+static const std::regex RE_WOULD_REFORMAT(R"(would reformat (.+))");
+static const std::regex RE_REFORMAT_SUMMARY(R"((\d+) files? would be reformatted, (\d+) files? would be left unchanged)");
+static const std::regex RE_ALL_DONE_SUMMARY(R"(All done! ✨ 🍰 ✨)");
+static const std::regex RE_DIFF_HEADER(R"(--- (.+)\s+\(original\))");
+} // anonymous namespace
 
 bool BlackParser::canParse(const std::string &content) const {
 	// Look for Black-specific patterns
@@ -14,26 +26,17 @@ bool BlackParser::canParse(const std::string &content) const {
 
 bool BlackParser::isValidBlackOutput(const std::string &content) const {
 	// Check for Black-specific output patterns
-	std::regex black_reformat(R"(would reformat)");
-	std::regex black_summary(R"(\d+ files? would be reformatted)");
-	std::regex black_success(R"(All done! ✨ 🍰 ✨)");
-
-	return std::regex_search(content, black_reformat) || std::regex_search(content, black_summary) ||
-	       std::regex_search(content, black_success);
+	return std::regex_search(content, RE_BLACK_REFORMAT) || std::regex_search(content, RE_BLACK_SUMMARY) ||
+	       std::regex_search(content, RE_BLACK_SUCCESS);
 }
 
 std::vector<ValidationEvent> BlackParser::parse(const std::string &content) const {
 	std::vector<ValidationEvent> events;
+	events.reserve(content.size() / 100); // Estimate: ~1 event per 100 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
 	int32_t current_line_num = 0;
-
-	// Regex patterns for Black output
-	std::regex would_reformat(R"(would reformat (.+))");
-	std::regex reformat_summary(R"((\d+) files? would be reformatted, (\d+) files? would be left unchanged)");
-	std::regex all_done_summary(R"(All done! ✨ 🍰 ✨)");
-	std::regex diff_header(R"(--- (.+)\s+\(original\))");
 
 	bool in_diff_mode = false;
 	std::string current_file;
@@ -43,7 +46,7 @@ std::vector<ValidationEvent> BlackParser::parse(const std::string &content) cons
 		std::smatch match;
 
 		// Check for "would reformat" messages
-		if (std::regex_search(line, match, would_reformat)) {
+		if (std::regex_search(line, match, RE_WOULD_REFORMAT)) {
 			std::string file_path = match[1].str();
 
 			ValidationEvent event;
@@ -66,7 +69,7 @@ std::vector<ValidationEvent> BlackParser::parse(const std::string &content) cons
 			events.push_back(event);
 		}
 		// Check for reformat summary
-		else if (std::regex_search(line, match, reformat_summary)) {
+		else if (std::regex_search(line, match, RE_REFORMAT_SUMMARY)) {
 			std::string reformat_count = match[1].str();
 			std::string unchanged_count = match[2].str();
 
@@ -91,7 +94,7 @@ std::vector<ValidationEvent> BlackParser::parse(const std::string &content) cons
 			events.push_back(event);
 		}
 		// Check for "All done!" success message
-		else if (std::regex_search(line, match, all_done_summary)) {
+		else if (std::regex_search(line, match, RE_ALL_DONE_SUMMARY)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.event_type = ValidationEventType::SUMMARY;
@@ -111,7 +114,7 @@ std::vector<ValidationEvent> BlackParser::parse(const std::string &content) cons
 			events.push_back(event);
 		}
 		// Check for diff header (unified diff mode)
-		else if (std::regex_search(line, match, diff_header)) {
+		else if (std::regex_search(line, match, RE_DIFF_HEADER)) {
 			current_file = match[1].str();
 			in_diff_mode = true;
 

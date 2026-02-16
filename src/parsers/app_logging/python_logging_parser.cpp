@@ -1,4 +1,5 @@
 #include "python_logging_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include "duckdb/common/string_util.hpp"
 #include <sstream>
 #include <regex>
@@ -194,6 +195,7 @@ bool PythonLoggingParser::canParse(const std::string &content) const {
 
 std::vector<ValidationEvent> PythonLoggingParser::parse(const std::string &content) const {
 	std::vector<ValidationEvent> events;
+	events.reserve(content.size() / 100); // Estimate: ~1 event per 100 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
@@ -229,7 +231,7 @@ std::vector<ValidationEvent> PythonLoggingParser::parse(const std::string &conte
 				if (std::regex_search(line, match, file_line_pattern)) {
 					current_event->ref_file = match[1].str();
 					try {
-						current_event->ref_line = std::stoi(match[2].str());
+						current_event->ref_line = SafeParsing::SafeStoi(match[2].str());
 					} catch (...) {
 					}
 					if (match[3].matched) {

@@ -1,4 +1,5 @@
 #include "maven_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <sstream>
 #include <algorithm>
 
@@ -45,8 +46,8 @@ std::vector<ValidationEvent> MavenParser::parse(const std::string &content) cons
 			event.tool_name = "maven-compiler";
 			event.event_type = ValidationEventType::BUILD_ERROR;
 			event.ref_file = match[1].str();
-			event.ref_line = std::stoi(match[3].str());
-			event.ref_column = std::stoi(match[4].str());
+			event.ref_line = SafeParsing::SafeStoi(match[3].str());
+			event.ref_column = SafeParsing::SafeStoi(match[4].str());
 			event.status = ValidationEventStatus::ERROR;
 			event.severity = "error";
 			event.category = "compilation";
@@ -62,8 +63,8 @@ std::vector<ValidationEvent> MavenParser::parse(const std::string &content) cons
 			event.tool_name = "maven-compiler";
 			event.event_type = ValidationEventType::BUILD_ERROR;
 			event.ref_file = match[1].str();
-			event.ref_line = std::stoi(match[3].str());
-			event.ref_column = std::stoi(match[4].str());
+			event.ref_line = SafeParsing::SafeStoi(match[3].str());
+			event.ref_column = SafeParsing::SafeStoi(match[4].str());
 			event.status = ValidationEventStatus::WARNING;
 			event.severity = "warning";
 			event.category = "compilation";
@@ -80,7 +81,7 @@ std::vector<ValidationEvent> MavenParser::parse(const std::string &content) cons
 			event.event_type = ValidationEventType::TEST_RESULT;
 			event.function_name = match[1].str();
 			event.test_name = match[2].str() + "." + match[1].str();
-			event.execution_time = std::stod(match[3].str());
+			event.execution_time = SafeParsing::SafeStod(match[3].str());
 			event.status = (match[4].str() == "FAILURE") ? ValidationEventStatus::FAIL : ValidationEventStatus::ERROR;
 			event.severity = (match[4].str() == "FAILURE") ? "error" : "critical";
 			event.category = (match[4].str() == "FAILURE") ? "test_failure" : "test_error";
@@ -100,7 +101,7 @@ std::vector<ValidationEvent> MavenParser::parse(const std::string &content) cons
 			event.tool_name = "checkstyle";
 			event.event_type = ValidationEventType::LINT_ISSUE;
 			event.ref_file = match[2].str();
-			event.ref_line = std::stoi(match[3].str());
+			event.ref_line = SafeParsing::SafeStoi(match[3].str());
 			event.ref_column = -1;
 			event.status = (match[1].str() == "ERROR") ? ValidationEventStatus::ERROR : ValidationEventStatus::WARNING;
 			event.severity = (match[1].str() == "ERROR") ? "error" : "warning";
@@ -144,7 +145,7 @@ std::vector<ValidationEvent> MavenParser::parse(const std::string &content) cons
 			event.tool_name = "pmd";
 			event.event_type = ValidationEventType::LINT_ISSUE;
 			event.ref_file = match[2].str();
-			event.ref_line = std::stoi(match[3].str());
+			event.ref_line = SafeParsing::SafeStoi(match[3].str());
 			event.ref_column = -1;
 			event.status = (match[1].str() == "ERROR") ? ValidationEventStatus::ERROR : ValidationEventStatus::WARNING;
 			event.severity = (match[1].str() == "ERROR") ? "error" : "warning";
@@ -185,10 +186,10 @@ std::vector<ValidationEvent> MavenParser::parse(const std::string &content) cons
 			event.log_line_end = current_line_num;
 			events.push_back(event);
 		} else if (std::regex_search(line, match, test_result_pattern)) {
-			int total_tests = std::stoi(match[1].str());
-			int failures = std::stoi(match[2].str());
-			int errors = std::stoi(match[3].str());
-			int skipped = std::stoi(match[4].str());
+			int total_tests = SafeParsing::SafeStoi(match[1].str());
+			int failures = SafeParsing::SafeStoi(match[2].str());
+			int errors = SafeParsing::SafeStoi(match[3].str());
+			int skipped = SafeParsing::SafeStoi(match[4].str());
 
 			if (total_tests > 0) {
 				ValidationEvent event;

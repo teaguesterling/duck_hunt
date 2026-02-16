@@ -1,4 +1,5 @@
 #include "parsers/workflow_engines/github_actions_zip_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include "parsers/workflow_engines/github_actions_parser.hpp"
 #include "read_duck_hunt_log_function.hpp"
 #include "core/zipfs_integration.hpp"
@@ -8,6 +9,11 @@
 #include <regex>
 
 namespace duckdb {
+
+// Pre-compiled regex patterns for GitHub Actions ZIP parsing (compiled once, reused)
+namespace {
+static const std::regex RE_JOB_FILE_PATTERN(R"(^(\d+)_(.+)\.txt$)");
+} // anonymous namespace
 
 bool GitHubActionsZipParser::isZipPath(const std::string &path) {
 	std::string lower_path = StringUtil::Lower(path);
@@ -52,11 +58,10 @@ GitHubActionsZipParser::JobMetadata GitHubActionsZipParser::extractJobMetadata(c
 
 	// Pattern: {N}_{job_name}.txt
 	// Example: "0_Build extension binaries _ DuckDB-Wasm (linux_amd64).txt"
-	std::regex pattern(R"(^(\d+)_(.+)\.txt$)");
 	std::smatch match;
 
-	if (std::regex_match(filename, match, pattern)) {
-		meta.job_order = std::stoi(match[1].str());
+	if (std::regex_match(filename, match, RE_JOB_FILE_PATTERN)) {
+		meta.job_order = SafeParsing::SafeStoi(match[1].str());
 		meta.job_name = match[2].str();
 	} else {
 		// Fallback: just use the filename without extension as job name

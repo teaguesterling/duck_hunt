@@ -1,9 +1,27 @@
 #include "rspec_text_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 #include <string>
 
 namespace duckdb {
+
+// Pre-compiled regex patterns for RSpec parsing (compiled once, reused)
+namespace {
+static const std::regex RE_TEST_PASSED_MARKER(R"(\s*✓\s*(.+))");
+static const std::regex RE_TEST_FAILED_MARKER(R"(\s*✗\s*(.+))");
+static const std::regex RE_DOC_TEST_LINE(R"(^(\s{4,})(.+?)\s*(\(FAILED - \d+\)|\(PENDING.*\))?\s*$)");
+static const std::regex RE_DOC_CONTEXT_2SPACE(R"(^  (#?\w.+?)\s*$)");
+static const std::regex RE_DOC_CONTEXT_TOP(R"(^([A-Z][A-Za-z0-9_:]+)\s*$)");
+static const std::regex RE_TEST_PENDING(R"(\s*pending:\s*(.+)\s*\(PENDING:\s*(.+)\))");
+static const std::regex RE_FAILURE_ERROR(R"(Failure/Error:\s*(.+))");
+static const std::regex RE_EXPECTED_PATTERN(R"(\s*expected\s*(.+))");
+static const std::regex RE_GOT_PATTERN(R"(\s*got:\s*(.+))");
+static const std::regex RE_FILE_LINE_PATTERN(R"(# (.+):(\d+):in)");
+static const std::regex RE_SUMMARY_PATTERN(R"(Finished in (.+) seconds .* (\d+) examples?, (\d+) failures?(, (\d+) pending)?)");
+static const std::regex RE_FAILED_EXAMPLE(R"(rspec (.+):(\d+) # (.+))");
+static const std::regex RE_SIMPLE_SUMMARY(R"((\d+) examples?, (\d+) failures?)");
+} // anonymous namespace
 
 bool RSpecTextParser::canParse(const std::string &content) const {
 	// RSpec-specific patterns that distinguish it from other test frameworks
@@ -56,31 +74,11 @@ std::vector<ValidationEvent> RSpecTextParser::parse(const std::string &content) 
 }
 
 static void parseRSpecTextImpl(const std::string &content, std::vector<ValidationEvent> &events) {
+	events.reserve(content.size() / 100); // Estimate: ~1 event per 100 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
 	int32_t current_line_num = 0;
-
-	// Regex patterns for RSpec output
-	// With markers
-	std::regex test_passed_marker(R"(\s*✓\s*(.+))");
-	std::regex test_failed_marker(R"(\s*✗\s*(.+))");
-	// Documentation format - tests are deeply indented (4+ spaces) with behavior descriptions
-	// Test names typically start with "is", "should", "does", "returns", "raises", "has", etc.
-	std::regex doc_test_line(R"(^(\s{4,})(.+?)\s*(\(FAILED - \d+\)|\(PENDING.*\))?\s*$)");
-	// Context/describe blocks - 2 spaces indent, often start with # for methods or capitalized words
-	std::regex doc_context_2space(R"(^  (#?\w.+?)\s*$)");
-	// Top-level context - no indent, capitalized
-	std::regex doc_context_top(R"(^([A-Z][A-Za-z0-9_:]+)\s*$)");
-	std::regex test_pending(R"(\s*pending:\s*(.+)\s*\(PENDING:\s*(.+)\))");
-	std::regex failure_error(R"(Failure/Error:\s*(.+))");
-	std::regex expected_pattern(R"(\s*expected\s*(.+))");
-	std::regex got_pattern(R"(\s*got:\s*(.+))");
-	std::regex file_line_pattern(R"(# (.+):(\d+):in)");
-	std::regex summary_pattern(R"(Finished in (.+) seconds .* (\d+) examples?, (\d+) failures?(, (\d+) pending)?)");
-	std::regex failed_example(R"(rspec (.+):(\d+) # (.+))");
-	// Alternative summary patterns
-	std::regex simple_summary(R"((\d+) examples?, (\d+) failures?)");
 
 	std::string current_context;
 	std::string current_method;
@@ -108,7 +106,7 @@ static void parseRSpecTextImpl(const std::string &content, std::vector<Validatio
 		}
 
 		// Parse failed example references
-		if (in_failed_examples && std::regex_search(line, match, failed_example)) {
+		if (in_failed_examples && std::regex_search(line, match, RE_FAILED_EXAMPLE)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "RSpec";
@@ -117,7 +115,7 @@ static void parseRSpecTextImpl(const std::string &content, std::vector<Validatio
 			event.severity = "error";
 			event.category = "test_failure";
 			event.ref_file = match[1].str();
-			event.ref_line = std::stoi(match[2].str());
+			event.ref_line = SafeParsing::SafeStoi(match[2].str());
 			event.test_name = match[3].str();
 			event.message = "Test failed: " + match[3].str();
 			event.log_content = line;
@@ -128,7 +126,7 @@ static void parseRSpecTextImpl(const std::string &content, std::vector<Validatio
 		}
 
 		// Parse top-level context (class/module names) - no indent
-		if (std::regex_match(line, match, doc_context_top)) {
+		if (std::regex_match(line, match, RE_DOC_CONTEXT_TOP)) {
 			current_context = match[1].str();
 			context_stack.clear();
 			context_stack.push_back(current_context);
@@ -137,7 +135,7 @@ static void parseRSpecTextImpl(const std::string &content, std::vector<Validatio
 		}
 
 		// Parse 2-space indented context (describe/context blocks)
-		if (std::regex_match(line, match, doc_context_2space)) {
+		if (std::regex_match(line, match, RE_DOC_CONTEXT_2SPACE)) {
 			std::string ctx = match[1].str();
 			// This is a sub-context
 			if (context_stack.size() > 1) {
@@ -150,7 +148,7 @@ static void parseRSpecTextImpl(const std::string &content, std::vector<Validatio
 
 		// Parse documentation format test lines (4+ spaces indent)
 		// These are actual test cases (it blocks)
-		if (!in_failure_section && !in_failed_examples && std::regex_match(line, match, doc_test_line)) {
+		if (!in_failure_section && !in_failed_examples && std::regex_match(line, match, RE_DOC_TEST_LINE)) {
 			std::string indent = match[1].str();
 			std::string test_name = match[2].str();
 			std::string status_marker = match[3].matched ? match[3].str() : "";
@@ -206,7 +204,7 @@ static void parseRSpecTextImpl(const std::string &content, std::vector<Validatio
 		}
 
 		// Parse passed tests with ✓ marker
-		if (std::regex_search(line, match, test_passed_marker)) {
+		if (std::regex_search(line, match, RE_TEST_PASSED_MARKER)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "RSpec";
@@ -230,7 +228,7 @@ static void parseRSpecTextImpl(const std::string &content, std::vector<Validatio
 		}
 
 		// Parse failed tests with ✗ marker
-		else if (std::regex_search(line, match, test_failed_marker)) {
+		else if (std::regex_search(line, match, RE_TEST_FAILED_MARKER)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "RSpec";
@@ -253,7 +251,7 @@ static void parseRSpecTextImpl(const std::string &content, std::vector<Validatio
 		}
 
 		// Parse pending tests
-		else if (std::regex_search(line, match, test_pending)) {
+		else if (std::regex_search(line, match, RE_TEST_PENDING)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "RSpec";
@@ -276,25 +274,25 @@ static void parseRSpecTextImpl(const std::string &content, std::vector<Validatio
 		}
 
 		// Parse failure details
-		else if (std::regex_search(line, match, failure_error)) {
+		else if (std::regex_search(line, match, RE_FAILURE_ERROR)) {
 			current_failure_message = match[1].str();
 		}
 
 		// Parse expected/got patterns for better error details
-		else if (std::regex_search(line, match, expected_pattern)) {
+		else if (std::regex_search(line, match, RE_EXPECTED_PATTERN)) {
 			if (!current_failure_message.empty()) {
 				current_failure_message += " | Expected: " + match[1].str();
 			}
-		} else if (std::regex_search(line, match, got_pattern)) {
+		} else if (std::regex_search(line, match, RE_GOT_PATTERN)) {
 			if (!current_failure_message.empty()) {
 				current_failure_message += " | Got: " + match[1].str();
 			}
 		}
 
 		// Parse file and line information
-		else if (std::regex_search(line, match, file_line_pattern)) {
+		else if (std::regex_search(line, match, RE_FILE_LINE_PATTERN)) {
 			current_failure_file = match[1].str();
-			current_failure_line = std::stoi(match[2].str());
+			current_failure_line = SafeParsing::SafeStoi(match[2].str());
 
 			// Update the most recent failed test event with file/line info
 			for (auto it = events.rbegin(); it != events.rend(); ++it) {
@@ -310,7 +308,7 @@ static void parseRSpecTextImpl(const std::string &content, std::vector<Validatio
 		}
 
 		// Parse summary
-		else if (std::regex_search(line, match, summary_pattern)) {
+		else if (std::regex_search(line, match, RE_SUMMARY_PATTERN)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "RSpec";
@@ -320,16 +318,16 @@ static void parseRSpecTextImpl(const std::string &content, std::vector<Validatio
 			event.category = "test_summary";
 
 			std::string execution_time = match[1].str();
-			int total_examples = std::stoi(match[2].str());
-			int failures = std::stoi(match[3].str());
+			int total_examples = SafeParsing::SafeStoi(match[2].str());
+			int failures = SafeParsing::SafeStoi(match[3].str());
 			int pending = 0;
 			if (match[5].matched) {
-				pending = std::stoi(match[5].str());
+				pending = SafeParsing::SafeStoi(match[5].str());
 			}
 
 			event.message = "Test run completed: " + std::to_string(total_examples) + " examples, " +
 			                std::to_string(failures) + " failures, " + std::to_string(pending) + " pending";
-			event.execution_time = std::stod(execution_time);
+			event.execution_time = SafeParsing::SafeStod(execution_time);
 			event.log_content = line;
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;

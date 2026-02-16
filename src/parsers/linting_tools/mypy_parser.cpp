@@ -1,13 +1,29 @@
 #include "mypy_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <sstream>
 
 namespace duckdb {
 
+// Pre-compiled regex patterns for mypy parsing (compiled once, reused)
+namespace {
+// canParse/isValidMypyOutput patterns
+static const std::regex RE_CLANG_TIDY_PATTERN(R"([^:]+:\d+:\d+:\s*(error|warning|note):\s*)");
+static const std::regex RE_MYPY_PATTERN(R"([^:]+:\d+:\s*(error|warning|note):)");
+static const std::regex RE_MYPY_SUMMARY_CHECK(R"(Found \d+ errors? in \d+ files?)");
+static const std::regex RE_MYPY_SUCCESS_CHECK(R"(Success: no issues found in \d+ source files?)");
+
+// parse patterns
+static const std::regex RE_MYPY_MESSAGE(R"(([^:]+):(\d+):\s*(error|warning|note):\s*(.+?)\s*\[([^\]]+)\])");
+static const std::regex RE_MYPY_MESSAGE_NO_CODE(R"(([^:]+):(\d+):\s*(error|warning|note):\s*(.+))");
+static const std::regex RE_MYPY_SUMMARY(R"(Found (\d+) errors? in (\d+) files? \(checked (\d+) files?\))");
+static const std::regex RE_MYPY_SUCCESS(R"(Success: no issues found in (\d+) source files?)");
+} // anonymous namespace
+
 bool MypyParser::canParse(const std::string &content) const {
 	// First check for clang-tidy specific patterns and exclude them
-	std::vector<std::string> clang_tidy_rules = {"readability-",       "performance-", "modernize-", "bugprone-",
-	                                             "cppcoreguidelines-", "google-",      "llvm-",      "misc-",
-	                                             "portability-"};
+	static const std::vector<std::string> clang_tidy_rules = {
+	    "readability-", "performance-", "modernize-",       "bugprone-", "cppcoreguidelines-",
+	    "google-",      "llvm-",        "misc-",            "portability-"};
 
 	for (const auto &rule : clang_tidy_rules) {
 		if (content.find(rule) != std::string::npos) {
@@ -20,11 +36,10 @@ bool MypyParser::canParse(const std::string &content) const {
 	if (content.find(": error:") != std::string::npos || content.find(": warning:") != std::string::npos ||
 	    content.find(": note:") != std::string::npos) {
 		// Process line-by-line to avoid catastrophic backtracking on large files
-		std::regex clang_tidy_pattern(R"([^:]+:\d+:\d+:\s*(error|warning|note):\s*)");
 		std::istringstream stream(content);
 		std::string line;
 		while (std::getline(stream, line)) {
-			if (std::regex_search(line, clang_tidy_pattern)) {
+			if (std::regex_search(line, RE_CLANG_TIDY_PATTERN)) {
 				return false; // This looks like clang-tidy format
 			}
 		}
@@ -42,41 +57,32 @@ bool MypyParser::canParse(const std::string &content) const {
 bool MypyParser::isValidMypyOutput(const std::string &content) const {
 	// Check for mypy-specific output patterns
 	// Process line-by-line to avoid catastrophic backtracking on large files
-	std::regex mypy_pattern(R"([^:]+:\d+:\s*(error|warning|note):)");
 	std::istringstream stream(content);
 	std::string line;
 	while (std::getline(stream, line)) {
-		if (std::regex_search(line, mypy_pattern)) {
+		if (std::regex_search(line, RE_MYPY_PATTERN)) {
 			return true;
 		}
 	}
 
 	// These patterns are bounded and safe to run on full content
-	std::regex mypy_summary(R"(Found \d+ errors? in \d+ files?)");
-	std::regex mypy_success(R"(Success: no issues found in \d+ source files?)");
-	return std::regex_search(content, mypy_summary) || std::regex_search(content, mypy_success);
+	return std::regex_search(content, RE_MYPY_SUMMARY_CHECK) || std::regex_search(content, RE_MYPY_SUCCESS_CHECK);
 }
 
 std::vector<ValidationEvent> MypyParser::parse(const std::string &content) const {
 	std::vector<ValidationEvent> events;
+	events.reserve(content.size() / 80); // Estimate: ~1 event per 80 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
 	int32_t current_line_num = 0;
-
-	// Regex patterns for mypy output
-	std::regex mypy_message(R"(([^:]+):(\d+):\s*(error|warning|note):\s*(.+?)\s*\[([^\]]+)\])");
-	std::regex mypy_message_no_code(R"(([^:]+):(\d+):\s*(error|warning|note):\s*(.+))");
-	std::regex mypy_summary(R"(Found (\d+) errors? in (\d+) files? \(checked (\d+) files?\))");
-	std::regex mypy_success(R"(Success: no issues found in (\d+) source files?)");
-	std::regex mypy_revealed_type(R"((.+):(\d+):\s*note:\s*Revealed type is \"(.+)\")");
 
 	while (std::getline(stream, line)) {
 		current_line_num++;
 		std::smatch match;
 
 		// Check for mypy message with error code
-		if (std::regex_search(line, match, mypy_message)) {
+		if (std::regex_search(line, match, RE_MYPY_MESSAGE)) {
 			std::string file_path = match[1].str();
 			std::string line_str = match[2].str();
 			std::string severity = match[3].str();
@@ -86,7 +92,7 @@ std::vector<ValidationEvent> MypyParser::parse(const std::string &content) const
 			int64_t line_number = 0;
 
 			try {
-				line_number = std::stoi(line_str);
+				line_number = SafeParsing::SafeStoi(line_str);
 			} catch (...) {
 				// If parsing fails, keep as 0
 			}
@@ -129,7 +135,7 @@ std::vector<ValidationEvent> MypyParser::parse(const std::string &content) const
 			events.push_back(event);
 		}
 		// Check for mypy message without error code
-		else if (std::regex_search(line, match, mypy_message_no_code)) {
+		else if (std::regex_search(line, match, RE_MYPY_MESSAGE_NO_CODE)) {
 			std::string file_path = match[1].str();
 			std::string line_str = match[2].str();
 			std::string severity = match[3].str();
@@ -138,7 +144,7 @@ std::vector<ValidationEvent> MypyParser::parse(const std::string &content) const
 			int64_t line_number = 0;
 
 			try {
-				line_number = std::stoi(line_str);
+				line_number = SafeParsing::SafeStoi(line_str);
 			} catch (...) {
 				// If parsing fails, keep as 0
 			}
@@ -180,7 +186,7 @@ std::vector<ValidationEvent> MypyParser::parse(const std::string &content) const
 			events.push_back(event);
 		}
 		// Check for summary with errors
-		else if (std::regex_search(line, match, mypy_summary)) {
+		else if (std::regex_search(line, match, RE_MYPY_SUMMARY)) {
 			std::string error_count = match[1].str();
 			std::string file_count = match[2].str();
 			std::string checked_count = match[3].str();
@@ -206,7 +212,7 @@ std::vector<ValidationEvent> MypyParser::parse(const std::string &content) const
 			events.push_back(event);
 		}
 		// Check for success message
-		else if (std::regex_search(line, match, mypy_success)) {
+		else if (std::regex_search(line, match, RE_MYPY_SUCCESS)) {
 			std::string checked_count = match[1].str();
 
 			ValidationEvent event;

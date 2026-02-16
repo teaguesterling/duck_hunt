@@ -1,4 +1,5 @@
 #include "nginx_access_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include "duckdb/common/string_util.hpp"
 #include <sstream>
 #include <regex>
@@ -66,7 +67,7 @@ static bool ParseNginxAccessLine(const std::string &line, ValidationEvent &event
 	// Status code determines severity
 	int status_code = 0;
 	try {
-		status_code = std::stoi(status_str);
+		status_code = SafeParsing::SafeStoi(status_str);
 	} catch (...) {
 	}
 	event.severity = MapStatusCodeToSeverity(status_code);
@@ -75,7 +76,7 @@ static bool ParseNginxAccessLine(const std::string &line, ValidationEvent &event
 	// Request time (optional, nginx extended format) - perfect fit for execution_time
 	if (match[10].matched && !match[10].str().empty()) {
 		try {
-			event.execution_time = std::stod(match[10].str());
+			event.execution_time = SafeParsing::SafeStod(match[10].str());
 		} catch (...) {
 			event.execution_time = 0.0;
 		}

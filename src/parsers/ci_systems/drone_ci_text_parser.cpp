@@ -1,9 +1,37 @@
 #include "drone_ci_text_parser.hpp"
 #include "duckdb/common/exception.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <sstream>
 #include <regex>
 
 namespace duckdb {
+
+// Pre-compiled regex patterns for DroneCI text parsing (compiled once, reused)
+namespace {
+static const std::regex RE_DRONE_STEP_START(R"(\[drone:exec\] .* starting build step: (.+))");
+static const std::regex RE_DRONE_STEP_COMPLETE(R"(\[drone:exec\] .* completed build step: (.+) \(exit code (\d+)\))");
+static const std::regex RE_DRONE_PIPELINE_COMPLETE(R"(\[drone:exec\] .* pipeline execution complete)");
+static const std::regex RE_DRONE_PIPELINE_FAILED(R"(\[drone:exec\] .* pipeline failed with exit code (\d+))");
+static const std::regex RE_GIT_CLONE(R"(\+ git clone (.+) \.)");
+static const std::regex RE_GIT_CHECKOUT(R"(\+ git checkout ([a-f0-9]+))");
+static const std::regex RE_NPM_INSTALL(R"(added (\d+) packages .* in ([\d.]+)s)");
+static const std::regex RE_NPM_VULNERABILITIES(R"(found (\d+) vulnerabilit)");
+static const std::regex RE_JEST_TEST_PASS(R"(PASS (.+) \(([\d.]+) s\))");
+static const std::regex RE_JEST_TEST_FAIL(R"(FAIL (.+) \(([\d.]+) s\))");
+static const std::regex RE_JEST_TEST_ITEM(R"(✓ (.+) \((\d+) ms\))");
+static const std::regex RE_JEST_TEST_FAIL_ITEM(R"(✗ (.+) \(([\d.]+) s\))");
+static const std::regex RE_JEST_SUMMARY(R"(Test Suites: (\d+) failed, (\d+) passed, (\d+) total)");
+static const std::regex RE_JEST_TEST_SUMMARY(R"(Tests: (\d+) failed, (\d+) passed, (\d+) total)");
+static const std::regex RE_JEST_TIMING(R"(Time: ([\d.]+) s)");
+static const std::regex RE_WEBPACK_BUILD(R"(Hash: ([a-f0-9]+))");
+static const std::regex RE_WEBPACK_WARNING(R"(Module Warning \(from ([^)]+)\):)");
+static const std::regex RE_ESLINT_WARNING(R"((\d+):(\d+)\s+(warning|error)\s+(.+)\s+([a-z-]+))");
+static const std::regex RE_DOCKER_BUILD_START(R"(Sending build context to Docker daemon\s+([\d.]+[KMG]?B))");
+static const std::regex RE_DOCKER_STEP(R"(Step (\d+)/(\d+) : (.+))");
+static const std::regex RE_DOCKER_SUCCESS(R"(Successfully built ([a-f0-9]+))");
+static const std::regex RE_DOCKER_TAGGED(R"(Successfully tagged (.+))");
+static const std::regex RE_CURL_NOTIFICATION(R"(\+ curl -X POST .* --data '(.+)' )");
+} // anonymous namespace
 
 bool DroneCITextParser::canParse(const std::string &content) const {
 	return isValidDroneCIText(content);
@@ -26,30 +54,8 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 	int64_t event_id = 1;
 	int32_t current_line_num = 0;
 
-	// Regex patterns for DroneCI output
-	std::regex drone_step_start(R"(\[drone:exec\] .* starting build step: (.+))");
-	std::regex drone_step_complete(R"(\[drone:exec\] .* completed build step: (.+) \(exit code (\d+)\))");
-	std::regex drone_pipeline_complete(R"(\[drone:exec\] .* pipeline execution complete)");
-	std::regex drone_pipeline_failed(R"(\[drone:exec\] .* pipeline failed with exit code (\d+))");
-	std::regex git_clone(R"(\+ git clone (.+) \.)");
-	std::regex git_checkout(R"(\+ git checkout ([a-f0-9]+))");
-	std::regex npm_install(R"(added (\d+) packages .* in ([\d.]+)s)");
-	std::regex npm_vulnerabilities(R"(found (\d+) vulnerabilit)");
-	std::regex jest_test_pass(R"(PASS (.+) \(([\d.]+) s\))");
-	std::regex jest_test_fail(R"(FAIL (.+) \(([\d.]+) s\))");
-	std::regex jest_test_item(R"(✓ (.+) \((\d+) ms\))");
-	std::regex jest_test_fail_item(R"(✗ (.+) \(([\d.]+) s\))");
-	std::regex jest_summary(R"(Test Suites: (\d+) failed, (\d+) passed, (\d+) total)");
-	std::regex jest_test_summary(R"(Tests: (\d+) failed, (\d+) passed, (\d+) total)");
-	std::regex jest_timing(R"(Time: ([\d.]+) s)");
-	std::regex webpack_build(R"(Hash: ([a-f0-9]+))");
-	std::regex webpack_warning(R"(Module Warning \(from ([^)]+)\):)");
-	std::regex eslint_warning(R"((\d+):(\d+)\s+(warning|error)\s+(.+)\s+([a-z-]+))");
-	std::regex docker_build_start(R"(Sending build context to Docker daemon\s+([\d.]+[KMG]?B))");
-	std::regex docker_step(R"(Step (\d+)/(\d+) : (.+))");
-	std::regex docker_success(R"(Successfully built ([a-f0-9]+))");
-	std::regex docker_tagged(R"(Successfully tagged (.+))");
-	std::regex curl_notification(R"(\+ curl -X POST .* --data '(.+)' )");
+	// Reserve space for events (estimate based on content size)
+	events.reserve(content.size() / 100);
 
 	std::smatch match;
 	std::string current_step = "";
@@ -57,7 +63,7 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 	while (std::getline(stream, line)) {
 		current_line_num++;
 		// Parse DroneCI step start
-		if (std::regex_search(line, match, drone_step_start)) {
+		if (std::regex_search(line, match, RE_DRONE_STEP_START)) {
 			current_step = match[1].str();
 
 			ValidationEvent event;
@@ -82,9 +88,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 		}
 
 		// Parse DroneCI step completion
-		if (std::regex_search(line, match, drone_step_complete)) {
+		if (std::regex_search(line, match, RE_DRONE_STEP_COMPLETE)) {
 			std::string step_name = match[1].str();
-			int exit_code = std::stoi(match[2].str());
+			int exit_code = SafeParsing::SafeStoi(match[2].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -108,7 +114,7 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 		}
 
 		// Parse pipeline completion
-		if (std::regex_search(line, match, drone_pipeline_complete)) {
+		if (std::regex_search(line, match, RE_DRONE_PIPELINE_COMPLETE)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "drone-ci";
@@ -131,8 +137,8 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 		}
 
 		// Parse pipeline failure
-		if (std::regex_search(line, match, drone_pipeline_failed)) {
-			int exit_code = std::stoi(match[1].str());
+		if (std::regex_search(line, match, RE_DRONE_PIPELINE_FAILED)) {
+			int exit_code = SafeParsing::SafeStoi(match[1].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -156,7 +162,7 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 		}
 
 		// Parse Git operations
-		if (std::regex_search(line, match, git_clone)) {
+		if (std::regex_search(line, match, RE_GIT_CLONE)) {
 			std::string repo_url = match[1].str();
 
 			ValidationEvent event;
@@ -180,7 +186,7 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 			continue;
 		}
 
-		if (std::regex_search(line, match, git_checkout)) {
+		if (std::regex_search(line, match, RE_GIT_CHECKOUT)) {
 			std::string commit_hash = match[1].str();
 
 			ValidationEvent event;
@@ -205,9 +211,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 		}
 
 		// Parse NPM operations
-		if (std::regex_search(line, match, npm_install)) {
-			int package_count = std::stoi(match[1].str());
-			double install_time = std::stod(match[2].str());
+		if (std::regex_search(line, match, RE_NPM_INSTALL)) {
+			int package_count = SafeParsing::SafeStoi(match[1].str());
+			double install_time = SafeParsing::SafeStod(match[2].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -231,8 +237,8 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 			continue;
 		}
 
-		if (std::regex_search(line, match, npm_vulnerabilities)) {
-			int vuln_count = std::stoi(match[1].str());
+		if (std::regex_search(line, match, RE_NPM_VULNERABILITIES)) {
+			int vuln_count = SafeParsing::SafeStoi(match[1].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -256,9 +262,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 		}
 
 		// Parse Jest test results
-		if (std::regex_search(line, match, jest_test_pass)) {
+		if (std::regex_search(line, match, RE_JEST_TEST_PASS)) {
 			std::string test_file = match[1].str();
-			double test_time = std::stod(match[2].str());
+			double test_time = SafeParsing::SafeStod(match[2].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -281,9 +287,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 			continue;
 		}
 
-		if (std::regex_search(line, match, jest_test_fail)) {
+		if (std::regex_search(line, match, RE_JEST_TEST_FAIL)) {
 			std::string test_file = match[1].str();
-			double test_time = std::stod(match[2].str());
+			double test_time = SafeParsing::SafeStod(match[2].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -304,9 +310,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 			continue;
 		}
 
-		if (std::regex_search(line, match, jest_test_item)) {
+		if (std::regex_search(line, match, RE_JEST_TEST_ITEM)) {
 			std::string test_name = match[1].str();
-			int test_time_ms = std::stoi(match[2].str());
+			int test_time_ms = SafeParsing::SafeStoi(match[2].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -330,9 +336,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 			continue;
 		}
 
-		if (std::regex_search(line, match, jest_test_fail_item)) {
+		if (std::regex_search(line, match, RE_JEST_TEST_FAIL_ITEM)) {
 			std::string test_name = match[1].str();
-			double test_time = std::stod(match[2].str());
+			double test_time = SafeParsing::SafeStod(match[2].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -357,10 +363,10 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 		}
 
 		// Parse Jest summaries
-		if (std::regex_search(line, match, jest_summary)) {
-			int failed = std::stoi(match[1].str());
-			int passed = std::stoi(match[2].str());
-			int total = std::stoi(match[3].str());
+		if (std::regex_search(line, match, RE_JEST_SUMMARY)) {
+			int failed = SafeParsing::SafeStoi(match[1].str());
+			int passed = SafeParsing::SafeStoi(match[2].str());
+			int total = SafeParsing::SafeStoi(match[3].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -384,10 +390,10 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 			continue;
 		}
 
-		if (std::regex_search(line, match, jest_test_summary)) {
-			int failed = std::stoi(match[1].str());
-			int passed = std::stoi(match[2].str());
-			int total = std::stoi(match[3].str());
+		if (std::regex_search(line, match, RE_JEST_TEST_SUMMARY)) {
+			int failed = SafeParsing::SafeStoi(match[1].str());
+			int passed = SafeParsing::SafeStoi(match[2].str());
+			int total = SafeParsing::SafeStoi(match[3].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -411,8 +417,8 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 			continue;
 		}
 
-		if (std::regex_search(line, match, jest_timing)) {
-			double total_time = std::stod(match[1].str());
+		if (std::regex_search(line, match, RE_JEST_TIMING)) {
+			double total_time = SafeParsing::SafeStod(match[1].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -436,7 +442,7 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 		}
 
 		// Parse Webpack build
-		if (std::regex_search(line, match, webpack_build)) {
+		if (std::regex_search(line, match, RE_WEBPACK_BUILD)) {
 			std::string build_hash = match[1].str();
 
 			ValidationEvent event;
@@ -460,7 +466,7 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 			continue;
 		}
 
-		if (std::regex_search(line, match, webpack_warning)) {
+		if (std::regex_search(line, match, RE_WEBPACK_WARNING)) {
 			std::string warning_source = match[1].str();
 
 			ValidationEvent event;
@@ -485,9 +491,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 		}
 
 		// Parse ESLint warnings/errors
-		if (std::regex_search(line, match, eslint_warning)) {
-			int line_num = std::stoi(match[1].str());
-			int col_num = std::stoi(match[2].str());
+		if (std::regex_search(line, match, RE_ESLINT_WARNING)) {
+			int line_num = SafeParsing::SafeStoi(match[1].str());
+			int col_num = SafeParsing::SafeStoi(match[2].str());
 			std::string level = match[3].str();
 			std::string message = match[4].str();
 			std::string rule = match[5].str();
@@ -515,7 +521,7 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 		}
 
 		// Parse Docker operations
-		if (std::regex_search(line, match, docker_build_start)) {
+		if (std::regex_search(line, match, RE_DOCKER_BUILD_START)) {
 			std::string context_size = match[1].str();
 
 			ValidationEvent event;
@@ -539,9 +545,9 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 			continue;
 		}
 
-		if (std::regex_search(line, match, docker_step)) {
-			int step_num = std::stoi(match[1].str());
-			int total_steps = std::stoi(match[2].str());
+		if (std::regex_search(line, match, RE_DOCKER_STEP)) {
+			int step_num = SafeParsing::SafeStoi(match[1].str());
+			int total_steps = SafeParsing::SafeStoi(match[2].str());
 			std::string step_command = match[3].str();
 
 			ValidationEvent event;
@@ -566,7 +572,7 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 			continue;
 		}
 
-		if (std::regex_search(line, match, docker_success)) {
+		if (std::regex_search(line, match, RE_DOCKER_SUCCESS)) {
 			std::string image_id = match[1].str();
 
 			ValidationEvent event;
@@ -590,7 +596,7 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 			continue;
 		}
 
-		if (std::regex_search(line, match, docker_tagged)) {
+		if (std::regex_search(line, match, RE_DOCKER_TAGGED)) {
 			std::string tag = match[1].str();
 
 			ValidationEvent event;
@@ -615,7 +621,7 @@ std::vector<ValidationEvent> DroneCITextParser::parse(const std::string &content
 		}
 
 		// Parse notification curl
-		if (std::regex_search(line, match, curl_notification)) {
+		if (std::regex_search(line, match, RE_CURL_NOTIFICATION)) {
 			std::string notification_data = match[1].str();
 
 			ValidationEvent event;

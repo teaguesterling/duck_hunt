@@ -1,7 +1,20 @@
 #include "shellcheck_text_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
+#include <regex>
 #include <sstream>
 
 namespace duckdb {
+
+// Pre-compiled regex patterns for ShellCheck parsing (compiled once, reused)
+namespace {
+// canParse patterns
+static const std::regex RE_IN_LINE_PATTERN(R"(In \S+ line \d+:)");
+static const std::regex RE_SC_CODE_PATTERN(R"(SC\d{4})");
+
+// parse patterns
+static const std::regex RE_HEADER_PATTERN(R"(^In (\S+) line (\d+):$)");
+static const std::regex RE_SC_PATTERN(R"(SC(\d{4})(?:\s*\((\w+)\))?:\s*(.+))");
+} // anonymous namespace
 
 bool ShellcheckTextParser::canParse(const std::string &content) const {
 	// Look for ShellCheck-specific patterns:
@@ -9,11 +22,9 @@ bool ShellcheckTextParser::canParse(const std::string &content) const {
 	// 2. SC codes like SC2086, SC2046
 
 	// Check for "In X line Y:" pattern
-	std::regex in_line_pattern(R"(In \S+ line \d+:)");
-	if (std::regex_search(content, in_line_pattern)) {
+	if (std::regex_search(content, RE_IN_LINE_PATTERN)) {
 		// Verify we also have SC codes
-		std::regex sc_code_pattern(R"(SC\d{4})");
-		if (std::regex_search(content, sc_code_pattern)) {
+		if (std::regex_search(content, RE_SC_CODE_PATTERN)) {
 			return true;
 		}
 	}
@@ -23,16 +34,11 @@ bool ShellcheckTextParser::canParse(const std::string &content) const {
 
 std::vector<ValidationEvent> ShellcheckTextParser::parse(const std::string &content) const {
 	std::vector<ValidationEvent> events;
+	events.reserve(content.size() / 100); // Estimate: ~1 event per 100 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
 	int32_t current_line_num = 0;
-
-	// Pattern for file/line header: "In filename line N:"
-	std::regex header_pattern(R"(^In (\S+) line (\d+):$)");
-
-	// Pattern for SC code message: "^-- SC1234 (severity): message" or "^--^ SC1234: message"
-	std::regex sc_pattern(R"(SC(\d{4})(?:\s*\((\w+)\))?:\s*(.+))");
 
 	std::string current_file;
 	int32_t current_ref_line = 0;
@@ -49,10 +55,10 @@ std::vector<ValidationEvent> ShellcheckTextParser::parse(const std::string &cont
 		std::smatch match;
 
 		// Check for file/line header
-		if (std::regex_match(line, match, header_pattern)) {
+		if (std::regex_match(line, match, RE_HEADER_PATTERN)) {
 			current_file = match[1].str();
 			try {
-				current_ref_line = std::stoi(match[2].str());
+				current_ref_line = SafeParsing::SafeStoi(match[2].str());
 			} catch (...) {
 				current_ref_line = 0;
 			}
@@ -68,7 +74,7 @@ std::vector<ValidationEvent> ShellcheckTextParser::parse(const std::string &cont
 		}
 
 		// Check for SC code
-		if (std::regex_search(line, match, sc_pattern)) {
+		if (std::regex_search(line, match, RE_SC_PATTERN)) {
 			std::string sc_code = "SC" + match[1].str();
 			std::string severity_str = match[2].str();
 			std::string message = match[3].str();
@@ -88,7 +94,7 @@ std::vector<ValidationEvent> ShellcheckTextParser::parse(const std::string &cont
 			if (severity_str == "error" || severity_str.empty()) {
 				// Default to warning, check SC code range for errors
 				// SC1xxx = parsing errors, SC2xxx = semantic issues
-				int code_num = std::stoi(match[1].str());
+				int code_num = SafeParsing::SafeStoi(match[1].str());
 				if (code_num < 2000) {
 					event.severity = "error";
 					event.status = ValidationEventStatus::ERROR;

@@ -1,9 +1,28 @@
 #include "gtest_text_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 #include <string>
 
 namespace duckdb {
+
+// Pre-compiled regex patterns for Google Test parsing (compiled once, reused)
+namespace {
+static const std::regex RE_TEST_RUN_START(R"(\[\s*RUN\s*\]\s*(.+))");
+static const std::regex RE_TEST_PASSED(R"(\[\s*OK\s*\]\s*(.+)\s*\((\d+)\s*ms\))");
+static const std::regex RE_TEST_FAILED(R"(\[\s*FAILED\s*\]\s*(.+)\s*\((\d+)\s*ms\))");
+static const std::regex RE_TEST_SKIPPED(R"(\[\s*SKIPPED\s*\]\s*(.+)\s*\((\d+)\s*ms\))");
+static const std::regex RE_TEST_SUITE_START(R"(\[----------\]\s*(\d+)\s*tests from\s*(.+))");
+static const std::regex RE_TEST_SUITE_END(R"(\[----------\]\s*(\d+)\s*tests from\s*(.+)\s*\((\d+)\s*ms total\))");
+static const std::regex RE_TEST_SUMMARY_START(
+    R"(\[==========\]\s*(\d+)\s*tests from\s*(\d+)\s*test suites ran\.\s*\((\d+)\s*ms total\))");
+static const std::regex RE_TESTS_PASSED_SUMMARY(R"(\[\s*PASSED\s*\]\s*(\d+)\s*tests\.)");
+static const std::regex RE_TESTS_FAILED_SUMMARY(R"(\[\s*FAILED\s*\]\s*(\d+)\s*tests,\s*listed below:)");
+static const std::regex RE_FAILED_TEST_LIST(R"(\[\s*FAILED\s*\]\s*(.+))");
+static const std::regex RE_FAILURE_DETAIL(R"((.+):\s*(.+):(\d+):\s*Failure)");
+static const std::regex RE_GLOBAL_ENV_SETUP(R"(\[----------\]\s*Global test environment set-up)");
+static const std::regex RE_GLOBAL_ENV_TEARDOWN(R"(\[----------\]\s*Global test environment tear-down)");
+} // anonymous namespace
 
 bool GTestTextParser::canParse(const std::string &content) const {
 	return content.find("[RUN      ]") != std::string::npos || content.find("[       OK ]") != std::string::npos ||
@@ -13,26 +32,11 @@ bool GTestTextParser::canParse(const std::string &content) const {
 
 std::vector<ValidationEvent> GTestTextParser::parse(const std::string &content) const {
 	std::vector<ValidationEvent> events;
+	events.reserve(content.size() / 100); // Estimate: ~1 event per 100 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
 	int32_t current_line_num = 0;
-
-	// Regex patterns for Google Test output
-	std::regex test_run_start(R"(\[\s*RUN\s*\]\s*(.+))");
-	std::regex test_passed(R"(\[\s*OK\s*\]\s*(.+)\s*\((\d+)\s*ms\))");
-	std::regex test_failed(R"(\[\s*FAILED\s*\]\s*(.+)\s*\((\d+)\s*ms\))");
-	std::regex test_skipped(R"(\[\s*SKIPPED\s*\]\s*(.+)\s*\((\d+)\s*ms\))");
-	std::regex test_suite_start(R"(\[----------\]\s*(\d+)\s*tests from\s*(.+))");
-	std::regex test_suite_end(R"(\[----------\]\s*(\d+)\s*tests from\s*(.+)\s*\((\d+)\s*ms total\))");
-	std::regex test_summary_start(
-	    R"(\[==========\]\s*(\d+)\s*tests from\s*(\d+)\s*test suites ran\.\s*\((\d+)\s*ms total\))");
-	std::regex tests_passed_summary(R"(\[\s*PASSED\s*\]\s*(\d+)\s*tests\.)");
-	std::regex tests_failed_summary(R"(\[\s*FAILED\s*\]\s*(\d+)\s*tests,\s*listed below:)");
-	std::regex failed_test_list(R"(\[\s*FAILED\s*\]\s*(.+))");
-	std::regex failure_detail(R"((.+):\s*(.+):(\d+):\s*Failure)");
-	std::regex global_env_setup(R"(\[----------\]\s*Global test environment set-up)");
-	std::regex global_env_teardown(R"(\[----------\]\s*Global test environment tear-down)");
 
 	std::string current_test_suite;
 	std::string current_test_name;
@@ -43,11 +47,11 @@ std::vector<ValidationEvent> GTestTextParser::parse(const std::string &content) 
 		std::smatch match;
 
 		// Check for test run start
-		if (std::regex_match(line, match, test_run_start)) {
+		if (std::regex_match(line, match, RE_TEST_RUN_START)) {
 			current_test_name = match[1].str();
 		}
 		// Check for test passed
-		else if (std::regex_match(line, match, test_passed)) {
+		else if (std::regex_match(line, match, RE_TEST_PASSED)) {
 			std::string test_name = match[1].str();
 			std::string time_str = match[2].str();
 			int64_t execution_time = std::stoll(time_str);
@@ -74,7 +78,7 @@ std::vector<ValidationEvent> GTestTextParser::parse(const std::string &content) 
 			events.push_back(event);
 		}
 		// Check for test failed
-		else if (std::regex_match(line, match, test_failed)) {
+		else if (std::regex_match(line, match, RE_TEST_FAILED)) {
 			std::string test_name = match[1].str();
 			std::string time_str = match[2].str();
 			int64_t execution_time = std::stoll(time_str);
@@ -101,7 +105,7 @@ std::vector<ValidationEvent> GTestTextParser::parse(const std::string &content) 
 			events.push_back(event);
 		}
 		// Check for test skipped
-		else if (std::regex_match(line, match, test_skipped)) {
+		else if (std::regex_match(line, match, RE_TEST_SKIPPED)) {
 			std::string test_name = match[1].str();
 			std::string time_str = match[2].str();
 			int64_t execution_time = std::stoll(time_str);
@@ -128,11 +132,11 @@ std::vector<ValidationEvent> GTestTextParser::parse(const std::string &content) 
 			events.push_back(event);
 		}
 		// Check for test suite start
-		else if (std::regex_match(line, match, test_suite_start)) {
+		else if (std::regex_match(line, match, RE_TEST_SUITE_START)) {
 			current_test_suite = match[2].str();
 		}
 		// Check for test suite end
-		else if (std::regex_match(line, match, test_suite_end)) {
+		else if (std::regex_match(line, match, RE_TEST_SUITE_END)) {
 			std::string suite_name = match[2].str();
 			std::string total_time = match[3].str();
 
@@ -156,7 +160,7 @@ std::vector<ValidationEvent> GTestTextParser::parse(const std::string &content) 
 			events.push_back(event);
 		}
 		// Check for overall test summary
-		else if (std::regex_match(line, match, test_summary_start)) {
+		else if (std::regex_match(line, match, RE_TEST_SUMMARY_START)) {
 			std::string total_tests = match[1].str();
 			std::string total_suites = match[2].str();
 			std::string total_time = match[3].str();
@@ -182,7 +186,7 @@ std::vector<ValidationEvent> GTestTextParser::parse(const std::string &content) 
 			events.push_back(event);
 		}
 		// Check for passed tests summary
-		else if (std::regex_match(line, match, tests_passed_summary)) {
+		else if (std::regex_match(line, match, RE_TESTS_PASSED_SUMMARY)) {
 			std::string passed_count = match[1].str();
 
 			ValidationEvent event;
@@ -205,7 +209,7 @@ std::vector<ValidationEvent> GTestTextParser::parse(const std::string &content) 
 			events.push_back(event);
 		}
 		// Check for failed tests summary
-		else if (std::regex_match(line, match, tests_failed_summary)) {
+		else if (std::regex_match(line, match, RE_TESTS_FAILED_SUMMARY)) {
 			std::string failed_count = match[1].str();
 
 			ValidationEvent event;
@@ -228,14 +232,14 @@ std::vector<ValidationEvent> GTestTextParser::parse(const std::string &content) 
 			events.push_back(event);
 		}
 		// Check for failure details (file paths and line numbers)
-		else if (std::regex_match(line, match, failure_detail)) {
+		else if (std::regex_match(line, match, RE_FAILURE_DETAIL)) {
 			std::string test_name = match[1].str();
 			std::string file_path = match[2].str();
 			std::string line_str = match[3].str();
 			int line_number = 0;
 
 			try {
-				line_number = std::stoi(line_str);
+				line_number = SafeParsing::SafeStoi(line_str);
 			} catch (...) {
 				// If parsing line number fails, keep it as 0
 			}

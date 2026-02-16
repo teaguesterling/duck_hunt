@@ -1,9 +1,63 @@
 #include "valgrind_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 #include <string>
 
 namespace duck_hunt {
+
+// Pre-compiled regex patterns for Valgrind parsing (compiled once, reused)
+namespace {
+// PID and header patterns
+static const std::regex RE_PID(R"(==(\d+)==)");
+static const std::regex RE_MEMCHECK_HEADER(R"(==\d+== Memcheck, a memory error detector)");
+static const std::regex RE_HELGRIND_HEADER(R"(==\d+== Helgrind, a thread error detector)");
+static const std::regex RE_CACHEGRIND_HEADER(R"(==\d+== Cachegrind, a cache and branch-prediction profiler)");
+static const std::regex RE_MASSIF_HEADER(R"(==\d+== Massif, a heap profiler)");
+static const std::regex RE_DRD_HEADER(R"(==\d+== DRD, a thread error detector)");
+
+// Error patterns
+static const std::regex RE_ERROR_HEADER(R"(==\d+== (.+))");
+static const std::regex RE_INVALID_READ(R"(==\d+== Invalid read of size (\d+))");
+static const std::regex RE_INVALID_WRITE(R"(==\d+== Invalid write of size (\d+))");
+static const std::regex RE_INVALID_FREE(R"(==\d+== Invalid free\(\) / delete / delete\[\])");
+static const std::regex RE_MISMATCHED_FREE(R"(==\d+== Mismatched free\(\) / delete / delete\[\])");
+static const std::regex RE_USE_AFTER_FREE(R"(==\d+== Use of uninitialised value of size (\d+))");
+static const std::regex RE_DEFINITELY_LOST(
+    R"(==\d+== (\d+) bytes in (\d+) blocks are definitely lost in loss record (\d+) of (\d+))");
+static const std::regex RE_POSSIBLY_LOST(R"(==\d+== (\d+) bytes in (\d+) blocks are possibly lost in loss record (\d+) of (\d+))");
+static const std::regex RE_STILL_REACHABLE(
+    R"(==\d+== (\d+) bytes in (\d+) blocks are still reachable in loss record (\d+) of (\d+))");
+static const std::regex RE_SUPPRESSED(R"(==\d+== (\d+) bytes in (\d+) blocks are suppressed)");
+
+// Location patterns
+static const std::regex RE_AT_LOCATION(R"(==\d+==    at (0x[0-9A-Fa-f]+): (.+) \((.+):(\d+)\))");
+static const std::regex RE_AT_LOCATION_NO_FILE(R"(==\d+==    at (0x[0-9A-Fa-f]+): (.+))");
+static const std::regex RE_BY_LOCATION(R"(==\d+==    by (0x[0-9A-Fa-f]+): (.+) \((.+):(\d+)\))");
+static const std::regex RE_BY_LOCATION_NO_FILE(R"(==\d+==    by (0x[0-9A-Fa-f]+): (.+))");
+
+// Summary patterns
+static const std::regex RE_HEAP_SUMMARY(R"(==\d+== HEAP SUMMARY:)");
+static const std::regex RE_IN_USE_AT_EXIT(R"(==\d+==     in use at exit: ([\d,]+) bytes in ([\d,]+) blocks)");
+static const std::regex RE_TOTAL_HEAP_USAGE(
+    R"(==\d+==   total heap usage: ([\d,]+) allocs, ([\d,]+) frees, ([\d,]+) bytes allocated)");
+static const std::regex RE_LEAK_SUMMARY(R"(==\d+== LEAK SUMMARY:)");
+static const std::regex RE_LEAK_DEFINITELY_LOST(R"(==\d+==    definitely lost: ([\d,]+) bytes in ([\d,]+) blocks)");
+static const std::regex RE_LEAK_INDIRECTLY_LOST(R"(==\d+==    indirectly lost: ([\d,]+) bytes in ([\d,]+) blocks)");
+static const std::regex RE_LEAK_POSSIBLY_LOST(R"(==\d+==      possibly lost: ([\d,]+) bytes in ([\d,]+) blocks)");
+static const std::regex RE_LEAK_STILL_REACHABLE(R"(==\d+==    still reachable: ([\d,]+) bytes in ([\d,]+) blocks)");
+static const std::regex RE_LEAK_SUPPRESSED(R"(==\d+==         suppressed: ([\d,]+) bytes in ([\d,]+) blocks)");
+
+// Thread error patterns (Helgrind/DRD)
+static const std::regex RE_DATA_RACE(
+    R"(==\d+== Possible data race during (.+) of size (\d+) at (0x[0-9A-Fa-f]+) by thread #(\d+))");
+static const std::regex RE_LOCK_ORDER(R"(==\d+== Lock order violation: (.+))");
+static const std::regex RE_THREAD_FINISH(R"(==\d+== Thread #(\d+) was created)");
+
+// Process patterns
+static const std::regex RE_PROCESS_TERMINATING(R"(==\d+== Process terminating with default action of signal (\d+) \((.+)\))");
+static const std::regex RE_ERROR_SUMMARY(R"(==\d+== ERROR SUMMARY: (\d+) errors from (\d+) contexts)");
+} // anonymous namespace
 
 bool ValgrindParser::CanParse(const std::string &content) const {
 	// Check for Valgrind patterns (should be checked early due to unique format)
@@ -35,121 +89,74 @@ void ValgrindParser::ParseValgrind(const std::string &content, std::vector<duckd
 	std::vector<std::string> stack_trace;
 	bool in_error_block = false;
 
-	// Regular expressions for different Valgrind patterns
-	std::regex pid_regex(R"(==(\d+)==)");
-	std::regex memcheck_header(R"(==\d+== Memcheck, a memory error detector)");
-	std::regex helgrind_header(R"(==\d+== Helgrind, a thread error detector)");
-	std::regex cachegrind_header(R"(==\d+== Cachegrind, a cache and branch-prediction profiler)");
-	std::regex massif_header(R"(==\d+== Massif, a heap profiler)");
-	std::regex drd_header(R"(==\d+== DRD, a thread error detector)");
-
-	// Error patterns
-	std::regex error_header(R"(==\d+== (.+))");
-	std::regex invalid_read(R"(==\d+== Invalid read of size (\d+))");
-	std::regex invalid_write(R"(==\d+== Invalid write of size (\d+))");
-	std::regex invalid_free(R"(==\d+== Invalid free\(\) / delete / delete\[\])");
-	std::regex mismatched_free(R"(==\d+== Mismatched free\(\) / delete / delete\[\])");
-	std::regex use_after_free(R"(==\d+== Use of uninitialised value of size (\d+))");
-	std::regex definitely_lost(
-	    R"(==\d+== (\d+) bytes in (\d+) blocks are definitely lost in loss record (\d+) of (\d+))");
-	std::regex possibly_lost(R"(==\d+== (\d+) bytes in (\d+) blocks are possibly lost in loss record (\d+) of (\d+))");
-	std::regex still_reachable(
-	    R"(==\d+== (\d+) bytes in (\d+) blocks are still reachable in loss record (\d+) of (\d+))");
-	std::regex suppressed(R"(==\d+== (\d+) bytes in (\d+) blocks are suppressed)");
-
-	// Location patterns
-	std::regex at_location(R"(==\d+==    at (0x[0-9A-Fa-f]+): (.+) \((.+):(\d+)\))");
-	std::regex at_location_no_file(R"(==\d+==    at (0x[0-9A-Fa-f]+): (.+))");
-	std::regex by_location(R"(==\d+==    by (0x[0-9A-Fa-f]+): (.+) \((.+):(\d+)\))");
-	std::regex by_location_no_file(R"(==\d+==    by (0x[0-9A-Fa-f]+): (.+))");
-
-	// Summary patterns
-	std::regex heap_summary(R"(==\d+== HEAP SUMMARY:)");
-	std::regex in_use_at_exit(R"(==\d+==     in use at exit: ([\d,]+) bytes in ([\d,]+) blocks)");
-	std::regex total_heap_usage(
-	    R"(==\d+==   total heap usage: ([\d,]+) allocs, ([\d,]+) frees, ([\d,]+) bytes allocated)");
-	std::regex leak_summary(R"(==\d+== LEAK SUMMARY:)");
-	std::regex leak_definitely_lost(R"(==\d+==    definitely lost: ([\d,]+) bytes in ([\d,]+) blocks)");
-	std::regex leak_indirectly_lost(R"(==\d+==    indirectly lost: ([\d,]+) bytes in ([\d,]+) blocks)");
-	std::regex leak_possibly_lost(R"(==\d+==      possibly lost: ([\d,]+) bytes in ([\d,]+) blocks)");
-	std::regex leak_still_reachable(R"(==\d+==    still reachable: ([\d,]+) bytes in ([\d,]+) blocks)");
-	std::regex leak_suppressed(R"(==\d+==         suppressed: ([\d,]+) bytes in ([\d,]+) blocks)");
-
-	// Thread error patterns (Helgrind/DRD)
-	std::regex data_race(
-	    R"(==\d+== Possible data race during (.+) of size (\d+) at (0x[0-9A-Fa-f]+) by thread #(\d+))");
-	std::regex lock_order(R"(==\d+== Lock order violation: (.+))");
-	std::regex thread_finish(R"(==\d+== Thread #(\d+) was created)");
-
-	// Process patterns
-	std::regex process_terminating(R"(==\d+== Process terminating with default action of signal (\d+) \((.+)\))");
-	std::regex error_summary(R"(==\d+== ERROR SUMMARY: (\d+) errors from (\d+) contexts)");
+	// Reserve space for events (estimate based on content size)
+	events.reserve(content.size() / 100);
 
 	while (std::getline(stream, line)) {
 		current_line_num++;
 		std::smatch match;
 
 		// Extract PID from Valgrind output
-		if (std::regex_search(line, match, pid_regex)) {
+		if (std::regex_search(line, match, RE_PID)) {
 			current_pid = match[1].str();
 		}
 
 		// Detect Valgrind tool type
-		if (std::regex_search(line, memcheck_header)) {
+		if (std::regex_search(line, RE_MEMCHECK_HEADER)) {
 			current_tool = "Memcheck";
-		} else if (std::regex_search(line, helgrind_header)) {
+		} else if (std::regex_search(line, RE_HELGRIND_HEADER)) {
 			current_tool = "Helgrind";
-		} else if (std::regex_search(line, cachegrind_header)) {
+		} else if (std::regex_search(line, RE_CACHEGRIND_HEADER)) {
 			current_tool = "Cachegrind";
-		} else if (std::regex_search(line, massif_header)) {
+		} else if (std::regex_search(line, RE_MASSIF_HEADER)) {
 			current_tool = "Massif";
-		} else if (std::regex_search(line, drd_header)) {
+		} else if (std::regex_search(line, RE_DRD_HEADER)) {
 			current_tool = "DRD";
 		}
 
 		// Handle different error types
-		if (std::regex_search(line, match, invalid_read)) {
+		if (std::regex_search(line, match, RE_INVALID_READ)) {
 			current_error_type = "Invalid read";
 			current_message = "Invalid read of size " + match[1].str();
 			in_error_block = true;
 			stack_trace.clear();
-		} else if (std::regex_search(line, match, invalid_write)) {
+		} else if (std::regex_search(line, match, RE_INVALID_WRITE)) {
 			current_error_type = "Invalid write";
 			current_message = "Invalid write of size " + match[1].str();
 			in_error_block = true;
 			stack_trace.clear();
-		} else if (std::regex_search(line, invalid_free)) {
+		} else if (std::regex_search(line, RE_INVALID_FREE)) {
 			current_error_type = "Invalid free";
 			current_message = "Invalid free() / delete / delete[]";
 			in_error_block = true;
 			stack_trace.clear();
-		} else if (std::regex_search(line, mismatched_free)) {
+		} else if (std::regex_search(line, RE_MISMATCHED_FREE)) {
 			current_error_type = "Mismatched free";
 			current_message = "Mismatched free() / delete / delete[]";
 			in_error_block = true;
 			stack_trace.clear();
-		} else if (std::regex_search(line, match, use_after_free)) {
+		} else if (std::regex_search(line, match, RE_USE_AFTER_FREE)) {
 			current_error_type = "Use of uninitialised value";
 			current_message = "Use of uninitialised value of size " + match[1].str();
 			in_error_block = true;
 			stack_trace.clear();
-		} else if (std::regex_search(line, match, definitely_lost)) {
+		} else if (std::regex_search(line, match, RE_DEFINITELY_LOST)) {
 			current_error_type = "Memory leak";
 			current_message = match[1].str() + " bytes in " + match[2].str() + " blocks are definitely lost";
 			in_error_block = true;
 			stack_trace.clear();
-		} else if (std::regex_search(line, match, possibly_lost)) {
+		} else if (std::regex_search(line, match, RE_POSSIBLY_LOST)) {
 			current_error_type = "Possible memory leak";
 			current_message = match[1].str() + " bytes in " + match[2].str() + " blocks are possibly lost";
 			in_error_block = true;
 			stack_trace.clear();
-		} else if (std::regex_search(line, match, data_race)) {
+		} else if (std::regex_search(line, match, RE_DATA_RACE)) {
 			current_error_type = "Data race";
 			current_message = "Possible data race during " + match[1].str() + " of size " + match[2].str() +
 			                  " by thread #" + match[4].str();
 			in_error_block = true;
 			stack_trace.clear();
-		} else if (std::regex_search(line, match, lock_order)) {
+		} else if (std::regex_search(line, match, RE_LOCK_ORDER)) {
 			current_error_type = "Lock order violation";
 			current_message = match[1].str();
 			in_error_block = true;
@@ -157,10 +164,10 @@ void ValgrindParser::ParseValgrind(const std::string &content, std::vector<duckd
 		}
 
 		// Handle stack trace locations
-		if (std::regex_search(line, match, at_location)) {
+		if (std::regex_search(line, match, RE_AT_LOCATION)) {
 			current_location = match[2].str();
 			current_file = match[3].str();
-			current_line = std::stoi(match[4].str());
+			current_line = duckdb::SafeParsing::SafeStoi(match[4].str());
 			stack_trace.push_back(line);
 
 			if (in_error_block && !current_error_type.empty()) {
@@ -184,7 +191,7 @@ void ValgrindParser::ParseValgrind(const std::string &content, std::vector<duckd
 				events.push_back(event);
 				in_error_block = false;
 			}
-		} else if (std::regex_search(line, match, at_location_no_file)) {
+		} else if (std::regex_search(line, match, RE_AT_LOCATION_NO_FILE)) {
 			current_location = match[2].str();
 			stack_trace.push_back(line);
 
@@ -207,14 +214,14 @@ void ValgrindParser::ParseValgrind(const std::string &content, std::vector<duckd
 				events.push_back(event);
 				in_error_block = false;
 			}
-		} else if (std::regex_search(line, match, by_location)) {
+		} else if (std::regex_search(line, match, RE_BY_LOCATION)) {
 			stack_trace.push_back(line);
-		} else if (std::regex_search(line, match, by_location_no_file)) {
+		} else if (std::regex_search(line, match, RE_BY_LOCATION_NO_FILE)) {
 			stack_trace.push_back(line);
 		}
 
 		// Handle summaries
-		if (std::regex_search(line, match, in_use_at_exit)) {
+		if (std::regex_search(line, match, RE_IN_USE_AT_EXIT)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = current_tool;
@@ -228,7 +235,7 @@ void ValgrindParser::ParseValgrind(const std::string &content, std::vector<duckd
 			event.structured_data = "valgrind";
 
 			events.push_back(event);
-		} else if (std::regex_search(line, match, total_heap_usage)) {
+		} else if (std::regex_search(line, match, RE_TOTAL_HEAP_USAGE)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = current_tool;
@@ -243,7 +250,7 @@ void ValgrindParser::ParseValgrind(const std::string &content, std::vector<duckd
 			event.structured_data = "valgrind";
 
 			events.push_back(event);
-		} else if (std::regex_search(line, match, leak_definitely_lost)) {
+		} else if (std::regex_search(line, match, RE_LEAK_DEFINITELY_LOST)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = current_tool;
@@ -257,7 +264,7 @@ void ValgrindParser::ParseValgrind(const std::string &content, std::vector<duckd
 			event.structured_data = "valgrind";
 
 			events.push_back(event);
-		} else if (std::regex_search(line, match, leak_possibly_lost)) {
+		} else if (std::regex_search(line, match, RE_LEAK_POSSIBLY_LOST)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = current_tool;
@@ -271,7 +278,7 @@ void ValgrindParser::ParseValgrind(const std::string &content, std::vector<duckd
 			event.structured_data = "valgrind";
 
 			events.push_back(event);
-		} else if (std::regex_search(line, match, process_terminating)) {
+		} else if (std::regex_search(line, match, RE_PROCESS_TERMINATING)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = current_tool;
@@ -285,14 +292,14 @@ void ValgrindParser::ParseValgrind(const std::string &content, std::vector<duckd
 			event.structured_data = "valgrind";
 
 			events.push_back(event);
-		} else if (std::regex_search(line, match, error_summary)) {
+		} else if (std::regex_search(line, match, RE_ERROR_SUMMARY)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = current_tool;
 			event.event_type = duckdb::ValidationEventType::SUMMARY;
-			event.status = (std::stoi(match[1].str()) > 0) ? duckdb::ValidationEventStatus::FAIL
+			event.status = (duckdb::SafeParsing::SafeStoi(match[1].str()) > 0) ? duckdb::ValidationEventStatus::FAIL
 			                                               : duckdb::ValidationEventStatus::PASS;
-			event.severity = (std::stoi(match[1].str()) > 0) ? "error" : "info";
+			event.severity = (duckdb::SafeParsing::SafeStoi(match[1].str()) > 0) ? "error" : "info";
 			event.category = "error_summary";
 			event.message = "Error summary: " + match[1].str() + " errors from " + match[2].str() + " contexts";
 			event.execution_time = 0;

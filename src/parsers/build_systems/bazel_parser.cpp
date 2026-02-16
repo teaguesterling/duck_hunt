@@ -70,9 +70,9 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string &content) cons
 
 		// Check for analysis phase
 		if (SafeParsing::SafeRegexSearch(line, match, bazel_analyzed)) {
-			int targets = std::stoi(match[1].str());
-			int packages = std::stoi(match[2].str());
-			int configured = std::stoi(match[3].str());
+			int targets = SafeParsing::SafeStoi(match[1].str());
+			int packages = SafeParsing::SafeStoi(match[2].str());
+			int configured = SafeParsing::SafeStoi(match[3].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -92,7 +92,7 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string &content) cons
 		}
 		// Check for build completion
 		else if (SafeParsing::SafeRegexSearch(line, match, bazel_build_completed)) {
-			int actions = std::stoi(match[1].str());
+			int actions = SafeParsing::SafeStoi(match[1].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -109,7 +109,7 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string &content) cons
 		}
 		// Check for elapsed time
 		else if (SafeParsing::SafeRegexSearch(line, match, bazel_build_elapsed)) {
-			double elapsed = std::stod(match[1].str());
+			double elapsed = SafeParsing::SafeStod(match[1].str());
 			// Note: critical_path (match[2]) available but not currently used
 
 			ValidationEvent event;
@@ -130,7 +130,7 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string &content) cons
 		// Check for passed tests
 		else if (SafeParsing::SafeRegexSearch(line, match, bazel_test_passed)) {
 			std::string target = match[1].str();
-			double duration = std::stod(match[2].str());
+			double duration = SafeParsing::SafeStod(match[2].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -150,9 +150,9 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string &content) cons
 		// Check for failed tests
 		else if (SafeParsing::SafeRegexSearch(line, match, bazel_test_failed)) {
 			std::string target = match[1].str();
-			double duration = std::stod(match[2].str());
-			int current_attempt = std::stoi(match[3].str());
-			int total_attempts = std::stoi(match[4].str());
+			double duration = SafeParsing::SafeStod(match[2].str());
+			int current_attempt = SafeParsing::SafeStoi(match[3].str());
+			int total_attempts = SafeParsing::SafeStoi(match[4].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -175,7 +175,7 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string &content) cons
 		// Check for timeout tests
 		else if (SafeParsing::SafeRegexSearch(line, match, bazel_test_timeout)) {
 			std::string target = match[1].str();
-			double duration = std::stod(match[2].str());
+			double duration = SafeParsing::SafeStod(match[2].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -196,8 +196,8 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string &content) cons
 		// Check for flaky tests
 		else if (SafeParsing::SafeRegexSearch(line, match, bazel_test_flaky)) {
 			std::string target = match[1].str();
-			int passed_attempts = std::stoi(match[2].str());
-			int total_attempts = std::stoi(match[3].str());
+			int passed_attempts = SafeParsing::SafeStoi(match[2].str());
+			int total_attempts = SafeParsing::SafeStoi(match[3].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -304,7 +304,7 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string &content) cons
 		// Check for test failures with details
 		else if (SafeParsing::SafeRegexSearch(line, match, bazel_fail_msg)) {
 			std::string file_path = match[1].str();
-			int line_num = std::stoi(match[2].str());
+			int line_num = SafeParsing::SafeStoi(match[2].str());
 			std::string failure_msg = match[3].str();
 
 			ValidationEvent event;
@@ -324,7 +324,7 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string &content) cons
 		}
 		// Check for loading phase
 		else if (SafeParsing::SafeRegexSearch(line, match, bazel_loading)) {
-			int packages = std::stoi(match[1].str());
+			int packages = SafeParsing::SafeStoi(match[1].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -341,9 +341,9 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string &content) cons
 		}
 		// Check for analyzing phase
 		else if (SafeParsing::SafeRegexSearch(line, match, bazel_analyzing)) {
-			int targets = std::stoi(match[1].str());
-			int packages = std::stoi(match[2].str());
-			int configured = std::stoi(match[3].str());
+			int targets = SafeParsing::SafeStoi(match[1].str());
+			int packages = SafeParsing::SafeStoi(match[2].str());
+			int configured = SafeParsing::SafeStoi(match[3].str());
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -363,12 +363,12 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string &content) cons
 		}
 		// Check for test summary
 		else if (SafeParsing::SafeRegexSearch(line, match, bazel_test_summary)) {
-			int total = std::stoi(match[1].str());
-			int passed = std::stoi(match[2].str());
-			int failed = std::stoi(match[3].str());
-			int timeout = match[4].matched ? std::stoi(match[4].str()) : 0;
-			int flaky = match[5].matched ? std::stoi(match[5].str()) : 0;
-			int skipped = match[6].matched ? std::stoi(match[6].str()) : 0;
+			int total = SafeParsing::SafeStoi(match[1].str());
+			int passed = SafeParsing::SafeStoi(match[2].str());
+			int failed = SafeParsing::SafeStoi(match[3].str());
+			int timeout = match[4].matched ? SafeParsing::SafeStoi(match[4].str()) : 0;
+			int flaky = match[5].matched ? SafeParsing::SafeStoi(match[5].str()) : 0;
+			int skipped = match[6].matched ? SafeParsing::SafeStoi(match[6].str()) : 0;
 
 			ValidationEvent event;
 			event.event_id = event_id++;

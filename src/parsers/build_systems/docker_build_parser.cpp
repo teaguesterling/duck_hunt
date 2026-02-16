@@ -1,8 +1,29 @@
 #include "docker_build_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 
 namespace duckdb {
+
+// Pre-compiled regex patterns for Docker build parsing (compiled once, reused)
+namespace {
+static const std::regex RE_STEP_LINE(R"(Step\s+(\d+)/(\d+)\s*:\s*(.+))");
+static const std::regex RE_RUNNING_IN(R"(---> Running in ([a-f0-9]+))");
+static const std::regex RE_LAYER_CACHED(R"(---> Using cache)");
+static const std::regex RE_LAYER_BUILT(R"(---> ([a-f0-9]+))");
+static const std::regex RE_REMOVING_CONTAINER(R"(Removing intermediate container ([a-f0-9]+))");
+static const std::regex RE_BUILD_SUCCESS(R"(Successfully built ([a-f0-9]+))");
+static const std::regex RE_BUILD_TAGGED(R"(Successfully tagged (.+))");
+static const std::regex RE_EXIT_CODE_ERROR(R"(returned a non-zero code:\s*(\d+))");
+static const std::regex RE_FAILED_TO_SOLVE(R"(failed to solve:?\s*(.+))");
+static const std::regex RE_ERROR_LINE(R"(^(error|ERROR):?\s*(.+))");
+static const std::regex RE_WARNING_LINE(R"(^(warning|WARNING|WARN):?\s*(.+))");
+static const std::regex RE_BUILDKIT_STEP(R"(#(\d+)\s+\[([^\]]+)\]\s*(.+))");
+static const std::regex RE_BUILDKIT_CACHED(R"(#(\d+)\s+CACHED)");
+static const std::regex RE_BUILDKIT_DONE(R"(#(\d+)\s+DONE\s+([\d.]+)s)");
+static const std::regex RE_BUILDKIT_ERROR(R"(#(\d+)\s+ERROR:?\s*(.+))");
+static const std::regex RE_VULN_FOUND(R"((\d+)\s+(CRITICAL|HIGH|MEDIUM|LOW)\s+vulnerabilit)");
+} // anonymous namespace
 
 bool DockerBuildParser::canParse(const std::string &content) const {
 	// Docker build step markers
@@ -44,32 +65,11 @@ bool DockerBuildParser::canParse(const std::string &content) const {
 
 std::vector<ValidationEvent> DockerBuildParser::parse(const std::string &content) const {
 	std::vector<ValidationEvent> events;
+	events.reserve(content.size() / 100); // Estimate: ~1 event per 100 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
 	int32_t line_num = 0;
-
-	// Patterns for Docker output
-	std::regex step_line(R"(Step\s+(\d+)/(\d+)\s*:\s*(.+))");
-	std::regex running_in(R"(---> Running in ([a-f0-9]+))");
-	std::regex layer_cached(R"(---> Using cache)");
-	std::regex layer_built(R"(---> ([a-f0-9]+))");
-	std::regex removing_container(R"(Removing intermediate container ([a-f0-9]+))");
-	std::regex build_success(R"(Successfully built ([a-f0-9]+))");
-	std::regex build_tagged(R"(Successfully tagged (.+))");
-	std::regex exit_code_error(R"(returned a non-zero code:\s*(\d+))");
-	std::regex failed_to_solve(R"(failed to solve:?\s*(.+))");
-	std::regex error_line(R"(^(error|ERROR):?\s*(.+))");
-	std::regex warning_line(R"(^(warning|WARNING|WARN):?\s*(.+))");
-
-	// BuildKit patterns
-	std::regex buildkit_step(R"(#(\d+)\s+\[([^\]]+)\]\s*(.+))");
-	std::regex buildkit_cached(R"(#(\d+)\s+CACHED)");
-	std::regex buildkit_done(R"(#(\d+)\s+DONE\s+([\d.]+)s)");
-	std::regex buildkit_error(R"(#(\d+)\s+ERROR:?\s*(.+))");
-
-	// Security scan patterns
-	std::regex vuln_found(R"((\d+)\s+(CRITICAL|HIGH|MEDIUM|LOW)\s+vulnerabilit)");
 
 	std::string current_step;
 	int current_step_num = 0;
@@ -80,9 +80,9 @@ std::vector<ValidationEvent> DockerBuildParser::parse(const std::string &content
 		std::smatch match;
 
 		// Traditional Docker build step
-		if (std::regex_search(line, match, step_line)) {
-			current_step_num = std::stoi(match[1].str());
-			total_steps = std::stoi(match[2].str());
+		if (std::regex_search(line, match, RE_STEP_LINE)) {
+			current_step_num = SafeParsing::SafeStoi(match[1].str());
+			total_steps = SafeParsing::SafeStoi(match[2].str());
 			current_step = match[3].str();
 
 			ValidationEvent event;
@@ -99,7 +99,7 @@ std::vector<ValidationEvent> DockerBuildParser::parse(const std::string &content
 			events.push_back(event);
 		}
 		// BuildKit step
-		else if (std::regex_search(line, match, buildkit_step)) {
+		else if (std::regex_search(line, match, RE_BUILDKIT_STEP)) {
 			current_step = match[3].str();
 
 			ValidationEvent event;
@@ -116,7 +116,7 @@ std::vector<ValidationEvent> DockerBuildParser::parse(const std::string &content
 			events.push_back(event);
 		}
 		// Exit code error
-		else if (std::regex_search(line, match, exit_code_error)) {
+		else if (std::regex_search(line, match, RE_EXIT_CODE_ERROR)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.event_type = ValidationEventType::BUILD_ERROR;
@@ -131,7 +131,7 @@ std::vector<ValidationEvent> DockerBuildParser::parse(const std::string &content
 			events.push_back(event);
 		}
 		// Failed to solve error
-		else if (std::regex_search(line, match, failed_to_solve)) {
+		else if (std::regex_search(line, match, RE_FAILED_TO_SOLVE)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.event_type = ValidationEventType::BUILD_ERROR;
@@ -146,7 +146,7 @@ std::vector<ValidationEvent> DockerBuildParser::parse(const std::string &content
 			events.push_back(event);
 		}
 		// BuildKit error
-		else if (std::regex_search(line, match, buildkit_error)) {
+		else if (std::regex_search(line, match, RE_BUILDKIT_ERROR)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.event_type = ValidationEventType::BUILD_ERROR;
@@ -161,7 +161,7 @@ std::vector<ValidationEvent> DockerBuildParser::parse(const std::string &content
 			events.push_back(event);
 		}
 		// Generic error line
-		else if (std::regex_search(line, match, error_line)) {
+		else if (std::regex_search(line, match, RE_ERROR_LINE)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.event_type = ValidationEventType::BUILD_ERROR;
@@ -176,7 +176,7 @@ std::vector<ValidationEvent> DockerBuildParser::parse(const std::string &content
 			events.push_back(event);
 		}
 		// Warning line
-		else if (std::regex_search(line, match, warning_line)) {
+		else if (std::regex_search(line, match, RE_WARNING_LINE)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.event_type = ValidationEventType::LINT_ISSUE;
@@ -191,8 +191,8 @@ std::vector<ValidationEvent> DockerBuildParser::parse(const std::string &content
 			events.push_back(event);
 		}
 		// Security vulnerabilities
-		else if (std::regex_search(line, match, vuln_found)) {
-			int count = std::stoi(match[1].str());
+		else if (std::regex_search(line, match, RE_VULN_FOUND)) {
+			int count = SafeParsing::SafeStoi(match[1].str());
 			std::string severity = match[2].str();
 
 			ValidationEvent event;
@@ -210,7 +210,7 @@ std::vector<ValidationEvent> DockerBuildParser::parse(const std::string &content
 			events.push_back(event);
 		}
 		// Build success
-		else if (std::regex_search(line, match, build_success)) {
+		else if (std::regex_search(line, match, RE_BUILD_SUCCESS)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.event_type = ValidationEventType::SUMMARY;
@@ -225,7 +225,7 @@ std::vector<ValidationEvent> DockerBuildParser::parse(const std::string &content
 			events.push_back(event);
 		}
 		// Build tagged
-		else if (std::regex_search(line, match, build_tagged)) {
+		else if (std::regex_search(line, match, RE_BUILD_TAGGED)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.event_type = ValidationEventType::SUMMARY;

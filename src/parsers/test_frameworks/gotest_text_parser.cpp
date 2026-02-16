@@ -1,8 +1,17 @@
 #include "gotest_text_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <sstream>
 #include <unordered_map>
 
 namespace duckdb {
+
+// Pre-compiled regex patterns for Go test parsing (compiled once, reused)
+namespace {
+static const std::regex RE_PKG_SUMMARY(R"((ok|FAIL)\s+\S+\s+[\d.]+s)");
+static const std::regex RE_RESULT_PATTERN(R"(^---\s+(PASS|FAIL|SKIP):\s+(\S+)\s+\(([\d.]+)s\))");
+static const std::regex RE_ERROR_LOCATION(R"(^\s+([^:]+\.go):(\d+):\s*(.+)$)");
+static const std::regex RE_PKG_PATTERN(R"(^(ok|FAIL)\s+(\S+)\s+([\d.]+)s)");
+} // anonymous namespace
 
 bool GoTestTextParser::canParse(const std::string &content) const {
 	// Look for Go test-specific patterns:
@@ -20,8 +29,7 @@ bool GoTestTextParser::canParse(const std::string &content) const {
 	}
 
 	// Check for package summary without individual tests
-	std::regex pkg_summary(R"((ok|FAIL)\s+\S+\s+[\d.]+s)");
-	if (std::regex_search(content, pkg_summary)) {
+	if (std::regex_search(content, RE_PKG_SUMMARY)) {
 		return true;
 	}
 
@@ -30,19 +38,11 @@ bool GoTestTextParser::canParse(const std::string &content) const {
 
 std::vector<ValidationEvent> GoTestTextParser::parse(const std::string &content) const {
 	std::vector<ValidationEvent> events;
+	events.reserve(content.size() / 100); // Estimate: ~1 event per 100 chars
 	std::istringstream stream(content);
 	std::string line;
 	int64_t event_id = 1;
 	int32_t current_line_num = 0;
-
-	// Pattern for test result: "--- PASS: TestName (0.00s)"
-	std::regex result_pattern(R"(^---\s+(PASS|FAIL|SKIP):\s+(\S+)\s+\(([\d.]+)s\))");
-
-	// Pattern for error location: "    file_test.go:15: message"
-	std::regex error_location_pattern(R"(^\s+([^:]+\.go):(\d+):\s*(.+)$)");
-
-	// Pattern for package summary: "FAIL  pkg  0.001s" or "ok  pkg  0.001s"
-	std::regex pkg_pattern(R"(^(ok|FAIL)\s+(\S+)\s+([\d.]+)s)");
 
 	int pass_count = 0;
 	int fail_count = 0;
@@ -87,11 +87,11 @@ std::vector<ValidationEvent> GoTestTextParser::parse(const std::string &content)
 		}
 
 		// Check for error location in current test
-		if (current_test_info && std::regex_match(line, match, error_location_pattern)) {
+		if (current_test_info && std::regex_match(line, match, RE_ERROR_LOCATION)) {
 			std::string file = match[1].str();
 			int32_t err_line = 0;
 			try {
-				err_line = std::stoi(match[2].str());
+				err_line = SafeParsing::SafeStoi(match[2].str());
 			} catch (...) {
 			}
 			std::string message = match[3].str();
@@ -100,12 +100,12 @@ std::vector<ValidationEvent> GoTestTextParser::parse(const std::string &content)
 		}
 
 		// Check for test result
-		if (std::regex_search(line, match, result_pattern)) {
+		if (std::regex_search(line, match, RE_RESULT_PATTERN)) {
 			std::string status = match[1].str();
 			std::string test_name = match[2].str();
 			double duration = 0.0;
 			try {
-				duration = std::stod(match[3].str());
+				duration = SafeParsing::SafeStod(match[3].str());
 			} catch (...) {
 			}
 
@@ -131,12 +131,12 @@ std::vector<ValidationEvent> GoTestTextParser::parse(const std::string &content)
 		}
 
 		// Check for package summary
-		if (std::regex_match(line, match, pkg_pattern)) {
+		if (std::regex_match(line, match, RE_PKG_PATTERN)) {
 			std::string status = match[1].str();
 			std::string package = match[2].str();
 			double duration = 0.0;
 			try {
-				duration = std::stod(match[3].str());
+				duration = SafeParsing::SafeStod(match[3].str());
 			} catch (...) {
 			}
 

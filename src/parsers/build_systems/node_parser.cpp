@@ -1,4 +1,5 @@
 #include "node_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 #include <string>
@@ -154,8 +155,8 @@ std::vector<ValidationEvent> NodeParser::parse(const std::string &content) const
 			// Parse ESLint format: "  15:5   error    'console' is not defined    no-undef"
 			std::smatch eslint_match;
 			if (std::regex_search(line, eslint_match, eslint_pattern)) {
-				event.ref_line = std::stoi(eslint_match[1].str());
-				event.ref_column = std::stoi(eslint_match[2].str());
+				event.ref_line = SafeParsing::SafeStoi(eslint_match[1].str());
+				event.ref_column = SafeParsing::SafeStoi(eslint_match[2].str());
 				std::string severity = eslint_match[3].str();
 				event.message = eslint_match[4].str();
 				event.error_code = eslint_match[5].str();
@@ -191,8 +192,8 @@ std::vector<ValidationEvent> NodeParser::parse(const std::string &content) const
 			if (std::regex_search(line, webpack_match, webpack_error_pattern)) {
 				event.ref_file = webpack_match[1].str();
 				if (webpack_match[2].matched) {
-					event.ref_line = std::stoi(webpack_match[2].str());
-					event.ref_column = std::stoi(webpack_match[3].str());
+					event.ref_line = SafeParsing::SafeStoi(webpack_match[2].str());
+					event.ref_column = SafeParsing::SafeStoi(webpack_match[3].str());
 				}
 			}
 
@@ -253,8 +254,8 @@ std::vector<ValidationEvent> NodeParser::parse(const std::string &content) const
 			std::smatch runtime_match;
 			if (std::regex_search(line, runtime_match, runtime_pattern)) {
 				event.ref_file = runtime_match[1].str();
-				event.ref_line = std::stoi(runtime_match[2].str());
-				event.ref_column = std::stoi(runtime_match[3].str());
+				event.ref_line = SafeParsing::SafeStoi(runtime_match[2].str());
+				event.ref_column = SafeParsing::SafeStoi(runtime_match[3].str());
 			}
 
 			events.push_back(event);
