@@ -236,6 +236,7 @@ set(EXTENSION_SOURCES
 
     # XML-based parsers (require webbed extension)
     src/parsers/test_frameworks/junit_xml_parser.cpp
+    src/parsers/test_frameworks/unity_test_xml_parser.cpp
 
     # Playwright test framework parsers
     src/parsers/test_frameworks/playwright_text_parser.cpp
