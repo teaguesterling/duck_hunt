@@ -17,8 +17,7 @@ bool MakeParser::canParse(const std::string &content) const {
 	if (content.find("make[") != std::string::npos) {
 		// Verify it's actually make output (has directory or error info)
 		return content.find("Entering directory") != std::string::npos ||
-		       content.find("Leaving directory") != std::string::npos ||
-		       content.find("Error") != std::string::npos;
+		       content.find("Leaving directory") != std::string::npos || content.find("Error") != std::string::npos;
 	}
 	return false;
 }
@@ -65,9 +64,8 @@ std::vector<ValidationEvent> MakeParser::parse(const std::string &content) const
 			events.push_back(event);
 		}
 		// Parse make[N]: entering/leaving directory (info for context)
-		else if (line.find("make[") != std::string::npos &&
-		         (line.find("Entering directory") != std::string::npos ||
-		          line.find("Leaving directory") != std::string::npos)) {
+		else if (line.find("make[") != std::string::npos && (line.find("Entering directory") != std::string::npos ||
+		                                                     line.find("Leaving directory") != std::string::npos)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "make";

@@ -39,8 +39,8 @@ const std::regex RE_WHITESPACE(R"(\s+)");
 inline bool NeedsNormalization(const std::string &message) {
 	for (char c : message) {
 		// Check for characters that indicate normalizable content
-		if (c == '/' || c == '\\' || c == ':' || c == '\'' || c == '"' ||
-		    (c >= '0' && c <= '9') || c == '\t' || c == '\n') {
+		if (c == '/' || c == '\\' || c == ':' || c == '\'' || c == '"' || (c >= '0' && c <= '9') || c == '\t' ||
+		    c == '\n') {
 			return true;
 		}
 	}

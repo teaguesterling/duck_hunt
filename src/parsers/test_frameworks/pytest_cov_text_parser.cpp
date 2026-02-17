@@ -16,17 +16,21 @@ static const std::regex RE_COLLECTED_ITEMS(R"(collected (\d+) items?)");
 static const std::regex RE_TEST_RESULT(R"((.+\.py)::(.+)\s+(PASSED|FAILED|SKIPPED|ERROR)\s+\[([^\]]+)\])");
 static const std::regex RE_TEST_FAILURE_SECTION(R"(={3,} FAILURES ={3,})");
 static const std::regex RE_TEST_SHORT_SUMMARY(R"(={3,} short test summary info ={3,})");
-static const std::regex RE_TEST_SUMMARY_LINE(R"(={3,} (\d+) failed, (\d+) passed(?:, (\d+) skipped)? in ([\d\.]+)s ={3,})");
+static const std::regex
+    RE_TEST_SUMMARY_LINE(R"(={3,} (\d+) failed, (\d+) passed(?:, (\d+) skipped)? in ([\d\.]+)s ={3,})");
 static const std::regex RE_COVERAGE_SECTION(R"(----------- coverage: platform (.+), python (.+) -----------)");
 static const std::regex RE_COVERAGE_HEADER(R"(Name\s+Stmts\s+Miss\s+Cover(?:\s+Missing)?)");
 static const std::regex RE_COVERAGE_BRANCH_HEADER(R"(Name\s+Stmts\s+Miss\s+Branch\s+BrPart\s+Cover(?:\s+Missing)?)");
 static const std::regex RE_COVERAGE_ROW(R"(^([^\s]+(?:\.[^\s]+)*)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
-static const std::regex RE_COVERAGE_BRANCH_ROW(
-    R"(^([^\s]+(?:\.[^\s]+)*)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
+static const std::regex
+    RE_COVERAGE_BRANCH_ROW(R"(^([^\s]+(?:\.[^\s]+)*)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
 static const std::regex RE_TOTAL_COVERAGE(R"(^TOTAL\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
-static const std::regex RE_TOTAL_BRANCH_COVERAGE(R"(^TOTAL\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
-static const std::regex RE_COVERAGE_THRESHOLD_FAIL(R"(Coverage threshold check failed\. Expected: >= (\d+)%, got: ([\d\.]+%))");
-static const std::regex RE_REQUIRED_COVERAGE_FAIL(R"(Required test coverage of (\d+)% not met\. Total coverage: ([\d\.]+%))");
+static const std::regex
+    RE_TOTAL_BRANCH_COVERAGE(R"(^TOTAL\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
+static const std::regex
+    RE_COVERAGE_THRESHOLD_FAIL(R"(Coverage threshold check failed\. Expected: >= (\d+)%, got: ([\d\.]+%))");
+static const std::regex
+    RE_REQUIRED_COVERAGE_FAIL(R"(Required test coverage of (\d+)% not met\. Total coverage: ([\d\.]+%))");
 static const std::regex RE_COVERAGE_XML_WRITTEN(R"(Coverage XML written to (.+))");
 static const std::regex RE_COVERAGE_HTML_WRITTEN(R"(Coverage HTML written to dir (.+))");
 static const std::regex RE_COVERAGE_DATA_NOT_FOUND(R"(pytest-cov: Coverage data was not found for source '(.+)')");

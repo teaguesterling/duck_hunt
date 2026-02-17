@@ -23,11 +23,12 @@ static const std::regex RE_INVALID_WRITE(R"(==\d+== Invalid write of size (\d+))
 static const std::regex RE_INVALID_FREE(R"(==\d+== Invalid free\(\) / delete / delete\[\])");
 static const std::regex RE_MISMATCHED_FREE(R"(==\d+== Mismatched free\(\) / delete / delete\[\])");
 static const std::regex RE_USE_AFTER_FREE(R"(==\d+== Use of uninitialised value of size (\d+))");
-static const std::regex RE_DEFINITELY_LOST(
-    R"(==\d+== (\d+) bytes in (\d+) blocks are definitely lost in loss record (\d+) of (\d+))");
-static const std::regex RE_POSSIBLY_LOST(R"(==\d+== (\d+) bytes in (\d+) blocks are possibly lost in loss record (\d+) of (\d+))");
-static const std::regex RE_STILL_REACHABLE(
-    R"(==\d+== (\d+) bytes in (\d+) blocks are still reachable in loss record (\d+) of (\d+))");
+static const std::regex
+    RE_DEFINITELY_LOST(R"(==\d+== (\d+) bytes in (\d+) blocks are definitely lost in loss record (\d+) of (\d+))");
+static const std::regex
+    RE_POSSIBLY_LOST(R"(==\d+== (\d+) bytes in (\d+) blocks are possibly lost in loss record (\d+) of (\d+))");
+static const std::regex
+    RE_STILL_REACHABLE(R"(==\d+== (\d+) bytes in (\d+) blocks are still reachable in loss record (\d+) of (\d+))");
 static const std::regex RE_SUPPRESSED(R"(==\d+== (\d+) bytes in (\d+) blocks are suppressed)");
 
 // Location patterns
@@ -39,8 +40,8 @@ static const std::regex RE_BY_LOCATION_NO_FILE(R"(==\d+==    by (0x[0-9A-Fa-f]+)
 // Summary patterns
 static const std::regex RE_HEAP_SUMMARY(R"(==\d+== HEAP SUMMARY:)");
 static const std::regex RE_IN_USE_AT_EXIT(R"(==\d+==     in use at exit: ([\d,]+) bytes in ([\d,]+) blocks)");
-static const std::regex RE_TOTAL_HEAP_USAGE(
-    R"(==\d+==   total heap usage: ([\d,]+) allocs, ([\d,]+) frees, ([\d,]+) bytes allocated)");
+static const std::regex
+    RE_TOTAL_HEAP_USAGE(R"(==\d+==   total heap usage: ([\d,]+) allocs, ([\d,]+) frees, ([\d,]+) bytes allocated)");
 static const std::regex RE_LEAK_SUMMARY(R"(==\d+== LEAK SUMMARY:)");
 static const std::regex RE_LEAK_DEFINITELY_LOST(R"(==\d+==    definitely lost: ([\d,]+) bytes in ([\d,]+) blocks)");
 static const std::regex RE_LEAK_INDIRECTLY_LOST(R"(==\d+==    indirectly lost: ([\d,]+) bytes in ([\d,]+) blocks)");
@@ -49,13 +50,14 @@ static const std::regex RE_LEAK_STILL_REACHABLE(R"(==\d+==    still reachable: (
 static const std::regex RE_LEAK_SUPPRESSED(R"(==\d+==         suppressed: ([\d,]+) bytes in ([\d,]+) blocks)");
 
 // Thread error patterns (Helgrind/DRD)
-static const std::regex RE_DATA_RACE(
-    R"(==\d+== Possible data race during (.+) of size (\d+) at (0x[0-9A-Fa-f]+) by thread #(\d+))");
+static const std::regex
+    RE_DATA_RACE(R"(==\d+== Possible data race during (.+) of size (\d+) at (0x[0-9A-Fa-f]+) by thread #(\d+))");
 static const std::regex RE_LOCK_ORDER(R"(==\d+== Lock order violation: (.+))");
 static const std::regex RE_THREAD_FINISH(R"(==\d+== Thread #(\d+) was created)");
 
 // Process patterns
-static const std::regex RE_PROCESS_TERMINATING(R"(==\d+== Process terminating with default action of signal (\d+) \((.+)\))");
+static const std::regex
+    RE_PROCESS_TERMINATING(R"(==\d+== Process terminating with default action of signal (\d+) \((.+)\))");
 static const std::regex RE_ERROR_SUMMARY(R"(==\d+== ERROR SUMMARY: (\d+) errors from (\d+) contexts)");
 } // anonymous namespace
 
@@ -298,7 +300,7 @@ void ValgrindParser::ParseValgrind(const std::string &content, std::vector<duckd
 			event.tool_name = current_tool;
 			event.event_type = duckdb::ValidationEventType::SUMMARY;
 			event.status = (duckdb::SafeParsing::SafeStoi(match[1].str()) > 0) ? duckdb::ValidationEventStatus::FAIL
-			                                               : duckdb::ValidationEventStatus::PASS;
+			                                                                   : duckdb::ValidationEventStatus::PASS;
 			event.severity = (duckdb::SafeParsing::SafeStoi(match[1].str()) > 0) ? "error" : "info";
 			event.category = "error_summary";
 			event.message = "Error summary: " + match[1].str() + " errors from " + match[2].str() + " contexts";

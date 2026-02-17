@@ -173,7 +173,8 @@ std::vector<ValidationEvent> MochaChaiTextParser::parse(const std::string &conte
 			}
 		}
 		// Check for general file and line information (any "at ... (file:line:col)" format)
-		else if (in_failure_details && current_file_path.empty() && std::regex_search(line, match, RE_GENERAL_FILE_LINE)) {
+		else if (in_failure_details && current_file_path.empty() &&
+		         std::regex_search(line, match, RE_GENERAL_FILE_LINE)) {
 			current_file_path = match[1].str();
 			current_line_number = SafeParsing::SafeStoi(match[2].str());
 			current_column = SafeParsing::SafeStoi(match[3].str());

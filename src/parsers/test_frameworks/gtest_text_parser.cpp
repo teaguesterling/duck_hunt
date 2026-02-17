@@ -14,8 +14,8 @@ static const std::regex RE_TEST_FAILED(R"(\[\s*FAILED\s*\]\s*(.+)\s*\((\d+)\s*ms
 static const std::regex RE_TEST_SKIPPED(R"(\[\s*SKIPPED\s*\]\s*(.+)\s*\((\d+)\s*ms\))");
 static const std::regex RE_TEST_SUITE_START(R"(\[----------\]\s*(\d+)\s*tests from\s*(.+))");
 static const std::regex RE_TEST_SUITE_END(R"(\[----------\]\s*(\d+)\s*tests from\s*(.+)\s*\((\d+)\s*ms total\))");
-static const std::regex RE_TEST_SUMMARY_START(
-    R"(\[==========\]\s*(\d+)\s*tests from\s*(\d+)\s*test suites ran\.\s*\((\d+)\s*ms total\))");
+static const std::regex
+    RE_TEST_SUMMARY_START(R"(\[==========\]\s*(\d+)\s*tests from\s*(\d+)\s*test suites ran\.\s*\((\d+)\s*ms total\))");
 static const std::regex RE_TESTS_PASSED_SUMMARY(R"(\[\s*PASSED\s*\]\s*(\d+)\s*tests\.)");
 static const std::regex RE_TESTS_FAILED_SUMMARY(R"(\[\s*FAILED\s*\]\s*(\d+)\s*tests,\s*listed below:)");
 static const std::regex RE_FAILED_TEST_LIST(R"(\[\s*FAILED\s*\]\s*(.+))");

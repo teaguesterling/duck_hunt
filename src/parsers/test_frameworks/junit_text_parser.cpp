@@ -12,8 +12,8 @@ namespace {
 static const std::regex RE_JUNIT4_CLASS(R"(Running (.+))");
 static const std::regex RE_JUNIT4_SUMMARY(
     R"(Tests run: (\d+), Failures: (\d+), Errors: (\d+), Skipped: (\d+), Time elapsed: ([\d.]+) sec.*?)");
-static const std::regex RE_JUNIT4_TEST(
-    R"((.+?)\((.+?)\)\s+Time elapsed: ([\d.]+) sec\s+<<< (PASSED!|FAILURE!|ERROR!|SKIPPED!))");
+static const std::regex
+    RE_JUNIT4_TEST(R"((.+?)\((.+?)\)\s+Time elapsed: ([\d.]+) sec\s+<<< (PASSED!|FAILURE!|ERROR!|SKIPPED!))");
 static const std::regex RE_JUNIT4_EXCEPTION(R"((.+?): (.+)$)");
 static const std::regex RE_JUNIT4_STACK_TRACE(R"(\s+at (.+?)\.(.+?)\((.+?):(\d+)\))");
 
@@ -25,8 +25,10 @@ static const std::regex RE_JUNIT5_SUMMARY(R"(\[\s+(\d+) tests (found|successful|
 
 // Maven Surefire patterns
 static const std::regex RE_SUREFIRE_CLASS(R"(\[INFO\] Running (.+))");
-static const std::regex RE_SUREFIRE_TEST(R"(\[ERROR\] (.+?)\((.+?)\)\s+Time elapsed: ([\d.]+) s\s+<<< (FAILURE!|ERROR!))");
-static const std::regex RE_SUREFIRE_SUMMARY(R"(\[INFO\] Tests run: (\d+), Failures: (\d+), Errors: (\d+), Skipped: (\d+))");
+static const std::regex
+    RE_SUREFIRE_TEST(R"(\[ERROR\] (.+?)\((.+?)\)\s+Time elapsed: ([\d.]+) s\s+<<< (FAILURE!|ERROR!))");
+static const std::regex
+    RE_SUREFIRE_SUMMARY(R"(\[INFO\] Tests run: (\d+), Failures: (\d+), Errors: (\d+), Skipped: (\d+))");
 static const std::regex RE_SUREFIRE_RESULTS(R"(\[ERROR\] (.+):(\d+) (.+))");
 
 // Gradle patterns

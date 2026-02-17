@@ -44,8 +44,8 @@ bool ValidatePath(const std::string &path) {
 	if (path.find("..") != std::string::npos) {
 		// Allow ".." only if it's part of a longer segment like "...log"
 		// Check for actual traversal patterns
-		if (path.find("../") != std::string::npos || path.find("..\\") != std::string::npos ||
-		    path == ".." || path.rfind("/..", path.length() - 3) == path.length() - 3 ||
+		if (path.find("../") != std::string::npos || path.find("..\\") != std::string::npos || path == ".." ||
+		    path.rfind("/..", path.length() - 3) == path.length() - 3 ||
 		    path.rfind("\\..", path.length() - 3) == path.length() - 3) {
 			return false;
 		}
@@ -196,8 +196,8 @@ std::string ReadContentFromSource(ClientContext &context, const std::string &sou
 		if (file_size > 0) {
 			// Check file size limit to prevent OOM
 			if (static_cast<size_t>(file_size) > MAX_FILE_SIZE_BYTES) {
-				throw InvalidInputException("File '%s' exceeds maximum size limit of %zu MB (actual: %zu MB)",
-				                            source, MAX_FILE_SIZE_BYTES / (1024 * 1024),
+				throw InvalidInputException("File '%s' exceeds maximum size limit of %zu MB (actual: %zu MB)", source,
+				                            MAX_FILE_SIZE_BYTES / (1024 * 1024),
 				                            static_cast<size_t>(file_size) / (1024 * 1024));
 			}
 			std::string content;
@@ -221,9 +221,8 @@ std::string ReadContentFromSource(ClientContext &context, const std::string &sou
 
 		// Check size limit during streaming read to prevent OOM
 		if (content.size() > MAX_FILE_SIZE_BYTES) {
-			throw InvalidInputException("File '%s' exceeds maximum size limit of %zu MB (read so far: %zu MB)",
-			                            source, MAX_FILE_SIZE_BYTES / (1024 * 1024),
-			                            content.size() / (1024 * 1024));
+			throw InvalidInputException("File '%s' exceeds maximum size limit of %zu MB (read so far: %zu MB)", source,
+			                            MAX_FILE_SIZE_BYTES / (1024 * 1024), content.size() / (1024 * 1024));
 		}
 	}
 

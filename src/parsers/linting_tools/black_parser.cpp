@@ -10,7 +10,8 @@ static const std::regex RE_BLACK_REFORMAT(R"(would reformat)");
 static const std::regex RE_BLACK_SUMMARY(R"(\d+ files? would be reformatted)");
 static const std::regex RE_BLACK_SUCCESS(R"(All done! ✨ 🍰 ✨)");
 static const std::regex RE_WOULD_REFORMAT(R"(would reformat (.+))");
-static const std::regex RE_REFORMAT_SUMMARY(R"((\d+) files? would be reformatted, (\d+) files? would be left unchanged)");
+static const std::regex
+    RE_REFORMAT_SUMMARY(R"((\d+) files? would be reformatted, (\d+) files? would be left unchanged)");
 static const std::regex RE_ALL_DONE_SUMMARY(R"(All done! ✨ 🍰 ✨)");
 static const std::regex RE_DIFF_HEADER(R"(--- (.+)\s+\(original\))");
 } // anonymous namespace

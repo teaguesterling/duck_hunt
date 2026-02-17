@@ -22,8 +22,10 @@ static const std::regex RE_RESULT(R"(\)\s*=\s*(-?\d+|0x[0-9a-fA-F]+|\?))"
                                   R"((?:\s+<([\d.]+)>)?)"
                                   R"(\s*$)");
 static const std::regex RE_SIGNAL(R"(^(?:\[pid\s+(\d+)\]\s+)?---\s+(SIG\w+)\s+\{([^}]+)\}\s+---)");
-static const std::regex RE_UNFINISHED(R"(^(?:\[pid\s+(\d+)\]\s+)?(?:(\d{2}:\d{2}:\d{2}(?:\.\d+)?)\s+)?(\w+)\([^)]*<unfinished\s*\.\.\.>)");
-static const std::regex RE_RESUMED(R"(^(?:\[pid\s+(\d+)\]\s+)?(?:(\d{2}:\d{2}:\d{2}(?:\.\d+)?)\s+)?<\.\.\.\s+(\w+)\s+resumed>)");
+static const std::regex
+    RE_UNFINISHED(R"(^(?:\[pid\s+(\d+)\]\s+)?(?:(\d{2}:\d{2}:\d{2}(?:\.\d+)?)\s+)?(\w+)\([^)]*<unfinished\s*\.\.\.>)");
+static const std::regex
+    RE_RESUMED(R"(^(?:\[pid\s+(\d+)\]\s+)?(?:(\d{2}:\d{2}:\d{2}(?:\.\d+)?)\s+)?<\.\.\.\s+(\w+)\s+resumed>)");
 static const std::regex RE_EXIT(R"(\+\+\+\s+exited\s+with\s+(\d+)\s+\+\+\+)");
 static const std::regex RE_KILLED(R"(\+\+\+\s+killed\s+by\s+(SIG\w+)(?:\s+\(core\s+dumped\))?\s+\+\+\+)");
 static const std::regex RE_SENDER(R"(si_pid=(\d+))");

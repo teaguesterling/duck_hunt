@@ -483,11 +483,9 @@ bool ParserRegistry::unregisterParser(const std::string &format_name) {
 	}
 
 	// Remove from parsers_ vector
-	parsers_.erase(
-		std::remove_if(parsers_.begin(), parsers_.end(),
-			[&primary_name](const ParserPtr &p) { return p->getFormatName() == primary_name; }),
-		parsers_.end()
-	);
+	parsers_.erase(std::remove_if(parsers_.begin(), parsers_.end(),
+	                              [&primary_name](const ParserPtr &p) { return p->getFormatName() == primary_name; }),
+	               parsers_.end());
 
 	needs_resort_ = true;
 	return true;

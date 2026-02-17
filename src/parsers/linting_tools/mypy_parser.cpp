@@ -22,8 +22,8 @@ static const std::regex RE_MYPY_SUCCESS(R"(Success: no issues found in (\d+) sou
 bool MypyParser::canParse(const std::string &content) const {
 	// First check for clang-tidy specific patterns and exclude them
 	static const std::vector<std::string> clang_tidy_rules = {
-	    "readability-", "performance-", "modernize-",       "bugprone-", "cppcoreguidelines-",
-	    "google-",      "llvm-",        "misc-",            "portability-"};
+	    "readability-", "performance-", "modernize-", "bugprone-",   "cppcoreguidelines-",
+	    "google-",      "llvm-",        "misc-",      "portability-"};
 
 	for (const auto &rule : clang_tidy_rules) {
 		if (content.find(rule) != std::string::npos) {

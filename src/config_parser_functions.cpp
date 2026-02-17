@@ -57,16 +57,12 @@ static void DuckHuntUnloadParserFunction(DataChunk &args, ExpressionState &state
 }
 
 ScalarFunction GetDuckHuntLoadParserConfigFunction() {
-	return ScalarFunction("duck_hunt_load_parser_config",
-	                      {LogicalType::VARCHAR},
-	                      LogicalType::VARCHAR,
+	return ScalarFunction("duck_hunt_load_parser_config", {LogicalType::VARCHAR}, LogicalType::VARCHAR,
 	                      DuckHuntLoadParserConfigFunction);
 }
 
 ScalarFunction GetDuckHuntUnloadParserFunction() {
-	return ScalarFunction("duck_hunt_unload_parser",
-	                      {LogicalType::VARCHAR},
-	                      LogicalType::BOOLEAN,
+	return ScalarFunction("duck_hunt_unload_parser", {LogicalType::VARCHAR}, LogicalType::BOOLEAN,
 	                      DuckHuntUnloadParserFunction);
 }
 

@@ -22,7 +22,8 @@ static const std::regex RE_ANSIBLE_ERROR(R"(ERROR! (.+))");
 static const std::regex RE_ANSIBLE_WARNING(R"(\[WARNING\]: (.+))");
 static const std::regex RE_DEPRECATION_WARNING(R"(\[DEPRECATION WARNING\]: (.+))");
 static const std::regex RE_RETRY_FAILED(R"(FAILED - RETRYING: (.+) \((\d+) retries left\))");
-static const std::regex RE_TASK_RETRY_EXHAUSTED(R"(fatal: \[([^\]]+)\]: FAILED! => \{\"attempts\": (\d+), .+\"msg\": \"(.+)\"\})");
+static const std::regex
+    RE_TASK_RETRY_EXHAUSTED(R"(fatal: \[([^\]]+)\]: FAILED! => \{\"attempts\": (\d+), .+\"msg\": \"(.+)\"\})");
 static const std::regex RE_CONFIG_DIFF(R"(--- (.+))");
 static const std::regex RE_ANSIBLE_NOTIFIED(R"(NOTIFIED: \[([^\]]+)\] \*+)");
 } // anonymous namespace

@@ -12,7 +12,8 @@ static const std::regex RE_DL_PATTERN(R"(DL\d{4})");
 static const std::regex RE_DOCKERFILE_PATTERN(R"(Dockerfile:\d+\s+\w+\s+(error|warning|info|style):)");
 
 // parse patterns
-static const std::regex RE_HADOLINT_PATTERN(R"(^([^:]+):(\d+)\s+(DL\d{4}|SC\d{4})\s+(error|warning|info|style):\s*(.+)$)");
+static const std::regex
+    RE_HADOLINT_PATTERN(R"(^([^:]+):(\d+)\s+(DL\d{4}|SC\d{4})\s+(error|warning|info|style):\s*(.+)$)");
 static const std::regex RE_HADOLINT_PATTERN_ALT(R"(^([^:]+):(\d+)\s+(DL\d{4}|SC\d{4})\s+(.+)$)");
 } // anonymous namespace
 

@@ -18,7 +18,8 @@ static const std::regex RE_FAILURE_ERROR(R"(Failure/Error:\s*(.+))");
 static const std::regex RE_EXPECTED_PATTERN(R"(\s*expected\s*(.+))");
 static const std::regex RE_GOT_PATTERN(R"(\s*got:\s*(.+))");
 static const std::regex RE_FILE_LINE_PATTERN(R"(# (.+):(\d+):in)");
-static const std::regex RE_SUMMARY_PATTERN(R"(Finished in (.+) seconds .* (\d+) examples?, (\d+) failures?(, (\d+) pending)?)");
+static const std::regex
+    RE_SUMMARY_PATTERN(R"(Finished in (.+) seconds .* (\d+) examples?, (\d+) failures?(, (\d+) pending)?)");
 static const std::regex RE_FAILED_EXAMPLE(R"(rspec (.+):(\d+) # (.+))");
 static const std::regex RE_SIMPLE_SUMMARY(R"((\d+) examples?, (\d+) failures?)");
 } // anonymous namespace

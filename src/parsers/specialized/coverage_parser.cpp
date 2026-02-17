@@ -13,17 +13,19 @@ static const std::regex RE_COVERAGE_HEADER(R"(Name\s+Stmts\s+Miss\s+Cover(?:\s+M
 static const std::regex RE_COVERAGE_BRANCH_HEADER(R"(Name\s+Stmts\s+Miss\s+Branch\s+BrPart\s+Cover(?:\s+Missing)?)");
 static const std::regex RE_SEPARATOR_LINE(R"(^-+$)");
 static const std::regex RE_COVERAGE_ROW(R"(^([^\s]+(?:\.[^\s]+)*)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
-static const std::regex RE_COVERAGE_BRANCH_ROW(
-    R"(^([^\s]+(?:\.[^\s]+)*)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
+static const std::regex
+    RE_COVERAGE_BRANCH_ROW(R"(^([^\s]+(?:\.[^\s]+)*)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
 static const std::regex RE_TOTAL_ROW(R"(^TOTAL\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
 static const std::regex RE_TOTAL_BRANCH_ROW(R"(^TOTAL\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
 static const std::regex RE_COVERAGE_RUN(R"(coverage run (.+))");
 static const std::regex RE_COVERAGE_COMMAND(R"(coverage (html|xml|json|report|erase|combine|debug))");
 static const std::regex RE_REPORT_GENERATED(R"(Coverage report generated in ([\d\.]+) seconds)");
 static const std::regex RE_WROTE_REPORT(R"(Wrote (HTML|XML|JSON) report to (.+))");
-static const std::regex RE_COVERAGE_FAILURE(R"(Coverage failure: total of (\d+%|\d+\.\d+%) is below --fail-under=(\d+%))");
+static const std::regex
+    RE_COVERAGE_FAILURE(R"(Coverage failure: total of (\d+%|\d+\.\d+%) is below --fail-under=(\d+%))");
 static const std::regex RE_NO_DATA(R"(coverage: No data to report\.)");
-static const std::regex RE_NO_DATA_COLLECTED(R"(coverage: CoverageWarning: No data was collected\. \(no-data-collected\))");
+static const std::regex
+    RE_NO_DATA_COLLECTED(R"(coverage: CoverageWarning: No data was collected\. \(no-data-collected\))");
 static const std::regex RE_CONTEXT_RECORDED(R"(Context '(.+)' recorded)");
 static const std::regex RE_COMBINED_DATA(R"(Combined data file (.+))");
 static const std::regex RE_WROTE_COMBINED(R"(Wrote combined data to (.+))");
@@ -40,12 +42,16 @@ static const std::regex RE_PLATFORM_INFO(R"(platform (.+) -- Python (.+), pytest
 static const std::regex RE_PYTEST_COV_PLUGIN(R"(plugins: cov-(.+))");
 static const std::regex RE_COLLECTED_ITEMS(R"(collected (\d+) items?)");
 static const std::regex RE_TEST_RESULT(R"((.+\.py)::(.+)\s+(PASSED|FAILED|SKIPPED|ERROR)\s+\[([^\]]+)\])");
-static const std::regex RE_TEST_SUMMARY_LINE(R"(={3,} (\d+) failed, (\d+) passed(?:, (\d+) skipped)? in ([\d\.]+)s ={3,})");
+static const std::regex
+    RE_TEST_SUMMARY_LINE(R"(={3,} (\d+) failed, (\d+) passed(?:, (\d+) skipped)? in ([\d\.]+)s ={3,})");
 static const std::regex RE_COVERAGE_SECTION(R"(----------- coverage: platform (.+), python (.+) -----------)");
 static const std::regex RE_TOTAL_COVERAGE(R"(^TOTAL\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
-static const std::regex RE_TOTAL_BRANCH_COVERAGE(R"(^TOTAL\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
-static const std::regex RE_COVERAGE_THRESHOLD_FAIL(R"(Coverage threshold check failed\. Expected: >= (\d+)%, got: ([\d\.]+%))");
-static const std::regex RE_REQUIRED_COVERAGE_FAIL(R"(Required test coverage of (\d+)% not met\. Total coverage: ([\d\.]+%))");
+static const std::regex
+    RE_TOTAL_BRANCH_COVERAGE(R"(^TOTAL\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
+static const std::regex
+    RE_COVERAGE_THRESHOLD_FAIL(R"(Coverage threshold check failed\. Expected: >= (\d+)%, got: ([\d\.]+%))");
+static const std::regex
+    RE_REQUIRED_COVERAGE_FAIL(R"(Required test coverage of (\d+)% not met\. Total coverage: ([\d\.]+%))");
 static const std::regex RE_COVERAGE_XML_WRITTEN(R"(Coverage XML written to (.+))");
 static const std::regex RE_COVERAGE_HTML_WRITTEN(R"(Coverage HTML written to dir (.+))");
 static const std::regex RE_COVERAGE_DATA_NOT_FOUND(R"(pytest-cov: Coverage data was not found for source '(.+)')");

@@ -8,8 +8,10 @@ namespace duckdb {
 
 // Pre-compiled regex patterns for Playwright text parsing (compiled once, reused)
 namespace {
-static const std::regex RE_TEST_PASSED(R"(\s*✓\s+\d+\s+\[(\w+)\]\s+›\s+([^›]+):(\d+):(\d+)\s+›\s+(.+?)\s+\((\d+)m?s\))");
-static const std::regex RE_TEST_FAILED(R"(\s*[✘×]\s+\d+\s+\[(\w+)\]\s+›\s+([^›]+):(\d+):(\d+)\s+›\s+(.+?)\s+\((\d+)m?s\))");
+static const std::regex
+    RE_TEST_PASSED(R"(\s*✓\s+\d+\s+\[(\w+)\]\s+›\s+([^›]+):(\d+):(\d+)\s+›\s+(.+?)\s+\((\d+)m?s\))");
+static const std::regex
+    RE_TEST_FAILED(R"(\s*[✘×]\s+\d+\s+\[(\w+)\]\s+›\s+([^›]+):(\d+):(\d+)\s+›\s+(.+?)\s+\((\d+)m?s\))");
 static const std::regex RE_TEST_SKIPPED(R"(\s*-\s+\d+\s+\[(\w+)\]\s+›\s+([^›]+):(\d+):(\d+)\s+›\s+(.+))");
 static const std::regex RE_PROGRESS_LINE(R"(\[\d+/\d+\]\s+\[(\w+)\]\s+›\s+([^›]+):(\d+):(\d+)\s+›\s+(.+))");
 static const std::regex RE_FAILURE_HEADER(R"(\s*(\d+)\)\s+\[(\w+)\]\s+›\s+([^›]+):(\d+):(\d+)\s+›\s+(.+?)\s*─*)");

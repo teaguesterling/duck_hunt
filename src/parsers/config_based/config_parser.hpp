@@ -14,12 +14,12 @@ namespace duckdb {
  * A pattern definition for config-based parsing.
  */
 struct ConfigPattern {
-	std::string name;                                       // Optional name for documentation
-	std::regex compiled_regex;                              // Compiled regex pattern
-	std::string original_pattern;                           // Original pattern string for error messages
-	std::vector<std::string> group_names;                   // Named capture group names in order
-	ValidationEventType event_type;                         // Event type to produce
-	std::string fixed_severity;                             // Fixed severity (if set)
+	std::string name;                                          // Optional name for documentation
+	std::regex compiled_regex;                                 // Compiled regex pattern
+	std::string original_pattern;                              // Original pattern string for error messages
+	std::vector<std::string> group_names;                      // Named capture group names in order
+	ValidationEventType event_type;                            // Event type to produce
+	std::string fixed_severity;                                // Fixed severity (if set)
 	std::unordered_map<std::string, std::string> severity_map; // Maps captured value -> severity
 	std::unordered_map<std::string, std::string> status_map;   // Maps captured value -> status
 };
@@ -50,37 +50,56 @@ public:
 	/**
 	 * Create a ConfigBasedParser from parsed configuration values.
 	 */
-	ConfigBasedParser(std::string format_name, std::string display_name, std::string category,
-	                  std::string description, std::string tool_name, int priority,
-	                  std::vector<std::string> aliases, std::vector<std::string> groups,
-	                  ConfigDetection detection, std::vector<ConfigPattern> patterns);
+	ConfigBasedParser(std::string format_name, std::string display_name, std::string category, std::string description,
+	                  std::string tool_name, int priority, std::vector<std::string> aliases,
+	                  std::vector<std::string> groups, ConfigDetection detection, std::vector<ConfigPattern> patterns);
 
 	// IParser interface
 	bool canParse(const std::string &content) const override;
 	std::vector<ValidationEvent> parse(const std::string &content) const override;
-	std::string getFormatName() const override { return format_name_; }
-	std::string getName() const override { return display_name_; }
-	std::string getCategory() const override { return category_; }
-	std::string getDescription() const override { return description_; }
-	int getPriority() const override { return priority_; }
-	std::vector<std::string> getAliases() const override { return aliases_; }
-	std::vector<std::string> getGroups() const override { return groups_; }
+	std::string getFormatName() const override {
+		return format_name_;
+	}
+	std::string getName() const override {
+		return display_name_;
+	}
+	std::string getCategory() const override {
+		return category_;
+	}
+	std::string getDescription() const override {
+		return description_;
+	}
+	int getPriority() const override {
+		return priority_;
+	}
+	std::vector<std::string> getAliases() const override {
+		return aliases_;
+	}
+	std::vector<std::string> getGroups() const override {
+		return groups_;
+	}
 
 	// Config-based parsers support streaming (line-by-line parsing)
-	bool supportsStreaming() const override { return true; }
+	bool supportsStreaming() const override {
+		return true;
+	}
 	std::vector<ValidationEvent> parseLine(const std::string &line, int32_t line_number,
 	                                       int64_t &event_id) const override;
 
 	/**
 	 * Get the tool name (may differ from format name).
 	 */
-	std::string getToolName() const { return tool_name_; }
+	std::string getToolName() const {
+		return tool_name_;
+	}
 
 	/**
 	 * Check if this parser is a built-in (cannot be unloaded).
 	 * Config-based parsers are always custom (not built-in).
 	 */
-	bool isBuiltIn() const { return false; }
+	bool isBuiltIn() const {
+		return false;
+	}
 
 private:
 	std::string format_name_;

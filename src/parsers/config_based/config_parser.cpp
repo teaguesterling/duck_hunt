@@ -32,8 +32,9 @@ ValidationEventType ParseEventType(const std::string &event_type_str) {
 	} else if (event_type_str == "UNKNOWN") {
 		return ValidationEventType::UNKNOWN;
 	} else {
-		throw std::runtime_error("Invalid event_type: " + event_type_str +
-		                         ". Valid types: BUILD_ERROR, LINT_ISSUE, TEST_RESULT, TYPE_ERROR, SECURITY_FINDING, MEMORY_ERROR, UNKNOWN");
+		throw std::runtime_error(
+		    "Invalid event_type: " + event_type_str +
+		    ". Valid types: BUILD_ERROR, LINT_ISSUE, TEST_RESULT, TYPE_ERROR, SECURITY_FINDING, MEMORY_ERROR, UNKNOWN");
 	}
 }
 
@@ -65,8 +66,11 @@ unique_ptr<ConfigBasedParser> ConfigBasedParser::FromJson(const std::string &jso
 	// RAII cleanup
 	struct DocGuard {
 		yyjson_doc *doc;
-		~DocGuard() { if (doc) yyjson_doc_free(doc); }
-	} doc_guard{doc};
+		~DocGuard() {
+			if (doc)
+				yyjson_doc_free(doc);
+		}
+	} doc_guard {doc};
 
 	yyjson_val *root = yyjson_doc_get_root(doc);
 	if (!yyjson_is_obj(root)) {
@@ -266,21 +270,18 @@ unique_ptr<ConfigBasedParser> ConfigBasedParser::FromJson(const std::string &jso
 		throw std::runtime_error("At least one pattern is required");
 	}
 
-	return make_uniq<ConfigBasedParser>(
-		format_name, display_name, category, description, tool_name,
-		priority, aliases, groups, std::move(detection), std::move(patterns)
-	);
+	return make_uniq<ConfigBasedParser>(format_name, display_name, category, description, tool_name, priority, aliases,
+	                                    groups, std::move(detection), std::move(patterns));
 }
 
 ConfigBasedParser::ConfigBasedParser(std::string format_name, std::string display_name, std::string category,
                                      std::string description, std::string tool_name, int priority,
                                      std::vector<std::string> aliases, std::vector<std::string> groups,
                                      ConfigDetection detection, std::vector<ConfigPattern> patterns)
-    : format_name_(std::move(format_name)), display_name_(std::move(display_name)),
-      category_(std::move(category)), description_(std::move(description)),
-      tool_name_(std::move(tool_name)), priority_(priority),
-      aliases_(std::move(aliases)), groups_(std::move(groups)),
-      detection_(std::move(detection)), patterns_(std::move(patterns)) {
+    : format_name_(std::move(format_name)), display_name_(std::move(display_name)), category_(std::move(category)),
+      description_(std::move(description)), tool_name_(std::move(tool_name)), priority_(priority),
+      aliases_(std::move(aliases)), groups_(std::move(groups)), detection_(std::move(detection)),
+      patterns_(std::move(patterns)) {
 }
 
 bool ConfigBasedParser::canParse(const std::string &content) const {
@@ -320,8 +321,7 @@ bool ConfigBasedParser::canParse(const std::string &content) const {
 	return true;
 }
 
-std::string ConfigBasedParser::getGroupValue(const std::smatch &match,
-                                             const std::vector<std::string> &group_names,
+std::string ConfigBasedParser::getGroupValue(const std::smatch &match, const std::vector<std::string> &group_names,
                                              const std::vector<std::string> &target_names) {
 	for (const auto &target : target_names) {
 		for (size_t i = 0; i < group_names.size(); i++) {
