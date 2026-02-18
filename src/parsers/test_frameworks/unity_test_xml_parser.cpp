@@ -23,14 +23,13 @@ bool UnityTestXmlParser::canParse(const std::string &content) const {
 }
 
 std::vector<ValidationEvent> UnityTestXmlParser::parseWithContext(ClientContext &context,
-                                                                   const std::string &content) const {
+                                                                  const std::string &content) const {
 	// Content-based XML parsing not supported - use file-based parsing via read_duck_hunt_log
 	// This avoids issues with passing large XML content through SQL
 	return {};
 }
 
-std::vector<ValidationEvent> UnityTestXmlParser::parseFile(ClientContext &context,
-                                                            const std::string &file_path) const {
+std::vector<ValidationEvent> UnityTestXmlParser::parseFile(ClientContext &context, const std::string &file_path) const {
 	// Try to auto-load webbed if not already available
 	if (!WebbedIntegration::TryAutoLoadWebbed(context)) {
 		throw InvalidInputException(WebbedIntegration::GetWebbedRequiredError());
@@ -68,15 +67,24 @@ std::vector<ValidationEvent> UnityTestXmlParser::parseFile(ClientContext &contex
 	idx_t output_idx = DConstants::INVALID_INDEX;
 
 	for (idx_t i = 0; i < names.size(); i++) {
-		if (names[i] == "name") name_idx = i;
-		else if (names[i] == "fullname") fullname_idx = i;
-		else if (names[i] == "methodname") methodname_idx = i;
-		else if (names[i] == "classname") classname_idx = i;
-		else if (names[i] == "result") result_idx = i;
-		else if (names[i] == "duration") duration_idx = i;
-		else if (names[i] == "failure") failure_idx = i;
-		else if (names[i] == "reason") reason_idx = i;
-		else if (names[i] == "output") output_idx = i;
+		if (names[i] == "name")
+			name_idx = i;
+		else if (names[i] == "fullname")
+			fullname_idx = i;
+		else if (names[i] == "methodname")
+			methodname_idx = i;
+		else if (names[i] == "classname")
+			classname_idx = i;
+		else if (names[i] == "result")
+			result_idx = i;
+		else if (names[i] == "duration")
+			duration_idx = i;
+		else if (names[i] == "failure")
+			failure_idx = i;
+		else if (names[i] == "reason")
+			reason_idx = i;
+		else if (names[i] == "output")
+			output_idx = i;
 	}
 
 	// Process each row (test case)
@@ -97,27 +105,33 @@ std::vector<ValidationEvent> UnityTestXmlParser::parseFile(ClientContext &contex
 
 			if (name_idx != DConstants::INVALID_INDEX) {
 				auto val = chunk->data[name_idx].GetValue(row);
-				if (!val.IsNull()) name = val.ToString();
+				if (!val.IsNull())
+					name = val.ToString();
 			}
 			if (fullname_idx != DConstants::INVALID_INDEX) {
 				auto val = chunk->data[fullname_idx].GetValue(row);
-				if (!val.IsNull()) fullname = val.ToString();
+				if (!val.IsNull())
+					fullname = val.ToString();
 			}
 			if (methodname_idx != DConstants::INVALID_INDEX) {
 				auto val = chunk->data[methodname_idx].GetValue(row);
-				if (!val.IsNull()) methodname = val.ToString();
+				if (!val.IsNull())
+					methodname = val.ToString();
 			}
 			if (classname_idx != DConstants::INVALID_INDEX) {
 				auto val = chunk->data[classname_idx].GetValue(row);
-				if (!val.IsNull()) classname = val.ToString();
+				if (!val.IsNull())
+					classname = val.ToString();
 			}
 			if (result_idx != DConstants::INVALID_INDEX) {
 				auto val = chunk->data[result_idx].GetValue(row);
-				if (!val.IsNull()) test_result = val.ToString();
+				if (!val.IsNull())
+					test_result = val.ToString();
 			}
 			if (duration_idx != DConstants::INVALID_INDEX) {
 				auto val = chunk->data[duration_idx].GetValue(row);
-				if (!val.IsNull()) duration_str = val.ToString();
+				if (!val.IsNull())
+					duration_str = val.ToString();
 			}
 
 			// Set test identification

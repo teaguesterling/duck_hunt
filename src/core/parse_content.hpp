@@ -85,6 +85,6 @@ std::vector<ValidationEvent> ParseContentRegexp(const std::string &content, cons
  * @return Vector of parsed validation events
  */
 std::vector<ValidationEvent> ParseFile(ClientContext &context, const std::string &file_path,
-                                        const std::string &format_name);
+                                       const std::string &format_name);
 
 } // namespace duckdb

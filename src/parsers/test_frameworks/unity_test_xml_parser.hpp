@@ -51,8 +51,7 @@ public:
 	 * Content-based parsing not supported for XML - returns empty.
 	 * Use file-based parsing via read_duck_hunt_log instead.
 	 */
-	std::vector<ValidationEvent> parseWithContext(ClientContext &context,
-	                                              const std::string &content) const override;
+	std::vector<ValidationEvent> parseWithContext(ClientContext &context, const std::string &content) const override;
 
 	/**
 	 * This parser supports file-based parsing using webbed's read_xml.
@@ -65,8 +64,7 @@ public:
 	 * Parse XML file directly using webbed's read_xml function.
 	 * Much more efficient than content-based parsing for large files.
 	 */
-	std::vector<ValidationEvent> parseFile(ClientContext &context,
-	                                        const std::string &file_path) const override;
+	std::vector<ValidationEvent> parseFile(ClientContext &context, const std::string &file_path) const override;
 
 protected:
 	std::vector<ValidationEvent> parseJsonContent(const std::string &json_content) const override;

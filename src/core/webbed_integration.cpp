@@ -109,8 +109,8 @@ unique_ptr<MaterializedQueryResult> WebbedIntegration::ReadXml(ClientContext &co
 	auto escaped_element = StringUtil::Replace(record_element, "'", "''");
 
 	// Build and execute query using read_xml
-	auto query =
-	    "SELECT * FROM read_xml('" + escaped_path + "', record_element := '" + escaped_element + "', auto_detect := true)";
+	auto query = "SELECT * FROM read_xml('" + escaped_path + "', record_element := '" + escaped_element +
+	             "', auto_detect := true)";
 
 	auto &db = DatabaseInstance::GetDatabase(context);
 	Connection con(db);

@@ -154,7 +154,7 @@ std::vector<ValidationEvent> ParseContentRegexp(const std::string &content, cons
 }
 
 std::vector<ValidationEvent> ParseFile(ClientContext &context, const std::string &file_path,
-                                        const std::string &format_name) {
+                                       const std::string &format_name) {
 	std::vector<ValidationEvent> events;
 
 	if (format_name.empty() || format_name == "unknown" || format_name == "auto") {
