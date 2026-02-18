@@ -8,6 +8,7 @@
 #include "pytest_parser.hpp"
 #include "pytest_json_parser.hpp"
 #include "junit_xml_parser.hpp"
+#include "unity_test_xml_parser.hpp"
 #include "duckdb_test_parser.hpp"
 #include "pytest_cov_text_parser.hpp"
 #include "playwright_text_parser.hpp"
@@ -46,6 +47,55 @@ public:
 	std::vector<ValidationEvent> parseWithContext(ClientContext &context, const std::string &content) const override {
 		JUnitXmlParser parser;
 		return parser.parseWithContext(context, content);
+	}
+};
+
+/**
+ * Unity Test XML parser wrapper (requires webbed extension).
+ * Parses Unity Test Framework results in NUnit 3 XML format.
+ */
+class UnityTestXmlParserImpl : public BaseParser {
+public:
+	UnityTestXmlParserImpl()
+	    : BaseParser("unity_test_xml", "Unity Test XML Parser", ParserCategory::TEST_FRAMEWORK,
+	                 "Unity Test Framework XML results (NUnit 3 format)", ParserPriority::VERY_HIGH) {
+		setRequiredExtension("webbed");
+		addGroup("unity");
+		addGroup("dotnet");
+		addGroup("test");
+	}
+
+	bool canParse(const std::string &content) const override {
+		// Check for NUnit 3 / Unity test-run format
+		if (content.find("<test-run") == std::string::npos) {
+			return false;
+		}
+		// Additional markers for Unity/NUnit 3
+		return content.find("testcasecount=") != std::string::npos ||
+		       content.find("engine-version=") != std::string::npos;
+	}
+
+	bool requiresContext() const override {
+		return true;
+	}
+
+	std::vector<ValidationEvent> parse(const std::string &content) const override {
+		// XML parsing requires context - this shouldn't be called directly
+		return {};
+	}
+
+	std::vector<ValidationEvent> parseWithContext(ClientContext &context, const std::string &content) const override {
+		UnityTestXmlParser parser;
+		return parser.parseWithContext(context, content);
+	}
+
+	bool supportsFileParsing() const override {
+		return true;
+	}
+
+	std::vector<ValidationEvent> parseFile(ClientContext &context, const std::string &file_path) const override {
+		UnityTestXmlParser parser;
+		return parser.parseFile(context, file_path);
 	}
 };
 
@@ -116,6 +166,9 @@ void RegisterTestFrameworksParsers(ParserRegistry &registry) {
 
 	// JUnit XML requires special handling (context for XML parsing)
 	registry.registerParser(make_uniq<JUnitXmlParserImpl>());
+
+	// Unity Test XML requires special handling (context for XML parsing)
+	registry.registerParser(make_uniq<UnityTestXmlParserImpl>());
 }
 
 // Auto-register this category

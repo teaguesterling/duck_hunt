@@ -346,7 +346,8 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &co
 				auto events = ParseContentRegexp(content, bind_data.regexp_pattern, bind_data.include_unparsed);
 				global_state->events.insert(global_state->events.end(), events.begin(), events.end());
 			} else if (!format_name.empty() && format_name != "unknown" && format_name != "auto") {
-				auto events = ParseContent(context, content, format_name);
+				// Use ParseFile to enable file-based parsing for XML parsers etc.
+				auto events = ParseFile(context, bind_data.source, format_name);
 				global_state->events.insert(global_state->events.end(), events.begin(), events.end());
 			}
 		}
@@ -948,7 +949,8 @@ OperatorResultType ReadDuckHuntLogInOutFunction(ExecutionContext &context, Table
 				if (format == TestResultFormat::REGEXP) {
 					file_events = ParseContentRegexp(content, effective_regexp_pattern, bind_data.include_unparsed);
 				} else if (!format_name.empty() && format_name != "unknown" && format_name != "auto") {
-					file_events = ParseContent(context.client, content, format_name);
+					// Use ParseFile to enable file-based parsing for XML parsers etc.
+					file_events = ParseFile(context.client, file_path, format_name);
 				}
 
 				for (auto &event : file_events) {
@@ -1036,7 +1038,8 @@ OperatorResultType ReadDuckHuntLogInOutFunction(ExecutionContext &context, Table
 					if (format == TestResultFormat::REGEXP) {
 						file_events = ParseContentRegexp(content, effective_regexp_pattern, bind_data.include_unparsed);
 					} else if (!format_name.empty() && format_name != "unknown" && format_name != "auto") {
-						file_events = ParseContent(context.client, content, format_name);
+						// Use ParseFile to enable file-based parsing for XML parsers etc.
+						file_events = ParseFile(context.client, source_path, format_name);
 					}
 
 					for (auto &event : file_events) {

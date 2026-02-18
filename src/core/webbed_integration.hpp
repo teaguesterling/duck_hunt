@@ -38,6 +38,15 @@ public:
 	static bool IsValidXml(ClientContext &context, const std::string &xml_content);
 
 	/**
+	 * Read XML file using webbed's read_xml table function.
+	 * Returns a materialized result with all rows.
+	 * @param file_path Path to the XML file
+	 * @param record_element The XML element to treat as records (e.g., "test-case")
+	 */
+	static unique_ptr<MaterializedQueryResult> ReadXml(ClientContext &context, const std::string &file_path,
+	                                                   const std::string &record_element);
+
+	/**
 	 * Get a helpful error message for when webbed is required but not loaded.
 	 */
 	static std::string GetWebbedRequiredError();

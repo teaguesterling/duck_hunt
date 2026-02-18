@@ -1,0 +1,44 @@
+# name: test/sql/unity_test_xml.test
+# description: Test Unity Test Framework XML parser (NUnit 3 format)
+# group: [sql]
+
+# note: XML parsing requires the webbed extension. This test validates registration and detection only.
+
+require duck_hunt
+
+# Test that the parser is registered
+query I
+SELECT COUNT(*) > 0 FROM duck_hunt_formats() WHERE format = 'unity_test_xml';
+----
+true
+
+# Test that the parser metadata is correct
+query IIII
+SELECT format, category, requires_extension, description
+FROM duck_hunt_formats() WHERE format = 'unity_test_xml';
+----
+unity_test_xml	test_framework	webbed	Unity Test Framework XML results (NUnit 3 format)
+
+# Test format detection on Unity test XML content (NUnit 3 format)
+query I
+SELECT duck_hunt_detect_format('<?xml version="1.0"?><test-run testcasecount="5" result="Passed"><test-suite type="TestSuite" name="Tests" result="Passed"><test-case name="Test1" result="Passed"/></test-suite></test-run>') = 'unity_test_xml';
+----
+true
+
+# Test that unity_test_xml is preferred over generic for NUnit 3 format
+query I
+SELECT duck_hunt_detect_format('<?xml version="1.0" encoding="utf-8"?><test-run id="2" testcasecount="37" result="Failed" engine-version="3.5.0.0"><test-suite type="TestSuite" name="Tests" result="Failed"/></test-run>') = 'unity_test_xml';
+----
+true
+
+# Test that diagnose shows unity_test_xml can parse NUnit 3 content
+query II
+SELECT format, can_parse
+FROM duck_hunt_diagnose_parse('<?xml version="1.0"?><test-run testcasecount="5" result="Passed"><test-suite type="TestSuite" name="Tests" result="Passed"><test-case name="Test1" result="Passed"/></test-suite></test-run>')
+WHERE format = 'unity_test_xml';
+----
+unity_test_xml	true
+
+# NOTE: Actual XML parsing tests require the webbed extension.
+# When webbed is available, use parse_duck_hunt_log() or read_duck_hunt_log()
+# with format='unity_test_xml' to parse Unity Test Runner XML output.
