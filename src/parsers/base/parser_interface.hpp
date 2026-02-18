@@ -81,6 +81,28 @@ public:
 	}
 
 	// =========================================================================
+	// File-based parsing (optional, for parsers that work better with file paths)
+	// =========================================================================
+
+	/**
+	 * Check if this parser supports file-based parsing.
+	 * When true, parseFile() should be used instead of parseWithContext() when a file path is available.
+	 * This is useful for XML parsers that can use read_xml() directly.
+	 */
+	virtual bool supportsFileParsing() const {
+		return false;
+	}
+
+	/**
+	 * Parse a file directly using the file path.
+	 * Only called when supportsFileParsing() returns true and a file path is available.
+	 * Default implementation reads file and calls parseWithContext().
+	 */
+	virtual std::vector<ValidationEvent> parseFile(ClientContext &context, const std::string &file_path) const {
+		return {}; // Default: not supported
+	}
+
+	// =========================================================================
 	// Streaming support (optional, enables line-by-line parsing)
 	// =========================================================================
 

@@ -153,4 +153,67 @@ std::vector<ValidationEvent> ParseContentRegexp(const std::string &content, cons
 	return events;
 }
 
+std::vector<ValidationEvent> ParseFile(ClientContext &context, const std::string &file_path,
+                                        const std::string &format_name) {
+	std::vector<ValidationEvent> events;
+
+	if (format_name.empty() || format_name == "unknown" || format_name == "auto") {
+		return events;
+	}
+
+	// Check if this is an inline config file path
+	if (IsConfigFilePath(format_name)) {
+		std::string config_path = ExtractConfigPath(format_name);
+
+		// Read config file content
+		std::string config_content = ReadContentFromSource(context, config_path);
+		if (config_content.empty()) {
+			return events; // Could not read config file
+		}
+
+		// Read log file content
+		std::string log_content = ReadContentFromSource(context, file_path);
+		if (log_content.empty()) {
+			return events; // Could not read log file
+		}
+
+		// Create temporary parser from config and parse
+		try {
+			auto parser = ConfigBasedParser::FromJson(config_content);
+			events = parser->parse(log_content);
+		} catch (const std::exception &) {
+			// Config parsing failed, return empty
+			return events;
+		}
+
+		return events;
+	}
+
+	auto &registry = ParserRegistry::getInstance();
+	auto *parser = registry.getParser(format_name);
+
+	if (!parser) {
+		return events;
+	}
+
+	// If parser supports file-based parsing, use it directly
+	if (parser->supportsFileParsing()) {
+		return parser->parseFile(context, file_path);
+	}
+
+	// Otherwise, fall back to reading content and parsing
+	std::string content = ReadContentFromSource(context, file_path);
+	if (content.empty()) {
+		return events;
+	}
+
+	if (parser->requiresContext()) {
+		events = parser->parseWithContext(context, content);
+	} else {
+		events = parser->parse(content);
+	}
+
+	return events;
+}
+
 } // namespace duckdb

@@ -74,4 +74,17 @@ bool IsValidFormat(const std::string &format_name);
 std::vector<ValidationEvent> ParseContentRegexp(const std::string &content, const std::string &pattern,
                                                 bool include_unparsed = false);
 
+/**
+ * Parse a file directly using file-based parsing when supported.
+ * For parsers that support file-based parsing (e.g., XML parsers using read_xml),
+ * this is more efficient than reading content first.
+ *
+ * @param context DuckDB client context
+ * @param file_path Path to the file to parse
+ * @param format_name The format to use (e.g., "unity_test_xml")
+ * @return Vector of parsed validation events
+ */
+std::vector<ValidationEvent> ParseFile(ClientContext &context, const std::string &file_path,
+                                        const std::string &format_name);
+
 } // namespace duckdb

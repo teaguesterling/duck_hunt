@@ -88,6 +88,15 @@ public:
 		UnityTestXmlParser parser;
 		return parser.parseWithContext(context, content);
 	}
+
+	bool supportsFileParsing() const override {
+		return true;
+	}
+
+	std::vector<ValidationEvent> parseFile(ClientContext &context, const std::string &file_path) const override {
+		UnityTestXmlParser parser;
+		return parser.parseFile(context, file_path);
+	}
 };
 
 /**

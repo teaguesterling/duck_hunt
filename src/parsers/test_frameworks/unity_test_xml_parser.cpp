@@ -1,17 +1,12 @@
 #include "unity_test_xml_parser.hpp"
 #include "parsers/base/safe_parsing.hpp"
-#include "yyjson.hpp"
-#include <sstream>
+#include "core/webbed_integration.hpp"
+#include "duckdb/main/connection.hpp"
+#include "duckdb/main/query_result.hpp"
+#include "duckdb/common/types/value.hpp"
+#include "duckdb/common/string_util.hpp"
 
 namespace duckdb {
-
-using namespace duckdb_yyjson;
-
-// Forward declarations for helper functions
-static void ParseTestSuiteFromJson(yyjson_val *suite, std::vector<ValidationEvent> &events, int64_t &event_id);
-static void ParseTestCaseFromJson(yyjson_val *testcase, std::vector<ValidationEvent> &events, int64_t &event_id);
-static std::string GetStringAttr(yyjson_val *obj, const char *attr);
-static std::string GetTextContent(yyjson_val *element);
 
 bool UnityTestXmlParser::canParse(const std::string &content) const {
 	if (!LooksLikeXml(content)) {
@@ -24,213 +19,192 @@ bool UnityTestXmlParser::canParse(const std::string &content) const {
 	}
 
 	// Additional check: look for NUnit 3 specific attributes
-	// Unity Test Runner uses NUnit 3 format with specific markers
 	return content.find("testcasecount=") != std::string::npos || content.find("engine-version=") != std::string::npos;
 }
 
-std::vector<ValidationEvent> UnityTestXmlParser::parseJsonContent(const std::string &json_content) const {
+std::vector<ValidationEvent> UnityTestXmlParser::parseWithContext(ClientContext &context,
+                                                                   const std::string &content) const {
+	// Content-based XML parsing not supported - use file-based parsing via read_duck_hunt_log
+	// This avoids issues with passing large XML content through SQL
+	return {};
+}
+
+std::vector<ValidationEvent> UnityTestXmlParser::parseFile(ClientContext &context,
+                                                            const std::string &file_path) const {
+	// Try to auto-load webbed if not already available
+	if (!WebbedIntegration::TryAutoLoadWebbed(context)) {
+		throw InvalidInputException(WebbedIntegration::GetWebbedRequiredError());
+	}
+
 	std::vector<ValidationEvent> events;
-	events.reserve(64); // Pre-allocate for typical test runs
 	int64_t event_id = 1;
 
-	// Parse JSON using yyjson
-	yyjson_doc *doc = yyjson_read(json_content.c_str(), json_content.length(), 0);
-	if (!doc) {
-		return events;
+	auto &db = DatabaseInstance::GetDatabase(context);
+	Connection con(db);
+
+	// Escape file path for SQL
+	auto escaped_path = StringUtil::Replace(file_path, "'", "''");
+
+	// Use read_xml to parse directly from file - much more efficient
+	auto query = "SELECT * FROM read_xml('" + escaped_path + "', record_element := 'test-case', auto_detect := true)";
+	auto result = con.Query(query);
+
+	if (result->HasError()) {
+		throw InvalidInputException("read_xml failed: %s", result->GetError());
 	}
 
-	yyjson_val *root = yyjson_doc_get_root(doc);
-	if (!root) {
-		yyjson_doc_free(doc);
-		return events;
+	// Get column indices for the fields we need
+	auto &types = result->types;
+	auto &names = result->names;
+
+	idx_t name_idx = DConstants::INVALID_INDEX;
+	idx_t fullname_idx = DConstants::INVALID_INDEX;
+	idx_t methodname_idx = DConstants::INVALID_INDEX;
+	idx_t classname_idx = DConstants::INVALID_INDEX;
+	idx_t result_idx = DConstants::INVALID_INDEX;
+	idx_t duration_idx = DConstants::INVALID_INDEX;
+	idx_t failure_idx = DConstants::INVALID_INDEX;
+	idx_t reason_idx = DConstants::INVALID_INDEX;
+	idx_t output_idx = DConstants::INVALID_INDEX;
+
+	for (idx_t i = 0; i < names.size(); i++) {
+		if (names[i] == "name") name_idx = i;
+		else if (names[i] == "fullname") fullname_idx = i;
+		else if (names[i] == "methodname") methodname_idx = i;
+		else if (names[i] == "classname") classname_idx = i;
+		else if (names[i] == "result") result_idx = i;
+		else if (names[i] == "duration") duration_idx = i;
+		else if (names[i] == "failure") failure_idx = i;
+		else if (names[i] == "reason") reason_idx = i;
+		else if (names[i] == "output") output_idx = i;
 	}
 
-	// Get test-run element (webbed converts to "test-run" key)
-	yyjson_val *test_run = yyjson_obj_get(root, "test-run");
-	if (!test_run || !yyjson_is_obj(test_run)) {
-		yyjson_doc_free(doc);
-		return events;
-	}
+	// Process each row (test case)
+	while (true) {
+		auto chunk = result->Fetch();
+		if (!chunk || chunk->size() == 0) {
+			break;
+		}
 
-	// Process nested test-suites
-	yyjson_val *test_suite = yyjson_obj_get(test_run, "test-suite");
-	if (test_suite) {
-		if (yyjson_is_arr(test_suite)) {
-			size_t idx, max;
-			yyjson_val *suite;
-			yyjson_arr_foreach(test_suite, idx, max, suite) {
-				ParseTestSuiteFromJson(suite, events, event_id);
+		for (idx_t row = 0; row < chunk->size(); row++) {
+			ValidationEvent event;
+			event.event_id = event_id++;
+			event.tool_name = "unity_test";
+			event.event_type = ValidationEventType::TEST_RESULT;
+
+			// Extract fields
+			std::string name, fullname, methodname, classname, test_result, duration_str;
+
+			if (name_idx != DConstants::INVALID_INDEX) {
+				auto val = chunk->data[name_idx].GetValue(row);
+				if (!val.IsNull()) name = val.ToString();
 			}
-		} else if (yyjson_is_obj(test_suite)) {
-			ParseTestSuiteFromJson(test_suite, events, event_id);
+			if (fullname_idx != DConstants::INVALID_INDEX) {
+				auto val = chunk->data[fullname_idx].GetValue(row);
+				if (!val.IsNull()) fullname = val.ToString();
+			}
+			if (methodname_idx != DConstants::INVALID_INDEX) {
+				auto val = chunk->data[methodname_idx].GetValue(row);
+				if (!val.IsNull()) methodname = val.ToString();
+			}
+			if (classname_idx != DConstants::INVALID_INDEX) {
+				auto val = chunk->data[classname_idx].GetValue(row);
+				if (!val.IsNull()) classname = val.ToString();
+			}
+			if (result_idx != DConstants::INVALID_INDEX) {
+				auto val = chunk->data[result_idx].GetValue(row);
+				if (!val.IsNull()) test_result = val.ToString();
+			}
+			if (duration_idx != DConstants::INVALID_INDEX) {
+				auto val = chunk->data[duration_idx].GetValue(row);
+				if (!val.IsNull()) duration_str = val.ToString();
+			}
+
+			// Set test identification
+			event.test_name = !fullname.empty() ? fullname : name;
+			event.function_name = !methodname.empty() ? methodname : name;
+			event.ref_file = classname;
+
+			// Parse duration
+			if (!duration_str.empty()) {
+				try {
+					event.execution_time = SafeParsing::SafeStod(duration_str);
+				} catch (...) {
+					event.execution_time = 0.0;
+				}
+			}
+
+			// Determine status from result
+			if (test_result == "Passed") {
+				event.status = ValidationEventStatus::PASS;
+				event.severity = "info";
+				event.category = "test_pass";
+				event.message = "Test passed";
+			} else if (test_result == "Failed") {
+				event.status = ValidationEventStatus::FAIL;
+				event.severity = "error";
+				event.category = "test_failure";
+				event.message = "Test failed";
+
+				// Try to extract failure message from failure struct
+				if (failure_idx != DConstants::INVALID_INDEX) {
+					auto val = chunk->data[failure_idx].GetValue(row);
+					if (!val.IsNull()) {
+						// failure is likely a struct with message and stack-trace
+						event.log_content = val.ToString();
+					}
+				}
+			} else if (test_result == "Skipped" || test_result == "Ignored") {
+				event.status = ValidationEventStatus::SKIP;
+				event.severity = "info";
+				event.category = "test_skipped";
+				event.message = "Test skipped";
+
+				// Try to extract skip reason
+				if (reason_idx != DConstants::INVALID_INDEX) {
+					auto val = chunk->data[reason_idx].GetValue(row);
+					if (!val.IsNull()) {
+						event.message = val.ToString();
+					}
+				}
+			} else if (test_result == "Inconclusive") {
+				event.status = ValidationEventStatus::WARNING;
+				event.severity = "warning";
+				event.category = "test_inconclusive";
+				event.message = "Test inconclusive";
+			} else {
+				event.status = ValidationEventStatus::WARNING;
+				event.severity = "warning";
+				event.category = "test_unknown";
+				event.message = "Unknown test result: " + test_result;
+			}
+
+			// Extract test output if available
+			if (output_idx != DConstants::INVALID_INDEX) {
+				auto val = chunk->data[output_idx].GetValue(row);
+				if (!val.IsNull()) {
+					std::string output = val.ToString();
+					if (!output.empty()) {
+						if (event.log_content.empty()) {
+							event.log_content = output;
+						} else {
+							event.log_content += "\n\n--- Test Output ---\n" + output;
+						}
+					}
+				}
+			}
+
+			event.structured_data = "unity_test_xml";
+			events.push_back(std::move(event));
 		}
 	}
 
-	yyjson_doc_free(doc);
 	return events;
 }
 
-static std::string GetStringAttr(yyjson_val *obj, const char *attr) {
-	if (!obj || !yyjson_is_obj(obj)) {
-		return "";
-	}
-	yyjson_val *val = yyjson_obj_get(obj, attr);
-	if (val && yyjson_is_str(val)) {
-		return yyjson_get_str(val);
-	}
-	return "";
-}
-
-static std::string GetTextContent(yyjson_val *element) {
-	if (!element) {
-		return "";
-	}
-
-	// Direct string content
-	if (yyjson_is_str(element)) {
-		return yyjson_get_str(element);
-	}
-
-	// Object with #text property (common webbed pattern)
-	if (yyjson_is_obj(element)) {
-		yyjson_val *text = yyjson_obj_get(element, "#text");
-		if (text && yyjson_is_str(text)) {
-			return yyjson_get_str(text);
-		}
-	}
-
-	return "";
-}
-
-static void ParseTestSuiteFromJson(yyjson_val *suite, std::vector<ValidationEvent> &events, int64_t &event_id) {
-	if (!suite || !yyjson_is_obj(suite)) {
-		return;
-	}
-
-	// Recursively process nested test-suites
-	yyjson_val *nested_suites = yyjson_obj_get(suite, "test-suite");
-	if (nested_suites) {
-		if (yyjson_is_arr(nested_suites)) {
-			size_t idx, max;
-			yyjson_val *nested;
-			yyjson_arr_foreach(nested_suites, idx, max, nested) {
-				ParseTestSuiteFromJson(nested, events, event_id);
-			}
-		} else if (yyjson_is_obj(nested_suites)) {
-			ParseTestSuiteFromJson(nested_suites, events, event_id);
-		}
-	}
-
-	// Process test-cases in this suite
-	yyjson_val *test_cases = yyjson_obj_get(suite, "test-case");
-	if (test_cases) {
-		if (yyjson_is_arr(test_cases)) {
-			size_t idx, max;
-			yyjson_val *testcase;
-			yyjson_arr_foreach(test_cases, idx, max, testcase) {
-				ParseTestCaseFromJson(testcase, events, event_id);
-			}
-		} else if (yyjson_is_obj(test_cases)) {
-			ParseTestCaseFromJson(test_cases, events, event_id);
-		}
-	}
-}
-
-static void ParseTestCaseFromJson(yyjson_val *testcase, std::vector<ValidationEvent> &events, int64_t &event_id) {
-	if (!testcase || !yyjson_is_obj(testcase)) {
-		return;
-	}
-
-	ValidationEvent event;
-	event.event_id = event_id++;
-	event.tool_name = "unity_test";
-	event.event_type = ValidationEventType::TEST_RESULT;
-
-	// Extract test identifiers
-	std::string name = GetStringAttr(testcase, "@name");
-	std::string fullname = GetStringAttr(testcase, "@fullname");
-	std::string methodname = GetStringAttr(testcase, "@methodname");
-	std::string classname = GetStringAttr(testcase, "@classname");
-	std::string result = GetStringAttr(testcase, "@result");
-
-	// Use fullname as test_name if available, otherwise name
-	event.test_name = !fullname.empty() ? fullname : name;
-	event.function_name = !methodname.empty() ? methodname : name;
-	event.ref_file = classname;
-
-	// Extract duration
-	std::string duration = GetStringAttr(testcase, "@duration");
-	if (!duration.empty()) {
-		try {
-			event.execution_time = SafeParsing::SafeStod(duration);
-		} catch (...) {
-			event.execution_time = 0.0;
-		}
-	}
-
-	// Determine status from result attribute
-	if (result == "Passed") {
-		event.status = ValidationEventStatus::PASS;
-		event.severity = "info";
-		event.category = "test_pass";
-		event.message = "Test passed";
-	} else if (result == "Failed") {
-		event.status = ValidationEventStatus::FAIL;
-		event.severity = "error";
-		event.category = "test_failure";
-
-		// Extract failure details
-		yyjson_val *failure = yyjson_obj_get(testcase, "failure");
-		if (failure && yyjson_is_obj(failure)) {
-			yyjson_val *message = yyjson_obj_get(failure, "message");
-			event.message = GetTextContent(message);
-
-			yyjson_val *stack_trace = yyjson_obj_get(failure, "stack-trace");
-			std::string trace = GetTextContent(stack_trace);
-			if (!trace.empty()) {
-				event.log_content = trace;
-			}
-		}
-	} else if (result == "Skipped" || result == "Ignored") {
-		event.status = ValidationEventStatus::SKIP;
-		event.severity = "info";
-		event.category = "test_skipped";
-
-		// Extract skip reason
-		yyjson_val *reason = yyjson_obj_get(testcase, "reason");
-		if (reason && yyjson_is_obj(reason)) {
-			yyjson_val *message = yyjson_obj_get(reason, "message");
-			event.message = GetTextContent(message);
-		}
-		if (event.message.empty()) {
-			event.message = "Test skipped";
-		}
-	} else if (result == "Inconclusive") {
-		event.status = ValidationEventStatus::WARNING;
-		event.severity = "warning";
-		event.category = "test_inconclusive";
-		event.message = "Test inconclusive";
-	} else {
-		// Unknown result - treat as warning
-		event.status = ValidationEventStatus::WARNING;
-		event.severity = "warning";
-		event.category = "test_unknown";
-		event.message = "Unknown test result: " + result;
-	}
-
-	// Extract test output if available
-	yyjson_val *output = yyjson_obj_get(testcase, "output");
-	std::string output_text = GetTextContent(output);
-	if (!output_text.empty() && event.log_content.empty()) {
-		event.log_content = output_text;
-	} else if (!output_text.empty()) {
-		// Append output to existing log_content (stack trace)
-		event.log_content += "\n\n--- Test Output ---\n" + output_text;
-	}
-
-	event.structured_data = "unity_test_xml";
-
-	events.push_back(std::move(event));
+std::vector<ValidationEvent> UnityTestXmlParser::parseJsonContent(const std::string &json_content) const {
+	// Not used - we use file-based parsing now
+	return {};
 }
 
 } // namespace duckdb
