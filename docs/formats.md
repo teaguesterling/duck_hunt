@@ -1,6 +1,6 @@
 # Supported Formats
 
-Duck Hunt supports 109 format strings for parsing development tool outputs. Use these with `read_duck_hunt_log()` or `parse_duck_hunt_log()`.
+Duck Hunt supports 110 format strings for parsing development tool outputs. Use these with `read_duck_hunt_log()` or `parse_duck_hunt_log()`.
 
 > **See also:** [Format Maturity Levels](format-maturity.md) for test coverage and stability ratings.
 >
@@ -27,7 +27,7 @@ SELECT * FROM parse_duck_hunt_log(content, 'ci');
 | `c_cpp` | C/C++ tools (gcc, gtest, make, cmake, valgrind, etc.) | 11 |
 | `javascript` | JavaScript/Node.js tools (eslint, mocha, playwright, winston, pino, etc.) | 10 |
 | `ruby` | Ruby tools (rspec, rubocop, ruby_logger, rails) | 5 |
-| `dotnet` | .NET tools (nunit, msbuild, serilog, nlog) | 4 |
+| `dotnet` | .NET tools (nunit, msbuild, serilog, nlog, unity_test_xml) | 5 |
 | `rust` | Rust tools (cargo_build, clippy, cargo_test) | 3 |
 | `go` | Go tools (gotest_json, gotest_text, logrus) | 3 |
 | `shell` | Shell tools (shellcheck_json, shellcheck_text, strace) | 3 |
@@ -36,7 +36,8 @@ SELECT * FROM parse_duck_hunt_log(content, 'ci');
 | `php` | PHP tools (phpstan) | 1 |
 | `mobile` | Mobile platforms (android) | 1 |
 | `csharp` | C#/Unity tools (unity_editor) | 1 |
-| `gamedev` | Game development tools (unity_editor) | 1 |
+| `unity` | Unity game engine tools (unity_editor, unity_test_xml) | 2 |
+| `gamedev` | Game development tools (unity_editor, unity_test_xml) | 2 |
 
 ### Tool-Type Groups
 
@@ -44,7 +45,7 @@ SELECT * FROM parse_duck_hunt_log(content, 'ci');
 |-------|-------------|-------|
 | `lint` | Linting & static analysis tools | 33 |
 | `infrastructure` | Infrastructure & DevOps tools | 17 |
-| `test` | Test frameworks & runners | 15 |
+| `test` | Test frameworks & runners | 16 |
 | `logging` | Logging frameworks & formats | 13 |
 | `security` | Security scanning & audit tools | 11 |
 | `build` | Build systems & compilers | 12 |
@@ -61,6 +62,7 @@ SELECT * FROM parse_duck_hunt_log(content, 'ci');
 
 Some XML-based formats require the optional `webbed` DuckDB extension for XML parsing:
 - `junit_xml` - JUnit/NUnit/xUnit XML test reports
+- `unity_test_xml` - Unity Test Framework XML results (NUnit 3 format)
 - `cobertura_xml` - Cobertura coverage XML reports
 
 To use these formats, first install the webbed extension:
@@ -107,6 +109,7 @@ The function analyzes content patterns and returns the best-matching format stri
 | `mocha_chai_text` | Mocha/Chai (JS) | javascript, test | [mocha_failures.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/test_frameworks/mocha_failures.txt) |
 | `gtest_text` | Google Test (C++) | c_cpp, test | [gtest_failures.txt](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/test_frameworks/gtest_failures.txt) |
 | `nunit_xunit_text` | NUnit/xUnit (.NET) | dotnet, test | [nunit_xml_failures.xml](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/test_frameworks/nunit_xml_failures.xml) |
+| `unity_test_xml` | Unity Test Framework (NUnit 3 XML) | dotnet, unity, test | [UnityTestResults.xml](https://github.com/teaguesterling/duck_hunt/blob/main/test/samples/UnityTestResults.xml) |
 | `duckdb_test` | DuckDB test runner | c_cpp, test | - |
 | `pytest_cov_text` | pytest-cov | python, coverage | - |
 
@@ -431,6 +434,62 @@ WHERE severity = 'error';
 - Detects build results (succeeded/failed) as summary events
 - Supports streaming for efficient line-by-line parsing
 - Higher priority than MSBuild since Unity uses Roslyn but has distinct format markers
+
+---
+
+### unity_test_xml
+
+Unity Test Framework XML output in NUnit 3 format. Parses test results from Unity Test Runner.
+
+**Requires:** `webbed` extension for XML parsing
+
+**Groups:** `dotnet`, `unity`, `test`
+
+**Sample Input:**
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<test-run testcasecount="37" result="Failed" engine-version="3.5.0.0">
+  <test-suite type="TestSuite" name="Tests" result="Failed">
+    <test-case name="PlayerMovementTest" fullname="MyGame.Tests.PlayerMovementTest"
+               methodname="PlayerMovementTest" classname="MyGame.Tests.MovementTests"
+               result="Passed" duration="0.123"/>
+    <test-case name="CollisionTest" result="Failed" duration="0.456">
+      <failure>
+        <message>Expected: True, Actual: False</message>
+        <stack-trace>at MyGame.Tests.CollisionTests.CollisionTest()</stack-trace>
+      </failure>
+    </test-case>
+  </test-suite>
+</test-run>
+```
+
+**Query:**
+```sql
+-- First install and load webbed extension
+INSTALL webbed FROM community;
+LOAD webbed;
+
+-- Parse Unity test results
+SELECT test_name, status, execution_time, message
+FROM read_duck_hunt_log('TestResults.xml', 'unity_test_xml')
+WHERE status = 'FAIL';
+```
+
+**Extracted Fields:**
+- `test_name` - Full test name (namespace.class.method)
+- `function_name` - Method name
+- `ref_file` - Class name
+- `status` - PASS, FAIL, SKIP, or WARNING (inconclusive)
+- `execution_time` - Test duration in seconds
+- `message` - Failure message or skip reason
+- `log_content` - Stack trace and test output
+
+**Notes:**
+- Uses file-based parsing via webbed's `read_xml()` for efficiency
+- Content-based parsing (`parse_duck_hunt_log`) not supported - use `read_duck_hunt_log` with file path
+- Handles NUnit 3 XML format used by Unity Test Framework
+- Extracts failure messages, stack traces, and skip reasons
+- Supports test output capture
 
 ---
 
