@@ -1,8 +1,10 @@
 #include "parse_content.hpp"
 #include "parser_registry.hpp"
 #include "file_utils.hpp"
+#include "content_extraction.hpp"
 #include "../parsers/tool_outputs/regexp_parser.hpp"
 #include "../parsers/config_based/config_parser.hpp"
+#include "include/read_duck_hunt_log_function.hpp"
 #include <algorithm>
 
 namespace duckdb {
@@ -80,11 +82,12 @@ std::vector<ValidationEvent> ParseContent(ClientContext &context, const std::str
 		// Try each parser in priority order until one produces events
 		for (auto *parser : group_parsers) {
 			if (parser->canParse(content)) {
+				auto effective = MaybeExtractContent(content, parser->getContentFamily());
 				if (parser->requiresContext()) {
-					auto parsed_events = parser->parseWithContext(context, content);
+					auto parsed_events = parser->parseWithContext(context, effective);
 					events.insert(events.end(), parsed_events.begin(), parsed_events.end());
 				} else {
-					auto parsed_events = parser->parse(content);
+					auto parsed_events = parser->parse(effective);
 					events.insert(events.end(), parsed_events.begin(), parsed_events.end());
 				}
 				if (!events.empty()) {
@@ -102,11 +105,12 @@ std::vector<ValidationEvent> ParseContent(ClientContext &context, const std::str
 		return events; // No parser found
 	}
 
-	// Parser found - use it
+	// Parser found - extract structured content if needed, then dispatch
+	auto effective = MaybeExtractContent(content, parser->getContentFamily());
 	if (parser->requiresContext()) {
-		events = parser->parseWithContext(context, content);
+		events = parser->parseWithContext(context, effective);
 	} else {
-		events = parser->parse(content);
+		events = parser->parse(effective);
 	}
 
 	return events;
@@ -198,6 +202,35 @@ std::vector<ValidationEvent> ParseFile(ClientContext &context, const std::string
 
 	// If parser supports file-based parsing, use it directly
 	if (parser->supportsFileParsing()) {
+		// For non-TEXT content families, check if the file needs extraction
+		if (parser->getContentFamily() != ContentFamily::TEXT) {
+			auto peek = PeekContentFromSource(context, file_path, 512);
+			size_t pos = peek.find_first_not_of(" \t\n\r");
+			bool needs_extraction = false;
+			if (pos != std::string::npos) {
+				if (parser->getContentFamily() == ContentFamily::XML) {
+					needs_extraction = (peek[pos] != '<');
+				} else {
+					needs_extraction = (peek[pos] != '[' && peek[pos] != '{');
+				}
+			}
+			if (needs_extraction) {
+				// Read full content, extract, write to temp file, parse temp
+				auto content = ReadContentFromSource(context, file_path);
+				auto extracted = MaybeExtractContent(content, parser->getContentFamily());
+				auto &fs = FileSystem::GetFileSystem(context);
+				auto temp_path =
+				    fs.JoinPath(fs.GetHomeDirectory(), ".duck_hunt_extract_tmp_" +
+				                                           std::to_string(reinterpret_cast<uintptr_t>(&context)) + ".tmp");
+				TempFileGuard guard {fs, temp_path};
+				auto fh =
+				    fs.OpenFile(temp_path, FileFlags::FILE_FLAGS_WRITE | FileFlags::FILE_FLAGS_FILE_CREATE_NEW);
+				fh->Write(const_cast<char *>(extracted.data()), extracted.size());
+				fh->Sync();
+				fh.reset();
+				return parser->parseFile(context, temp_path);
+			}
+		}
 		return parser->parseFile(context, file_path);
 	}
 
@@ -207,10 +240,11 @@ std::vector<ValidationEvent> ParseFile(ClientContext &context, const std::string
 		return events;
 	}
 
+	auto effective = MaybeExtractContent(content, parser->getContentFamily());
 	if (parser->requiresContext()) {
-		events = parser->parseWithContext(context, content);
+		events = parser->parseWithContext(context, effective);
 	} else {
-		events = parser->parse(content);
+		events = parser->parse(effective);
 	}
 
 	return events;

@@ -1,8 +1,7 @@
 #include "unity_test_xml_parser.hpp"
 #include "parsers/base/safe_parsing.hpp"
 #include "core/webbed_integration.hpp"
-#include "core/file_utils.hpp"
-#include "include/read_duck_hunt_log_function.hpp"
+#include "core/content_extraction.hpp"
 #include "duckdb/main/connection.hpp"
 #include "duckdb/main/query_result.hpp"
 #include "duckdb/common/types/value.hpp"
@@ -10,20 +9,6 @@
 #include "duckdb/common/file_system.hpp"
 
 namespace duckdb {
-
-// RAII guard for temp file cleanup
-struct TempFileGuard {
-	FileSystem &fs;
-	std::string path;
-	~TempFileGuard() {
-		if (!path.empty()) {
-			try {
-				fs.RemoveFile(path);
-			} catch (...) {
-			}
-		}
-	}
-};
 
 bool UnityTestXmlParser::canParse(const std::string &content) const {
 	// No LooksLikeXml gate: mixed-format content (editor logs before XML)
@@ -37,32 +22,14 @@ bool UnityTestXmlParser::canParse(const std::string &content) const {
 	       content.find("engine-version=") != std::string::npos;
 }
 
-std::string UnityTestXmlParser::ExtractXmlSection(const std::string &content) {
-	// Find first <?xml declaration
-	auto xml_start = content.find("<?xml");
-	if (xml_start == std::string::npos) {
-		// Fall back to finding <test-run directly
-		xml_start = content.find("<test-run");
-	}
-	if (xml_start == std::string::npos) {
-		return "";
-	}
-	return content.substr(xml_start);
-}
-
 std::vector<ValidationEvent> UnityTestXmlParser::parseWithContext(ClientContext &context,
                                                                   const std::string &content) const {
-	std::string xml_content = ExtractXmlSection(content);
-	if (xml_content.empty()) {
-		return {};
-	}
-
-	// Ensure webbed is available
+	// Framework already extracted clean XML via MaybeExtractContent.
+	// We still need a temp file because read_xml requires a file path.
 	if (!WebbedIntegration::TryAutoLoadWebbed(context)) {
 		throw InvalidInputException(WebbedIntegration::GetWebbedRequiredError());
 	}
 
-	// Write XML to a temp file so read_xml can process it
 	auto &fs = FileSystem::GetFileSystem(context);
 	std::string temp_path = fs.JoinPath(fs.GetHomeDirectory(), ".duck_hunt_unity_tmp_" +
 	                                                               std::to_string(reinterpret_cast<uintptr_t>(&context)) +
@@ -70,7 +37,7 @@ std::vector<ValidationEvent> UnityTestXmlParser::parseWithContext(ClientContext 
 	TempFileGuard guard {fs, temp_path};
 
 	auto file_handle = fs.OpenFile(temp_path, FileFlags::FILE_FLAGS_WRITE | FileFlags::FILE_FLAGS_FILE_CREATE_NEW);
-	file_handle->Write(const_cast<char *>(xml_content.data()), xml_content.size());
+	file_handle->Write(const_cast<char *>(content.data()), content.size());
 	file_handle->Sync();
 	file_handle.reset();
 
@@ -78,39 +45,13 @@ std::vector<ValidationEvent> UnityTestXmlParser::parseWithContext(ClientContext 
 }
 
 std::vector<ValidationEvent> UnityTestXmlParser::parseFile(ClientContext &context, const std::string &file_path) const {
+	// Framework handles mixed-content extraction via ParseFile() in parse_content.cpp.
+	// By the time we get here, file_path is either the original (pure XML) or a temp file.
 	if (!WebbedIntegration::TryAutoLoadWebbed(context)) {
 		throw InvalidInputException(WebbedIntegration::GetWebbedRequiredError());
 	}
 
-	// Peek the first 512 bytes to check if this is pure XML or mixed content
-	auto &fs = FileSystem::GetFileSystem(context);
-	std::string peek = PeekContentFromSource(context, file_path, 512);
-
-	// Check if content starts with XML (skip whitespace)
-	size_t pos = peek.find_first_not_of(" \t\n\r");
-	if (pos != std::string::npos && peek[pos] == '<') {
-		// Pure XML - pass directly to read_xml
-		return parseXmlFile(context, file_path);
-	}
-
-	// Mixed content - extract XML section and write to temp file
-	std::string content = ReadContentFromSource(context, file_path);
-	std::string xml_content = ExtractXmlSection(content);
-	if (xml_content.empty()) {
-		throw InvalidInputException("No XML content found in file: %s", file_path);
-	}
-
-	std::string temp_path = fs.JoinPath(fs.GetHomeDirectory(), ".duck_hunt_unity_tmp_" +
-	                                                               std::to_string(reinterpret_cast<uintptr_t>(&context)) +
-	                                                               ".xml");
-	TempFileGuard guard {fs, temp_path};
-
-	auto file_handle = fs.OpenFile(temp_path, FileFlags::FILE_FLAGS_WRITE | FileFlags::FILE_FLAGS_FILE_CREATE_NEW);
-	file_handle->Write(const_cast<char *>(xml_content.data()), xml_content.size());
-	file_handle->Sync();
-	file_handle.reset();
-
-	return parseXmlFile(context, temp_path);
+	return parseXmlFile(context, file_path);
 }
 
 std::vector<ValidationEvent> UnityTestXmlParser::parseXmlFile(ClientContext &context,

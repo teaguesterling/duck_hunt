@@ -71,13 +71,6 @@ protected:
 
 private:
 	/**
-	 * Extract the XML portion from potentially mixed content.
-	 * Finds first <?xml or <test-run marker and returns from there to end.
-	 * Returns empty string if no XML found.
-	 */
-	static std::string ExtractXmlSection(const std::string &content);
-
-	/**
 	 * Parse a pure XML file using webbed's read_xml.
 	 * Assumes webbed is already loaded and file contains valid XML.
 	 */
