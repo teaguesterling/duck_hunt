@@ -10,6 +10,17 @@
 namespace duckdb {
 
 /**
+ * Content family for framework-level content extraction.
+ * The framework extracts structured content (JSON/XML) from mixed-format
+ * input before dispatching to parsers, so parsers always receive clean content.
+ */
+enum class ContentFamily : uint8_t {
+	TEXT = 0, // Line-based text (no extraction needed)
+	JSON = 1, // JSON array or object
+	XML = 2   // XML document
+};
+
+/**
  * Command pattern for format detection based on command string.
  * Used by tools like BIRD and blq to auto-detect format from command.
  */
@@ -211,6 +222,22 @@ public:
 	 */
 	virtual std::vector<std::string> getGroups() const {
 		return {};
+	}
+
+	/**
+	 * Get the content family for framework-level extraction.
+	 * Smart default infers from format name suffix: _json → JSON, _xml → XML.
+	 * Override if the naming convention doesn't apply.
+	 */
+	virtual ContentFamily getContentFamily() const {
+		auto name = getFormatName();
+		if (name.size() > 5 && name.compare(name.size() - 5, 5, "_json") == 0) {
+			return ContentFamily::JSON;
+		}
+		if (name.size() > 4 && name.compare(name.size() - 4, 4, "_xml") == 0) {
+			return ContentFamily::XML;
+		}
+		return ContentFamily::TEXT;
 	}
 };
 

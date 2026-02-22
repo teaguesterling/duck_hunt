@@ -20,6 +20,7 @@ set(EXTENSION_SOURCES
     src/core/format_utils.cpp
     src/core/error_patterns.cpp
     src/core/context_extraction.cpp
+    src/core/content_extraction_helpers.cpp
     src/core/file_utils.cpp
     src/core/webbed_integration.cpp
     src/core/zipfs_integration.cpp
