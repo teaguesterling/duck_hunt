@@ -39,6 +39,25 @@ WHERE format = 'unity_test_xml';
 ----
 unity_test_xml	true
 
+# Test format detection on mixed content (Unity editor log lines before XML)
+query I
+SELECT duck_hunt_detect_format('Unity Editor version: 2022.3.14f1
+[Licensing::Module] Serial number assigned
+Loading precompiled assemblies...
+<?xml version="1.0"?><test-run testcasecount="2" result="Passed"><test-suite type="TestSuite" name="T" result="Passed"><test-case name="T1" result="Passed"/></test-suite></test-run>') = 'unity_test_xml';
+----
+true
+
+# Test that diagnose shows unity_test_xml can parse mixed content
+query II
+SELECT format, can_parse
+FROM duck_hunt_diagnose_parse('Unity Editor version: 2022.3.14f1
+[Licensing::Module] Serial number assigned
+<?xml version="1.0"?><test-run testcasecount="5" result="Passed"><test-suite type="TestSuite" name="Tests" result="Passed"><test-case name="Test1" result="Passed"/></test-suite></test-run>')
+WHERE format = 'unity_test_xml';
+----
+unity_test_xml	true
+
 # NOTE: Actual XML parsing tests require the webbed extension.
 # When webbed is available, use parse_duck_hunt_log() or read_duck_hunt_log()
 # with format='unity_test_xml' to parse Unity Test Runner XML output.
