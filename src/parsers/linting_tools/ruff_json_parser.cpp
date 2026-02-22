@@ -5,8 +5,9 @@ namespace duckdb {
 using namespace duckdb_yyjson;
 
 bool RuffJsonParser::canParse(const std::string &content) const {
-	// Quick heuristic checks before parsing
-	if (content.empty() || content[0] != '[') {
+	// No content[0] gate: mixed-format content (CI logs before JSON) is common.
+	// The find() checks below search the full string.
+	if (content.empty()) {
 		return false;
 	}
 

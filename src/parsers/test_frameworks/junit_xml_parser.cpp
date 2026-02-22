@@ -13,11 +13,8 @@ static void ParseTestCaseFromJson(yyjson_val *testcase, const std::string &suite
                                   std::vector<ValidationEvent> &events, int64_t &event_id);
 
 bool JUnitXmlParser::canParse(const std::string &content) const {
-	if (!LooksLikeXml(content)) {
-		return false;
-	}
-
-	// Check for JUnit XML markers
+	// No LooksLikeXml gate: mixed-format content (build logs before XML)
+	// is common. HasRootElement uses find() which searches the full string.
 	return HasRootElement(content, "testsuite") || HasRootElement(content, "testsuites");
 }
 
