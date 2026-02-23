@@ -2,6 +2,7 @@
 
 #include "parsers/base/parser_interface.hpp"
 #include "duckdb/common/file_system.hpp"
+#include <atomic>
 #include <string>
 
 namespace duckdb {
@@ -28,6 +29,12 @@ std::string ExtractXmlSection(const std::string &content);
  * Returns the input unchanged for TEXT family (fast path).
  */
 std::string MaybeExtractContent(const std::string &content, ContentFamily family);
+
+/**
+ * Generate a unique temp file path for content extraction.
+ * Uses an atomic counter to avoid collisions between concurrent queries.
+ */
+std::string MakeExtractTempPath(FileSystem &fs, const std::string &suffix = ".tmp");
 
 /**
  * RAII guard for temp file cleanup.

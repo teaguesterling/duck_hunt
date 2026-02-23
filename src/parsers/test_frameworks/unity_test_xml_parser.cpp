@@ -18,8 +18,7 @@ bool UnityTestXmlParser::canParse(const std::string &content) const {
 		return false;
 	}
 
-	return content.find("testcasecount=") != std::string::npos ||
-	       content.find("engine-version=") != std::string::npos;
+	return content.find("testcasecount=") != std::string::npos || content.find("engine-version=") != std::string::npos;
 }
 
 std::vector<ValidationEvent> UnityTestXmlParser::parseWithContext(ClientContext &context,
@@ -31,9 +30,7 @@ std::vector<ValidationEvent> UnityTestXmlParser::parseWithContext(ClientContext 
 	}
 
 	auto &fs = FileSystem::GetFileSystem(context);
-	std::string temp_path = fs.JoinPath(fs.GetHomeDirectory(), ".duck_hunt_unity_tmp_" +
-	                                                               std::to_string(reinterpret_cast<uintptr_t>(&context)) +
-	                                                               ".xml");
+	auto temp_path = MakeExtractTempPath(fs, ".xml");
 	TempFileGuard guard {fs, temp_path};
 
 	auto file_handle = fs.OpenFile(temp_path, FileFlags::FILE_FLAGS_WRITE | FileFlags::FILE_FLAGS_FILE_CREATE_NEW);
@@ -55,7 +52,7 @@ std::vector<ValidationEvent> UnityTestXmlParser::parseFile(ClientContext &contex
 }
 
 std::vector<ValidationEvent> UnityTestXmlParser::parseXmlFile(ClientContext &context,
-                                                               const std::string &file_path) const {
+                                                              const std::string &file_path) const {
 	std::vector<ValidationEvent> events;
 	int64_t event_id = 1;
 

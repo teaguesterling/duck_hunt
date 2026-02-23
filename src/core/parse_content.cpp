@@ -219,12 +219,9 @@ std::vector<ValidationEvent> ParseFile(ClientContext &context, const std::string
 				auto content = ReadContentFromSource(context, file_path);
 				auto extracted = MaybeExtractContent(content, parser->getContentFamily());
 				auto &fs = FileSystem::GetFileSystem(context);
-				auto temp_path =
-				    fs.JoinPath(fs.GetHomeDirectory(), ".duck_hunt_extract_tmp_" +
-				                                           std::to_string(reinterpret_cast<uintptr_t>(&context)) + ".tmp");
+				auto temp_path = MakeExtractTempPath(fs);
 				TempFileGuard guard {fs, temp_path};
-				auto fh =
-				    fs.OpenFile(temp_path, FileFlags::FILE_FLAGS_WRITE | FileFlags::FILE_FLAGS_FILE_CREATE_NEW);
+				auto fh = fs.OpenFile(temp_path, FileFlags::FILE_FLAGS_WRITE | FileFlags::FILE_FLAGS_FILE_CREATE_NEW);
 				fh->Write(const_cast<char *>(extracted.data()), extracted.size());
 				fh->Sync();
 				fh.reset();
