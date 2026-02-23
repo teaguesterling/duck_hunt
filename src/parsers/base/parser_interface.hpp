@@ -4,6 +4,7 @@
 #include <vector>
 #include <memory>
 #include "duckdb/common/unique_ptr.hpp"
+#include "duckdb/common/string_util.hpp"
 #include "duckdb/main/client_context.hpp"
 #include "include/validation_event_types.hpp"
 
@@ -231,10 +232,10 @@ public:
 	 */
 	virtual ContentFamily getContentFamily() const {
 		auto name = getFormatName();
-		if (name.size() > 5 && name.compare(name.size() - 5, 5, "_json") == 0) {
+		if (StringUtil::EndsWith(name, std::string("_json"))) {
 			return ContentFamily::JSON;
 		}
-		if (name.size() > 4 && name.compare(name.size() - 4, 4, "_xml") == 0) {
+		if (StringUtil::EndsWith(name, std::string("_xml"))) {
 			return ContentFamily::XML;
 		}
 		return ContentFamily::TEXT;

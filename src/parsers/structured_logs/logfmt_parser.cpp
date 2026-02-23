@@ -107,7 +107,6 @@ static std::string MapLevelToSeverity(const std::string &level) {
 
 static ValidationEvent CreateEventFromFields(const std::unordered_map<std::string, std::string> &fields,
                                              int64_t event_id, int line_number, const std::string &raw_line) {
-
 	ValidationEvent event;
 	event.event_id = event_id;
 	event.tool_name = "logfmt";

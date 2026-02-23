@@ -8,6 +8,11 @@
 #include <algorithm>
 #include <regex>
 
+// Detect DuckDB v1.5+ (GlobFiles context parameter removed)
+#if __has_include("duckdb/common/column_index_map.hpp")
+#define DUCKDB_GLOB_V15
+#endif
+
 namespace duckdb {
 
 // Pre-compiled regex patterns for GitHub Actions ZIP parsing (compiled once, reused)
@@ -88,7 +93,11 @@ std::vector<std::string> GitHubActionsZipParser::listJobFiles(ClientContext &con
 	std::string glob_pattern = "zip://" + zip_path + "/*.txt";
 
 	try {
+#ifdef DUCKDB_GLOB_V15
+		auto files = fs.GlobFiles(glob_pattern, FileGlobOptions::ALLOW_EMPTY);
+#else
 		auto files = fs.GlobFiles(glob_pattern, context, FileGlobOptions::ALLOW_EMPTY);
+#endif
 
 		for (const auto &file : files) {
 			// Extract just the filename from the full path
