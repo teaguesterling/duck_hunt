@@ -33,6 +33,15 @@ namespace duckdb {
 std::string ReadContentFromSource(ClientContext &context, const std::string &source);
 
 /**
+ * Peek at the first N bytes of a source file without reading the whole thing.
+ * @param context ClientContext for file system access
+ * @param source File path to peek
+ * @param max_bytes Maximum number of bytes to read (default: 8192)
+ * @return First max_bytes of file content as string
+ */
+std::string PeekContentFromSource(ClientContext &context, const std::string &source, size_t max_bytes);
+
+/**
  * LineReader provides buffered, line-by-line reading of files.
  * Used for streaming parsers to enable:
  * - Early termination with LIMIT without reading entire file

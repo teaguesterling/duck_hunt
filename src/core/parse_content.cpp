@@ -4,7 +4,6 @@
 #include "content_extraction.hpp"
 #include "../parsers/tool_outputs/regexp_parser.hpp"
 #include "../parsers/config_based/config_parser.hpp"
-#include "include/read_duck_hunt_log_function.hpp"
 #include <algorithm>
 
 namespace duckdb {
