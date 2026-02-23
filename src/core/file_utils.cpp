@@ -7,6 +7,11 @@
 #include "duckdb/common/enums/file_compression_type.hpp"
 #include <regex>
 
+// Detect DuckDB v1.5+ (GlobFiles context parameter removed)
+#if __has_include("duckdb/common/column_index_map.hpp")
+#define DUCKDB_GLOB_V15
+#endif
+
 namespace duckdb {
 
 // Maximum file size to read into memory (100MB default)
@@ -263,7 +268,11 @@ std::vector<std::string> GetGlobFiles(ClientContext &context, const std::string 
 
 	// Use GlobFiles which handles extension auto-loading and directory filtering
 	try {
+#ifdef DUCKDB_GLOB_V15
+		auto glob_files = fs.GlobFiles(pattern, FileGlobOptions::ALLOW_EMPTY);
+#else
 		auto glob_files = fs.GlobFiles(pattern, context, FileGlobOptions::ALLOW_EMPTY);
+#endif
 		for (auto &file : glob_files) {
 			result.push_back(file.path);
 		}
