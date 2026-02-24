@@ -48,33 +48,15 @@ public:
 	}
 
 	/**
-	 * Content-based parsing not supported for XML - returns empty.
-	 * Use file-based parsing via read_duck_hunt_log instead.
+	 * Parse XML content using webbed's parse_xml function.
+	 * Framework extracts clean XML via MaybeExtractContent before calling this.
 	 */
 	std::vector<ValidationEvent> parseWithContext(ClientContext &context, const std::string &content) const override;
 
-	/**
-	 * This parser supports file-based parsing using webbed's read_xml.
-	 */
-	bool supportsFileParsing() const override {
-		return true;
-	}
-
-	/**
-	 * Parse XML file directly using webbed's read_xml function.
-	 * Much more efficient than content-based parsing for large files.
-	 */
-	std::vector<ValidationEvent> parseFile(ClientContext &context, const std::string &file_path) const override;
-
 protected:
-	std::vector<ValidationEvent> parseJsonContent(const std::string &json_content) const override;
-
-private:
-	/**
-	 * Parse a pure XML file using webbed's read_xml.
-	 * Assumes webbed is already loaded and file contains valid XML.
-	 */
-	std::vector<ValidationEvent> parseXmlFile(ClientContext &context, const std::string &file_path) const;
+	std::vector<ValidationEvent> parseJsonContent(const std::string &json_content) const override {
+		return {}; // Not used — parse_xml handles XML directly
+	}
 };
 
 } // namespace duckdb

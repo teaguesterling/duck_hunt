@@ -47,6 +47,15 @@ public:
 	                                                   const std::string &record_element);
 
 	/**
+	 * Parse XML content string using webbed's parse_xml table function.
+	 * Returns a materialized result with all rows. No temp files needed.
+	 * @param xml_content The XML content to parse
+	 * @param record_element The XML element to treat as records (e.g., "test-case")
+	 */
+	static unique_ptr<MaterializedQueryResult> ParseXml(ClientContext &context, const std::string &xml_content,
+	                                                    const std::string &record_element);
+
+	/**
 	 * Get a helpful error message for when webbed is required but not loaded.
 	 */
 	static std::string GetWebbedRequiredError();

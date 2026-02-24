@@ -24,6 +24,17 @@
 namespace duckdb {
 
 /**
+ * Peek at the beginning of a file without reading the entire contents.
+ * Useful for format sniffing and content family detection.
+ * @param context ClientContext for file system access
+ * @param source File path to peek
+ * @param max_bytes Maximum number of bytes to read (default 8192)
+ * @return First max_bytes of file content as string
+ */
+std::string PeekContentFromSource(ClientContext &context, const std::string &source,
+                                  size_t max_bytes);
+
+/**
  * Read file content from a source path.
  * Supports compression detection via file extension (.gz, .zst, etc.)
  * @param context ClientContext for file system access
