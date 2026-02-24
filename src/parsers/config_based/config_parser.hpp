@@ -79,6 +79,11 @@ public:
 		return groups_;
 	}
 
+	// Config-based parsers always do line-by-line text parsing regardless of name
+	ContentFamily getContentFamily() const override {
+		return ContentFamily::TEXT;
+	}
+
 	// Config-based parsers support streaming (line-by-line parsing)
 	bool supportsStreaming() const override {
 		return true;

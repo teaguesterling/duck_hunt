@@ -157,7 +157,10 @@ Each pattern defines a regex and how to interpret matches. Patterns are tried in
 | `BUILD_ERROR` | Compiler/build errors | `error` |
 | `LINT_ISSUE` | Linting/style issues | `info` |
 | `TEST_RESULT` | Test pass/fail | varies by status |
-| `DIAGNOSTIC` | General diagnostic message | `info` |
+| `TYPE_ERROR` | Type checking errors | `error` |
+| `SECURITY_FINDING` | Security issues | `warning` |
+| `MEMORY_ERROR` | Memory-related errors | `error` |
+| `UNKNOWN` | Unknown/unclassified events | `info` |
 
 ### Named Capture Groups
 
@@ -167,11 +170,11 @@ Use Python-style `(?P<name>...)` capture groups to extract fields:
 |------------|--------------|-------------|
 | `message`, `msg` | message | Error/warning message |
 | `severity`, `level` | severity | Severity level |
-| `file`, `file_path` | ref_file | File path |
-| `line`, `lineno` | ref_line | Line number |
+| `file`, `file_path`, `path` | ref_file | File path |
+| `line`, `lineno`, `line_number` | ref_line | Line number |
 | `column`, `col` | ref_column | Column number |
 | `error_code`, `code`, `rule` | error_code | Error/rule code |
-| `function_name`, `func` | function_name | Function name |
+| `function_name`, `func`, `function` | function_name | Function name |
 | `test_name`, `test` | test_name | Test name |
 | `scope` | scope | Hierarchical scope |
 | `group` | group | Hierarchical group |

@@ -553,6 +553,247 @@ error	file error
 # error	test
 
 # =============================================================================
+# Detection Negative Cases (auto-detection)
+# =============================================================================
+
+# contains detection - negative case: content with neither marker is not auto-detected
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log('no markers here at all') WHERE tool_name = 'multi_marker';
+----
+0
+
+# contains_all detection - positive: both markers present, parser is auto-detected
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log('START of the line and END of it') WHERE tool_name = 'all_markers';
+----
+1
+
+# contains_all detection - negative: only one marker present
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log('just START here') WHERE tool_name = 'all_markers';
+----
+0
+
+# contains_all detection - negative: neither marker present
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log('nothing relevant') WHERE tool_name = 'all_markers';
+----
+0
+
+# regex detection - negative case: content that doesn't match the pattern
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log('no version tag here') WHERE tool_name = 'regex_detect';
+----
+0
+
+# =============================================================================
+# Combined Detection (contains + regex)
+# =============================================================================
+
+# Load a parser with both contains and regex detection
+statement ok
+SELECT duck_hunt_load_parser_config('{
+  "name": "combined_detect",
+  "detection": {
+    "contains": ["[APP]"],
+    "regex": "^\\d{4}-\\d{2}-\\d{2}"
+  },
+  "patterns": [
+    {"regex": "(?P<message>.*)", "event_type": "LINT_ISSUE"}
+  ]
+}');
+
+# Content matching both contains and regex -> auto-detected
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log('2024-01-15 [APP] started') WHERE tool_name = 'combined_detect';
+----
+1
+
+# Content matching contains but not regex -> not auto-detected
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log('[APP] started without date') WHERE tool_name = 'combined_detect';
+----
+0
+
+# Content matching regex but not contains -> not auto-detected
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log('2024-01-15 started without marker') WHERE tool_name = 'combined_detect';
+----
+0
+
+# Content matching neither -> not auto-detected
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log('nothing at all') WHERE tool_name = 'combined_detect';
+----
+0
+
+# =============================================================================
+# Severity Inference from Captured Value (no maps)
+# =============================================================================
+
+# Load parser that captures severity/level/status directly without severity_map
+statement ok
+SELECT duck_hunt_load_parser_config('{
+  "name": "severity_infer",
+  "detection": {"contains": ["[INFER]"]},
+  "patterns": [
+    {
+      "regex": "\\[INFER\\] (?P<severity>error|warning|info|fatal|critical|debug): (?P<message>.*)",
+      "event_type": "LINT_ISSUE"
+    }
+  ]
+}');
+
+# Captured severity 'error' -> severity=error
+query II
+SELECT severity, message FROM parse_duck_hunt_log('[INFER] error: something broke', 'severity_infer');
+----
+error	something broke
+
+# Captured severity 'warning' -> severity=warning
+query II
+SELECT severity, message FROM parse_duck_hunt_log('[INFER] warning: be careful', 'severity_infer');
+----
+warning	be careful
+
+# Captured severity 'info' -> severity=info
+query II
+SELECT severity, message FROM parse_duck_hunt_log('[INFER] info: just a note', 'severity_infer');
+----
+info	just a note
+
+# Captured severity 'fatal' -> severity=error (fatal maps to error)
+query II
+SELECT severity, message FROM parse_duck_hunt_log('[INFER] fatal: system down', 'severity_infer');
+----
+error	system down
+
+# Captured severity 'critical' -> severity=critical
+query II
+SELECT severity, message FROM parse_duck_hunt_log('[INFER] critical: meltdown', 'severity_infer');
+----
+critical	meltdown
+
+# Captured severity 'debug' -> severity=debug
+query II
+SELECT severity, message FROM parse_duck_hunt_log('[INFER] debug: trace output', 'severity_infer');
+----
+debug	trace output
+
+# Test level alias for severity inference
+statement ok
+SELECT duck_hunt_load_parser_config('{
+  "name": "level_infer",
+  "detection": {"contains": ["[LEVEL]"]},
+  "patterns": [
+    {
+      "regex": "\\[LEVEL\\] (?P<level>error|warning|info|fatal): (?P<message>.*)",
+      "event_type": "LINT_ISSUE"
+    }
+  ]
+}');
+
+# Captured level 'fatal' -> severity=error
+query II
+SELECT severity, message FROM parse_duck_hunt_log('[LEVEL] fatal: crash', 'level_infer');
+----
+error	crash
+
+# Test status inference (PASS/FAIL/SKIP) from severity-like capture
+statement ok
+SELECT duck_hunt_load_parser_config('{
+  "name": "status_infer",
+  "detection": {"contains": ["[STATUS]"]},
+  "patterns": [
+    {
+      "regex": "\\[STATUS\\] (?P<status>PASS|FAIL|SKIP): (?P<test_name>.*)",
+      "event_type": "TEST_RESULT"
+    }
+  ]
+}');
+
+# Direct status capture without status_map -> PASS with info severity
+query III
+SELECT status, severity, test_name FROM parse_duck_hunt_log('[STATUS] PASS: test_ok', 'status_infer');
+----
+PASS	info	test_ok
+
+# Direct status capture without status_map -> FAIL with error severity
+query III
+SELECT status, severity, test_name FROM parse_duck_hunt_log('[STATUS] FAIL: test_bad', 'status_infer');
+----
+FAIL	error	test_bad
+
+# Direct status capture without status_map -> SKIP with info severity
+query III
+SELECT status, severity, test_name FROM parse_duck_hunt_log('[STATUS] SKIP: test_skip', 'status_infer');
+----
+SKIP	info	test_skip
+
+# =============================================================================
+# Additional Event Types
+# =============================================================================
+
+# Test TYPE_ERROR event type
+statement ok
+SELECT duck_hunt_load_parser_config('{
+  "name": "type_error_test",
+  "detection": {"contains": ["[TYPE]"]},
+  "patterns": [
+    {
+      "regex": "\\[TYPE\\] (?P<file>[^:]+):(?P<line>\\d+): (?P<message>.*)",
+      "event_type": "TYPE_ERROR",
+      "severity": "error"
+    }
+  ]
+}');
+
+query IIII
+SELECT event_type, severity, ref_file, message
+FROM parse_duck_hunt_log('[TYPE] main.ts:10: Type string is not assignable to number', 'type_error_test');
+----
+type_error	error	main.ts	Type string is not assignable to number
+
+# Test SECURITY_FINDING event type
+statement ok
+SELECT duck_hunt_load_parser_config('{
+  "name": "security_test",
+  "detection": {"contains": ["[SEC]"]},
+  "patterns": [
+    {
+      "regex": "\\[SEC\\] (?P<severity>warning|error): (?P<file>[^:]+):(?P<line>\\d+): (?P<message>.*)",
+      "event_type": "SECURITY_FINDING"
+    }
+  ]
+}');
+
+query IIII
+SELECT event_type, severity, ref_file, message
+FROM parse_duck_hunt_log('[SEC] warning: auth.py:55: SQL injection risk', 'security_test');
+----
+security_finding	warning	auth.py	SQL injection risk
+
+# Test MEMORY_ERROR event type
+statement ok
+SELECT duck_hunt_load_parser_config('{
+  "name": "memory_error_test",
+  "detection": {"contains": ["[MEM]"]},
+  "patterns": [
+    {
+      "regex": "\\[MEM\\] (?P<function_name>[^:]+): (?P<message>.*)",
+      "event_type": "MEMORY_ERROR",
+      "severity": "error"
+    }
+  ]
+}');
+
+query III
+SELECT event_type, function_name, message
+FROM parse_duck_hunt_log('[MEM] allocate_buffer: heap buffer overflow detected', 'memory_error_test');
+----
+memory_error	allocate_buffer	heap buffer overflow detected
+
+# =============================================================================
 # Cleanup
 # =============================================================================
 
@@ -598,3 +839,24 @@ SELECT duck_hunt_unload_parser('grouped_parser');
 
 statement ok
 SELECT duck_hunt_unload_parser('myapp_log');
+
+statement ok
+SELECT duck_hunt_unload_parser('combined_detect');
+
+statement ok
+SELECT duck_hunt_unload_parser('severity_infer');
+
+statement ok
+SELECT duck_hunt_unload_parser('level_infer');
+
+statement ok
+SELECT duck_hunt_unload_parser('status_infer');
+
+statement ok
+SELECT duck_hunt_unload_parser('type_error_test');
+
+statement ok
+SELECT duck_hunt_unload_parser('security_test');
+
+statement ok
+SELECT duck_hunt_unload_parser('memory_error_test');
