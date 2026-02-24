@@ -199,38 +199,12 @@ std::vector<ValidationEvent> ParseFile(ClientContext &context, const std::string
 		return events;
 	}
 
-	// If parser supports file-based parsing, use it directly
-	if (parser->supportsFileParsing()) {
-		// For non-TEXT content families, check if the file needs extraction
-		if (parser->getContentFamily() != ContentFamily::TEXT) {
-			auto peek = PeekContentFromSource(context, file_path, 512);
-			size_t pos = peek.find_first_not_of(" \t\n\r");
-			bool needs_extraction = false;
-			if (pos != std::string::npos) {
-				if (parser->getContentFamily() == ContentFamily::XML) {
-					needs_extraction = (peek[pos] != '<');
-				} else {
-					needs_extraction = (peek[pos] != '[' && peek[pos] != '{');
-				}
-			}
-			if (needs_extraction) {
-				// Read full content, extract, write to temp file, parse temp
-				auto content = ReadContentFromSource(context, file_path);
-				auto extracted = MaybeExtractContent(content, parser->getContentFamily());
-				auto &fs = FileSystem::GetFileSystem(context);
-				auto temp_path = MakeExtractTempPath(fs);
-				TempFileGuard guard {fs, temp_path};
-				auto fh = fs.OpenFile(temp_path, FileFlags::FILE_FLAGS_WRITE | FileFlags::FILE_FLAGS_FILE_CREATE_NEW);
-				fh->Write(const_cast<char *>(extracted.data()), extracted.size());
-				fh->Sync();
-				fh.reset();
-				return parser->parseFile(context, temp_path);
-			}
-		}
+	// If parser supports file-based parsing with TEXT content, use file path directly
+	if (parser->supportsFileParsing() && parser->getContentFamily() == ContentFamily::TEXT) {
 		return parser->parseFile(context, file_path);
 	}
 
-	// Otherwise, fall back to reading content and parsing
+	// Read content, extract structured section if needed, then dispatch
 	std::string content = ReadContentFromSource(context, file_path);
 	if (content.empty()) {
 		return events;

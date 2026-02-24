@@ -1,12 +1,10 @@
 #include "unity_test_xml_parser.hpp"
 #include "parsers/base/safe_parsing.hpp"
 #include "core/webbed_integration.hpp"
-#include "core/content_extraction.hpp"
 #include "duckdb/main/connection.hpp"
 #include "duckdb/main/query_result.hpp"
 #include "duckdb/common/types/value.hpp"
 #include "duckdb/common/string_util.hpp"
-#include "duckdb/common/file_system.hpp"
 
 namespace duckdb {
 
@@ -24,54 +22,18 @@ bool UnityTestXmlParser::canParse(const std::string &content) const {
 std::vector<ValidationEvent> UnityTestXmlParser::parseWithContext(ClientContext &context,
                                                                   const std::string &content) const {
 	// Framework already extracted clean XML via MaybeExtractContent.
-	// We still need a temp file because read_xml requires a file path.
+	// Use parse_xml to parse directly from string — no temp files needed.
 	if (!WebbedIntegration::TryAutoLoadWebbed(context)) {
 		throw InvalidInputException(WebbedIntegration::GetWebbedRequiredError());
 	}
 
-	auto &fs = FileSystem::GetFileSystem(context);
-	auto temp_path = MakeExtractTempPath(fs, ".xml");
-	TempFileGuard guard {fs, temp_path};
+	auto result = WebbedIntegration::ParseXml(context, content, "test-case");
 
-	auto file_handle = fs.OpenFile(temp_path, FileFlags::FILE_FLAGS_WRITE | FileFlags::FILE_FLAGS_FILE_CREATE_NEW);
-	file_handle->Write(const_cast<char *>(content.data()), content.size());
-	file_handle->Sync();
-	file_handle.reset();
 
-	return parseXmlFile(context, temp_path);
-}
-
-std::vector<ValidationEvent> UnityTestXmlParser::parseFile(ClientContext &context, const std::string &file_path) const {
-	// Framework handles mixed-content extraction via ParseFile() in parse_content.cpp.
-	// By the time we get here, file_path is either the original (pure XML) or a temp file.
-	if (!WebbedIntegration::TryAutoLoadWebbed(context)) {
-		throw InvalidInputException(WebbedIntegration::GetWebbedRequiredError());
-	}
-
-	return parseXmlFile(context, file_path);
-}
-
-std::vector<ValidationEvent> UnityTestXmlParser::parseXmlFile(ClientContext &context,
-                                                              const std::string &file_path) const {
 	std::vector<ValidationEvent> events;
 	int64_t event_id = 1;
 
-	auto &db = DatabaseInstance::GetDatabase(context);
-	Connection con(db);
-
-	// Escape file path for SQL
-	auto escaped_path = StringUtil::Replace(file_path, "'", "''");
-
-	// Use read_xml to parse directly from file - much more efficient
-	auto query = "SELECT * FROM read_xml('" + escaped_path + "', record_element := 'test-case', auto_detect := true)";
-	auto result = con.Query(query);
-
-	if (result->HasError()) {
-		throw InvalidInputException("read_xml failed: %s", result->GetError());
-	}
-
 	// Get column indices for the fields we need
-	auto &types = result->types;
 	auto &names = result->names;
 
 	idx_t name_idx = DConstants::INVALID_INDEX;
@@ -232,11 +194,6 @@ std::vector<ValidationEvent> UnityTestXmlParser::parseXmlFile(ClientContext &con
 	}
 
 	return events;
-}
-
-std::vector<ValidationEvent> UnityTestXmlParser::parseJsonContent(const std::string &json_content) const {
-	// Not used - we use file-based parsing now
-	return {};
 }
 
 } // namespace duckdb

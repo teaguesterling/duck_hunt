@@ -93,11 +93,7 @@ std::vector<std::string> GitHubActionsZipParser::listJobFiles(ClientContext &con
 	std::string glob_pattern = "zip://" + zip_path + "/*.txt";
 
 	try {
-#ifdef DUCKDB_GLOB_V15
 		auto files = fs.GlobFiles(glob_pattern, FileGlobOptions::ALLOW_EMPTY);
-#else
-		auto files = fs.GlobFiles(glob_pattern, context, FileGlobOptions::ALLOW_EMPTY);
-#endif
 
 		for (const auto &file : files) {
 			// Extract just the filename from the full path

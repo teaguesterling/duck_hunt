@@ -62,12 +62,19 @@ public:
 	/**
 	 * Check if this parser can handle the given content.
 	 * Should be fast and lightweight for format detection.
+	 *
+	 * NOTE: canParse() receives the raw (original) content, while parse() and
+	 * parseWithContext() receive content after framework-level extraction via
+	 * MaybeExtractContent(). This means canParse() must detect format markers
+	 * in mixed content (e.g., log preamble + JSON), while parse methods can
+	 * assume clean structured input matching getContentFamily().
 	 */
 	virtual bool canParse(const std::string &content) const = 0;
 
 	/**
 	 * Parse the content and return validation events.
 	 * Only called if canParse() returns true.
+	 * Content has been extracted by getContentFamily() — see canParse() note.
 	 */
 	virtual std::vector<ValidationEvent> parse(const std::string &content) const = 0;
 

@@ -2,16 +2,13 @@
 
 namespace duckdb {
 
-static std::atomic<uint64_t> temp_file_counter {0};
-
-std::string MakeExtractTempPath(FileSystem &fs, const std::string &suffix) {
-	auto id = temp_file_counter.fetch_add(1, std::memory_order_relaxed);
-	return fs.JoinPath(fs.GetHomeDirectory(), ".duck_hunt_extract_tmp_" + std::to_string(id) + suffix);
-}
-
-// Helper: check if character is a line boundary (\n or \r)
-static inline bool IsLineBreak(char c) {
-	return c == '\n' || c == '\r';
+// Check if position is at start of a line (position 0, or preceded by \n or \r)
+static bool IsStartOfLine(const std::string &content, size_t pos) {
+	if (pos == 0) {
+		return true;
+	}
+	char prev = content[pos - 1];
+	return prev == '\n' || prev == '\r';
 }
 
 std::string ExtractJsonSection(const std::string &content) {
@@ -24,31 +21,21 @@ std::string ExtractJsonSection(const std::string &content) {
 		return content; // Already starts with JSON
 	}
 
-	// Scan for start-of-line JSON: line-break followed by [ or {
-	// Handles \n (Unix), \r\n (Windows), and \r (old Mac) line endings
+	// Scan for start-of-line JSON: [ or { at position 0 or after \n or \r
 	for (size_t i = 0; i < content.size(); i++) {
-		if (IsLineBreak(content[i]) && i + 1 < content.size()) {
-			size_t json_pos = i + 1;
-			// Skip \n after \r for CRLF
-			if (content[i] == '\r' && json_pos < content.size() && content[json_pos] == '\n') {
-				json_pos++;
-			}
-			if (json_pos >= content.size()) {
-				break;
-			}
-			char c = content[json_pos];
-			if (c == '[' || c == '{') {
-				// Check if followed by JSON-like character
-				if (json_pos + 1 < content.size()) {
-					char next = content[json_pos + 1];
-					if (next == '"' || next == '{' || next == '[' || next == ']' || next == '}' || next == ' ' ||
-					    next == '\t' || next == '\n' || next == '\r' || (next >= '0' && next <= '9')) {
-						return content.substr(json_pos);
-					}
-				} else {
-					// End of content right after [ or { — still valid
-					return content.substr(json_pos);
+		char c = content[i];
+		if ((c == '[' || c == '{') && IsStartOfLine(content, i)) {
+			// Check if followed by JSON-like character
+			if (i + 1 < content.size()) {
+				char next = content[i + 1];
+				if (next == '"' || next == '{' || next == '[' || next == ']' || next == '}' ||
+				    next == ' ' || next == '\t' || next == '\n' || next == '\r' ||
+				    (next >= '0' && next <= '9')) {
+					return content.substr(i);
 				}
+			} else {
+				// End of content right after [ or { — still valid
+				return content.substr(i);
 			}
 		}
 	}
@@ -58,15 +45,16 @@ std::string ExtractJsonSection(const std::string &content) {
 }
 
 std::string ExtractXmlSection(const std::string &content) {
-	// Try <?xml declaration first
+	// Try <?xml declaration first (can appear anywhere)
 	auto xml_decl = content.find("<?xml");
 	if (xml_decl != std::string::npos) {
 		return content.substr(xml_decl);
 	}
 
-	// Find first < followed by a letter (XML tag start, not <!-- comment)
+	// Find first start-of-line < followed by a letter (XML tag start).
+	// Requiring start-of-line avoids false positives on log lines like "<info> message".
 	for (size_t i = 0; i < content.size(); i++) {
-		if (content[i] == '<' && i + 1 < content.size()) {
+		if (content[i] == '<' && IsStartOfLine(content, i) && i + 1 < content.size()) {
 			char next = content[i + 1];
 			if ((next >= 'a' && next <= 'z') || (next >= 'A' && next <= 'Z')) {
 				return content.substr(i);

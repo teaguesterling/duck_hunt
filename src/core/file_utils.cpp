@@ -268,11 +268,7 @@ std::vector<std::string> GetGlobFiles(ClientContext &context, const std::string 
 
 	// Use GlobFiles which handles extension auto-loading and directory filtering
 	try {
-#ifdef DUCKDB_GLOB_V15
 		auto glob_files = fs.GlobFiles(pattern, FileGlobOptions::ALLOW_EMPTY);
-#else
-		auto glob_files = fs.GlobFiles(pattern, context, FileGlobOptions::ALLOW_EMPTY);
-#endif
 		for (auto &file : glob_files) {
 			result.push_back(file.path);
 		}

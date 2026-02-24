@@ -123,6 +123,29 @@ unique_ptr<MaterializedQueryResult> WebbedIntegration::ReadXml(ClientContext &co
 	return unique_ptr_cast<QueryResult, MaterializedQueryResult>(std::move(result));
 }
 
+unique_ptr<MaterializedQueryResult> WebbedIntegration::ParseXml(ClientContext &context, const std::string &xml_content,
+                                                                const std::string &record_element) {
+	if (!IsWebbedAvailable(context)) {
+		throw InvalidInputException(GetWebbedRequiredError());
+	}
+
+	auto escaped_content = StringUtil::Replace(xml_content, "'", "''");
+	auto escaped_element = StringUtil::Replace(record_element, "'", "''");
+
+	auto query = "SELECT * FROM parse_xml('" + escaped_content + "', record_element := '" + escaped_element +
+	             "', auto_detect := true)";
+
+	auto &db = DatabaseInstance::GetDatabase(context);
+	Connection con(db);
+	auto result = con.Query(query);
+
+	if (result->HasError()) {
+		throw InvalidInputException("parse_xml failed: %s", result->GetError());
+	}
+
+	return unique_ptr_cast<QueryResult, MaterializedQueryResult>(std::move(result));
+}
+
 std::string WebbedIntegration::GetWebbedRequiredError() {
 	return "XML parsing requires the 'webbed' extension. "
 	       "Install and load it with:\n"
