@@ -794,6 +794,45 @@ FROM parse_duck_hunt_log('[MEM] allocate_buffer: heap buffer overflow detected',
 memory_error	allocate_buffer	heap buffer overflow detected
 
 # =============================================================================
+# Regex Detection on Multi-Line Content (sniff buffer)
+# =============================================================================
+
+# Regression test: regex detection must work on content larger than 2000 chars.
+# The detection sniff buffer is 8192 bytes; SafeRegexSearch must use that limit
+# (not the default 2000-char line limit) when checking detection regex.
+
+statement ok
+SELECT duck_hunt_load_parser_config('{
+  "name": "sniff_regex_test",
+  "detection": {
+    "regex": "\\[SNIFF_MARKER\\]"
+  },
+  "patterns": [
+    {"regex": "\\[SNIFF_MARKER\\] (?P<message>.*)", "event_type": "LINT_ISSUE", "severity": "info"}
+  ]
+}');
+
+# Build content > 2000 chars with the marker at the start.
+# repeat() produces 2500 chars of padding, so the total sniff string is well over 2000.
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log(
+  '[SNIFF_MARKER] found it' || chr(10) || repeat('x', 2500)
+) WHERE tool_name = 'sniff_regex_test';
+----
+1
+
+# Marker buried after 3000 chars of padding — still within 8192 sniff window
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log(
+  repeat('.' || chr(10), 1500) || '[SNIFF_MARKER] deep match'
+) WHERE tool_name = 'sniff_regex_test';
+----
+1
+
+statement ok
+SELECT duck_hunt_unload_parser('sniff_regex_test');
+
+# =============================================================================
 # Cleanup
 # =============================================================================
 

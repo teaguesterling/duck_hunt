@@ -311,11 +311,12 @@ bool ConfigBasedParser::canParse(const std::string &content) const {
 		}
 	}
 
-	// Check regex (limit to first SNIFF_BUFFER_SIZE bytes to prevent backtracking on large content)
+	// Check regex (limit to first MAX_DETECTION_SNIFF_SIZE bytes to prevent backtracking on large content)
 	if (detection_.has_regex) {
-		std::string sniff = content.substr(0, 8192);
+		std::string sniff = content.substr(0, SafeParsing::MAX_DETECTION_SNIFF_SIZE);
 		std::smatch match;
-		if (!SafeParsing::SafeRegexSearch(sniff, match, detection_.compiled_regex)) {
+		if (!SafeParsing::SafeRegexSearch(sniff, match, detection_.compiled_regex,
+		                                  SafeParsing::MAX_DETECTION_SNIFF_SIZE)) {
 			return false;
 		}
 	}

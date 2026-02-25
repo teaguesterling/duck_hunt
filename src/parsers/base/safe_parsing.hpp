@@ -108,6 +108,11 @@ inline std::string DetectLineEnding(const std::string &content) {
 // Lines longer than this are skipped to prevent catastrophic backtracking
 constexpr size_t MAX_REGEX_LINE_LENGTH = 2000;
 
+// Maximum content size for format detection regex (8KB sniff window)
+// Detection runs against a content sample, not individual lines, so it needs
+// a larger limit than MAX_REGEX_LINE_LENGTH
+constexpr size_t MAX_DETECTION_SNIFF_SIZE = 8192;
+
 // Maximum length for the file path portion in file:line:column patterns
 constexpr size_t MAX_FILE_PATH_LENGTH = 500;
 
