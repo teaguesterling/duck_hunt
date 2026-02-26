@@ -229,6 +229,31 @@ make: *** [Makefile:169: release] Error 2', 'gcc_text,make_error');
 make	build.make
 make	Makefile
 
+# Test: Trailing comma is tolerated (empty token silently dropped)
+query I
+SELECT tool_name FROM parse_duck_hunt_log('file.cpp:1:1: error: test', 'gcc_text,');
+----
+compiler
+
+# Test: Double comma is tolerated (empty token silently dropped)
+query I
+SELECT tool_name FROM parse_duck_hunt_log('file.cpp:1:1: error: test', 'gcc_text,,make_error');
+----
+compiler
+
+# Test: "auto" inside a comma list is rejected (it would be a silent no-op)
+statement error
+SELECT * FROM parse_duck_hunt_log('test', 'gcc_text,auto');
+----
+Unknown format
+
+# Test: LATERAL join with comma-separated format
+query I
+SELECT tool_name FROM (VALUES ('file.cpp:1:1: error: test')) t(log),
+  parse_duck_hunt_log(t.log, 'gcc_text,make_error');
+----
+compiler
+
 # =============================================================================
 # REALISTIC BUILD LOG (full scenario from plinking_duck)
 # =============================================================================

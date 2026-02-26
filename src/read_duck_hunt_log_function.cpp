@@ -78,11 +78,10 @@ unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFuncti
 	} else if (input.inputs.size() == 1 && !input.inputs[0].IsNull()) {
 		// Could be single-arg call with literal source, or two-arg LATERAL with column ref source
 		std::string val = input.inputs[0].ToString();
-		// Check if this looks like a format (not a file path)
-		auto &registry = ParserRegistry::getInstance();
-		auto test_format = StringToTestResultFormat(val);
-		if (test_format != TestResultFormat::UNKNOWN || registry.hasFormat(val) || registry.isGroup(val) ||
-		    val == "auto") {
+		// Check if this looks like a format (not a file path).
+		// IsValidFormat handles known formats, aliases, groups, config paths,
+		// comma-separated lists, and "auto".
+		if (IsValidFormat(val)) {
 			format_str = val;
 			has_format = true;
 			bind_data->source = ""; // Source will come from DataChunk
@@ -442,13 +441,11 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
 		has_format = true;
 	} else if (input.inputs.size() == 1 && !input.inputs[0].IsNull()) {
 		// Could be single-arg call with literal source, or two-arg LATERAL with column ref source
-		// Check if this looks like a format (not a file path)
 		std::string val = input.inputs[0].ToString();
-		// If it doesn't look like a path (no slashes, dots suggesting extensions) and is a known format
-		auto &registry = ParserRegistry::getInstance();
-		auto test_format = StringToTestResultFormat(val);
-		if (test_format != TestResultFormat::UNKNOWN || registry.hasFormat(val) || registry.isGroup(val) ||
-		    val == "auto") {
+		// Check if this looks like a format (not a file path).
+		// IsValidFormat handles known formats, aliases, groups, config paths,
+		// comma-separated lists, and "auto".
+		if (IsValidFormat(val)) {
 			format_str = val;
 			has_format = true;
 			bind_data->source = ""; // Source will come from DataChunk
