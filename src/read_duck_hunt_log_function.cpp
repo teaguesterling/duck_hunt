@@ -78,11 +78,10 @@ unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFuncti
 	} else if (input.inputs.size() == 1 && !input.inputs[0].IsNull()) {
 		// Could be single-arg call with literal source, or two-arg LATERAL with column ref source
 		std::string val = input.inputs[0].ToString();
-		// Check if this looks like a format (not a file path)
-		auto &registry = ParserRegistry::getInstance();
-		auto test_format = StringToTestResultFormat(val);
-		if (test_format != TestResultFormat::UNKNOWN || registry.hasFormat(val) || registry.isGroup(val) ||
-		    val == "auto") {
+		// Check if this looks like a format (not a file path).
+		// IsValidFormat handles known formats, aliases, groups, config paths,
+		// comma-separated lists, and "auto".
+		if (IsValidFormat(val)) {
 			format_str = val;
 			has_format = true;
 			bind_data->source = ""; // Source will come from DataChunk
@@ -101,17 +100,13 @@ unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFuncti
 			bind_data->format_name = format_str; // Use original string for registry-only formats
 		}
 
-		// Check for unknown format - but allow registry-only formats, format groups, and config file paths
+		// Check for unknown format - but allow registry-only formats, format groups,
+		// config file paths, and comma-separated format lists
 		if (bind_data->format == TestResultFormat::UNKNOWN) {
-			// Check if this format exists in the new parser registry or is a format group
-			auto &registry = ParserRegistry::getInstance();
-			bool is_config_path = (format_str.substr(0, 7) == "config:" ||
-			                       (format_str.length() > 5 && format_str.substr(format_str.length() - 5) == ".json"));
-			if (!registry.hasFormat(format_str) && !registry.isGroup(format_str) && !is_config_path) {
+			if (!IsValidFormat(format_str)) {
 				throw BinderException("Unknown format: '" + format_str +
 				                      "'. Use 'auto' for auto-detection or see docs/formats.md for supported formats.");
 			}
-			// Format exists in registry, is a group, or is a config file path
 		}
 
 		// For REGEXP format, extract the pattern after the "regexp:" prefix
@@ -446,13 +441,11 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
 		has_format = true;
 	} else if (input.inputs.size() == 1 && !input.inputs[0].IsNull()) {
 		// Could be single-arg call with literal source, or two-arg LATERAL with column ref source
-		// Check if this looks like a format (not a file path)
 		std::string val = input.inputs[0].ToString();
-		// If it doesn't look like a path (no slashes, dots suggesting extensions) and is a known format
-		auto &registry = ParserRegistry::getInstance();
-		auto test_format = StringToTestResultFormat(val);
-		if (test_format != TestResultFormat::UNKNOWN || registry.hasFormat(val) || registry.isGroup(val) ||
-		    val == "auto") {
+		// Check if this looks like a format (not a file path).
+		// IsValidFormat handles known formats, aliases, groups, config paths,
+		// comma-separated lists, and "auto".
+		if (IsValidFormat(val)) {
 			format_str = val;
 			has_format = true;
 			bind_data->source = ""; // Source will come from DataChunk
@@ -471,17 +464,13 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
 			bind_data->format_name = format_str; // Use original string for registry-only formats
 		}
 
-		// Check for unknown format - but allow registry-only formats, format groups, and config file paths
+		// Check for unknown format - but allow registry-only formats, format groups,
+		// config file paths, and comma-separated format lists
 		if (bind_data->format == TestResultFormat::UNKNOWN) {
-			// Check if this format exists in the new parser registry or is a format group
-			auto &registry = ParserRegistry::getInstance();
-			bool is_config_path = (format_str.substr(0, 7) == "config:" ||
-			                       (format_str.length() > 5 && format_str.substr(format_str.length() - 5) == ".json"));
-			if (!registry.hasFormat(format_str) && !registry.isGroup(format_str) && !is_config_path) {
+			if (!IsValidFormat(format_str)) {
 				throw BinderException("Unknown format: '" + format_str +
 				                      "'. Use 'auto' for auto-detection or see docs/formats.md for supported formats.");
 			}
-			// Format exists in registry, is a group, or is a config file path
 		}
 
 		// For REGEXP format, extract the pattern after the "regexp:" prefix

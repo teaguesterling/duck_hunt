@@ -5,8 +5,31 @@
 #include "../parsers/tool_outputs/regexp_parser.hpp"
 #include "../parsers/config_based/config_parser.hpp"
 #include <algorithm>
+#include <sstream>
 
 namespace duckdb {
+
+// Split a comma-separated format string into individual format names.
+// Trims whitespace from each entry. Returns empty vector if no commas found.
+// Intentionally lenient: empty tokens from double commas or trailing commas
+// are silently dropped (e.g., "gcc_text,,make_error" → ["gcc_text", "make_error"]).
+static std::vector<std::string> SplitFormatList(const std::string &format_name) {
+	if (format_name.find(',') == std::string::npos) {
+		return {};
+	}
+	std::vector<std::string> formats;
+	std::istringstream stream(format_name);
+	std::string token;
+	while (std::getline(stream, token, ',')) {
+		// Trim whitespace
+		size_t start = token.find_first_not_of(" \t");
+		size_t end = token.find_last_not_of(" \t");
+		if (start != std::string::npos) {
+			formats.push_back(token.substr(start, end - start + 1));
+		}
+	}
+	return formats;
+}
 
 // Check if format string looks like a config file path
 static bool IsConfigFilePath(const std::string &format_name) {
@@ -47,6 +70,19 @@ std::vector<ValidationEvent> ParseContent(ClientContext &context, const std::str
 
 	if (format_name.empty() || format_name == "unknown" || format_name == "auto") {
 		return events; // Invalid format, return empty
+	}
+
+	// Check for comma-separated format list (e.g., "gcc_text,make_error,cake_error")
+	// Try each format in order, return events from first one that produces results.
+	auto format_list = SplitFormatList(format_name);
+	if (!format_list.empty()) {
+		for (const auto &fmt : format_list) {
+			auto fmt_events = ParseContent(context, content, fmt);
+			if (!fmt_events.empty()) {
+				return fmt_events;
+			}
+		}
+		return events; // No format in list produced events
 	}
 
 	// Check if this is an inline config file path
@@ -140,6 +176,22 @@ bool IsValidFormat(const std::string &format_name) {
 		return true; // "auto" is always valid
 	}
 
+	// Comma-separated format lists: each entry must be a valid concrete format.
+	// "auto" and "unknown" are not allowed inside a list — "auto" would be a
+	// silent no-op (ParseContent returns empty for it), and "unknown" is invalid.
+	auto format_list = SplitFormatList(format_name);
+	if (!format_list.empty()) {
+		for (const auto &fmt : format_list) {
+			if (fmt == "auto" || fmt == "unknown") {
+				return false;
+			}
+			if (!IsValidFormat(fmt)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
 	// Config file paths are valid format specifiers
 	if (IsConfigFilePath(format_name)) {
 		return true;
@@ -161,6 +213,20 @@ std::vector<ValidationEvent> ParseFile(ClientContext &context, const std::string
 	std::vector<ValidationEvent> events;
 
 	if (format_name.empty() || format_name == "unknown" || format_name == "auto") {
+		return events;
+	}
+
+	// Check for comma-separated format list.
+	// Note: each failed format may re-read the file from disk. Acceptable for
+	// the expected 2-3 format lists; not optimized for longer chains.
+	auto format_list = SplitFormatList(format_name);
+	if (!format_list.empty()) {
+		for (const auto &fmt : format_list) {
+			auto fmt_events = ParseFile(context, file_path, fmt);
+			if (!fmt_events.empty()) {
+				return fmt_events;
+			}
+		}
 		return events;
 	}
 

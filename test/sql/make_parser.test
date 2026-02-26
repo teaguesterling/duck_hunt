@@ -166,30 +166,93 @@ make: *** [Makefile:169: release] Error 2', 'make_error');
 2
 
 # =============================================================================
-# COMMA-SEPARATED FORMAT (currently unsupported)
+# COMMA-SEPARATED FORMAT LIST
 # =============================================================================
 
-# Test: Comma-separated format strings are NOT supported by duck_hunt.
+# Comma-separated format strings try each format in order (first-match-wins).
 # This is the format used in plinking_duck's .lq/commands.toml:
 #   format = "gcc_text,make_error,cake_error"
-# duck_hunt throws BinderException for unknown format names.
-# blq catches this silently and returns zero events.
 
-statement error
-SELECT * FROM parse_duck_hunt_log('test', 'gcc_text,make_error');
-----
-Unknown format
-
-# Test: Each individual format works fine
+# Test: First format in list matches — gcc_text handles compiler diagnostics
 query I
-SELECT tool_name FROM parse_duck_hunt_log('file.cpp:1:1: error: test', 'gcc_text');
+SELECT tool_name FROM parse_duck_hunt_log('file.cpp:1:1: error: test', 'gcc_text,make_error');
 ----
 compiler
 
+# Test: Fallback to second format — make_error handles when gcc_text finds nothing
 query I
-SELECT tool_name FROM parse_duck_hunt_log('make: *** [Makefile:10: all] Error 2', 'make_error');
+SELECT tool_name FROM parse_duck_hunt_log('make: *** [Makefile:10: all] Error 2', 'gcc_text,make_error');
 ----
 make
+
+# Test: Order matters — make_error is tried first
+query I
+SELECT tool_name FROM parse_duck_hunt_log(
+'file.cpp:1:1: error: test
+make: *** [Makefile:10: all] Error 2', 'make_error,gcc_text');
+----
+make
+
+# Test: Whitespace around commas is tolerated
+query I
+SELECT tool_name FROM parse_duck_hunt_log('file.cpp:1:1: error: test', 'gcc_text , make_error');
+----
+compiler
+
+# Test: Three formats (the actual plinking_duck config pattern)
+query I
+SELECT tool_name FROM parse_duck_hunt_log('file.cpp:1:1: error: test', 'gcc_text,make_error,cmake_build');
+----
+compiler
+
+# Test: Invalid format in list is rejected at bind time
+statement error
+SELECT * FROM parse_duck_hunt_log('test', 'gcc_text,bogus_format');
+----
+Unknown format
+
+# Test: Comma-separated with mixed GCC+make content picks GCC (first in list)
+query IIII
+SELECT tool_name, ref_file, ref_line, message FROM parse_duck_hunt_log(
+'/home/user/src/file.cpp:6:10: fatal error: missing.hpp: No such file or directory
+gmake[3]: *** [build.make:121: file.cpp.o] Error 1
+make: *** [Makefile:169: release] Error 2', 'gcc_text,make_error');
+----
+compiler	/home/user/src/file.cpp	6	missing.hpp: No such file or directory
+
+# Test: Comma-separated with only make errors falls through to make_error
+query II
+SELECT tool_name, ref_file FROM parse_duck_hunt_log(
+'gmake[3]: *** [build.make:121: file.cpp.o] Error 1
+make: *** [Makefile:169: release] Error 2', 'gcc_text,make_error');
+----
+make	build.make
+make	Makefile
+
+# Test: Trailing comma is tolerated (empty token silently dropped)
+query I
+SELECT tool_name FROM parse_duck_hunt_log('file.cpp:1:1: error: test', 'gcc_text,');
+----
+compiler
+
+# Test: Double comma is tolerated (empty token silently dropped)
+query I
+SELECT tool_name FROM parse_duck_hunt_log('file.cpp:1:1: error: test', 'gcc_text,,make_error');
+----
+compiler
+
+# Test: "auto" inside a comma list is rejected (it would be a silent no-op)
+statement error
+SELECT * FROM parse_duck_hunt_log('test', 'gcc_text,auto');
+----
+Unknown format
+
+# Test: LATERAL join with comma-separated format
+query I
+SELECT tool_name FROM (VALUES ('file.cpp:1:1: error: test')) t(log),
+  parse_duck_hunt_log(t.log, 'gcc_text,make_error');
+----
+compiler
 
 # =============================================================================
 # REALISTIC BUILD LOG (full scenario from plinking_duck)
