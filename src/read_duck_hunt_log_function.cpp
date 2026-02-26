@@ -101,17 +101,13 @@ unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFuncti
 			bind_data->format_name = format_str; // Use original string for registry-only formats
 		}
 
-		// Check for unknown format - but allow registry-only formats, format groups, and config file paths
+		// Check for unknown format - but allow registry-only formats, format groups,
+		// config file paths, and comma-separated format lists
 		if (bind_data->format == TestResultFormat::UNKNOWN) {
-			// Check if this format exists in the new parser registry or is a format group
-			auto &registry = ParserRegistry::getInstance();
-			bool is_config_path = (format_str.substr(0, 7) == "config:" ||
-			                       (format_str.length() > 5 && format_str.substr(format_str.length() - 5) == ".json"));
-			if (!registry.hasFormat(format_str) && !registry.isGroup(format_str) && !is_config_path) {
+			if (!IsValidFormat(format_str)) {
 				throw BinderException("Unknown format: '" + format_str +
 				                      "'. Use 'auto' for auto-detection or see docs/formats.md for supported formats.");
 			}
-			// Format exists in registry, is a group, or is a config file path
 		}
 
 		// For REGEXP format, extract the pattern after the "regexp:" prefix
@@ -471,17 +467,13 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
 			bind_data->format_name = format_str; // Use original string for registry-only formats
 		}
 
-		// Check for unknown format - but allow registry-only formats, format groups, and config file paths
+		// Check for unknown format - but allow registry-only formats, format groups,
+		// config file paths, and comma-separated format lists
 		if (bind_data->format == TestResultFormat::UNKNOWN) {
-			// Check if this format exists in the new parser registry or is a format group
-			auto &registry = ParserRegistry::getInstance();
-			bool is_config_path = (format_str.substr(0, 7) == "config:" ||
-			                       (format_str.length() > 5 && format_str.substr(format_str.length() - 5) == ".json"));
-			if (!registry.hasFormat(format_str) && !registry.isGroup(format_str) && !is_config_path) {
+			if (!IsValidFormat(format_str)) {
 				throw BinderException("Unknown format: '" + format_str +
 				                      "'. Use 'auto' for auto-detection or see docs/formats.md for supported formats.");
 			}
-			// Format exists in registry, is a group, or is a config file path
 		}
 
 		// For REGEXP format, extract the pattern after the "regexp:" prefix
