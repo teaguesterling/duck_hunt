@@ -1,0 +1,213 @@
+# name: test/sql/make_parser.test
+# description: test GNU Make build error parser
+# group: [sql]
+
+require duck_hunt
+
+# =============================================================================
+# BASIC MAKE ERROR DETECTION
+# =============================================================================
+
+# Test: Basic make error detection
+query I
+SELECT tool_name FROM parse_duck_hunt_log('make: *** [Makefile:169: release] Error 2', 'make_error');
+----
+make
+
+# Test: Submake error detection
+query I
+SELECT tool_name FROM parse_duck_hunt_log('gmake[3]: *** [extension/plinking_duck/CMakeFiles/plinking_duck_extension.dir/build.make:121: extension/plinking_duck/CMakeFiles/plinking_duck_extension.dir/src/pgen_reader.cpp.o] Error 1', 'make_error');
+----
+make
+
+# =============================================================================
+# REF_FILE AND REF_LINE EXTRACTION
+# =============================================================================
+
+# Test: ref_file is extracted from the makefile path in target bracket
+query I
+SELECT ref_file FROM parse_duck_hunt_log('make: *** [Makefile:169: release] Error 2', 'make_error');
+----
+Makefile
+
+# Test: ref_line from makefile (currently NULL - documents current behavior)
+# The make parser deliberately discards the line number (build.make:121).
+# We may want to extract it in the future.
+query I
+SELECT ref_line FROM parse_duck_hunt_log('make: *** [Makefile:169: release] Error 2', 'make_error');
+----
+NULL
+
+# Test: Submake ref_file extraction (long CMake-generated path)
+query I
+SELECT ref_file FROM parse_duck_hunt_log('gmake[3]: *** [extension/plinking_duck/CMakeFiles/plinking_duck_extension.dir/build.make:121: extension/plinking_duck/CMakeFiles/plinking_duck_extension.dir/src/pgen_reader.cpp.o] Error 1', 'make_error');
+----
+extension/plinking_duck/CMakeFiles/plinking_duck_extension.dir/build.make
+
+# Test: test_name extracts the build target
+query I
+SELECT test_name FROM parse_duck_hunt_log('make: *** [Makefile:169: release] Error 2', 'make_error');
+----
+release
+
+# Test: test_name for submake extracts the .o target
+query I
+SELECT test_name FROM parse_duck_hunt_log('gmake[3]: *** [extension/plinking_duck/CMakeFiles/plinking_duck_extension.dir/build.make:121: extension/plinking_duck/CMakeFiles/plinking_duck_extension.dir/src/pgen_reader.cpp.o] Error 1', 'make_error');
+----
+extension/plinking_duck/CMakeFiles/plinking_duck_extension.dir/src/pgen_reader.cpp.o
+
+# =============================================================================
+# CASCADING MAKE ERRORS
+# =============================================================================
+
+# Test: Cascading make failures produce one event per make[N] line
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log('gmake[3]: *** [build.make:121: pgen_reader.cpp.o] Error 1
+gmake[2]: *** [Makefile2:9413: all] Error 2
+gmake[1]: *** [Makefile:136: all] Error 2
+make: *** [duckdb_extension.Makefile:169: release] Error 2', 'make_error');
+----
+4
+
+# Test: All cascading errors have error severity
+query I
+SELECT COUNT(DISTINCT severity) FROM parse_duck_hunt_log('gmake[3]: *** [build.make:121: pgen_reader.cpp.o] Error 1
+gmake[2]: *** [Makefile2:9413: all] Error 2
+gmake[1]: *** [Makefile:136: all] Error 2
+make: *** [duckdb_extension.Makefile:169: release] Error 2', 'make_error');
+----
+1
+
+# =============================================================================
+# DIRECTORY CONTEXT
+# =============================================================================
+
+# Test: Entering directory produces info event
+query II
+SELECT category, severity FROM parse_duck_hunt_log('make[1]: Entering directory ''/path/to/build''', 'make_error');
+----
+build_context	info
+
+# Test: Directory path extracted to ref_file
+query I
+SELECT ref_file FROM parse_duck_hunt_log('make[1]: Entering directory ''/path/to/build''', 'make_error');
+----
+/path/to/build
+
+# =============================================================================
+# AUTO-DETECTION
+# =============================================================================
+
+# Test: Make output auto-detected
+query I
+SELECT tool_name FROM parse_duck_hunt_log('make: *** [Makefile:10: build] Error 2', 'auto');
+----
+make
+
+# =============================================================================
+# MIXED GCC + MAKE OUTPUT (auto-detection)
+# =============================================================================
+
+# This is the critical real-world scenario: a build log containing both GCC
+# compiler diagnostics and make error wrappers. The GCC parser (priority 80)
+# should win over the make parser (priority 50) in auto-detection.
+
+# Test: Auto-detection picks GCC over make when both are present
+query I
+SELECT DISTINCT tool_name FROM parse_duck_hunt_log(
+'/home/user/src/pgen_reader.cpp:6:10: fatal error: duckdb/common/types/list_vector.hpp: No such file or directory
+    6 | #include "duckdb/common/types/list_vector.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+compilation terminated.
+gmake[3]: *** [build.make:121: pgen_reader.cpp.o] Error 1
+gmake[2]: *** [Makefile2:9413: all] Error 2
+make: *** [Makefile:169: release] Error 2', 'auto');
+----
+compiler
+
+# Test: GCC parser extracts the actual source file reference from mixed output
+query IIII
+SELECT ref_file, ref_line, ref_column, message FROM parse_duck_hunt_log(
+'/home/user/src/pgen_reader.cpp:6:10: fatal error: duckdb/common/types/list_vector.hpp: No such file or directory
+    6 | #include "duckdb/common/types/list_vector.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+compilation terminated.
+gmake[3]: *** [build.make:121: pgen_reader.cpp.o] Error 1
+make: *** [Makefile:169: release] Error 2', 'auto');
+----
+/home/user/src/pgen_reader.cpp	6	10	duckdb/common/types/list_vector.hpp: No such file or directory
+
+# Test: GCC parser ignores the make wrapper lines entirely
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log(
+'/home/user/src/file.cpp:6:10: fatal error: missing.hpp: No such file or directory
+compilation terminated.
+gmake[3]: *** [build.make:121: file.cpp.o] Error 1
+gmake[2]: *** [Makefile2:9413: all] Error 2
+make: *** [Makefile:169: release] Error 2', 'auto');
+----
+1
+
+# Test: Explicit gcc_text format on mixed output extracts GCC events only
+query II
+SELECT ref_file, ref_line FROM parse_duck_hunt_log(
+'/home/user/src/file.cpp:42:10: error: use of undeclared identifier
+gmake[3]: *** [build.make:121: file.cpp.o] Error 1', 'gcc_text');
+----
+/home/user/src/file.cpp	42
+
+# Test: Explicit make_error format on mixed output extracts make events only
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log(
+'/home/user/src/file.cpp:42:10: error: use of undeclared identifier
+gmake[3]: *** [build.make:121: file.cpp.o] Error 1
+make: *** [Makefile:169: release] Error 2', 'make_error');
+----
+2
+
+# =============================================================================
+# COMMA-SEPARATED FORMAT (currently unsupported)
+# =============================================================================
+
+# Test: Comma-separated format strings are NOT supported by duck_hunt.
+# This is the format used in plinking_duck's .lq/commands.toml:
+#   format = "gcc_text,make_error,cake_error"
+# duck_hunt throws BinderException for unknown format names.
+# blq catches this silently and returns zero events.
+
+statement error
+SELECT * FROM parse_duck_hunt_log('test', 'gcc_text,make_error');
+----
+Unknown format
+
+# Test: Each individual format works fine
+query I
+SELECT tool_name FROM parse_duck_hunt_log('file.cpp:1:1: error: test', 'gcc_text');
+----
+compiler
+
+query I
+SELECT tool_name FROM parse_duck_hunt_log('make: *** [Makefile:10: all] Error 2', 'make_error');
+----
+make
+
+# =============================================================================
+# REALISTIC BUILD LOG (full scenario from plinking_duck)
+# =============================================================================
+
+# Test: Full realistic build log with CMake progress, GCC error, and make cascade
+query IIII
+SELECT tool_name, ref_file, ref_line, message FROM parse_duck_hunt_log(
+'[ 85%] Building CXX object extension/plinking_duck/CMakeFiles/plinking_duck_extension.dir/src/pgen_reader.cpp.o
+/home/teague/Projects/plinking_duck/trees/feature/P1-003-read-pgen/src/pgen_reader.cpp:6:10: fatal error: duckdb/common/types/list_vector.hpp: No such file or directory
+    6 | #include "duckdb/common/types/list_vector.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+compilation terminated.
+gmake[3]: *** [extension/plinking_duck/CMakeFiles/plinking_duck_extension.dir/build.make:121: extension/plinking_duck/CMakeFiles/plinking_duck_extension.dir/src/pgen_reader.cpp.o] Error 1
+gmake[3]: *** Waiting for unfinished jobs....
+gmake[2]: *** [CMakeFiles/Makefile2:9413: extension/plinking_duck/CMakeFiles/plinking_duck_extension.dir/all] Error 2
+gmake[1]: *** [Makefile:136: all] Error 2
+gmake[1]: Leaving directory ''/mnt/aux-data/teague/Projects/plinking_duck/trees/feature/P1-003-read-pgen/build/release''
+make: *** [extension-ci-tools/makefiles/duckdb_extension.Makefile:169: release] Error 2', 'auto');
+----
+compiler	/home/teague/Projects/plinking_duck/trees/feature/P1-003-read-pgen/src/pgen_reader.cpp	6	duckdb/common/types/list_vector.hpp: No such file or directory
