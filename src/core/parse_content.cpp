@@ -31,6 +31,69 @@ static std::vector<std::string> SplitFormatList(const std::string &format_name) 
 	return formats;
 }
 
+// Simple Levenshtein edit distance for fuzzy format name matching.
+static size_t EditDistance(const std::string &a, const std::string &b) {
+	size_t m = a.size(), n = b.size();
+	std::vector<std::vector<size_t>> dp(m + 1, std::vector<size_t>(n + 1));
+	for (size_t i = 0; i <= m; i++) {
+		dp[i][0] = i;
+	}
+	for (size_t j = 0; j <= n; j++) {
+		dp[0][j] = j;
+	}
+	for (size_t i = 1; i <= m; i++) {
+		for (size_t j = 1; j <= n; j++) {
+			size_t cost = (a[i - 1] == b[j - 1]) ? 0 : 1;
+			dp[i][j] = std::min({dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost});
+		}
+	}
+	return dp[m][n];
+}
+
+// Length of shared prefix between two strings.
+static size_t SharedPrefix(const std::string &a, const std::string &b) {
+	size_t len = std::min(a.size(), b.size());
+	for (size_t i = 0; i < len; i++) {
+		if (a[i] != b[i]) {
+			return i;
+		}
+	}
+	return len;
+}
+
+// Find the closest registered format name to the given invalid name.
+// Uses edit distance with shared-prefix tiebreaker so "gcc_error" suggests
+// "gcc_text" (same prefix) rather than "error" (shorter distance).
+static std::string SuggestFormat(const std::string &invalid_name) {
+	auto &registry = ParserRegistry::getInstance();
+	auto all_names = registry.getAllFormatNames();
+
+	std::string best_match;
+	size_t best_distance = std::string::npos;
+	size_t best_prefix = 0;
+
+	for (const auto &name : all_names) {
+		size_t dist = EditDistance(invalid_name, name);
+		size_t prefix = SharedPrefix(invalid_name, name);
+		// Score combines edit distance with prefix bonus.
+		// Subtract prefix length from distance so "gcc_text" (dist=5, prefix=4 → score=1)
+		// beats "error" (dist=4, prefix=0 → score=4) for input "gcc_error".
+		size_t score = dist > prefix ? dist - prefix : 0;
+		size_t best_score = best_distance > best_prefix ? best_distance - best_prefix : 0;
+		if (score < best_score || (score == best_score && dist < best_distance)) {
+			best_distance = dist;
+			best_prefix = prefix;
+			best_match = name;
+		}
+	}
+
+	// Only suggest if reasonably close (within half the length of the input)
+	if (best_distance <= (invalid_name.size() + 1) / 2 && !best_match.empty()) {
+		return best_match;
+	}
+	return "";
+}
+
 // Check if format string looks like a config file path
 static bool IsConfigFilePath(const std::string &format_name) {
 	// Check for explicit config: prefix
@@ -199,6 +262,35 @@ bool IsValidFormat(const std::string &format_name) {
 
 	auto &registry = ParserRegistry::getInstance();
 	return registry.hasFormat(format_name) || registry.isGroup(format_name);
+}
+
+std::string FormatValidationError(const std::string &format_str) {
+	// Check for comma-separated list — identify which entry is invalid
+	auto format_list = SplitFormatList(format_str);
+	if (!format_list.empty()) {
+		for (const auto &fmt : format_list) {
+			if (fmt == "auto" || fmt == "unknown" || !IsValidFormat(fmt)) {
+				std::string msg = "Unknown format '" + fmt + "' in format list '" + format_str + "'.";
+				std::string suggestion = SuggestFormat(fmt);
+				if (!suggestion.empty()) {
+					msg += " Did you mean '" + suggestion + "'?";
+				} else {
+					msg += " Use 'auto' for auto-detection or see docs/formats.md for supported formats.";
+				}
+				return msg;
+			}
+		}
+	}
+
+	// Single format name
+	std::string msg = "Unknown format: '" + format_str + "'.";
+	std::string suggestion = SuggestFormat(format_str);
+	if (!suggestion.empty()) {
+		msg += " Did you mean '" + suggestion + "'?";
+	} else {
+		msg += " Use 'auto' for auto-detection or see docs/formats.md for supported formats.";
+	}
+	return msg;
 }
 
 std::vector<ValidationEvent> ParseContentRegexp(const std::string &content, const std::string &pattern,

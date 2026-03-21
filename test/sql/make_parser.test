@@ -205,11 +205,23 @@ SELECT tool_name FROM parse_duck_hunt_log('file.cpp:1:1: error: test', 'gcc_text
 ----
 compiler
 
-# Test: Invalid format in list is rejected at bind time
+# Test: Invalid format in list identifies the bad entry and suggests alternatives
 statement error
 SELECT * FROM parse_duck_hunt_log('test', 'gcc_text,bogus_format');
 ----
-Unknown format
+Unknown format 'bogus_format' in format list
+
+# Test: Common typo in comma list gets helpful suggestion
+statement error
+SELECT * FROM parse_duck_hunt_log('test', 'gcc_error,make_error');
+----
+Did you mean 'gcc_text'
+
+# Test: Single invalid format also gets suggestion
+statement error
+SELECT * FROM parse_duck_hunt_log('test', 'duckdb_tests');
+----
+Did you mean 'duckdb_test'
 
 # Test: Comma-separated with mixed GCC+make content picks GCC (first in list)
 query IIII

@@ -64,6 +64,16 @@ std::string DetectFormat(const std::string &content);
 bool IsValidFormat(const std::string &format_name);
 
 /**
+ * Build a descriptive error message for an invalid format string.
+ * For comma-separated lists, identifies which entry is invalid.
+ * Suggests similar format names using edit distance matching.
+ *
+ * @param format_str The invalid format string
+ * @return Error message string suitable for BinderException
+ */
+std::string FormatValidationError(const std::string &format_str);
+
+/**
  * Parse content using a regexp pattern.
  *
  * @param content The log/test output content to parse

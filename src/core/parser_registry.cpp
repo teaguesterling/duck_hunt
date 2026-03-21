@@ -431,6 +431,19 @@ std::vector<std::string> ParserRegistry::getCategories() const {
 	return categories;
 }
 
+std::vector<std::string> ParserRegistry::getAllFormatNames() const {
+	InitializeAllParsers();
+
+	std::lock_guard<std::mutex> lock(registry_mutex_);
+	std::vector<std::string> names;
+	names.reserve(format_map_.size());
+	for (const auto &entry : format_map_) {
+		names.push_back(entry.first);
+	}
+	std::sort(names.begin(), names.end());
+	return names;
+}
+
 bool ParserRegistry::hasFormat(const std::string &format_name) const {
 	// Ensure parsers are registered (call_once ensures this only runs once)
 	InitializeAllParsers();

@@ -104,8 +104,7 @@ unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFuncti
 		// config file paths, and comma-separated format lists
 		if (bind_data->format == TestResultFormat::UNKNOWN) {
 			if (!IsValidFormat(format_str)) {
-				throw BinderException("Unknown format: '" + format_str +
-				                      "'. Use 'auto' for auto-detection or see docs/formats.md for supported formats.");
+				throw BinderException(FormatValidationError(format_str));
 			}
 		}
 
@@ -468,8 +467,7 @@ unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunct
 		// config file paths, and comma-separated format lists
 		if (bind_data->format == TestResultFormat::UNKNOWN) {
 			if (!IsValidFormat(format_str)) {
-				throw BinderException("Unknown format: '" + format_str +
-				                      "'. Use 'auto' for auto-detection or see docs/formats.md for supported formats.");
+				throw BinderException(FormatValidationError(format_str));
 			}
 		}
 

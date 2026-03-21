@@ -88,6 +88,11 @@ public:
 	std::vector<std::string> getCategories() const;
 
 	/**
+	 * Get all registered format names and aliases (for error suggestions).
+	 */
+	std::vector<std::string> getAllFormatNames() const;
+
+	/**
 	 * Check if a format is registered.
 	 */
 	bool hasFormat(const std::string &format_name) const;
