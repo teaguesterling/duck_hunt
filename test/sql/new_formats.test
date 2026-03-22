@@ -60,7 +60,7 @@ SELECT test_name, status, execution_time > 0 as has_time, message
 FROM parse_duck_hunt_log('{"type":"test","event":"started","name":"module::test_function"}
 {"type":"test","event":"failed","name":"module::test_function","exec_time":0.123,"stdout":"assertion failed"}', 'cargo_test_json');
 ----
-module::test_function	FAIL	true	Test failed: assertion failed
+module::test_function	FAIL	true	assertion failed
 
 # Test 7: RuboCop severity mapping
 query II
@@ -76,7 +76,7 @@ query II
 SELECT status, message FROM parse_duck_hunt_log('{"type":"test","event":"started","name":"test::ignored_test"}
 {"type":"test","event":"ignored","name":"test::ignored_test","exec_time":0.001}', 'cargo_test_json');
 ----
-SKIP	Test ignored
+SKIP	test::ignored_test ignored
 
 # Test 9: RuboCop with no offenses
 query I

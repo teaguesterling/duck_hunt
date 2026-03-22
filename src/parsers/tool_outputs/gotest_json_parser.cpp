@@ -114,17 +114,17 @@ std::vector<ValidationEvent> GoTestJSONParser::parse(const std::string &content)
 					event.status = ValidationEventStatus::PASS;
 					event.category = "test_success";
 					event.severity = "info";
-					event.message = "Test passed";
+					event.message = test_str + " passed";
 				} else if (action_str == "fail") {
 					event.status = ValidationEventStatus::FAIL;
 					event.category = "test_failure";
 					event.severity = "error";
-					event.message = "Test failed";
+					event.message = test_str + " failed";
 				} else if (action_str == "skip") {
 					event.status = ValidationEventStatus::SKIP;
 					event.category = "test_skipped";
 					event.severity = "warning";
-					event.message = "Test skipped";
+					event.message = test_str + " skipped";
 				}
 
 				events.push_back(event);

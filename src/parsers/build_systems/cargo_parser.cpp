@@ -119,7 +119,7 @@ std::vector<ValidationEvent> CargoParser::parse(const std::string &content) cons
 				event.status = ValidationEventStatus::ERROR;
 				event.severity = "error";
 				event.category = "test_failure";
-				event.message = "Test failed";
+				event.message = test_match[1].str() + " failed";
 				event.ref_line = -1;
 				event.ref_column = -1;
 				event.log_content = line;

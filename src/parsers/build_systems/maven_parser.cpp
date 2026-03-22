@@ -87,7 +87,7 @@ std::vector<ValidationEvent> MavenParser::parse(const std::string &content) cons
 			event.category = (match[4].str() == "FAILURE") ? "test_failure" : "test_error";
 			std::string failure_type = match[4].str();
 			std::transform(failure_type.begin(), failure_type.end(), failure_type.begin(), ::tolower);
-			event.message = "Test " + failure_type;
+			event.message = match[1].str() + " " + failure_type;
 			event.log_content = content;
 			event.structured_data = "maven_build";
 			event.log_line_start = current_line_num;

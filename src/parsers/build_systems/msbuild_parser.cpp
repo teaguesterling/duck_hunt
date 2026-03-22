@@ -144,17 +144,17 @@ std::vector<ValidationEvent> MSBuildParser::parse(const std::string &content) co
 				event.status = ValidationEventStatus::FAIL;
 				event.severity = "error";
 				event.category = "test_failure";
-				event.message = "Test failed";
+				event.message = test_method + " failed";
 			} else if (test_result == "PASS") {
 				event.status = ValidationEventStatus::PASS;
 				event.severity = "info";
 				event.category = "test_success";
-				event.message = "Test passed";
+				event.message = test_method + " passed";
 			} else if (test_result == "SKIP") {
 				event.status = ValidationEventStatus::SKIP;
 				event.severity = "info";
 				event.category = "test_skipped";
-				event.message = "Test skipped";
+				event.message = test_method + " skipped";
 			}
 
 			event.log_content = content;

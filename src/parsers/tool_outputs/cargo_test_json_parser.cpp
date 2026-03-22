@@ -125,11 +125,11 @@ std::vector<ValidationEvent> CargoTestJSONParser::parse(const std::string &conte
 					// Set status based on event
 					if (event_str == "ok") {
 						event.status = ValidationEventStatus::PASS;
-						event.message = "Test passed";
+						event.message = event.test_name + " passed";
 						event.severity = "success";
 					} else if (event_str == "failed") {
 						event.status = ValidationEventStatus::FAIL;
-						event.message = "Test failed";
+						event.message = event.test_name + " failed";
 						event.severity = "error";
 
 						// Get failure details from stdout
@@ -137,12 +137,12 @@ std::vector<ValidationEvent> CargoTestJSONParser::parse(const std::string &conte
 						if (stdout_val && yyjson_is_str(stdout_val)) {
 							std::string stdout_str = yyjson_get_str(stdout_val);
 							if (!stdout_str.empty()) {
-								event.message = "Test failed: " + stdout_str;
+								event.message = stdout_str;
 							}
 						}
 					} else if (event_str == "ignored") {
 						event.status = ValidationEventStatus::SKIP;
-						event.message = "Test ignored";
+						event.message = event.test_name + " ignored";
 						event.severity = "info";
 					}
 
