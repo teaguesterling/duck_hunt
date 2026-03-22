@@ -188,7 +188,7 @@ std::vector<ValidationEvent> MochaChaiTextParser::parse(const std::string &conte
 				event.event_id = event_id++;
 				event.event_type = ValidationEventType::TEST_RESULT;
 				event.severity = "error";
-				event.message = current_error_message.empty() ? "Test failed" : current_error_message;
+				event.message = current_error_message.empty() ? (accumulated_test_name + " failed") : current_error_message;
 				event.test_name = accumulated_test_name;
 				event.status = ValidationEventStatus::FAIL;
 				event.ref_file = current_file_path;

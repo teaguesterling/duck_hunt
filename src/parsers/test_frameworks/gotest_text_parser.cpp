@@ -155,12 +155,12 @@ std::vector<ValidationEvent> GoTestTextParser::parse(const std::string &content)
 				if (status == "ok") {
 					event.status = ValidationEventStatus::PASS;
 					event.severity = "info";
-					event.message = "Package tests passed";
+					event.message = package + " passed";
 					pass_count++;
 				} else {
 					event.status = ValidationEventStatus::FAIL;
 					event.severity = "error";
-					event.message = "Package tests failed";
+					event.message = package + " failed";
 					fail_count++;
 				}
 
@@ -184,7 +184,7 @@ std::vector<ValidationEvent> GoTestTextParser::parse(const std::string &content)
 		if (test.status == "PASS") {
 			event.status = ValidationEventStatus::PASS;
 			event.severity = "info";
-			event.message = "Test passed";
+			event.message = test.name + " passed";
 			pass_count++;
 		} else if (test.status == "FAIL") {
 			event.status = ValidationEventStatus::FAIL;
@@ -198,18 +198,18 @@ std::vector<ValidationEvent> GoTestTextParser::parse(const std::string &content)
 				event.ref_line = std::get<1>(first_error);
 				event.message = std::get<2>(first_error);
 			} else {
-				event.message = "Test failed";
+				event.message = test.name + " failed";
 			}
 		} else if (test.status == "SKIP") {
 			event.status = ValidationEventStatus::SKIP;
 			event.severity = "info";
-			event.message = "Test skipped";
+			event.message = test.name + " skipped";
 			skip_count++;
 		} else {
 			// Test started but no result found
 			event.status = ValidationEventStatus::INFO;
 			event.severity = "info";
-			event.message = "Test incomplete";
+			event.message = test.name + " incomplete";
 		}
 
 		events.push_back(event);
