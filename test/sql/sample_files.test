@@ -83,9 +83,7 @@ FROM read_duck_hunt_log('test/samples/mypy.txt', 'auto');
 mypy
 
 # Test 9: pytest short summary format parsing
-# The pytest output has two formats:
-#   Standard: "file.py::test_name STATUS"
-#   Short summary: "STATUS file.py::test_name - message"
+# 3 events: 2 passed + 1 failed (duplicate FAILED from summary is deduplicated)
 query IIII
 SELECT COUNT(*) as events,
        COUNT(CASE WHEN status = 'PASS' THEN 1 END) as passes,
@@ -94,18 +92,17 @@ SELECT COUNT(*) as events,
 FROM read_duck_hunt_log('workspace/ci-logs/staging/pytest-results.txt', 'pytest_text')
 GROUP BY tool_name;
 ----
-4	2	2	pytest
+3	2	1	pytest
 
 # Test 10: pytest short summary format field validation
 # The "FAILED file.py::test - message" format should parse correctly
-# Both entries now get the error message from the FAILURES section
+# Deduplicated: only one FAIL event (inline + summary merged)
 query IIII
 SELECT ref_file, test_name, status, message LIKE '%assert%' as has_assert_msg
 FROM read_duck_hunt_log('workspace/ci-logs/staging/pytest-results.txt', 'pytest_text')
 WHERE status = 'FAIL'
 ORDER BY event_id;
 ----
-test_user_auth.py	test_invalid_login	FAIL	true
 test_user_auth.py	test_invalid_login	FAIL	true
 
 # Test 11: pytest standard format parsing
@@ -120,6 +117,7 @@ test_user_auth.py	test_logout	PASS
 
 # Test 12: pytest log line tracking
 # For failed tests, log_line_start/end now point to the FAILURES section traceback
+# Deduplicated: only one FAIL event row
 query II
 SELECT log_line_start, log_line_end
 FROM read_duck_hunt_log('workspace/ci-logs/staging/pytest-results.txt', 'pytest_text')
@@ -128,7 +126,6 @@ ORDER BY log_line_start;
 ----
 4	4
 5	5
-9	17
 9	17
 
 # Test 12b: pytest ref_line extraction from FAILURES section
@@ -141,7 +138,6 @@ ORDER BY event_id;
 ----
 test_login	NULL	PASS
 test_logout	NULL	PASS
-test_invalid_login	15	FAIL
 test_invalid_login	15	FAIL
 
 # Test 13: Regression test for catastrophic regex backtracking (issue: paths with many colons)

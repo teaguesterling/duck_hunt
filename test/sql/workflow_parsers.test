@@ -224,26 +224,28 @@ true
 # -----------------------------------------------------------------------------
 
 # Test pytest delegation - delegated events have hierarchy_level = 4
+# 3 events: 2 passed + 1 failed (duplicate FAILED from summary is deduplicated)
 query I
 SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_github_actions_pytest.log', 'github_actions') WHERE hierarchy_level = 4;
 ----
-4
+3
 
 # Test pytest delegation - structured_data is pytest_text (not pytest_json)
+# 3 events after dedup (2 passed + 1 failed)
 query I
 SELECT COUNT(*) FROM read_duck_hunt_workflow_log('test/sample_github_actions_pytest.log', 'github_actions') WHERE structured_data = 'pytest_text';
 ----
-4
+3
 
 # Test pytest delegation - tool_name is from delegated parser
 query II
 SELECT tool_name, COUNT(*) as cnt FROM read_duck_hunt_workflow_log('test/sample_github_actions_pytest.log', 'github_actions') WHERE tool_name = 'pytest' GROUP BY tool_name;
 ----
-pytest	4
+pytest	3
 
 # Test pytest delegation - test results are captured with correct status
 query II
 SELECT severity, COUNT(*) as cnt FROM read_duck_hunt_workflow_log('test/sample_github_actions_pytest.log', 'github_actions') WHERE structured_data = 'pytest_text' GROUP BY severity ORDER BY severity;
 ----
-error	2
+error	1
 info	2

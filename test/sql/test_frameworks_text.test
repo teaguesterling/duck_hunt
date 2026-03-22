@@ -33,7 +33,7 @@ FROM parse_duck_hunt_log('Running com.example.AppTest
 testMethod(com.example.AppTest) Time elapsed: 0.05 sec <<< PASSED!', 'junit_text')
 WHERE category = 'test_success';
 ----
-junit4	info	Test passed
+junit4	info	testMethod passed
 
 # Test 4: Individual JUnit 4 test failure
 query III
@@ -42,7 +42,7 @@ FROM parse_duck_hunt_log('Running com.example.AppTest
 testMethod(com.example.AppTest) Time elapsed: 0.1 sec <<< FAILURE!', 'junit_text')
 WHERE category = 'test_failure';
 ----
-junit4	error	Test failed
+junit4	error	testMethod failed
 
 # Test 5: Individual JUnit 4 test error
 query III
@@ -51,7 +51,7 @@ FROM parse_duck_hunt_log('Running com.example.AppTest
 testMethod(com.example.AppTest) Time elapsed: 0.1 sec <<< ERROR!', 'junit_text')
 WHERE category = 'test_error';
 ----
-junit4	error	Test error
+junit4	error	testMethod error
 
 # Test 6: JUnit 5 header detection
 query II
@@ -76,7 +76,7 @@ SELECT tool_name, severity, message
 FROM parse_duck_hunt_log('AppTest > testMethod PASSED', 'junit_text')
 WHERE category = 'test_success';
 ----
-gradle-test	info	Test passed
+gradle-test	info	testMethod passed
 
 # Test 9: Gradle test fail
 query III
@@ -84,7 +84,7 @@ SELECT tool_name, severity, message
 FROM parse_duck_hunt_log('AppTest > testMethod FAILED', 'junit_text')
 WHERE category = 'test_failure';
 ----
-gradle-test	error	Test failed
+gradle-test	error	testMethod failed
 
 # Test 10: Gradle test summary
 query III

@@ -21,11 +21,12 @@ FROM read_duck_hunt_log('workspace/builds/**/*.txt', 'auto');
 2
 
 # Test CI logs file processing (verify individual pytest files can be read)
+# 3 events: 2 passed + 1 failed (duplicate FAILED from summary section is deduplicated)
 query I
 SELECT COUNT(*) as events_found
 FROM read_duck_hunt_log('workspace/ci-logs/staging/pytest-results.txt', 'pytest_text');
 ----
-4
+3
 
 # Test aggregation of events across all build files
 query III

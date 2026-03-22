@@ -129,26 +129,26 @@ static void parseJUnitTextImpl(const std::string &content, std::vector<Validatio
 				event.status = ValidationEventStatus::PASS;
 				event.severity = "info";
 				event.category = "test_success";
-				event.message = "Test passed";
+				event.message = test_method + " passed";
 			} else if (result == "FAILURE!") {
 				event.status = ValidationEventStatus::FAIL;
 				event.severity = "error";
 				event.category = "test_failure";
-				event.message = "Test failed";
+				event.message = test_method + " failed";
 				current_test = event.test_name;
 				in_stack_trace = true;
 			} else if (result == "ERROR!") {
 				event.status = ValidationEventStatus::ERROR;
 				event.severity = "error";
 				event.category = "test_error";
-				event.message = "Test error";
+				event.message = test_method + " error";
 				current_test = event.test_name;
 				in_stack_trace = true;
 			} else if (result == "SKIPPED!") {
 				event.status = ValidationEventStatus::SKIP;
 				event.severity = "info";
 				event.category = "test_skipped";
-				event.message = "Test skipped";
+				event.message = test_method + " skipped";
 			}
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
@@ -199,17 +199,17 @@ static void parseJUnitTextImpl(const std::string &content, std::vector<Validatio
 				event.status = ValidationEventStatus::PASS;
 				event.severity = "info";
 				event.category = "test_success";
-				event.message = "Test passed";
+				event.message = test_method + " passed";
 			} else if (result_symbol == "✗") {
 				event.status = ValidationEventStatus::FAIL;
 				event.severity = "error";
 				event.category = "test_failure";
-				event.message = "Test failed";
+				event.message = test_method + " failed";
 			} else if (result_symbol == "↷") {
 				event.status = ValidationEventStatus::SKIP;
 				event.severity = "info";
 				event.category = "test_skipped";
-				event.message = "Test skipped";
+				event.message = test_method + " skipped";
 			}
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
@@ -243,12 +243,12 @@ static void parseJUnitTextImpl(const std::string &content, std::vector<Validatio
 				event.status = ValidationEventStatus::FAIL;
 				event.severity = "error";
 				event.category = "test_failure";
-				event.message = "Test failed";
+				event.message = test_method + " failed";
 			} else if (result == "ERROR!") {
 				event.status = ValidationEventStatus::ERROR;
 				event.severity = "error";
 				event.category = "test_error";
-				event.message = "Test error";
+				event.message = test_method + " error";
 			}
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
@@ -303,17 +303,17 @@ static void parseJUnitTextImpl(const std::string &content, std::vector<Validatio
 				event.status = ValidationEventStatus::PASS;
 				event.severity = "info";
 				event.category = "test_success";
-				event.message = "Test passed";
+				event.message = test_method + " passed";
 			} else if (result == "FAILED") {
 				event.status = ValidationEventStatus::FAIL;
 				event.severity = "error";
 				event.category = "test_failure";
-				event.message = "Test failed";
+				event.message = test_method + " failed";
 			} else if (result == "SKIPPED") {
 				event.status = ValidationEventStatus::SKIP;
 				event.severity = "info";
 				event.category = "test_skipped";
-				event.message = "Test skipped";
+				event.message = test_method + " skipped";
 			}
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
@@ -366,17 +366,17 @@ static void parseJUnitTextImpl(const std::string &content, std::vector<Validatio
 				event.status = ValidationEventStatus::PASS;
 				event.severity = "info";
 				event.category = "test_success";
-				event.message = "Test passed";
+				event.message = test_method + " passed";
 			} else if (result == "FAIL") {
 				event.status = ValidationEventStatus::FAIL;
 				event.severity = "error";
 				event.category = "test_failure";
-				event.message = "Test failed";
+				event.message = test_method + " failed";
 			} else if (result == "SKIP") {
 				event.status = ValidationEventStatus::SKIP;
 				event.severity = "info";
 				event.category = "test_skipped";
-				event.message = "Test skipped";
+				event.message = test_method + " skipped";
 			}
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
