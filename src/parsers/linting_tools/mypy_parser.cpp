@@ -1,8 +1,39 @@
 #include "mypy_parser.hpp"
 #include "parsers/base/safe_parsing.hpp"
 #include <sstream>
+#include <regex>
 
 namespace duckdb {
+
+// Extract function/class name from mypy error messages when possible.
+// Patterns:
+//   Argument N to "func_name" ...          → func_name
+//   Returning Any from function ...        → (from error code context)
+//   "ClassName" has no attribute "method"  → ClassName.method
+//   Incompatible return value type (got "X", expected "Y")  → (none)
+//   Name "func" is not defined             → func
+static std::string ExtractMypyFunctionName(const std::string &message) {
+	// Mypy uses ASCII double quotes in messages: Argument 1 to "func" ...
+	static const std::regex RE_ARG_TO(R"xx(Argument \d+ to "([^"]+)")xx");
+	static const std::regex RE_NAME_NOT_DEFINED(R"xx(Name "([^"]+)" is not defined)xx");
+	static const std::regex RE_HAS_NO_ATTR(R"xx("([^"]+)" has no attribute "([^"]+)")xx");
+	static const std::regex RE_IN_FUNC(R"xx(function "([^"]+)")xx");
+
+	std::smatch match;
+	if (std::regex_search(message, match, RE_ARG_TO)) {
+		return match[1].str();
+	}
+	if (std::regex_search(message, match, RE_HAS_NO_ATTR)) {
+		return match[1].str() + "." + match[2].str();
+	}
+	if (std::regex_search(message, match, RE_IN_FUNC)) {
+		return match[1].str();
+	}
+	if (std::regex_search(message, match, RE_NAME_NOT_DEFINED)) {
+		return match[1].str();
+	}
+	return "";
+}
 
 // Pre-compiled regex patterns for mypy parsing (compiled once, reused)
 namespace {
@@ -124,6 +155,7 @@ std::vector<ValidationEvent> MypyParser::parse(const std::string &content) const
 			event.ref_line = line_number;
 			event.ref_column = -1;
 			event.error_code = error_code;
+			event.function_name = ExtractMypyFunctionName(message);
 			event.tool_name = "mypy";
 			event.category = "type_checking";
 			event.execution_time = 0.0;
@@ -175,6 +207,7 @@ std::vector<ValidationEvent> MypyParser::parse(const std::string &content) const
 			event.ref_file = file_path;
 			event.ref_line = line_number;
 			event.ref_column = -1;
+			event.function_name = ExtractMypyFunctionName(message);
 			event.tool_name = "mypy";
 			event.category = "type_checking";
 			event.execution_time = 0.0;
