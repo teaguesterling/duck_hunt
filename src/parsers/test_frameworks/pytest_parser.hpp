@@ -2,6 +2,7 @@
 
 #include "parsers/base/parser_interface.hpp"
 #include <unordered_map>
+#include <unordered_set>
 
 namespace duckdb {
 
@@ -39,7 +40,8 @@ public:
 
 private:
 	void parseTestLine(const std::string &line, int64_t &event_id, std::vector<ValidationEvent> &events,
-	                   int32_t log_line_num, const std::unordered_map<std::string, FailureInfo> &failure_info) const;
+	                   int32_t log_line_num, const std::unordered_map<std::string, FailureInfo> &failure_info,
+	                   std::unordered_set<std::string> &emitted_tests) const;
 };
 
 } // namespace duckdb

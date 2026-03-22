@@ -3,8 +3,47 @@
 #include <sstream>
 #include <regex>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace duckdb {
+
+// Normalize pytest test name separators so FAILURES section names (dot-separated)
+// match inline result names (double-colon-separated).
+// "TestClass.test_method" → "TestClass::test_method"
+// "TestClass.test_method[param]" → "TestClass::test_method[param]"
+static std::string NormalizeTestName(const std::string &name) {
+	std::string result = name;
+	// Replace dots that separate class/method names (not in file paths)
+	// Dots in file paths (e.g., "test_file.py") are fine — they appear before ::
+	// We only normalize dots between identifier-like segments
+	for (size_t i = 0; i < result.size(); i++) {
+		if (result[i] == '.') {
+			result[i] = ':';
+			result.insert(i + 1, 1, ':');
+			i++; // skip inserted char
+		}
+	}
+	return result;
+}
+
+// Extract function name from test name.
+// "TestClass::test_method" → "test_method"
+// "test_standalone" → "test_standalone"
+// "TestClass::test_method[param1]" → "test_method"
+static std::string ExtractFunctionName(const std::string &test_name) {
+	std::string name = test_name;
+	// Strip parameterization suffix [...]
+	size_t bracket = name.find('[');
+	if (bracket != std::string::npos) {
+		name = name.substr(0, bracket);
+	}
+	// Find last :: separator
+	size_t last_sep = name.rfind("::");
+	if (last_sep != std::string::npos) {
+		return name.substr(last_sep + 2);
+	}
+	return name;
+}
 
 // Structure to hold failure location info extracted from FAILURES section
 struct FailureInfo {
@@ -48,11 +87,17 @@ static std::unordered_map<std::string, FailureInfo> extractFailureInfo(const std
 	int32_t current_block_start = 0;
 	std::string current_traceback;
 
-	// Helper to save current failure info
+	// Helper to save/finalize current failure info.
+	// Updates error_message (E lines may appear after the location line),
+	// traceback, and end line number.
 	auto saveCurrentFailure = [&]() {
 		if (!current_test_name.empty() && failures.find(current_test_name) != failures.end()) {
 			failures[current_test_name].failure_log_line_end = line_num - 1;
 			failures[current_test_name].traceback = current_traceback;
+			// Update error_message — E lines often appear after the location line
+			if (!current_error_message.empty()) {
+				failures[current_test_name].error_message = current_error_message;
+			}
 		}
 	};
 
@@ -87,7 +132,7 @@ static std::unordered_map<std::string, FailureInfo> extractFailureInfo(const std
 			// Save previous failure block if any
 			saveCurrentFailure();
 
-			current_test_name = match[1].str();
+			current_test_name = NormalizeTestName(match[1].str());
 			current_error_message.clear();
 			current_block_start = line_num;
 			current_traceback.clear();
@@ -140,6 +185,9 @@ std::vector<ValidationEvent> PytestParser::parse(const std::string &content) con
 
 	// First, extract failure info from FAILURES section
 	auto failure_info = extractFailureInfo(content);
+
+	// Track emitted test names to prevent duplicates (inline result + summary both match)
+	std::unordered_set<std::string> emitted_tests;
 
 	// Regex for pytest summary line: ===== N passed, N failed, N skipped in X.XXs =====
 	static const std::regex summary_regex(
@@ -198,7 +246,7 @@ std::vector<ValidationEvent> PytestParser::parse(const std::string &content) con
 
 		// Look for pytest text output patterns: "file.py::test_name STATUS"
 		if (line.find("::") != std::string::npos) {
-			parseTestLine(line, event_id, events, current_line_num, failure_info);
+			parseTestLine(line, event_id, events, current_line_num, failure_info, emitted_tests);
 		}
 	}
 
@@ -207,7 +255,8 @@ std::vector<ValidationEvent> PytestParser::parse(const std::string &content) con
 
 void PytestParser::parseTestLine(const std::string &line, int64_t &event_id, std::vector<ValidationEvent> &events,
                                  int32_t log_line_num,
-                                 const std::unordered_map<std::string, FailureInfo> &failure_info) const {
+                                 const std::unordered_map<std::string, FailureInfo> &failure_info,
+                                 std::unordered_set<std::string> &emitted_tests) const {
 	// Parse pytest test result line using simple string parsing
 	// Format 1: "file.py::test_name STATUS" or "file.py::test_name STATUS [extra]"
 	// Format 2: "STATUS file.py::test_name - message" (short test summary)
@@ -301,6 +350,16 @@ void PytestParser::parseTestLine(const std::string &line, int64_t &event_id, std
 		}
 	}
 
+	// Deduplicate: skip if we already emitted an event for this test
+	// (e.g., inline "FAILED [62%]" + summary "FAILED file.py::test")
+	std::string dedup_key = event.ref_file + "::" + event.test_name;
+	if (event.status == ValidationEventStatus::FAIL || event.status == ValidationEventStatus::ERROR) {
+		if (emitted_tests.count(dedup_key)) {
+			event_id--; // Undo the increment
+			return;
+		}
+	}
+
 	// Look up failure info to get line number and traceback for failed tests
 	if (event.status == ValidationEventStatus::FAIL || event.status == ValidationEventStatus::ERROR) {
 		auto it = failure_info.find(event.test_name);
@@ -311,7 +370,8 @@ void PytestParser::parseTestLine(const std::string &line, int64_t &event_id, std
 				event.ref_file = it->second.file;
 			}
 			// Enhance message with error details if available
-			if (!it->second.error_message.empty() && event.message == "Test failed") {
+			if (!it->second.error_message.empty() &&
+			    (event.message == "Test failed" || event.message == "Test error")) {
 				event.message = it->second.error_message;
 			}
 			// Update log_line_start/end to point to the FAILURES section traceback
@@ -325,6 +385,12 @@ void PytestParser::parseTestLine(const std::string &line, int64_t &event_id, std
 				event.log_content = it->second.traceback;
 			}
 		}
+		emitted_tests.insert(dedup_key);
+	}
+
+	// Extract function name from test name
+	if (!event.test_name.empty()) {
+		event.function_name = ExtractFunctionName(event.test_name);
 	}
 
 	events.push_back(event);

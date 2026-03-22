@@ -1,0 +1,105 @@
+# name: test/sql/pytest_parser.test
+# description: test pytest text output parser
+# group: [sql]
+
+require duck_hunt
+
+# =============================================================================
+# BASIC DETECTION
+# =============================================================================
+
+query I
+SELECT tool_name FROM parse_duck_hunt_log('tests/test_example.py::test_basic PASSED', 'pytest_text');
+----
+pytest
+
+# =============================================================================
+# ENRICHMENT FROM FAILURES SECTION (Bug #1 fix: name normalization)
+# =============================================================================
+
+# Test: Class method failure gets enriched with assertion error from FAILURES section.
+# The FAILURES header uses dot separator (TestClass.test_method) while the inline
+# result uses double-colon (TestClass::test_method). Name normalization must match them.
+query III
+SELECT message, ref_line, ref_file FROM parse_duck_hunt_log(E'tests/test_example.py::TestMath::test_addition FAILED [100%]\n\n=================================== FAILURES ===================================\n_________________________ TestMath.test_addition __________________________\n\ntests/test_example.py:42: in test_addition\n    assert 1 + 1 == 3\nE   AssertionError: assert 2 == 3\n\n=========================== short test summary info ============================\nFAILED tests/test_example.py::TestMath::test_addition\n================== 1 failed in 0.05s ===================', 'pytest_text')
+WHERE status = 'FAIL';
+----
+AssertionError: assert 2 == 3	42	tests/test_example.py
+
+# Test: Standalone function failure (no class) also gets enriched
+query II
+SELECT message, ref_line FROM parse_duck_hunt_log(E'tests/test_simple.py::test_value FAILED [100%]\n\n=================================== FAILURES ===================================\n______________________________ test_value ______________________________\n\ntests/test_simple.py:10: in test_value\n    assert x > 5\nE   AssertionError: assert 3 > 5\n\n=========================== short test summary info ============================\nFAILED tests/test_simple.py::test_value\n================== 1 failed in 0.01s ===================', 'pytest_text')
+WHERE status = 'FAIL';
+----
+AssertionError: assert 3 > 5	10
+
+# =============================================================================
+# DEDUPLICATION (Bug #2 fix)
+# =============================================================================
+
+# Test: Same failure in inline result AND summary produces only ONE event
+query I
+SELECT COUNT(*) FROM parse_duck_hunt_log(E'tests/test_example.py::TestMath::test_addition FAILED [100%]\n\n=================================== FAILURES ===================================\n_________________________ TestMath.test_addition __________________________\n\ntests/test_example.py:42: in test_addition\n    assert 1 + 1 == 3\nE   AssertionError: assert 2 == 3\n\n=========================== short test summary info ============================\nFAILED tests/test_example.py::TestMath::test_addition\n================== 1 failed in 0.05s ===================', 'pytest_text')
+WHERE status = 'FAIL';
+----
+1
+
+# Test: Mixed pass/fail — one FAIL event, multiple PASS events, no duplicate FAIL
+query II
+SELECT status, COUNT(*) FROM parse_duck_hunt_log(E'tests/test_example.py::TestMath::test_ok PASSED [ 50%]\ntests/test_example.py::TestMath::test_bad FAILED [100%]\n\n=================================== FAILURES ===================================\n_________________________ TestMath.test_bad __________________________\n\ntests/test_example.py:20: in test_bad\n    assert False\nE   AssertionError\n\n=========================== short test summary info ============================\nFAILED tests/test_example.py::TestMath::test_bad\n================== 1 failed, 1 passed in 0.05s ===================', 'pytest_text')
+WHERE event_type = 'test_result'
+GROUP BY status ORDER BY status;
+----
+FAIL	1
+PASS	1
+
+# =============================================================================
+# FUNCTION NAME EXTRACTION (Bug #4)
+# =============================================================================
+
+# Test: function_name extracted from class::method
+query I
+SELECT function_name FROM parse_duck_hunt_log('tests/test_example.py::TestMath::test_addition PASSED [100%]', 'pytest_text');
+----
+test_addition
+
+# Test: function_name for standalone test function
+query I
+SELECT function_name FROM parse_duck_hunt_log('tests/test_simple.py::test_standalone PASSED [100%]', 'pytest_text');
+----
+test_standalone
+
+# Test: function_name strips parameterization
+query I
+SELECT function_name FROM parse_duck_hunt_log('tests/test_params.py::TestSuite::test_case[param1-param2] PASSED [100%]', 'pytest_text');
+----
+test_case
+
+# =============================================================================
+# SUMMARY LINE
+# =============================================================================
+
+# Test: Summary event with failures
+query II
+SELECT message, severity FROM parse_duck_hunt_log(E'================== 3 passed, 1 failed in 2.50s ===================', 'pytest_text')
+WHERE event_type = 'summary';
+----
+3 passed, 1 failed in 2.50s	error
+
+# Test: All-pass summary
+query II
+SELECT message, severity FROM parse_duck_hunt_log(E'================== 5 passed in 1.00s ===================', 'pytest_text')
+WHERE event_type = 'summary';
+----
+5 passed in 1.00s	info
+
+# =============================================================================
+# NO FAILURES SECTION (graceful degradation)
+# =============================================================================
+
+# Test: Without FAILURES section, events are still produced with fallback message
+query II
+SELECT status, message FROM parse_duck_hunt_log(E'tests/test_example.py::test_basic FAILED [100%]\n================== 1 failed in 0.05s ===================', 'pytest_text')
+WHERE status = 'FAIL';
+----
+FAIL	Test failed
