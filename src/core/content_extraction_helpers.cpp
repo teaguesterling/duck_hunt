@@ -28,9 +28,8 @@ std::string ExtractJsonSection(const std::string &content) {
 			// Check if followed by JSON-like character
 			if (i + 1 < content.size()) {
 				char next = content[i + 1];
-				if (next == '"' || next == '{' || next == '[' || next == ']' || next == '}' ||
-				    next == ' ' || next == '\t' || next == '\n' || next == '\r' ||
-				    (next >= '0' && next <= '9')) {
+				if (next == '"' || next == '{' || next == '[' || next == ']' || next == '}' || next == ' ' ||
+				    next == '\t' || next == '\n' || next == '\r' || (next >= '0' && next <= '9')) {
 					return content.substr(i);
 				}
 			} else {

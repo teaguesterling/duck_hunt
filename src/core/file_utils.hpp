@@ -31,8 +31,7 @@ namespace duckdb {
  * @param max_bytes Maximum number of bytes to read (default 8192)
  * @return First max_bytes of file content as string
  */
-std::string PeekContentFromSource(ClientContext &context, const std::string &source,
-                                  size_t max_bytes);
+std::string PeekContentFromSource(ClientContext &context, const std::string &source, size_t max_bytes);
 
 /**
  * Read file content from a source path.

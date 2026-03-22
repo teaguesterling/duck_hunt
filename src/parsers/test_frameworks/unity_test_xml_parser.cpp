@@ -29,7 +29,6 @@ std::vector<ValidationEvent> UnityTestXmlParser::parseWithContext(ClientContext 
 
 	auto result = WebbedIntegration::ParseXml(context, content, "test-case");
 
-
 	std::vector<ValidationEvent> events;
 	int64_t event_id = 1;
 

@@ -254,8 +254,7 @@ std::vector<ValidationEvent> PytestParser::parse(const std::string &content) con
 }
 
 void PytestParser::parseTestLine(const std::string &line, int64_t &event_id, std::vector<ValidationEvent> &events,
-                                 int32_t log_line_num,
-                                 const std::unordered_map<std::string, FailureInfo> &failure_info,
+                                 int32_t log_line_num, const std::unordered_map<std::string, FailureInfo> &failure_info,
                                  std::unordered_set<std::string> &emitted_tests) const {
 	// Parse pytest test result line using simple string parsing
 	// Format 1: "file.py::test_name STATUS" or "file.py::test_name STATUS [extra]"
