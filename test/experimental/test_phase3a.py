@@ -12,9 +12,7 @@ def test_phase3a_multifile():
 
     # Load the duck_hunt extension
     try:
-        conn.execute(
-            "LOAD 'build/release/extension/duck_hunt/duck_hunt.duckdb_extension'"
-        )
+        conn.execute("LOAD 'build/release/extension/duck_hunt/duck_hunt.duckdb_extension'")
         print("✅ Duck Hunt extension loaded successfully")
     except Exception as e:
         print(f"❌ Failed to load extension: {e}")
@@ -35,7 +33,7 @@ def test_phase3a_multifile():
         print(f"Single file result: {result}")
         assert len(result) == 1, f"Expected 1 result, got {len(result)}"
         assert (
-            result[0][0] == "workspace/ansible_sample.txt"
+            result[0][0] == 'workspace/ansible_sample.txt'
         ), f"Expected source_file to be workspace/ansible_sample.txt"
         assert result[0][3] == 0, f"Expected file_index to be 0"
         print("✅ Single file processing works")
@@ -131,9 +129,7 @@ def test_phase3a_multifile():
         print(f"❌ Pipeline aggregation test failed: {e}")
         return
 
-    print(
-        "\n🎉 Phase 3A: All tests passed! Multi-file processing is working correctly."
-    )
+    print("\n🎉 Phase 3A: All tests passed! Multi-file processing is working correctly.")
 
 
 if __name__ == "__main__":
