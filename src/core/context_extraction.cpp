@@ -1,5 +1,6 @@
 #include "../include/read_duck_hunt_log_function.hpp"
 #include "../include/validation_event_types.hpp"
+#include "duckdb_compat.hpp"
 #include <algorithm>
 #include <sstream>
 
@@ -123,11 +124,11 @@ void PopulateDataChunkFromEvents(DataChunk &output, const std::vector<Validation
 	idx_t output_size = std::min(chunk_size, events_remaining);
 
 	if (output_size == 0) {
-		output.SetCardinality(0);
+		CompatSetOutputCardinality(output, 0);
 		return;
 	}
 
-	output.SetCardinality(output_size);
+	CompatSetOutputCardinality(output, output_size);
 
 	for (idx_t i = 0; i < output_size; i++) {
 		const auto &event = events[start_offset + i];

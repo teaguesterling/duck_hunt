@@ -16,6 +16,7 @@
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/catalog/catalog.hpp"
 #include "duckdb/parser/parsed_data/create_table_function_info.hpp"
+#include "duckdb_compat.hpp"
 #include <algorithm>
 #include <regex>
 #include <sstream>
@@ -353,7 +354,7 @@ void ReadDuckHuntWorkflowLogFunction(ClientContext &context, TableFunctionInput 
 	idx_t events_count = global_state.events.size();
 
 	if (current_row >= events_count) {
-		output.SetCardinality(0);
+		CompatSetOutputCardinality(output, 0);
 		return;
 	}
 
@@ -361,7 +362,7 @@ void ReadDuckHuntWorkflowLogFunction(ClientContext &context, TableFunctionInput 
 	idx_t rows_to_output = std::min<idx_t>(STANDARD_VECTOR_SIZE, events_count - current_row);
 
 	// CRITICAL: Set cardinality BEFORE populating values (DuckDB requirement)
-	output.SetCardinality(rows_to_output);
+	CompatSetOutputCardinality(output, rows_to_output);
 
 	for (idx_t i = 0; i < rows_to_output; i++) {
 		const WorkflowEvent &event = global_state.events[current_row + i];

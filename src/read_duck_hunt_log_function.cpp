@@ -33,6 +33,7 @@
 #include "duckdb/common/string_util.hpp"
 #include "duckdb/common/enums/file_glob_options.hpp"
 #include "duckdb/common/enums/file_compression_type.hpp"
+#include "duckdb_compat.hpp"
 #include "yyjson.hpp"
 #include <fstream>
 #include <regex>
@@ -728,7 +729,7 @@ OperatorResultType ParseDuckHuntLogInOutFunction(ExecutionContext &context, Tabl
 		// For direct calls, DuckDB creates a synthetic input DataChunk
 		if (input.size() == 0 || input.data.empty()) {
 			// No input data - signal we need more
-			output.SetCardinality(0);
+			CompatSetOutputCardinality(output, 0);
 			return OperatorResultType::NEED_MORE_INPUT;
 		}
 
@@ -736,7 +737,7 @@ OperatorResultType ParseDuckHuntLogInOutFunction(ExecutionContext &context, Tabl
 		Value content_value = input.GetValue(0, 0);
 		if (content_value.IsNull()) {
 			// Null input - no output, request next row
-			output.SetCardinality(0);
+			CompatSetOutputCardinality(output, 0);
 			lstate.initialized = false;
 			return OperatorResultType::NEED_MORE_INPUT;
 		}
@@ -861,14 +862,14 @@ OperatorResultType ReadDuckHuntLogInOutFunction(ExecutionContext &context, Table
 	if (!lstate.initialized) {
 		// Get file path from input DataChunk (first column)
 		if (input.size() == 0 || input.data.empty()) {
-			output.SetCardinality(0);
+			CompatSetOutputCardinality(output, 0);
 			return OperatorResultType::NEED_MORE_INPUT;
 		}
 
 		Value path_value = input.GetValue(0, 0);
 		if (path_value.IsNull()) {
 			// Null input - no output, request next row
-			output.SetCardinality(0);
+			CompatSetOutputCardinality(output, 0);
 			lstate.initialized = false;
 			return OperatorResultType::NEED_MORE_INPUT;
 		}
@@ -970,7 +971,7 @@ OperatorResultType ReadDuckHuntLogInOutFunction(ExecutionContext &context, Table
 				try {
 					peek_content = PeekContentFromSource(context.client, source_path, SNIFF_BUFFER_SIZE);
 				} catch (const IOException &) {
-					output.SetCardinality(0);
+					CompatSetOutputCardinality(output, 0);
 					lstate.initialized = false;
 					return OperatorResultType::NEED_MORE_INPUT;
 				}
@@ -996,7 +997,7 @@ OperatorResultType ReadDuckHuntLogInOutFunction(ExecutionContext &context, Table
 				try {
 					lstate.line_reader = make_uniq<LineReader>(context.client, source_path);
 				} catch (const IOException &) {
-					output.SetCardinality(0);
+					CompatSetOutputCardinality(output, 0);
 					lstate.initialized = false;
 					return OperatorResultType::NEED_MORE_INPUT;
 				}
@@ -1011,7 +1012,7 @@ OperatorResultType ReadDuckHuntLogInOutFunction(ExecutionContext &context, Table
 				try {
 					content = ReadContentFromSource(context.client, source_path);
 				} catch (const IOException &) {
-					output.SetCardinality(0);
+					CompatSetOutputCardinality(output, 0);
 					lstate.initialized = false;
 					return OperatorResultType::NEED_MORE_INPUT;
 				}
@@ -1054,7 +1055,7 @@ OperatorResultType ReadDuckHuntLogInOutFunction(ExecutionContext &context, Table
 		// For batch mode: post-process events
 		if (!lstate.streaming_mode) {
 			if (lstate.events.empty()) {
-				output.SetCardinality(0);
+				CompatSetOutputCardinality(output, 0);
 				lstate.initialized = false;
 				lstate.log_lines_by_file.clear();
 				return OperatorResultType::NEED_MORE_INPUT;
@@ -1106,7 +1107,7 @@ OperatorResultType ReadDuckHuntLogInOutFunction(ExecutionContext &context, Table
 
 		if (lstate.events.empty()) {
 			// No more events - done with this file
-			output.SetCardinality(0);
+			CompatSetOutputCardinality(output, 0);
 			lstate.initialized = false;
 			lstate.streaming_mode = false;
 			lstate.line_reader.reset();

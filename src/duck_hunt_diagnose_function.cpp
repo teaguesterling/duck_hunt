@@ -2,6 +2,7 @@
 #include "core/parser_registry.hpp"
 #include "duckdb/common/exception.hpp"
 #include "duckdb/common/file_system.hpp"
+#include "duckdb_compat.hpp"
 #include <vector>
 
 namespace duckdb {
@@ -217,7 +218,7 @@ static void DuckHuntDiagnoseFunction(ClientContext &context, TableFunctionInput 
 		count++;
 	}
 
-	output.SetCardinality(count);
+	CompatSetOutputCardinality(output, count);
 }
 
 TableFunctionSet GetDuckHuntDiagnoseParseFunction() {
