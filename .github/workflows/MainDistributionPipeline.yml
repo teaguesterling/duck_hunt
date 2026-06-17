@@ -36,3 +36,27 @@ jobs:
       ci_tools_version: v1.5.3
       extension_name: duck_hunt
       format_checks: 'format'
+
+  # Guards the WASM build against unresolved dependency symbols (the LINKED_LIBS
+  # class of bug: duckdb_yaml #40 / duckdb_webbed #96). The reusable distribution
+  # workflow builds and uploads the .wasm but never inspects or loads it, so a
+  # side module with unresolved imports would ship green. This downloads the
+  # built v1.5.3 wasm artifacts and statically checks (no duckdb-wasm runtime
+  # needed) that every not-self-resolved symbol is host-provided. duck_hunt links
+  # no vcpkg deps, so the expected result is "0 foreign". See test/wasm/.
+  wasm-symbol-check:
+    name: WASM symbol resolution check
+    needs: [duckdb-stable-build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Download WASM artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: duck_hunt-v1.5.3-extension-wasm_*
+          path: wasm-artifacts
+      - name: Check for unresolved dependency symbols
+        run: bash test/wasm/run_wasm_checks.sh wasm-artifacts
