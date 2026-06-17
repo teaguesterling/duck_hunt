@@ -119,26 +119,57 @@ registry — the 256-byte signature footer is handled automatically):
 node test/wasm/check_wasm_imports.mjs duck_hunt.duckdb_extension.wasm --verbose
 ```
 
-## End-to-end (Layer 2) — not automated here
+## Layer 2 — live load test in duckdb-wasm (`load_test.cjs`)
 
-Rusty's harness instantiates the published duckdb-wasm engine in Node, runs
-`INSTALL duck_hunt FROM community; LOAD duck_hunt;`, and executes the extension's
-`test/sql/*.test` files against it. That validates the extension actually
-*works* under wasm (the yyjson call path in particular), not just that symbols
-resolve. It requires a published artifact **and a duckdb-wasm engine whose core
-version matches the artifact** — the version-matching is the hard part, so it is
-intentionally left as a manual, on-demand check rather than wired into CI.
+The static check proves symbols *resolve*; it does **not** prove the module
+instantiates and *runs*. `load_test.cjs` (adopted from
+[duckdb_webbed](https://github.com/teaguesterling/duckdb_webbed)) closes that
+gap: it instantiates a duckdb-wasm engine in Node, serves the built extension
+repository over HTTP, `INSTALL`s + `LOAD`s duck_hunt, and runs a query. It uses
+the **async** API (the blocking API deadlocks on `LOAD`) and a watchdog timeout
+so a mismatched engine can't hang the run. Needs the npm deps in `package.json`.
 
-- Harness: https://github.com/Query-farm-haybarn/haybarn-extension-wasm-tester
+```bash
+cd test/wasm && npm install
+mkdir -p repo/v1.5.3/wasm_eh
+cp ../../build/wasm_eh/repository/v1.5.3/wasm_eh/duck_hunt.duckdb_extension.wasm repo/v1.5.3/wasm_eh/
+# (or drop in a published artifact from community-extensions.duckdb.org)
+node load_test.cjs --repo repo --name duck_hunt --platform eh \
+    --query "SELECT duck_hunt_detect_format('{\"tests\":[{\"nodeid\":\"a::b\",\"outcome\":\"failed\"}]}') AS fmt" \
+    --expect '"fmt":"pytest_json"'
+```
+
+That query is deliberately chosen to exercise the **yyjson call path** — the one
+host-provided symbol duck_hunt depends on — via the pytest_json parser's
+`can_parse`. A clean run is the end-to-end proof that the host actually provides
+yyjson at call time, not just that the import resolves.
+
+**Engine matching (important).** A clean `LOAD` requires an engine matching
+**both** the extension's duckdb version (v1.5.3) **and** its emscripten ABI
+(`extension-ci-tools@v1.5.3` pins emsdk 3.1.71). As of this writing no public
+engine satisfies both, so the live test does not yet go green:
+
+| engine | duckdb | result against the v1.5.3 artifact |
+| --- | --- | --- |
+| `@haybarn/haybarn-wasm` 1.5.3-rc15 | v1.5.4-dev135 (ahead) | engine boots + bare `SELECT` works + `INSTALL` works; `LOAD` **deadlocks** during side-module instantiation (version/ABI skew) — watchdog terminates it |
+| `@duckdb/duckdb-wasm` 1.33 | v1.5.1 (behind) | `memory access out of bounds` (per webbed) |
+
+In every case the failure is downstream of symbol resolution and `INSTALL` —
+consistent with Layer 1's "0 foreign symbols" — and is a duckdb-version /
+toolchain skew, **not** a duck_hunt defect. The live test will go green once a
+public engine ships v1.5.3 built with the pinned emsdk. Until then it is wired
+into CI as a **non-blocking** (informational) step; Layer 1 is the hard gate.
+
+- Harness inspiration: https://github.com/Query-farm-haybarn/haybarn-extension-wasm-tester
 - Writeup: https://rusty.today/blog/testing-duckdb-wasm-extensions/
-
-The static check here is the build-time gate (runs on every CI build); Layer 2
-is the post-publish / pre-release end-to-end check.
 
 ## CI
 
-The `wasm-symbol-check` job in `.github/workflows/MainDistributionPipeline.yml`
-runs `run_wasm_checks.sh` against the `wasm_*` artifacts built by the reusable
-`duckdb/extension-ci-tools` distribution workflow (which builds and uploads the
-`.wasm` but never inspects it — which is why the yaml/webbed bug shipped). It
-only needs `node`.
+`wasm-symbol-check` in `.github/workflows/MainDistributionPipeline.yml` downloads
+the `wasm_*` artifacts built by the reusable `duckdb/extension-ci-tools`
+distribution workflow (which builds and uploads the `.wasm` but never inspects
+or loads it — which is why the yaml/webbed bug shipped) and runs:
+
+- **Layer 1** (`run_wasm_checks.sh`) — the hard gate; needs only `node`.
+- **Layer 2** (`load_test.cjs`, `continue-on-error: true`) — informational until
+  a version-matched engine exists (see above).

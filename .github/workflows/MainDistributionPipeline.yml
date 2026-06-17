@@ -41,9 +41,14 @@ jobs:
   # class of bug: duckdb_yaml #40 / duckdb_webbed #96). The reusable distribution
   # workflow builds and uploads the .wasm but never inspects or loads it, so a
   # side module with unresolved imports would ship green. This downloads the
-  # built v1.5.3 wasm artifacts and statically checks (no duckdb-wasm runtime
-  # needed) that every not-self-resolved symbol is host-provided. duck_hunt links
-  # no vcpkg deps, so the expected result is "0 foreign". See test/wasm/.
+  # built v1.5.3 wasm artifacts and runs two layers (see test/wasm/):
+  #   Layer 1 (hard gate)  — static check that every not-self-resolved symbol is
+  #                          host-provided. duck_hunt links no vcpkg deps, so the
+  #                          expected result is "0 foreign"; needs only node.
+  #   Layer 2 (non-blocking) — live INSTALL/LOAD + query in a duckdb-wasm engine.
+  #                          Informational until a public engine ships v1.5.3 with
+  #                          the pinned emsdk ABI (today's engines fail on
+  #                          version/toolchain skew, downstream of symbol resolution).
   wasm-symbol-check:
     name: WASM symbol resolution check
     needs: [duckdb-stable-build]
@@ -58,5 +63,17 @@ jobs:
         with:
           pattern: duck_hunt-v1.5.3-extension-wasm_*
           path: wasm-artifacts
-      - name: Check for unresolved dependency symbols
+      - name: Layer 1 — static symbol check (no symbol may be unresolved)
         run: bash test/wasm/run_wasm_checks.sh wasm-artifacts
+      - name: Layer 2 — live load test in duckdb-wasm (informational until official v1.5.3)
+        continue-on-error: true
+        working-directory: test/wasm
+        run: |
+          set -euo pipefail
+          npm install --no-save
+          mkdir -p repo/v1.5.3/wasm_eh
+          cp "$GITHUB_WORKSPACE/wasm-artifacts/duck_hunt-v1.5.3-extension-wasm_eh/duck_hunt.duckdb_extension.wasm" \
+             repo/v1.5.3/wasm_eh/
+          node load_test.cjs --repo repo --name duck_hunt --platform eh \
+            --query "SELECT duck_hunt_detect_format('{\"tests\":[{\"nodeid\":\"a::b\",\"outcome\":\"failed\"}]}') AS fmt" \
+            --expect '"fmt":"pytest_json"'

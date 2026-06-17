@@ -34,3 +34,8 @@ Thumbs.db
 # External datasets (downloaded separately)
 test/samples/LogChunks/
 test/samples/__MACOSX/
+
+# WASM live load test (Layer 2) local scratch
+test/wasm/node_modules/
+test/wasm/package-lock.json
+test/wasm/repo/
