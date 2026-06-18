@@ -19,6 +19,10 @@ jobs:
       duckdb_version: main
       ci_tools_version: main
       extension_name: duck_hunt
+      # Windows excluded for now: duckdb's vendored fmt (third_party/fmt) fails on
+      # the runner's newer MSVC (stdext::checked_array_iterator removed). This is
+      # upstream, not duck_hunt code; revisit when duckdb ships a newer fmt.
+      exclude_archs: 'windows_amd64;windows_amd64_mingw'
 
   duckdb-stable-build:
     name: Build extension binaries
@@ -27,6 +31,8 @@ jobs:
       duckdb_version: v1.5.3
       ci_tools_version: v1.5.3
       extension_name: duck_hunt
+      # See note above: Windows excluded pending an upstream fmt/MSVC fix.
+      exclude_archs: 'windows_amd64;windows_amd64_mingw'
 
   code-quality-check:
     name: Code Quality Check
@@ -52,6 +58,11 @@ jobs:
   wasm-symbol-check:
     name: WASM symbol resolution check
     needs: [duckdb-stable-build]
+    # Run as long as the build wasn't cancelled, even if an unrelated platform
+    # leg of duckdb-stable-build failed: the wasm artifacts build independently,
+    # so the guard should still inspect them. If they're genuinely missing, the
+    # download step fails and this job fails (correctly).
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
