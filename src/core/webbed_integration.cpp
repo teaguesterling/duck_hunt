@@ -156,9 +156,13 @@ std::string WebbedIntegration::GetWebbedRequiredError() {
 optional_ptr<CatalogEntry> WebbedIntegration::LookupFunction(ClientContext &context, const std::string &name) {
 	try {
 		auto &catalog = Catalog::GetSystemCatalog(context);
-		auto entry = catalog.GetEntry(context, CatalogType::SCALAR_FUNCTION_ENTRY, DEFAULT_SCHEMA, name,
-		                              OnEntryNotFound::RETURN_NULL);
-		return entry;
+		// Use the templated GetEntry<T> overload. The non-templated
+		// GetEntry(context, CatalogType, schema, name, OnEntryNotFound) form was
+		// removed on duckdb main (it still exists in v1.5.3); the templated form
+		// is present in both, so this compiles across versions.
+		auto entry = catalog.GetEntry<ScalarFunctionCatalogEntry>(context, DEFAULT_SCHEMA, name,
+		                                                          OnEntryNotFound::RETURN_NULL);
+		return entry.get();
 	} catch (...) {
 		return nullptr;
 	}
