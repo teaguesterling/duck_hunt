@@ -78,13 +78,20 @@ jobs:
         run: bash test/wasm/run_wasm_checks.sh wasm-artifacts
       - name: Layer 2 — live load test in duckdb-wasm (informational until official v1.5.3)
         continue-on-error: true
+        # continue-on-error alone is NOT enough: a hung step runs to the job
+        # limit and gets *cancelled*, and cancellation overrides
+        # continue-on-error (failing the job). So hard-cap the step and time-box
+        # each command (npm install + the node load can both hang on a mismatched
+        # engine). The in-script watchdog in load_test.cjs is the inner backstop.
+        # (Lesson from duckdb_webbed 6f2a274.)
+        timeout-minutes: 10
         working-directory: test/wasm
         run: |
-          set -euo pipefail
-          npm install --no-save
+          set -uo pipefail
+          timeout 300 npm install --no-save
           mkdir -p repo/v1.5.3/wasm_eh
           cp "$GITHUB_WORKSPACE/wasm-artifacts/duck_hunt-v1.5.3-extension-wasm_eh/duck_hunt.duckdb_extension.wasm" \
              repo/v1.5.3/wasm_eh/
-          node load_test.cjs --repo repo --name duck_hunt --platform eh \
+          timeout 240 node load_test.cjs --repo repo --name duck_hunt --platform eh \
             --query "SELECT duck_hunt_detect_format('{\"tests\":[{\"nodeid\":\"a::b\",\"outcome\":\"failed\"}]}') AS fmt" \
             --expect '"fmt":"pytest_json"'
