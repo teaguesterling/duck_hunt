@@ -1,6 +1,7 @@
 #include "include/duck_hunt_formats_function.hpp"
 #include "core/parser_registry.hpp"
 #include "duckdb/common/exception.hpp"
+#include "duckdb_compat.hpp"
 #include <vector>
 
 namespace duckdb {
@@ -110,7 +111,7 @@ static void DuckHuntFormatsFunction(ClientContext &context, TableFunctionInput &
 		count++;
 	}
 
-	output.SetCardinality(count);
+	CompatSetOutputCardinality(output, count);
 }
 
 TableFunction GetDuckHuntFormatsFunction() {

@@ -67,7 +67,7 @@ WHERE log_line_start = 3;
 
 # Test 6: Event lines are marked with is_event = true
 query I
-SELECT list_count(list_filter(context, x -> x.is_event))
+SELECT list_count(list_filter(context, lambda x: x.is_event))
 FROM parse_duck_hunt_log('line 1
 line 2
 main.c:3:1: error: test
@@ -266,7 +266,7 @@ WHERE context IS NOT NULL AND log_content IS NULL;
 
 # Test 24: Non-event lines have is_event = false
 query I
-SELECT list_count(list_filter(context, x -> NOT x.is_event))
+SELECT list_count(list_filter(context, lambda x: NOT x.is_event))
 FROM parse_duck_hunt_log('line 1
 line 2
 main.c:3:1: error: test

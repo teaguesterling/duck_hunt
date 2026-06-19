@@ -156,9 +156,20 @@ std::string WebbedIntegration::GetWebbedRequiredError() {
 optional_ptr<CatalogEntry> WebbedIntegration::LookupFunction(ClientContext &context, const std::string &name) {
 	try {
 		auto &catalog = Catalog::GetSystemCatalog(context);
-		auto entry = catalog.GetEntry(context, CatalogType::SCALAR_FUNCTION_ENTRY, DEFAULT_SCHEMA, name,
-		                              OnEntryNotFound::RETURN_NULL);
-		return entry;
+		// Use the templated GetEntry<T> overload: the non-templated
+		// GetEntry(context, CatalogType, schema, name, OnEntryNotFound) form was
+		// removed on duckdb main. On main the schema/name params are also a new
+		// Identifier type — a const char* literal (DEFAULT_SCHEMA) converts
+		// implicitly, but a runtime string must be wrapped explicitly. v1.5.3
+		// takes plain strings and has no identifier.hpp, so key the branch on that.
+#if __has_include("duckdb/common/identifier.hpp")
+		auto entry = catalog.GetEntry<ScalarFunctionCatalogEntry>(context, DEFAULT_SCHEMA, Identifier(name),
+		                                                          OnEntryNotFound::RETURN_NULL);
+#else
+		auto entry =
+		    catalog.GetEntry<ScalarFunctionCatalogEntry>(context, DEFAULT_SCHEMA, name, OnEntryNotFound::RETURN_NULL);
+#endif
+		return entry.get();
 	} catch (...) {
 		return nullptr;
 	}

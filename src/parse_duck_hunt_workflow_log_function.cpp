@@ -12,6 +12,7 @@
 #include "duckdb/common/string_util.hpp"
 #include "duckdb/function/table_function.hpp"
 #include "duckdb/parser/parsed_data/create_table_function_info.hpp"
+#include "duckdb_compat.hpp"
 
 namespace duckdb {
 
@@ -289,7 +290,7 @@ void ParseDuckHuntWorkflowLogFunction(ClientContext &context, TableFunctionInput
 		gstate.position++;
 	}
 
-	output.SetCardinality(count);
+	CompatSetOutputCardinality(output, count);
 }
 
 TableFunctionSet GetParseDuckHuntWorkflowLogFunction() {
