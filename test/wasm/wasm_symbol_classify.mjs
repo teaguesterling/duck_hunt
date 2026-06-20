@@ -56,6 +56,14 @@ export function classify(name) {
 export function hostAllowed(name, extraAllow = []) {
   const c = classify(name);
   if (c === "operator" || c === "std" || c === "std-sub") return true;
-  if (c !== null && ALLOWED_NS.has(c)) return true;
+  // Any "duckdb"-prefixed namespace is host-provided: the duckdb-wasm runtime
+  // exports its own symbols AND its vendored third_party, which all live under a
+  // duckdb_* namespace (duckdb_yyjson, duckdb_zstd, duckdb_re2, duckdb_miniz, ...).
+  // Verified against the host module's export table — e.g. scalarfs imports
+  // duckdb_zstd::ZSTD_* and the host exports every one of them. A hardcoded list
+  // (duckdb_yyjson only) would FALSE-POSITIVE any other bundled lib (zstd, re2).
+  // Real foreign deps never use a duckdb_ prefix (yaml-cpp=YAML, libxml2=xml,
+  // cmark=cmark), so the prefix match cannot mask a genuine missing dependency.
+  if (c !== null && (c === "duckdb" || c.startsWith("duckdb_") || ALLOWED_NS.has(c))) return true;
   return extraAllow.some((re) => re.test(name));
 }
