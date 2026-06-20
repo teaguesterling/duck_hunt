@@ -278,8 +278,11 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &co
 	try {
 		// Try to expand the source as a glob pattern or file list
 		files = GetFilesFromPattern(context, bind_data.source);
-	} catch (const IOException &) {
-		// If glob expansion fails, treat as single file or direct content
+	} catch (const std::exception &) {
+		// glob/path resolution failed; fall back to single file / direct content.
+		// Native LocalFileSystem throws IOException; other FileSystem backends
+		// (e.g. wasm/emscripten) report the same condition as a different type, so
+		// catch broadly here -- this path only resolves paths, it never parses.
 		files.clear();
 	}
 
@@ -311,8 +314,10 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &co
 				} else {
 					format = TestResultFormat::UNKNOWN; // Use UNKNOWN so we use registry-based parsing below
 				}
-			} catch (const IOException &) {
-				// Not a file - treat source as direct content
+			} catch (const std::exception &) {
+				// Peek/open failed (not a readable file). IOException natively; other
+				// FS backends (wasm) report it as a different type. Treat the source
+				// as direct content. (Peek only reads bytes; it never parses.)
 				format_name = DetectFormat(bind_data.source);
 				if (!format_name.empty()) {
 					format = TestResultFormat::UNKNOWN;
@@ -328,8 +333,16 @@ unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &co
 			try {
 				content = ReadContentFromSource(context, source_path);
 				is_file = true;
-			} catch (const IOException &) {
-				// If file reading fails, treat source as direct content
+			} catch (const std::exception &e) {
+				// File access failed (missing/unreadable). Native LocalFileSystem
+				// throws IOException; wasm/emscripten reports the same condition as a
+				// different type, so catch broadly -> treat source as direct content.
+				// But preserve our explicit guard errors (size limit / invalid path).
+				std::string err = e.what();
+				if (err.find("maximum size limit") != std::string::npos ||
+				    err.find("Invalid file path") != std::string::npos) {
+					throw;
+				}
 				content = bind_data.source;
 			}
 		}
