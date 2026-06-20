@@ -32,6 +32,7 @@ const MUST_BE_ALLOWED = [
   "_ZN6duckdb9ExceptionC2ENS_13ExceptionTypeERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE", // duckdb::Exception ctor
   "_ZN6duckdb10StringUtil7ReplaceENS_6stringERKS1_S3_",                  // duckdb::StringUtil::Replace
   "_ZN13duckdb_yyjson16yyjson_read_optsEPcmjPKNS_10yyjson_alcEPNS_15yyjson_read_errE", // host yyjson
+  "_ZN11duckdb_zstd18ZSTD_createDStreamEv",                              // host duckdb_zstd (e.g. scalarfs) — bundled third_party
   "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE6appendEPKcm",   // std::string::append
   "_ZSt19__throw_logic_errorPKc",                                        // std::__throw_logic_error
   "_ZTVSt12length_error",                                                // vtable for std::length_error

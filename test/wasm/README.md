@@ -50,11 +50,15 @@ is a forward-looking regression guard, not a fix.**
 Because there are no static deps to *forbid*, the meaningful check is the
 inverse — an **allowlist**. `check_wasm_imports.mjs` parses the built `.wasm`
 (validate-only, **no instantiation**) and fails if any not-self-resolved
-**C++-mangled** symbol appears outside the known host-provided set
-(`duckdb::`, `duckdb_yyjson::`, `std::`/`__gnu_cxx`/`__cxxabiv1`, typeinfo/vtable,
-operator new/delete). That flags the day someone adds a vcpkg dependency
-without wiring `LINKED_LIBS`: its symbols would appear as a new foreign
-namespace and trip the check.
+**C++-mangled** symbol appears outside the known host-provided set: any
+`duckdb`-prefixed namespace (the runtime plus its vendored third_party —
+`duckdb_yyjson`, `duckdb_zstd`, `duckdb_re2`, `duckdb_miniz`, …, all exported by
+the duckdb-wasm host), `std::`/`__gnu_cxx`/`__cxxabiv1`, typeinfo/vtable, and
+operator new/delete. That flags the day someone adds a vcpkg dependency without
+wiring `LINKED_LIBS`: its symbols appear under a new foreign namespace and trip
+the check. (The `duckdb_*` prefix is matched as a family on purpose — a hardcoded
+`duckdb_yyjson`-only list false-positives other bundled libs like `duckdb_zstd`,
+which a zstd-using extension such as `scalarfs` legitimately imports from the host.)
 
 Subtleties (same as the sibling harnesses):
 
