@@ -667,8 +667,16 @@ unique_ptr<GlobalTableFunctionState> ParseDuckHuntLogInitGlobal(ClientContext &c
 		auto events = ParseContentRegexp(content, bind_data.regexp_pattern, bind_data.include_unparsed);
 		global_state->events.insert(global_state->events.end(), events.begin(), events.end());
 	} else if (!format_name.empty() && format_name != "unknown" && format_name != "auto") {
-		auto events = ParseContent(context, content, format_name);
-		global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+		// Defense-in-depth: a parser should never throw on untrusted content, but if
+		// one does (e.g. an unaudited numeric conversion) surface a clean, attributable
+		// query error instead of letting a raw std::exception propagate.
+		try {
+			auto events = ParseContent(context, content, format_name);
+			global_state->events.insert(global_state->events.end(), events.begin(), events.end());
+		} catch (const std::exception &e) {
+			throw InvalidInputException("duck_hunt: parser for format '%s' failed on the provided content: %s",
+			                            format_name, e.what());
+		}
 	}
 
 	// Phase 3B: Process error patterns for intelligent categorization
@@ -793,7 +801,14 @@ OperatorResultType ParseDuckHuntLogInOutFunction(ExecutionContext &context, Tabl
 			const std::string &pattern = regexp_pattern.empty() ? bind_data.regexp_pattern : regexp_pattern;
 			lstate.events = ParseContentRegexp(content, pattern, bind_data.include_unparsed);
 		} else if (!format_name.empty() && format_name != "unknown" && format_name != "auto") {
-			lstate.events = ParseContent(context.client, content, format_name);
+			// Defense-in-depth: convert any parser exception into a clean, attributable
+			// query error rather than letting a raw std::exception propagate.
+			try {
+				lstate.events = ParseContent(context.client, content, format_name);
+			} catch (const std::exception &e) {
+				throw InvalidInputException("duck_hunt: parser for format '%s' failed on the provided content: %s",
+				                            format_name, e.what());
+			}
 		}
 
 		// Process error patterns for intelligent categorization

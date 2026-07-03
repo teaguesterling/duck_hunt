@@ -420,6 +420,29 @@ inline long SafeStol(const std::string &str, long default_value = -1) {
 }
 
 /**
+ * Safe wrapper for std::stoll that returns a default value on failure.
+ *
+ * std::stoll throws std::out_of_range for tokens that overflow int64 (e.g. a
+ * >19-digit run captured by a `\d+` group) and std::invalid_argument for
+ * non-numeric input. Untrusted logs can contain either, so raw std::stoll in a
+ * parser is a DoS-per-query hazard. Use this instead.
+ *
+ * @param str The string to parse
+ * @param default_value Value to return if parsing fails (default: -1)
+ * @return Parsed long long or default_value on failure
+ */
+inline long long SafeStoll(const std::string &str, long long default_value = -1) {
+	if (str.empty()) {
+		return default_value;
+	}
+	try {
+		return std::stoll(str);
+	} catch (...) {
+		return default_value;
+	}
+}
+
+/**
  * Safe wrapper for std::stod that returns a default value on failure.
  *
  * @param str The string to parse
@@ -469,6 +492,25 @@ inline bool TryStol(const std::string &str, long &result) {
 	}
 	try {
 		result = std::stol(str);
+		return true;
+	} catch (...) {
+		return false;
+	}
+}
+
+/**
+ * Safe wrapper for std::stoll that returns success/failure status.
+ *
+ * @param str The string to parse
+ * @param result Output: the parsed long long (unchanged on failure)
+ * @return true if parsing succeeded, false otherwise
+ */
+inline bool TryStoll(const std::string &str, long long &result) {
+	if (str.empty()) {
+		return false;
+	}
+	try {
+		result = std::stoll(str);
 		return true;
 	} catch (...) {
 		return false;

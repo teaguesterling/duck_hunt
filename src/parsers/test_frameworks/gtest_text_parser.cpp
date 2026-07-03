@@ -54,7 +54,7 @@ std::vector<ValidationEvent> GTestTextParser::parse(const std::string &content) 
 		else if (std::regex_match(line, match, RE_TEST_PASSED)) {
 			std::string test_name = match[1].str();
 			std::string time_str = match[2].str();
-			int64_t execution_time = std::stoll(time_str);
+			int64_t execution_time = SafeParsing::SafeStoll(time_str, 0);
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -81,7 +81,7 @@ std::vector<ValidationEvent> GTestTextParser::parse(const std::string &content) 
 		else if (std::regex_match(line, match, RE_TEST_FAILED)) {
 			std::string test_name = match[1].str();
 			std::string time_str = match[2].str();
-			int64_t execution_time = std::stoll(time_str);
+			int64_t execution_time = SafeParsing::SafeStoll(time_str, 0);
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -108,7 +108,7 @@ std::vector<ValidationEvent> GTestTextParser::parse(const std::string &content) 
 		else if (std::regex_match(line, match, RE_TEST_SKIPPED)) {
 			std::string test_name = match[1].str();
 			std::string time_str = match[2].str();
-			int64_t execution_time = std::stoll(time_str);
+			int64_t execution_time = SafeParsing::SafeStoll(time_str, 0);
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -150,7 +150,7 @@ std::vector<ValidationEvent> GTestTextParser::parse(const std::string &content) 
 			event.ref_file = "";
 			event.ref_line = 0;
 			event.ref_column = 0;
-			event.execution_time = std::stoll(total_time);
+			event.execution_time = SafeParsing::SafeStoll(total_time, 0);
 			event.tool_name = "gtest";
 			event.category = "gtest_text";
 			event.log_content = line;
@@ -175,7 +175,7 @@ std::vector<ValidationEvent> GTestTextParser::parse(const std::string &content) 
 			event.ref_file = "";
 			event.ref_line = 0;
 			event.ref_column = 0;
-			event.execution_time = std::stoll(total_time);
+			event.execution_time = SafeParsing::SafeStoll(total_time, 0);
 			event.tool_name = "gtest";
 			event.category = "gtest_text";
 			event.log_content = line;

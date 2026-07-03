@@ -1,4 +1,5 @@
 #include "parser_registry.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <algorithm>
 #include <mutex>
 #include <regex>
@@ -158,9 +159,19 @@ IParser *ParserRegistry::findParser(const std::string &content) const {
 	std::lock_guard<std::mutex> lock(registry_mutex_);
 	ensureSortedLocked();
 
+	// Bound format detection to an 8 KB sniff window. Every parser's canParse()
+	// runs against every input on format:='auto' (O(content) x N parsers); several
+	// use std::regex, so an unbounded blob makes detection scale with total input
+	// size. Format markers appear at the start of real logs, so an 8 KB prefix is
+	// sufficient to classify while capping detection cost. See
+	// SafeParsing::MAX_DETECTION_SNIFF_SIZE.
+	const std::string sniff = content.size() > SafeParsing::MAX_DETECTION_SNIFF_SIZE
+	                              ? content.substr(0, SafeParsing::MAX_DETECTION_SNIFF_SIZE)
+	                              : content;
+
 	// Try parsers in priority order
 	for (IParser *parser : sorted_parsers_) {
-		if (parser->canParse(content)) {
+		if (parser->canParse(sniff)) {
 			return parser;
 		}
 	}

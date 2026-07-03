@@ -94,7 +94,17 @@ static std::string SuggestFormat(const std::string &invalid_name) {
 	return "";
 }
 
-// Check if format string looks like a config file path
+// Check if format string looks like a config file path.
+//
+// FOOTGUN (documented): any `format` argument ending in `.json`, prefixed with
+// `config:`, or an http(s) URL containing `.json` is treated as a *config file
+// path* and read via the file system, not as a format name. A typo such as
+// format:='eslint.json' therefore silently triggers a file/URL fetch rather than
+// an "unknown format" error. This only reaches sources DuckDB's own
+// `enable_external_access` already permits (so it is not an access-control
+// bypass), but it is surprising. Callers who mean a format name should pass a
+// bare identifier (e.g. 'eslint_json'); a config file must be an intentional,
+// reviewed choice. See advisory GHSA-cvx3-3g3w-m22r item 4.
 static bool IsConfigFilePath(const std::string &format_name) {
 	// Check for explicit config: prefix
 	if (format_name.substr(0, 7) == "config:") {

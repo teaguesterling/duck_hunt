@@ -66,7 +66,7 @@ std::vector<ValidationEvent> MochaChaiTextParser::parse(const std::string &conte
 		if (std::regex_match(line, match, RE_TEST_PASSED)) {
 			std::string test_name = match[1].str();
 			std::string time_str = match[2].str();
-			current_execution_time = std::stoll(time_str);
+			current_execution_time = SafeParsing::SafeStoll(time_str, 0);
 
 			ValidationEvent event;
 			event.event_id = event_id++;

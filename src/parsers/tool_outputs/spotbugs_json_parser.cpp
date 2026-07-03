@@ -1,4 +1,5 @@
 #include "spotbugs_json_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include "yyjson.hpp"
 
 namespace duckdb {
@@ -160,11 +161,9 @@ std::vector<ValidationEvent> SpotBugsJSONParser::parse(const std::string &conten
 				// Get line number (use start line)
 				yyjson_val *start_line = yyjson_obj_get(source_line, "start");
 				if (start_line && yyjson_is_str(start_line)) {
-					try {
-						event.ref_line = std::stoll(yyjson_get_str(start_line));
-					} catch (...) {
-						event.ref_line = -1;
-					}
+					// SafeStoll returns the default (-1) on overflow/invalid input,
+					// matching the previous try/catch fallback without an exception.
+					event.ref_line = SafeParsing::SafeStoll(yyjson_get_str(start_line), -1);
 				} else {
 					event.ref_line = -1;
 				}
