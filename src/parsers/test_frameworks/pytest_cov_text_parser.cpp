@@ -26,8 +26,7 @@ static const std::regex RE_COVERAGE_BRANCH_HEADER(R"(Name\s+Stmts\s+Miss\s+Branc
 // giving exponentially many decompositions -> catastrophic backtracking (ReDoS).
 // `\S+` captures the same maximal non-whitespace run with a single decomposition.
 static const std::regex RE_COVERAGE_ROW(R"(^(\S+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
-static const std::regex
-    RE_COVERAGE_BRANCH_ROW(R"(^(\S+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
+static const std::regex RE_COVERAGE_BRANCH_ROW(R"(^(\S+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
 static const std::regex RE_TOTAL_COVERAGE(R"(^TOTAL\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
 static const std::regex
     RE_TOTAL_BRANCH_COVERAGE(R"(^TOTAL\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
@@ -298,7 +297,8 @@ static void parsePytestCovTextImpl(const std::string &content, std::vector<Valid
 		}
 
 		// Handle coverage rows
-		if (in_coverage_table && !in_branch_table && duckdb::SafeParsing::SafeRegexSearch(line, match, RE_COVERAGE_ROW)) {
+		if (in_coverage_table && !in_branch_table &&
+		    duckdb::SafeParsing::SafeRegexSearch(line, match, RE_COVERAGE_ROW)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
@@ -343,7 +343,8 @@ static void parsePytestCovTextImpl(const std::string &content, std::vector<Valid
 		}
 
 		// Handle branch coverage rows
-		if (in_coverage_table && in_branch_table && duckdb::SafeParsing::SafeRegexSearch(line, match, RE_COVERAGE_BRANCH_ROW)) {
+		if (in_coverage_table && in_branch_table &&
+		    duckdb::SafeParsing::SafeRegexSearch(line, match, RE_COVERAGE_BRANCH_ROW)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";

@@ -18,8 +18,7 @@ static const std::regex RE_SEPARATOR_LINE(R"(^-+$)");
 // (ReDoS). `\S+` captures the identical maximal non-whitespace run with a single
 // decomposition. See SafeParsing::HasPotentialBacktracking.
 static const std::regex RE_COVERAGE_ROW(R"(^(\S+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
-static const std::regex
-    RE_COVERAGE_BRANCH_ROW(R"(^(\S+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
+static const std::regex RE_COVERAGE_BRANCH_ROW(R"(^(\S+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
 static const std::regex RE_TOTAL_ROW(R"(^TOTAL\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
 static const std::regex RE_TOTAL_BRANCH_ROW(R"(^TOTAL\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%|\d+\.\d+%)\s*(.*)?)");
 static const std::regex RE_COVERAGE_RUN(R"(coverage run (.+))");
@@ -220,7 +219,8 @@ void CoverageParser::ParseCoverageText(const std::string &content, std::vector<d
 		}
 
 		// Handle regular coverage rows
-		if (in_coverage_table && !in_branch_table && duckdb::SafeParsing::SafeRegexSearch(line, match, RE_COVERAGE_ROW)) {
+		if (in_coverage_table && !in_branch_table &&
+		    duckdb::SafeParsing::SafeRegexSearch(line, match, RE_COVERAGE_ROW)) {
 			std::string file_path = match[1].str();
 			std::string stmts = match[2].str();
 			std::string miss = match[3].str();
@@ -732,7 +732,8 @@ void CoverageParser::ParsePytestCovText(const std::string &content, std::vector<
 		}
 
 		// Handle coverage rows
-		if (in_coverage_table && !in_branch_table && duckdb::SafeParsing::SafeRegexSearch(line, match, RE_COVERAGE_ROW)) {
+		if (in_coverage_table && !in_branch_table &&
+		    duckdb::SafeParsing::SafeRegexSearch(line, match, RE_COVERAGE_ROW)) {
 			duckdb::ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "pytest-cov";
