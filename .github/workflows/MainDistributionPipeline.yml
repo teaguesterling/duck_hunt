@@ -33,7 +33,7 @@ jobs:
     name: Build extension binaries
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v1.5-variegata
     with:
-      duckdb_version: v1.5-variegata
+      duckdb_version: v1.5.4
       ci_tools_version: v1.5-variegata
       extension_name: duck_hunt
 
@@ -41,7 +41,7 @@ jobs:
     name: Code Quality Check
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_code_quality.yml@v1.5-variegata
     with:
-      duckdb_version: v1.5-variegata
+      duckdb_version: v1.5.4
       ci_tools_version: v1.5-variegata
       extension_name: duck_hunt
       format_checks: 'format'
@@ -75,7 +75,7 @@ jobs:
       - name: Download WASM artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: duck_hunt-v1.5-variegata-extension-wasm_*
+          pattern: duck_hunt-v1.5.4-extension-wasm_*
           path: wasm-artifacts
       - name: Layer 1 — static symbol check (no symbol may be unresolved)
         run: bash test/wasm/run_wasm_checks.sh wasm-artifacts
@@ -92,9 +92,9 @@ jobs:
         run: |
           set -uo pipefail
           timeout 300 npm install --no-save
-          mkdir -p repo/v1.5-variegata/wasm_eh
-          cp "$GITHUB_WORKSPACE/wasm-artifacts/duck_hunt-v1.5-variegata-extension-wasm_eh/duck_hunt.duckdb_extension.wasm" \
-             repo/v1.5-variegata/wasm_eh/
+          mkdir -p repo/v1.5.4/wasm_eh
+          cp "$GITHUB_WORKSPACE/wasm-artifacts/duck_hunt-v1.5.4-extension-wasm_eh/duck_hunt.duckdb_extension.wasm" \
+             repo/v1.5.4/wasm_eh/
           timeout 240 node load_test.cjs --repo repo --name duck_hunt --platform eh \
             --query "SELECT duck_hunt_detect_format('{\"tests\":[{\"nodeid\":\"a::b\",\"outcome\":\"failed\"}]}') AS fmt" \
             --expect '"fmt":"pytest_json"'

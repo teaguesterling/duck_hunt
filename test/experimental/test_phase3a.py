@@ -21,14 +21,12 @@ def test_phase3a_multifile():
     # Test 1: Single file processing (backward compatibility)
     print("\n🔸 Test 1: Single file processing")
     try:
-        result = conn.execute(
-            """
+        result = conn.execute("""
             SELECT source_file, build_id, environment, file_index, COUNT(*) as events 
             FROM read_test_results('workspace/ansible_sample.txt', 'auto') 
             GROUP BY source_file, build_id, environment, file_index 
             ORDER BY file_index
-        """
-        ).fetchall()
+        """).fetchall()
 
         print(f"Single file result: {result}")
         assert len(result) == 1, f"Expected 1 result, got {len(result)}"
@@ -44,14 +42,12 @@ def test_phase3a_multifile():
     # Test 2: Multi-file glob pattern processing
     print("\n🔸 Test 2: Multi-file glob pattern processing")
     try:
-        result = conn.execute(
-            """
+        result = conn.execute("""
             SELECT source_file, build_id, environment, file_index, COUNT(*) as events 
             FROM read_test_results('workspace/builds/**/*.txt', 'auto') 
             GROUP BY source_file, build_id, environment, file_index 
             ORDER BY file_index
-        """
-        ).fetchall()
+        """).fetchall()
 
         print(f"Multi-file result: {result}")
         assert len(result) >= 2, f"Expected at least 2 results, got {len(result)}"
@@ -68,14 +64,12 @@ def test_phase3a_multifile():
     # Test 3: Environment detection
     print("\n🔸 Test 3: Environment detection")
     try:
-        result = conn.execute(
-            """
+        result = conn.execute("""
             SELECT source_file, build_id, environment, file_index, COUNT(*) as events 
             FROM read_test_results('workspace/ci-logs/**/*.log', 'auto') 
             GROUP BY source_file, build_id, environment, file_index 
             ORDER BY file_index
-        """
-        ).fetchall()
+        """).fetchall()
 
         print(f"Environment detection result: {result}")
 
@@ -93,8 +87,7 @@ def test_phase3a_multifile():
     # Test 4: Pipeline aggregation capabilities
     print("\n🔸 Test 4: Pipeline aggregation")
     try:
-        result = conn.execute(
-            """
+        result = conn.execute("""
             WITH pipeline_summary AS (
                 SELECT 
                     build_id,
@@ -120,8 +113,7 @@ def test_phase3a_multifile():
                 END as pipeline_status
             FROM pipeline_summary
             ORDER BY build_id
-        """
-        ).fetchall()
+        """).fetchall()
 
         print(f"Pipeline aggregation result: {result}")
         print("✅ Pipeline aggregation capabilities work")
