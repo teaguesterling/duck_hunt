@@ -12,6 +12,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Forward-compat canary built against duckdb `main`. EXPECTED to go red on
+  # upstream API drift (e.g. CreateMacroInfo::schema/name) — this leg is NOT a
+  # merge blocker. Windows stays excluded here (main's fmt/MSVC state is not the
+  # gate); the merge gate lives on the stable leg below.
   duckdb-next-build:
     name: Build extension binaries
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@main
@@ -19,27 +23,30 @@ jobs:
       duckdb_version: main
       ci_tools_version: main
       extension_name: duck_hunt
-      # Windows excluded for now: duckdb's vendored fmt (third_party/fmt) fails on
-      # the runner's newer MSVC (stdext::checked_array_iterator removed). This is
-      # upstream, not duck_hunt code; revisit when duckdb ships a newer fmt.
       exclude_archs: 'windows_amd64;windows_amd64_mingw'
 
+  # Stable/default build, tracks the v1.5-variegata submodule pin. THIS is the
+  # merge gate. Windows excluded again: the build itself is fine now (variegata
+  # vendors a fmt without the removed MSVC stdext::checked_array_iterator), but
+  # MSVC's std::regex enforces a match-complexity cap that libstdc++/libc++ do
+  # not, and three parser tests (config_parser, format_groups, sample_files)
+  # fail with regex_error(error_complexity). Re-enable once those parsers'
+  # patterns are simplified below MSVC's cap or moved off std::regex.
   duckdb-stable-build:
     name: Build extension binaries
-    uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v1.5.3
+    uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v1.5-variegata
     with:
-      duckdb_version: v1.5.3
-      ci_tools_version: v1.5.3
+      duckdb_version: v1.5.4
+      ci_tools_version: v1.5-variegata
       extension_name: duck_hunt
-      # See note above: Windows excluded pending an upstream fmt/MSVC fix.
       exclude_archs: 'windows_amd64;windows_amd64_mingw'
 
   code-quality-check:
     name: Code Quality Check
-    uses: duckdb/extension-ci-tools/.github/workflows/_extension_code_quality.yml@v1.5.3
+    uses: duckdb/extension-ci-tools/.github/workflows/_extension_code_quality.yml@v1.5-variegata
     with:
-      duckdb_version: v1.5.3
-      ci_tools_version: v1.5.3
+      duckdb_version: v1.5.4
+      ci_tools_version: v1.5-variegata
       extension_name: duck_hunt
       format_checks: 'format'
 
@@ -47,19 +54,19 @@ jobs:
   # class of bug: duckdb_yaml #40 / duckdb_webbed #96). The reusable distribution
   # workflow builds and uploads the .wasm but never inspects or loads it, so a
   # side module with unresolved imports would ship green. This downloads the
-  # built v1.5.3 wasm artifacts and runs two layers (see test/wasm/):
+  # built v1.5-variegata wasm artifacts and runs two layers (see test/wasm/):
   #   Layer 1 (hard gate)  — static check that every not-self-resolved symbol is
   #                          host-provided. duck_hunt links no vcpkg deps, so the
   #                          expected result is "0 foreign"; needs only node.
   #   Layer 2 (non-blocking) — live INSTALL/LOAD + query in a duckdb-wasm engine.
-  #                          Informational until a public engine ships v1.5.3 with
+  #                          Informational until a public engine ships v1.5-variegata with
   #                          the pinned emsdk ABI (today's engines fail on
   #                          version/toolchain skew, downstream of symbol resolution).
   wasm-symbol-check:
     name: WASM symbol resolution check
     needs: [duckdb-stable-build]
     # Run as long as the build wasn't cancelled, even if an unrelated platform
-    # leg of duckdb-stable-build failed: the wasm artifacts build independently,
+    # leg of the stable build failed: the wasm artifacts build independently,
     # so the guard should still inspect them. If they're genuinely missing, the
     # download step fails and this job fails (correctly).
     if: ${{ !cancelled() }}
@@ -72,11 +79,11 @@ jobs:
       - name: Download WASM artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: duck_hunt-v1.5.3-extension-wasm_*
+          pattern: duck_hunt-v1.5.4-extension-wasm_*
           path: wasm-artifacts
       - name: Layer 1 — static symbol check (no symbol may be unresolved)
         run: bash test/wasm/run_wasm_checks.sh wasm-artifacts
-      - name: Layer 2 — live load test in duckdb-wasm (informational until official v1.5.3)
+      - name: Layer 2 — live load test in duckdb-wasm (informational until official v1.5-variegata)
         continue-on-error: true
         # continue-on-error alone is NOT enough: a hung step runs to the job
         # limit and gets *cancelled*, and cancellation overrides
@@ -89,9 +96,9 @@ jobs:
         run: |
           set -uo pipefail
           timeout 300 npm install --no-save
-          mkdir -p repo/v1.5.3/wasm_eh
-          cp "$GITHUB_WORKSPACE/wasm-artifacts/duck_hunt-v1.5.3-extension-wasm_eh/duck_hunt.duckdb_extension.wasm" \
-             repo/v1.5.3/wasm_eh/
+          mkdir -p repo/v1.5.4/wasm_eh
+          cp "$GITHUB_WORKSPACE/wasm-artifacts/duck_hunt-v1.5.4-extension-wasm_eh/duck_hunt.duckdb_extension.wasm" \
+             repo/v1.5.4/wasm_eh/
           timeout 240 node load_test.cjs --repo repo --name duck_hunt --platform eh \
             --query "SELECT duck_hunt_detect_format('{\"tests\":[{\"nodeid\":\"a::b\",\"outcome\":\"failed\"}]}') AS fmt" \
             --expect '"fmt":"pytest_json"'

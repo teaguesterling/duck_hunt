@@ -1,0 +1,51 @@
+# name: test/sql/redos_and_safe_parsing.test
+# description: Regression tests for the SafeParsing hardening (ReDoS coverage regex + uncaught std::stoll)
+# group: [sql]
+
+require duck_hunt
+
+# ---------------------------------------------------------------------------
+# 1. ReDoS canary: coverage table row with a long dotted token and NO valid
+#    trailing numbers. With the old RE_COVERAGE_ROW shape `[^\s]+(?:\.[^\s]+)*`
+#    (where `.` is also matched by `[^\s]`) this crafted line drives catastrophic
+#    backtracking and pins a CPU core; the sqllogictest job would hang and the
+#    CI timeout would fail the run. With the `\S+` rewrite the same input is
+#    classified and skipped in microseconds. The header line satisfies the
+#    in_coverage_table gate so the row regex is actually exercised.
+query I
+SELECT COUNT(*) >= 1 AS parsed_fast
+FROM parse_duck_hunt_log(
+  E'Name      Stmts   Miss  Cover\na.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a no_valid_trailing_numbers',
+  'coverage_text');
+----
+true
+
+# 2. Positive: a normal coverage report with dotted file paths still parses
+#    correctly and assigns the right category/severity after the rewrite.
+query III
+SELECT tool_name, category, ref_file
+FROM parse_duck_hunt_log(
+  E'Name      Stmts   Miss  Cover\nsrc/pkg/module.py     100     10    90%',
+  'coverage_text')
+WHERE category = 'line_coverage';
+----
+coverage	line_coverage	src/pkg/module.py
+
+# ---------------------------------------------------------------------------
+# 3. Uncaught std::stoll: a >19-digit millisecond token overflows int64. The old
+#    gtest parser called raw std::stoll on the `\d+` capture, throwing an
+#    uncaught std::out_of_range (query aborts). With SafeParsing::SafeStoll the
+#    oversized value defaults to 0 and the parse returns a clean, complete row.
+query II
+SELECT COUNT(*) AS n, bool_and(execution_time = 0) AS defaulted
+FROM parse_duck_hunt_log(E'[       OK ] MyTest.Overflow (99999999999999999999 ms)', 'gtest');
+----
+1	true
+
+# 4. Positive: a normal gtest OK line with an in-range time still parses and
+#    keeps its value (compared as a number to avoid depending on float rendering).
+query II
+SELECT COUNT(*) AS n, bool_and(execution_time = 12) AS kept_value
+FROM parse_duck_hunt_log(E'[       OK ] MyTest.Normal (12 ms)', 'gtest');
+----
+1	true
