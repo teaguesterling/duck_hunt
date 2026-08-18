@@ -103,3 +103,64 @@ SELECT status, message FROM parse_duck_hunt_log(E'tests/test_example.py::test_ba
 WHERE status = 'FAIL';
 ----
 FAIL	Test failed
+
+# =============================================================================
+# TRUNCATED SUMMARY LINE (issue #57)
+# =============================================================================
+#
+# `pytest -q` abbreviates its short-summary line to the terminal width and
+# assumes 80 columns when there is no TTY — which is always, under a capturing
+# runner. What survives is 80 columns minus the "FAILED file::test - " prefix,
+# so a long test name leaves almost nothing:
+#
+#   FAILED tests/test_priority.py::test_unknown_name_falls_back_to_default - asse...
+#
+# The parser already reads the complete message out of the FAILURES block. It
+# used to discard it, because the enrichment only fired while the message was
+# still a placeholder and the truncated summary had already replaced that. The
+# result was that a failure's diagnosability depended on how long someone had
+# named the test.
+
+# Test: a truncated summary is replaced by the message parsed from the block.
+query I
+SELECT message FROM parse_duck_hunt_log(E'=================================== FAILURES ===================================\n_______________ test_unknown_name_falls_back_to_default ________________\n\ntests/test_priority.py:5: in test_unknown_name_falls_back_to_default\n    assert normalize(5) == 5\nE   assert None == 5\n\n=========================== short test summary info ============================\nFAILED tests/test_priority.py::test_unknown_name_falls_back_to_default - asse...\n================== 1 failed in 0.01s ===================', 'pytest_text')
+WHERE status = 'FAIL';
+----
+assert None == 5
+
+# Test: an untruncated summary that is already complete is left alone, so a
+# short test name behaves exactly as before.
+query I
+SELECT message FROM parse_duck_hunt_log(E'=================================== FAILURES ===================================\n_______________ test_thing ________________\n\ntest_thing.py:5: in test_thing\n    assert None == 5\nE   assert None == 5\n\n=========================== short test summary info ============================\nFAILED test_thing.py::test_thing - assert None == 5\n================== 1 failed in 0.01s ===================', 'pytest_text')
+WHERE status = 'FAIL';
+----
+assert None == 5
+
+# Test: the placeholder path still works — no " - message" on the summary line
+# at all, so the block supplies the whole message.
+query I
+SELECT message FROM parse_duck_hunt_log(E'=================================== FAILURES ===================================\n_______________ test_thing ________________\n\ntest_thing.py:5: in test_thing\n    assert None == 5\nE   assert None == 5\n\n=========================== short test summary info ============================\nFAILED test_thing.py::test_thing\n================== 1 failed in 0.01s ===================', 'pytest_text')
+WHERE status = 'FAIL';
+----
+assert None == 5
+
+# Test: a summary that is LONGER than the block message is preserved. This is
+# the guard against the fix losing information in the other direction — the
+# enrichment must only fire when the block carries more, never merely because
+# it is different.
+query I
+SELECT message FROM parse_duck_hunt_log(E'=================================== FAILURES ===================================\n_______________ test_beta ________________\n\ntests/test_b.py:9: in test_beta\n    assert other() is None\nE   AssertionError: expected None\n\n=========================== short test summary info ============================\nFAILED tests/test_b.py::test_beta - AssertionError: expected None, and here is a great deal more context\n================== 1 failed in 0.01s ===================', 'pytest_text')
+WHERE status = 'FAIL';
+----
+AssertionError: expected None, and here is a great deal more context
+
+# Test: only the FIRST `E ` line reaches `message`. The follow-on
+# "+ where ..." line names the function under test and is NOT captured here —
+# it survives in log_content, and widening this is tracked separately rather
+# than changed under a truncation fix, since it would make messages multi-line
+# for every consumer.
+query I
+SELECT message FROM parse_duck_hunt_log(E'=================================== FAILURES ===================================\n_______________ test_alpha ________________\n\ntests/test_a.py:5: in test_alpha\n    assert compute(1) == 99\nE   assert 1 == 99\nE    +  where 1 = compute(1)\n\n=========================== short test summary info ============================\nFAILED tests/test_a.py::test_alpha - asse...\n================== 1 failed in 0.01s ===================', 'pytest_text')
+WHERE status = 'FAIL';
+----
+assert 1 == 99
