@@ -143,3 +143,24 @@ SELECT message FROM parse_duck_hunt_log(E'=================================== FA
 WHERE status = 'FAIL';
 ----
 assert None == 5
+
+# Test: a summary that is LONGER than the block message is preserved. This is
+# the guard against the fix losing information in the other direction — the
+# enrichment must only fire when the block carries more, never merely because
+# it is different.
+query I
+SELECT message FROM parse_duck_hunt_log(E'=================================== FAILURES ===================================\n_______________ test_beta ________________\n\ntests/test_b.py:9: in test_beta\n    assert other() is None\nE   AssertionError: expected None\n\n=========================== short test summary info ============================\nFAILED tests/test_b.py::test_beta - AssertionError: expected None, and here is a great deal more context\n================== 1 failed in 0.01s ===================', 'pytest_text')
+WHERE status = 'FAIL';
+----
+AssertionError: expected None, and here is a great deal more context
+
+# Test: only the FIRST `E ` line reaches `message`. The follow-on
+# "+ where ..." line names the function under test and is NOT captured here —
+# it survives in log_content, and widening this is tracked separately rather
+# than changed under a truncation fix, since it would make messages multi-line
+# for every consumer.
+query I
+SELECT message FROM parse_duck_hunt_log(E'=================================== FAILURES ===================================\n_______________ test_alpha ________________\n\ntests/test_a.py:5: in test_alpha\n    assert compute(1) == 99\nE   assert 1 == 99\nE    +  where 1 = compute(1)\n\n=========================== short test summary info ============================\nFAILED tests/test_a.py::test_alpha - asse...\n================== 1 failed in 0.01s ===================', 'pytest_text')
+WHERE status = 'FAIL';
+----
+assert 1 == 99
