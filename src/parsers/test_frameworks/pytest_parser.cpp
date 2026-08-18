@@ -368,10 +368,32 @@ void PytestParser::parseTestLine(const std::string &line, int64_t &event_id, std
 			if (!it->second.file.empty()) {
 				event.ref_file = it->second.file;
 			}
-			// Enhance message with error details if available
-			if (!it->second.error_message.empty() &&
-			    (event.message == "Test failed" || event.message == "Test error")) {
-				event.message = it->second.error_message;
+			// Enhance message with error details if available.
+			//
+			// The block-derived message wins whenever it carries MORE than what
+			// we already have, not only when the message is still a placeholder.
+			//
+			// `pytest -q` abbreviates its short-summary line to the terminal
+			// width, assuming 80 columns when there is no TTY — which is always
+			// under a capturing runner. That line is where Format 2 gets its
+			// message, so what survives is 80 columns minus the "FAILED
+			// file.py::test_name - " prefix: a 73-character prefix leaves 7
+			// characters, and the stored message is "asse...". The old
+			// placeholder-only condition meant the truncated text, having
+			// already been assigned, blocked the complete message we had
+			// parsed out of the FAILURES block a few lines above.
+			//
+			// The placeholder case is kept explicitly: "Test failed" is longer
+			// than a short real message like "boom", so a length comparison
+			// alone would leave the placeholder in place.
+			if (!it->second.error_message.empty()) {
+				const bool is_placeholder =
+				    (event.message == "Test failed" || event.message == "Test error");
+				const bool block_says_more =
+				    it->second.error_message.size() > event.message.size();
+				if (is_placeholder || block_says_more) {
+					event.message = it->second.error_message;
+				}
 			}
 			// Update log_line_start/end to point to the FAILURES section traceback
 			// This makes context extraction show the actual failure details
