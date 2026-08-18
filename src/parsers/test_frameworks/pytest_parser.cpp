@@ -387,10 +387,8 @@ void PytestParser::parseTestLine(const std::string &line, int64_t &event_id, std
 			// than a short real message like "boom", so a length comparison
 			// alone would leave the placeholder in place.
 			if (!it->second.error_message.empty()) {
-				const bool is_placeholder =
-				    (event.message == "Test failed" || event.message == "Test error");
-				const bool block_says_more =
-				    it->second.error_message.size() > event.message.size();
+				const bool is_placeholder = (event.message == "Test failed" || event.message == "Test error");
+				const bool block_says_more = it->second.error_message.size() > event.message.size();
 				if (is_placeholder || block_says_more) {
 					event.message = it->second.error_message;
 				}
