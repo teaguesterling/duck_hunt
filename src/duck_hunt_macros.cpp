@@ -1,4 +1,5 @@
 #include "duckdb/parser/parser.hpp"
+#include "duckdb_compat.hpp"
 #include "duckdb/parser/parsed_data/create_macro_info.hpp"
 #include "duckdb/parser/statement/select_statement.hpp"
 #include "duckdb/function/table_macro_function.hpp"
@@ -65,8 +66,7 @@ ORDER BY priority DESC, format
 
 	// Create the macro info
 	auto macro_info = make_uniq<CreateMacroInfo>(CatalogType::TABLE_MACRO_ENTRY);
-	macro_info->schema = DEFAULT_SCHEMA;
-	macro_info->name = "duck_hunt_match_command_patterns";
+	CompatSetCreateInfoQualification(*macro_info, DEFAULT_SCHEMA, "duck_hunt_match_command_patterns");
 	macro_info->temporary = true;
 	macro_info->internal = true;
 	macro_info->macros.push_back(std::move(macro_func));

@@ -48,6 +48,30 @@ using CompatBindNames = vector<Identifier>;
 #else
 using CompatBindNames = vector<string>;
 #endif
+
+// --- CreateInfo schema/name assignment ---
+// duckdb main made CreateInfo's schema/name private behind setters, in the same
+// Identifier refactor:
+//   error: 'struct duckdb::CreateMacroInfo' has no member named 'schema';
+//          did you mean 'SetSchema'?
+// Upstream create_info.hpp declares `void SetName(Identifier)` and
+// `void SetSchema(Identifier)`; a string literal converts to Identifier
+// implicitly, which is the same conversion webbed_integration.cpp relies on for
+// DEFAULT_SCHEMA. Keyed on the same probe so the branch cannot disagree with
+// CompatBindNames about which API is present.
+// Templated on the info type: on the old API `schema` lives on CreateInfo but
+// `name` is declared by the derived CreateMacroInfo, so a CreateInfo& parameter
+// does not compile there.
+template <class INFO>
+inline void CompatSetCreateInfoQualification(INFO &info, const char *schema, const char *name) {
+#ifdef DUCKDB_HAS_IDENTIFIER_NAMES
+	info.SetSchema(schema);
+	info.SetName(name);
+#else
+	info.schema = schema;
+	info.name = name;
+#endif
+}
 } // namespace duckdb
 
 namespace duckdb {
