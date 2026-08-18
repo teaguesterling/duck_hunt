@@ -124,7 +124,7 @@ static void RunDiagnosis(const std::string &content, std::vector<DiagnosisEntry>
 // Bind function for diagnose_parse (string content)
 static unique_ptr<FunctionData> DuckHuntDiagnoseParseBindFunc(ClientContext &context, TableFunctionBindInput &input,
                                                               vector<LogicalType> &return_types,
-                                                              vector<string> &names) {
+                                                              CompatBindNames &names) {
 	// Define return schema
 	return_types = {
 	    LogicalType::VARCHAR, // format
@@ -157,7 +157,8 @@ static unique_ptr<FunctionData> DuckHuntDiagnoseParseBindFunc(ClientContext &con
 
 // Bind function for diagnose_read (file path)
 static unique_ptr<FunctionData> DuckHuntDiagnoseReadBindFunc(ClientContext &context, TableFunctionBindInput &input,
-                                                             vector<LogicalType> &return_types, vector<string> &names) {
+                                                             vector<LogicalType> &return_types,
+                                                             CompatBindNames &names) {
 	// Define return schema
 	return_types = {
 	    LogicalType::VARCHAR, // format

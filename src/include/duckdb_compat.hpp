@@ -23,6 +23,33 @@
 #include "duckdb/common/vector/struct_vector.hpp"
 #endif
 
+// --- Table function bind: output-names parameter type ---
+// duckdb main changed `table_function_bind_t`'s names parameter from
+// `vector<string>` to `vector<Identifier>`:
+//
+//   error: invalid conversion from
+//     unique_ptr<FunctionData>(*)(ClientContext&, TableFunctionBindInput&,
+//                                 vector<LogicalType>&, vector<string>&)
+//   to 'duckdb::table_function_bind_t' {aka
+//     unique_ptr<FunctionData>(*)(ClientContext&, TableFunctionBindInput&,
+//                                 vector<LogicalType>&, vector<Identifier>&)}
+//
+// Keyed on identifier.hpp for the same reason webbed_integration.cpp is: v1.5.3
+// takes plain strings and does not ship that header. Bind functions declare
+// their names parameter as CompatBindNames so one signature compiles on both.
+#if __has_include("duckdb/common/identifier.hpp")
+#define DUCKDB_HAS_IDENTIFIER_NAMES 1
+#include "duckdb/common/identifier.hpp"
+#endif
+
+namespace duckdb {
+#ifdef DUCKDB_HAS_IDENTIFIER_NAMES
+using CompatBindNames = vector<Identifier>;
+#else
+using CompatBindNames = vector<string>;
+#endif
+} // namespace duckdb
+
 namespace duckdb {
 
 #ifdef DUCKDB_HAS_NEW_VECTOR_HEADERS

@@ -103,7 +103,7 @@ struct ParseDuckHuntWorkflowLogGlobalState : public GlobalTableFunctionState {
 };
 
 unique_ptr<FunctionData> ParseDuckHuntWorkflowLogBind(ClientContext &context, TableFunctionBindInput &input,
-                                                      vector<LogicalType> &return_types, vector<string> &names) {
+                                                      vector<LogicalType> &return_types, CompatBindNames &names) {
 	auto result = make_uniq<ParseDuckHuntWorkflowLogBindData>();
 
 	if (input.inputs.empty()) {

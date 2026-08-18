@@ -115,7 +115,7 @@ WorkflowLogFormat DetectWorkflowLogFormat(const std::string &content) {
 
 // Bind function for read_duck_hunt_workflow_log
 unique_ptr<FunctionData> ReadDuckHuntWorkflowLogBind(ClientContext &context, TableFunctionBindInput &input,
-                                                     vector<LogicalType> &return_types, vector<string> &names) {
+                                                     vector<LogicalType> &return_types, CompatBindNames &names) {
 	auto bind_data = make_uniq<ReadDuckHuntWorkflowLogBindData>();
 
 	// Get source parameter (required)
