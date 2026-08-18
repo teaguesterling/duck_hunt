@@ -33,7 +33,14 @@ std::vector<ValidationEvent> UnityTestXmlParser::parseWithContext(ClientContext 
 	int64_t event_id = 1;
 
 	// Get column indices for the fields we need
+	// duckdb main made BaseQueryResult::names private and exposes GetNames();
+	// v1.5.3 has the public member and no accessor. Same Identifier refactor,
+	// so it keys on the same probe as the shims in duckdb_compat.hpp.
+#if __has_include("duckdb/common/identifier.hpp")
+	auto &names = result->GetNames();
+#else
 	auto &names = result->names;
+#endif
 
 	idx_t name_idx = DConstants::INVALID_INDEX;
 	idx_t fullname_idx = DConstants::INVALID_INDEX;
