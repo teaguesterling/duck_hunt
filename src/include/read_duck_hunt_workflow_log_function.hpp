@@ -1,6 +1,7 @@
 #pragma once
 
 #include "duckdb.hpp"
+#include "duckdb_compat.hpp"
 #include "duckdb/common/file_system.hpp"
 #include "duckdb/function/table_function.hpp"
 #include "validation_event_types.hpp"
@@ -82,7 +83,7 @@ TableFunctionSet GetReadDuckHuntWorkflowLogFunction();
 
 // Table function implementation
 unique_ptr<FunctionData> ReadDuckHuntWorkflowLogBind(ClientContext &context, TableFunctionBindInput &input,
-                                                     vector<LogicalType> &return_types, vector<string> &names);
+                                                     vector<LogicalType> &return_types, CompatBindNames &names);
 
 unique_ptr<GlobalTableFunctionState> ReadDuckHuntWorkflowLogInitGlobal(ClientContext &context,
                                                                        TableFunctionInitInput &input);

@@ -53,7 +53,7 @@ using namespace duckdb_yyjson;
 // - IsValidJSON
 
 unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFunctionBindInput &input,
-                                             vector<LogicalType> &return_types, vector<string> &names) {
+                                             vector<LogicalType> &return_types, CompatBindNames &names) {
 	auto bind_data = make_uniq<ReadDuckHuntLogBindData>();
 
 	// For in-out functions (LATERAL joins), source comes from the input DataChunk at execution time
@@ -426,7 +426,7 @@ void ReadDuckHuntLogFunction(ClientContext &context, TableFunctionInput &data_p,
 
 // Parse test results implementation for string input
 unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunctionBindInput &input,
-                                              vector<LogicalType> &return_types, vector<string> &names) {
+                                              vector<LogicalType> &return_types, CompatBindNames &names) {
 	auto bind_data = make_uniq<ReadDuckHuntLogBindData>();
 
 	// For in-out functions (LATERAL joins), content comes from the input DataChunk at execution time

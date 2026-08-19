@@ -40,7 +40,7 @@ static bool CategorySupportsWorkflow(const std::string &category) {
 }
 
 static unique_ptr<FunctionData> DuckHuntFormatsBind(ClientContext &context, TableFunctionBindInput &input,
-                                                    vector<LogicalType> &return_types, vector<string> &names) {
+                                                    vector<LogicalType> &return_types, CompatBindNames &names) {
 	// Define struct type for command patterns: STRUCT(pattern VARCHAR, pattern_type VARCHAR)
 	child_list_t<LogicalType> pattern_struct_children;
 	pattern_struct_children.push_back(make_pair("pattern", LogicalType::VARCHAR));

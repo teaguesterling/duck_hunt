@@ -1,6 +1,7 @@
 #pragma once
 
 #include "duckdb.hpp"
+#include "duckdb_compat.hpp"
 #include "duckdb/function/table_function.hpp"
 #include "duckdb/common/enums/operator_result_type.hpp"
 #include "validation_event_types.hpp"
@@ -215,7 +216,7 @@ TableFunctionSet GetParseDuckHuntLogFunction();
 
 // Table function implementation for read_duck_hunt_log (file-based)
 unique_ptr<FunctionData> ReadDuckHuntLogBind(ClientContext &context, TableFunctionBindInput &input,
-                                             vector<LogicalType> &return_types, vector<string> &names);
+                                             vector<LogicalType> &return_types, CompatBindNames &names);
 
 unique_ptr<GlobalTableFunctionState> ReadDuckHuntLogInitGlobal(ClientContext &context, TableFunctionInitInput &input);
 
@@ -237,7 +238,7 @@ OperatorResultType ReadDuckHuntLogInOutFunction(ExecutionContext &context, Table
 
 // Table function implementation for parse_duck_hunt_log (string-based)
 unique_ptr<FunctionData> ParseDuckHuntLogBind(ClientContext &context, TableFunctionBindInput &input,
-                                              vector<LogicalType> &return_types, vector<string> &names);
+                                              vector<LogicalType> &return_types, CompatBindNames &names);
 
 unique_ptr<GlobalTableFunctionState> ParseDuckHuntLogInitGlobal(ClientContext &context, TableFunctionInitInput &input);
 
