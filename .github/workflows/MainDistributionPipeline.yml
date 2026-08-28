@@ -17,7 +17,8 @@ jobs:
   # merge blocker. Windows stays excluded here (main's fmt/MSVC state is not the
   # gate); the merge gate lives on the stable leg below.
   duckdb-next-build:
-    name: Build extension binaries
+    name: Canary — build against DuckDB main (advisory)
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@main
     with:
       duckdb_version: main
