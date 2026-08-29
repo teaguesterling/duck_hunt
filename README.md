@@ -2,7 +2,7 @@
 
 [![Documentation Status](https://readthedocs.org/projects/duck-hunt/badge/?version=latest)](https://duck-hunt.readthedocs.io/en/latest/?badge=latest)
 
-A DuckDB extension for parsing test results, build outputs, and CI/CD logs from 106 development tools.
+A DuckDB extension for parsing test results, build outputs, and CI/CD logs from 110+ development tools.
 
 ## Functions
 
@@ -166,7 +166,7 @@ SELECT * FROM parse_duck_hunt_log(content, 'test');
 | `valgrind` | Valgrind | [sample](test/samples/debugging_tools/valgrind_memcheck.txt) |
 | `generic_lint` | Generic | `file:line:col: severity: message` |
 
-**[See all 106 formats →](docs/formats.md)** | **[Workflow formats →](docs/workflow-formats.md)**
+**[See all 110+ formats →](docs/formats.md)** | **[Workflow formats →](docs/workflow-formats.md)**
 
 ## Output Schema
 
@@ -238,7 +238,7 @@ The `github_actions_zip` format:
 
 ## Documentation
 
-- **[Format Reference](docs/formats.md)** - All 106 supported formats with examples
+- **[Format Reference](docs/formats.md)** - All 110+ supported formats with examples
 - **[Workflow Formats](docs/workflow-formats.md)** - CI/CD workflow parsing (GitHub Actions, GitLab CI, Jenkins)
 - **[Format Maturity](docs/format-maturity.md)** - Stability ratings and test coverage
 - **[Schema Reference](docs/schema.md)** - Complete field documentation
@@ -249,10 +249,12 @@ The `github_actions_zip` format:
 ## Installation
 
 ```sql
--- From source build
 INSTALL duck_hunt FROM community;
 LOAD duck_hunt;
 ```
+
+Supported platforms: Linux (x86_64, aarch64), macOS (x86_64, arm64), WebAssembly (WASM).
+*Note: Windows is currently unsupported due to upstream MSVC regex complexity limits.*
 
 ## Building
 
@@ -271,4 +273,4 @@ Test data includes samples from [loghub](https://github.com/logpai/loghub), a co
 
 ## License
 
-MIT License - see [LICENSE](LICENSE)
+Apache License 2.0 - see [LICENSE](LICENSE) and [NOTICE](NOTICE)
