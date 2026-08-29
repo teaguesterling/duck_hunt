@@ -1,6 +1,6 @@
 # Duck Hunt
 
-A DuckDB extension for parsing test results, build outputs, and CI/CD logs from 110 development tools.
+A DuckDB extension for parsing test results, build outputs, and CI/CD logs from 110+ development tools.
 
 ## Installation
 
@@ -10,15 +10,18 @@ INSTALL duck_hunt FROM community;
 LOAD duck_hunt;
 ```
 
+Supported platforms: Linux (x86_64, aarch64), macOS (x86_64, arm64), WebAssembly (WASM).
+*Note: Windows is currently unsupported due to upstream MSVC regex complexity limits.*
+
 ## Functions
 
 ### Table Functions
 
 ```sql
-read_duck_hunt_log(file_path, format := 'auto', severity_threshold := 'all', context := 0)
-parse_duck_hunt_log(content, format := 'auto', severity_threshold := 'all', context := 0)
-read_duck_hunt_workflow_log(file_path, format := 'auto', severity_threshold := 'all')
-parse_duck_hunt_workflow_log(content, format := 'auto', severity_threshold := 'all')
+read_duck_hunt_log(source, format := 'auto', severity_threshold := 'all', ignore_errors := false, content := 'full', context := 0)
+parse_duck_hunt_log(text, format := 'auto', severity_threshold := 'all', content := 'full', context := 0)
+read_duck_hunt_workflow_log(source, format := 'auto', severity_threshold := 'all', ignore_errors := false)
+parse_duck_hunt_workflow_log(text, format := 'auto', severity_threshold := 'all')
 duck_hunt_formats()                               -- List all supported formats
 duck_hunt_load_parser_config(json)                -- Load custom parser from JSON
 duck_hunt_unload_parser(name)                     -- Unload a custom parser
@@ -26,8 +29,10 @@ duck_hunt_unload_parser(name)                     -- Unload a custom parser
 
 **Parameters:**
 
-- `format` - Parser format or `'auto'` for auto-detection
+- `format` - Parser format, comma-separated format chain (e.g. `'gcc_text,make_error'`), format group (e.g. `'python'`), or `'auto'` for auto-detection
 - `severity_threshold` - Minimum severity to include: `'all'`, `'info'`, `'warning'`, `'error'`, `'critical'`
+- `ignore_errors` - Continue processing when individual files fail to parse (default: `false`)
+- `content` - Control `log_content` size: integer limit, `'smart'`, `'none'` / `0`, or `'full'` (default: `'full'`)
 - `context` - Number of surrounding log lines to include (adds `context` column when > 0)
 
 ### Scalar Functions
@@ -152,4 +157,4 @@ See [Schema Reference](schema.md) for complete field documentation.
 
 ## License
 
-MIT License - see [LICENSE](https://github.com/teaguesterling/duck_hunt/blob/main/LICENSE)
+Apache License 2.0 - see [LICENSE](https://github.com/teaguesterling/duck_hunt/blob/main/LICENSE) and [NOTICE](https://github.com/teaguesterling/duck_hunt/blob/main/NOTICE)
