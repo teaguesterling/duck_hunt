@@ -1,4 +1,5 @@
 #include "markdownlint_json_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include "yyjson.hpp"
 
 namespace duckdb {
@@ -131,7 +132,7 @@ std::vector<ValidationEvent> MarkdownlintJSONParser::parse(const std::string &co
 
 		// Set raw output and structured data
 		event.log_content = content;
-		event.structured_data = "{\"tool\": \"markdownlint\", \"rule\": \"" + event.error_code + "\"}";
+		event.structured_data = "{\"tool\": \"markdownlint\", \"rule\": \"" + SafeParsing::EscapeJsonString(event.error_code) + "\"}";
 
 		events.push_back(event);
 	}

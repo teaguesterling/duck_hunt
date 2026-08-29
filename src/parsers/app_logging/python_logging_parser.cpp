@@ -99,8 +99,8 @@ static bool ParsePythonLogLine(const std::string &line, ValidationEvent &event, 
 
 	// Build structured_data JSON
 	std::string json = "{";
-	json += "\"logger\":\"" + logger + "\"";
-	json += ",\"level\":\"" + upper_level + "\"";
+	json += "\"logger\":\"" + SafeParsing::EscapeJsonString(logger) + "\"";
+	json += ",\"level\":\"" + SafeParsing::EscapeJsonString(upper_level) + "\"";
 	json += "}";
 	event.structured_data = json;
 

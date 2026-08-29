@@ -11,11 +11,6 @@ namespace duckdb {
 
 using namespace duckdb_yyjson;
 
-// Pattern to extract named group names from user patterns (same as regexp_parser)
-static const std::regex RE_NAME_EXTRACTOR(R"(\(\?(?:P)?<([a-zA-Z_][a-zA-Z0-9_]*)>)");
-// Pattern to strip named group syntax for std::regex compatibility
-static const std::regex RE_NAMED_GROUP_STRIP(R"(\(\?P?<[a-zA-Z_][a-zA-Z0-9_]*>)");
-
 ValidationEventType ParseEventType(const std::string &event_type_str) {
 	if (event_type_str == "BUILD_ERROR") {
 		return ValidationEventType::BUILD_ERROR;
@@ -40,20 +35,90 @@ ValidationEventType ParseEventType(const std::string &event_type_str) {
 
 std::vector<std::string> ExtractGroupNames(const std::string &pattern) {
 	std::vector<std::string> group_names;
-	std::string::const_iterator search_start = pattern.cbegin();
-	std::smatch name_match;
+	size_t pos = 0;
+	while (pos < pattern.size()) {
+		size_t group_start = pattern.find("(?<", pos);
+		size_t pgroup_start = pattern.find("(?P<", pos);
+		size_t match_pos = std::string::npos;
+		size_t name_start = 0;
 
-	while (std::regex_search(search_start, pattern.cend(), name_match, RE_NAME_EXTRACTOR)) {
-		group_names.push_back(name_match[1].str());
-		search_start = name_match.suffix().first;
+		if (group_start != std::string::npos && pgroup_start != std::string::npos) {
+			if (group_start < pgroup_start) {
+				match_pos = group_start;
+				name_start = group_start + 3;
+			} else {
+				match_pos = pgroup_start;
+				name_start = pgroup_start + 4;
+			}
+		} else if (group_start != std::string::npos) {
+			match_pos = group_start;
+			name_start = group_start + 3;
+		} else if (pgroup_start != std::string::npos) {
+			match_pos = pgroup_start;
+			name_start = pgroup_start + 4;
+		}
+
+		if (match_pos == std::string::npos) {
+			break;
+		}
+
+		size_t name_end = pattern.find('>', name_start);
+		if (name_end == std::string::npos) {
+			break;
+		}
+
+		std::string name = pattern.substr(name_start, name_end - name_start);
+		if (!name.empty()) {
+			group_names.push_back(name);
+		}
+		pos = name_end + 1;
 	}
 	return group_names;
 }
 
 std::regex CompilePatternWithNamedGroups(const std::string &pattern) {
-	// Convert Python-style named groups to regular groups
-	std::string modified_pattern = std::regex_replace(pattern, RE_NAMED_GROUP_STRIP, "(");
-	return std::regex(modified_pattern);
+	// Convert Python-style (?P<name>...) and ECMAScript-style (?<name>...) to regular groups (...)
+	std::string modified;
+	modified.reserve(pattern.size());
+	size_t pos = 0;
+	while (pos < pattern.size()) {
+		size_t group_start = pattern.find("(?<", pos);
+		size_t pgroup_start = pattern.find("(?P<", pos);
+		size_t match_pos = std::string::npos;
+		size_t name_start = 0;
+
+		if (group_start != std::string::npos && pgroup_start != std::string::npos) {
+			if (group_start < pgroup_start) {
+				match_pos = group_start;
+				name_start = group_start + 3;
+			} else {
+				match_pos = pgroup_start;
+				name_start = pgroup_start + 4;
+			}
+		} else if (group_start != std::string::npos) {
+			match_pos = group_start;
+			name_start = group_start + 3;
+		} else if (pgroup_start != std::string::npos) {
+			match_pos = pgroup_start;
+			name_start = pgroup_start + 4;
+		}
+
+		if (match_pos == std::string::npos) {
+			modified.append(pattern, pos, pattern.size() - pos);
+			break;
+		}
+
+		size_t name_end = pattern.find('>', name_start);
+		if (name_end == std::string::npos) {
+			modified.append(pattern, pos, pattern.size() - pos);
+			break;
+		}
+
+		modified.append(pattern, pos, match_pos - pos);
+		modified += "(";
+		pos = name_end + 1;
+	}
+	return std::regex(modified);
 }
 
 unique_ptr<ConfigBasedParser> ConfigBasedParser::FromJson(const std::string &json_config) {
@@ -343,7 +408,7 @@ std::vector<ValidationEvent> ConfigBasedParser::parseLineInternal(const std::str
 	// Try each pattern in order (first match wins)
 	for (const auto &pattern : patterns_) {
 		std::smatch match;
-		if (std::regex_search(line, match, pattern.compiled_regex)) {
+		if (SafeParsing::SafeRegexSearch(line, match, pattern.compiled_regex)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = tool_name_;

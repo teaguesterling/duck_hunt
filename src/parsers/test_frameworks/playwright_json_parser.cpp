@@ -1,4 +1,5 @@
 #include "playwright_json_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include "include/validation_event_types.hpp"
 
 namespace duckdb {
@@ -175,7 +176,7 @@ void PlaywrightJSONParser::parseSpec(yyjson_val *spec, std::vector<ValidationEve
 
 			// Add browser to structured data
 			if (!browser.empty()) {
-				event.structured_data = "{\"browser\": \"" + browser + "\"}";
+				event.structured_data = "{\"browser\": \"" + SafeParsing::EscapeJsonString(browser) + "\"}";
 			}
 
 			events.push_back(event);

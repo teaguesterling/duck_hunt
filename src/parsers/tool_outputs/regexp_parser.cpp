@@ -8,14 +8,6 @@
 
 namespace duckdb {
 
-// Pre-compiled regex patterns for regexp parsing (compiled once, reused)
-namespace {
-// Pattern to extract named group names from user patterns
-static const std::regex RE_NAME_EXTRACTOR(R"(\(\?(?:P)?<([a-zA-Z_][a-zA-Z0-9_]*)>)");
-// Pattern to strip named group syntax for std::regex compatibility
-static const std::regex RE_NAMED_GROUP_STRIP(R"(\(\?P?<[a-zA-Z_][a-zA-Z0-9_]*>)");
-} // anonymous namespace
-
 void RegexpParser::Parse(const std::string &content, const std::string &pattern, std::vector<ValidationEvent> &events,
                          bool include_unparsed) const {
 	ParseWithRegexp(content, pattern, events, include_unparsed);
@@ -27,21 +19,55 @@ void RegexpParser::ParseWithRegexp(const std::string &content, const std::string
 	// This handles Windows (\r\n), Unix (\n), and old Mac (\r) line endings uniformly
 	std::string normalized_content = SafeParsing::NormalizeLineEndings(content);
 
-	// Extract named group names from the pattern
-	// Supports both Python-style (?P<name>...) and ECMAScript-style (?<name>...)
+	// Extract named group names and convert (?P<name>...) / (?<name>...) to regular groups (...)
+	// without regex backtracking or iterator recursion complexity
 	std::vector<std::string> group_names;
-	std::string::const_iterator search_start = pattern.cbegin();
-	std::smatch name_match;
+	std::string modified_pattern;
+	modified_pattern.reserve(pattern.size());
+	size_t pos = 0;
 
-	while (std::regex_search(search_start, pattern.cend(), name_match, RE_NAME_EXTRACTOR)) {
-		group_names.push_back(name_match[1].str());
-		search_start = name_match.suffix().first;
+	while (pos < pattern.size()) {
+		size_t group_start = pattern.find("(?<", pos);
+		size_t pgroup_start = pattern.find("(?P<", pos);
+		size_t match_pos = std::string::npos;
+		size_t name_start = 0;
+
+		if (group_start != std::string::npos && pgroup_start != std::string::npos) {
+			if (group_start < pgroup_start) {
+				match_pos = group_start;
+				name_start = group_start + 3;
+			} else {
+				match_pos = pgroup_start;
+				name_start = pgroup_start + 4;
+			}
+		} else if (group_start != std::string::npos) {
+			match_pos = group_start;
+			name_start = group_start + 3;
+		} else if (pgroup_start != std::string::npos) {
+			match_pos = pgroup_start;
+			name_start = pgroup_start + 4;
+		}
+
+		if (match_pos == std::string::npos) {
+			modified_pattern.append(pattern, pos, pattern.size() - pos);
+			break;
+		}
+
+		size_t name_end = pattern.find('>', name_start);
+		if (name_end == std::string::npos) {
+			modified_pattern.append(pattern, pos, pattern.size() - pos);
+			break;
+		}
+
+		std::string name = pattern.substr(name_start, name_end - name_start);
+		if (!name.empty()) {
+			group_names.push_back(name);
+		}
+
+		modified_pattern.append(pattern, pos, match_pos - pos);
+		modified_pattern += "(";
+		pos = name_end + 1;
 	}
-
-	// Convert Python-style named groups (?P<name>...) and ECMAScript-style (?<name>...)
-	// to regular groups (...) since std::regex doesn't support named groups.
-	// We track group names separately via name_to_index map.
-	std::string modified_pattern = std::regex_replace(pattern, RE_NAMED_GROUP_STRIP, "(");
 
 	std::regex user_regex;
 	try {
@@ -90,7 +116,7 @@ void RegexpParser::ParseWithRegexp(const std::string &content, const std::string
 		int line_num = reader.lineNumber();
 		std::smatch match;
 
-		if (std::regex_search(line, match, user_regex)) {
+		if (SafeParsing::SafeRegexSearch(line, match, user_regex)) {
 			ValidationEvent event;
 			event.event_id = event_id++;
 			event.tool_name = "regexp";

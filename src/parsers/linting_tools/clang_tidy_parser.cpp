@@ -164,7 +164,7 @@ std::vector<ValidationEvent> ClangTidyParser::parse(const std::string &content) 
 			event.execution_time = 0.0;
 			event.log_content = line;
 			if (!rule_name.empty()) {
-				event.structured_data = "{\"rule\": \"" + rule_name + "\", \"severity\": \"" + severity + "\"}";
+				event.structured_data = "{\"rule\": \"" + SafeParsing::EscapeJsonString(rule_name) + "\", \"severity\": \"" + SafeParsing::EscapeJsonString(severity) + "\"}";
 			}
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
@@ -177,6 +177,7 @@ std::vector<ValidationEvent> ClangTidyParser::parse(const std::string &content) 
 			if (SafeParsing::SafeRegexSearch(line, match, clang_tidy_summary)) {
 				std::string count = match[1].str();
 				std::string type = match[2].str();
+				int64_t count_val = SafeParsing::SafeStoll(count, 0);
 
 				ValidationEvent event;
 				event.event_id = event_id++;
@@ -191,7 +192,7 @@ std::vector<ValidationEvent> ClangTidyParser::parse(const std::string &content) 
 				event.ref_column = -1;
 				event.execution_time = 0.0;
 				event.log_content = line;
-				event.structured_data = "{\"count\": " + count + ", \"type\": \"" + type + "\"}";
+				event.structured_data = "{\"count\": " + std::to_string(count_val) + ", \"type\": \"" + SafeParsing::EscapeJsonString(type) + "\"}";
 				event.log_line_start = current_line_num;
 				event.log_line_end = current_line_num;
 

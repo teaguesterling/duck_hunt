@@ -1,4 +1,5 @@
 #include "swiftlint_json_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include "yyjson.hpp"
 
 namespace duckdb {
@@ -131,8 +132,8 @@ std::vector<ValidationEvent> SwiftLintJSONParser::parse(const std::string &conte
 
 		// Set raw output and structured data
 		event.log_content = content;
-		event.structured_data = "{\"tool\": \"swiftlint\", \"rule_id\": \"" + event.error_code + "\", \"type\": \"" +
-		                        event.suggestion + "\"}";
+		event.structured_data = "{\"tool\": \"swiftlint\", \"rule_id\": \"" + SafeParsing::EscapeJsonString(event.error_code) + "\", \"type\": \"" +
+		                        SafeParsing::EscapeJsonString(event.suggestion) + "\"}";
 
 		events.push_back(event);
 	}

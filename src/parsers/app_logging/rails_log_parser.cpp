@@ -153,24 +153,24 @@ static void CreateEventFromRequest(const RailsRequest &request, ValidationEvent 
 
 	// Build structured_data JSON
 	std::string json = "{";
-	json += "\"method\":\"" + request.method + "\"";
-	json += ",\"path\":\"" + request.path + "\"";
+	json += "\"method\":\"" + SafeParsing::EscapeJsonString(request.method) + "\"";
+	json += ",\"path\":\"" + SafeParsing::EscapeJsonString(request.path) + "\"";
 	if (!request.remote_ip.empty())
-		json += ",\"remote_ip\":\"" + request.remote_ip + "\"";
+		json += ",\"remote_ip\":\"" + SafeParsing::EscapeJsonString(request.remote_ip) + "\"";
 	if (!request.controller.empty())
-		json += ",\"controller\":\"" + request.controller + "\"";
+		json += ",\"controller\":\"" + SafeParsing::EscapeJsonString(request.controller) + "\"";
 	if (!request.action.empty())
-		json += ",\"action\":\"" + request.action + "\"";
+		json += ",\"action\":\"" + SafeParsing::EscapeJsonString(request.action) + "\"";
 	if (!request.format.empty())
-		json += ",\"format\":\"" + request.format + "\"";
+		json += ",\"format\":\"" + SafeParsing::EscapeJsonString(request.format) + "\"";
 	if (request.status_code > 0)
 		json += ",\"status\":" + std::to_string(request.status_code);
 	if (!request.duration.empty())
-		json += ",\"duration\":\"" + request.duration + "\"";
+		json += ",\"duration\":\"" + SafeParsing::EscapeJsonString(request.duration) + "\"";
 	if (!request.views_time.empty())
-		json += ",\"views_time\":\"" + request.views_time + "\"";
+		json += ",\"views_time\":\"" + SafeParsing::EscapeJsonString(request.views_time) + "\"";
 	if (!request.ar_time.empty())
-		json += ",\"ar_time\":\"" + request.ar_time + "\"";
+		json += ",\"ar_time\":\"" + SafeParsing::EscapeJsonString(request.ar_time) + "\"";
 	json += "}";
 	event.structured_data = json;
 

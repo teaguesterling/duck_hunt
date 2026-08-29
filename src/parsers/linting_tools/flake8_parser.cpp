@@ -89,8 +89,8 @@ std::vector<ValidationEvent> Flake8Parser::parse(const std::string &content) con
 			event.category = "style_guide";
 			event.execution_time = 0.0;
 			event.log_content = line;
-			event.structured_data = "{\"error_code\": \"" + error_code + "\", \"error_type\": \"" +
-			                        std::string(1, error_code.front()) + "\"}";
+			event.structured_data = "{\"error_code\": \"" + SafeParsing::EscapeJsonString(error_code) + "\", \"error_type\": \"" +
+			                        SafeParsing::EscapeJsonString(std::string(1, error_code.front())) + "\"}";
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
 

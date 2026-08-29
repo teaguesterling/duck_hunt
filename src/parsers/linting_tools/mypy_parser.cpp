@@ -160,14 +160,14 @@ std::vector<ValidationEvent> MypyParser::parse(const std::string &content) const
 			event.category = "type_checking";
 			event.execution_time = 0.0;
 			event.log_content = line;
-			event.structured_data = "{\"error_code\": \"" + error_code + "\", \"severity\": \"" + severity + "\"}";
+			event.structured_data = "{\"error_code\": \"" + SafeParsing::EscapeJsonString(error_code) + "\", \"severity\": \"" + SafeParsing::EscapeJsonString(severity) + "\"}";
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
 
 			events.push_back(event);
 		}
 		// Check for mypy message without error code
-		else if (std::regex_search(line, match, RE_MYPY_MESSAGE_NO_CODE)) {
+		else if (SafeParsing::SafeRegexSearch(line, match, RE_MYPY_MESSAGE_NO_CODE)) {
 			std::string file_path = match[1].str();
 			std::string line_str = match[2].str();
 			std::string severity = match[3].str();
@@ -212,17 +212,20 @@ std::vector<ValidationEvent> MypyParser::parse(const std::string &content) const
 			event.category = "type_checking";
 			event.execution_time = 0.0;
 			event.log_content = line;
-			event.structured_data = "{\"severity\": \"" + severity + "\"}";
+			event.structured_data = "{\"severity\": \"" + SafeParsing::EscapeJsonString(severity) + "\"}";
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
 
 			events.push_back(event);
 		}
 		// Check for summary with errors
-		else if (std::regex_search(line, match, RE_MYPY_SUMMARY)) {
+		else if (SafeParsing::SafeRegexSearch(line, match, RE_MYPY_SUMMARY)) {
 			std::string error_count = match[1].str();
 			std::string file_count = match[2].str();
 			std::string checked_count = match[3].str();
+			int64_t err_cnt = SafeParsing::SafeStoll(error_count, 0);
+			int64_t file_cnt = SafeParsing::SafeStoll(file_count, 0);
+			int64_t chk_cnt = SafeParsing::SafeStoll(checked_count, 0);
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -237,16 +240,17 @@ std::vector<ValidationEvent> MypyParser::parse(const std::string &content) const
 			event.ref_column = -1;
 			event.execution_time = 0.0;
 			event.log_content = line;
-			event.structured_data = "{\"error_count\": " + error_count + ", \"file_count\": " + file_count +
-			                        ", \"checked_count\": " + checked_count + "}";
+			event.structured_data = "{\"error_count\": " + std::to_string(err_cnt) + ", \"file_count\": " + std::to_string(file_cnt) +
+			                        ", \"checked_count\": " + std::to_string(chk_cnt) + "}";
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
 
 			events.push_back(event);
 		}
 		// Check for success message
-		else if (std::regex_search(line, match, RE_MYPY_SUCCESS)) {
+		else if (SafeParsing::SafeRegexSearch(line, match, RE_MYPY_SUCCESS)) {
 			std::string checked_count = match[1].str();
+			int64_t chk_cnt = SafeParsing::SafeStoll(checked_count, 0);
 
 			ValidationEvent event;
 			event.event_id = event_id++;
@@ -260,7 +264,7 @@ std::vector<ValidationEvent> MypyParser::parse(const std::string &content) const
 			event.ref_column = -1;
 			event.execution_time = 0.0;
 			event.log_content = line;
-			event.structured_data = "{\"checked_count\": " + checked_count + "}";
+			event.structured_data = "{\"checked_count\": " + std::to_string(chk_cnt) + "}";
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
 

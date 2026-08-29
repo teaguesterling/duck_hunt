@@ -120,7 +120,7 @@ std::vector<ValidationEvent> ShellcheckTextParser::parse(const std::string &cont
 
 			event.log_line_start = header_line_num;
 			event.log_line_end = current_line_num;
-			event.structured_data = "{\"code\": \"" + sc_code + "\"}";
+			event.structured_data = "{\"code\": \"" + SafeParsing::EscapeJsonString(sc_code) + "\"}";
 
 			events.push_back(event);
 		}

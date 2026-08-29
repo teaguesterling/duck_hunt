@@ -130,24 +130,91 @@ inline bool SafeRegexMatch(const std::string &line, std::smatch &match, const st
 	if (line.length() > max_length) {
 		return false;
 	}
-	return std::regex_match(line, match, pattern);
+	try {
+		return std::regex_match(line, match, pattern);
+	} catch (const std::exception &) {
+		return false;
+	}
 }
 
-/**
- * Safe wrapper for std::regex_search that skips long lines.
- *
- * @param line The line to search
- * @param match Output match results
- * @param pattern The regex pattern
- * @param max_length Maximum line length to attempt searching (default: MAX_REGEX_LINE_LENGTH)
- * @return true if found, false if line too long or not found
- */
+inline bool SafeRegexMatch(const std::string &line, const std::regex &pattern,
+                           size_t max_length = MAX_REGEX_LINE_LENGTH) {
+	if (line.length() > max_length) {
+		return false;
+	}
+	try {
+		return std::regex_match(line, pattern);
+	} catch (const std::exception &) {
+		return false;
+	}
+}
+
 inline bool SafeRegexSearch(const std::string &line, std::smatch &match, const std::regex &pattern,
                             size_t max_length = MAX_REGEX_LINE_LENGTH) {
 	if (line.length() > max_length) {
 		return false;
 	}
-	return std::regex_search(line, match, pattern);
+	try {
+		return std::regex_search(line, match, pattern);
+	} catch (const std::exception &) {
+		return false;
+	}
+}
+
+inline bool SafeRegexSearch(const std::string &line, const std::regex &pattern,
+                            size_t max_length = MAX_REGEX_LINE_LENGTH) {
+	if (line.length() > max_length) {
+		return false;
+	}
+	try {
+		return std::regex_search(line, pattern);
+	} catch (const std::exception &) {
+		return false;
+	}
+}
+
+/**
+ * Escape a string for safe inclusion inside a JSON string literal.
+ * Escapes quotes, backslashes, and control characters (\n, \r, \t, etc.).
+ */
+inline std::string EscapeJsonString(const std::string &str) {
+	std::string result;
+	result.reserve(str.size() + 8);
+	for (char c : str) {
+		switch (c) {
+		case '"':
+			result += "\\\"";
+			break;
+		case '\\':
+			result += "\\\\";
+			break;
+		case '\b':
+			result += "\\b";
+			break;
+		case '\f':
+			result += "\\f";
+			break;
+		case '\n':
+			result += "\\n";
+			break;
+		case '\r':
+			result += "\\r";
+			break;
+		case '\t':
+			result += "\\t";
+			break;
+		default:
+			if (static_cast<unsigned char>(c) < 0x20) {
+				char buf[8];
+				snprintf(buf, sizeof(buf), "\\u%04x", static_cast<unsigned char>(c));
+				result += buf;
+			} else {
+				result += c;
+			}
+			break;
+		}
+	}
+	return result;
 }
 
 /**
@@ -534,6 +601,18 @@ inline bool TryStod(const std::string &str, double &result) {
 	} catch (...) {
 		return false;
 	}
+}
+
+/**
+ * Trim leading and trailing whitespace.
+ */
+inline std::string Trim(const std::string &str) {
+	size_t start = str.find_first_not_of(" \t\r\n");
+	if (start == std::string::npos) {
+		return "";
+	}
+	size_t end = str.find_last_not_of(" \t\r\n");
+	return str.substr(start, end - start + 1);
 }
 
 } // namespace SafeParsing

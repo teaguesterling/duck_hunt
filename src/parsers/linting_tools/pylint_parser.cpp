@@ -112,7 +112,7 @@ std::vector<ValidationEvent> PylintParser::parse(const std::string &content) con
 			event.tool_name = "pylint";
 			event.category = "code_quality";
 			event.log_content = line;
-			event.structured_data = "{\"error_code\": \"" + error_code + "\", \"symbol\": \"" + symbol + "\"}";
+			event.structured_data = "{\"error_code\": \"" + SafeParsing::EscapeJsonString(error_code) + "\", \"symbol\": \"" + SafeParsing::EscapeJsonString(symbol) + "\"}";
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
 
@@ -162,7 +162,7 @@ std::vector<ValidationEvent> PylintParser::parse(const std::string &content) con
 			event.tool_name = "pylint";
 			event.category = "code_quality";
 			event.log_content = line;
-			event.structured_data = "{\"error_code\": \"" + error_code + "\"}";
+			event.structured_data = "{\"error_code\": \"" + SafeParsing::EscapeJsonString(error_code) + "\"}";
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
 
@@ -259,7 +259,7 @@ std::vector<ValidationEvent> PylintParser::parse(const std::string &content) con
 			event.tool_name = "pylint";
 			event.category = "code_quality";
 			event.log_content = line;
-			event.structured_data = "{\"severity_char\": \"" + severity_char + "\"}";
+			event.structured_data = "{\"severity_char\": \"" + SafeParsing::EscapeJsonString(severity_char) + "\"}";
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
 
@@ -283,7 +283,7 @@ std::vector<ValidationEvent> PylintParser::parse(const std::string &content) con
 			event.category = "code_quality";
 			event.execution_time = 0.0;
 			event.log_content = line;
-			event.structured_data = "{\"rating\": \"" + rating + "\"}";
+			event.structured_data = "{\"rating\": \"" + SafeParsing::EscapeJsonString(rating) + "\"}";
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
 

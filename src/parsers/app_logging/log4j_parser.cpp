@@ -110,10 +110,10 @@ static bool ParseLog4jLine(const std::string &line, ValidationEvent &event, int6
 
 	// Build structured_data JSON
 	std::string json = "{";
-	json += "\"logger\":\"" + logger + "\"";
-	json += ",\"level\":\"" + upper_level + "\"";
+	json += "\"logger\":\"" + SafeParsing::EscapeJsonString(logger) + "\"";
+	json += ",\"level\":\"" + SafeParsing::EscapeJsonString(upper_level) + "\"";
 	if (!thread.empty()) {
-		json += ",\"thread\":\"" + thread + "\"";
+		json += ",\"thread\":\"" + SafeParsing::EscapeJsonString(thread) + "\"";
 	}
 	json += "}";
 	event.structured_data = json;

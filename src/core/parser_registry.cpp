@@ -226,7 +226,7 @@ static bool matchLikePattern(const std::string &str, const std::string &pattern)
 	if (!re) {
 		return false;
 	}
-	return std::regex_match(str, *re);
+	return SafeParsing::SafeRegexMatch(str, *re);
 }
 
 // Normalize command by stripping path prefix from the executable.
@@ -283,7 +283,7 @@ IParser *ParserRegistry::findParserByCommand(const std::string &command) const {
 			} else if (cp.pattern_type == "regexp") {
 				const std::regex *re = GetCachedRegex(cp.pattern);
 				if (re) {
-					matched = std::regex_search(normalized, *re);
+					matched = SafeParsing::SafeRegexSearch(normalized, *re);
 				}
 			}
 

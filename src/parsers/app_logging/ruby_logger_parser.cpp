@@ -1,4 +1,5 @@
 #include "ruby_logger_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include "duckdb/common/string_util.hpp"
 #include <sstream>
 #include <regex>
@@ -36,7 +37,7 @@ static bool ParseRubyLoggerLine(const std::string &line, ValidationEvent &event,
 	    std::regex::optimize);
 
 	std::smatch match;
-	if (!std::regex_match(line, match, ruby_pattern)) {
+	if (!SafeParsing::SafeRegexMatch(line, match, ruby_pattern)) {
 		return false;
 	}
 
@@ -61,9 +62,9 @@ static bool ParseRubyLoggerLine(const std::string &line, ValidationEvent &event,
 
 	// Build structured_data JSON
 	std::string json = "{";
-	json += "\"level\":\"" + level_name + "\"";
-	json += ",\"pid\":\"" + pid + "\"";
-	json += ",\"progname\":\"" + event.category + "\"";
+	json += "\"level\":\"" + SafeParsing::EscapeJsonString(level_name) + "\"";
+	json += ",\"pid\":\"" + SafeParsing::EscapeJsonString(pid) + "\"";
+	json += ",\"progname\":\"" + SafeParsing::EscapeJsonString(event.category) + "\"";
 	json += "}";
 	event.structured_data = json;
 

@@ -1,4 +1,5 @@
 #include "nlog_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include "duckdb/common/string_util.hpp"
 #include <sstream>
 #include <regex>
@@ -64,10 +65,10 @@ static bool ParseNLogLine(const std::string &line, ValidationEvent &event, int64
 
 	// Build structured_data JSON
 	std::string json = "{";
-	json += "\"level\":\"" + level + "\"";
-	json += ",\"logger\":\"" + event.category + "\"";
+	json += "\"level\":\"" + SafeParsing::EscapeJsonString(level) + "\"";
+	json += ",\"logger\":\"" + SafeParsing::EscapeJsonString(event.category) + "\"";
 	if (!event.error_code.empty()) {
-		json += ",\"exception\":\"" + event.error_code + "\"";
+		json += ",\"exception\":\"" + SafeParsing::EscapeJsonString(event.error_code) + "\"";
 	}
 	json += "}";
 	event.structured_data = json;

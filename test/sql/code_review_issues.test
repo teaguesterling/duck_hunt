@@ -145,3 +145,24 @@ query II
 SELECT ref_file, ref_line FROM parse_duck_hunt_log('main.c:10:5: error: test', 'gcc_text');
 ----
 main.c	10
+
+# =============================================================================
+# Issue 7: Structured data JSON escaping (Issue #55)
+# Verify quotes, backslashes, and control chars in suite/rule names are safely escaped
+# =============================================================================
+
+# Test 7a: Log4j with quotes in logger/thread name produces valid escaped JSON in structured_data
+query I
+SELECT structured_data LIKE '%"logger":"[main\"thread]"%'
+FROM parse_duck_hunt_log('2023-01-01 12:00:00,000 ERROR [main"thread] Something failed', 'log4j');
+----
+true
+
+# Test 7b: MyPy error codes with quotes or special chars
+query I
+SELECT structured_data LIKE '%"error_code": "syntax-error"%'
+FROM parse_duck_hunt_log('app.py:1: error: Invalid syntax [syntax-error]', 'mypy')
+WHERE error_code = 'syntax-error';
+----
+true
+

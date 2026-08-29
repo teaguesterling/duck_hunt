@@ -1,4 +1,5 @@
 #include "tfsec_json_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include "yyjson.hpp"
 
 namespace duckdb {
@@ -180,10 +181,10 @@ std::vector<ValidationEvent> TfsecJSONParser::parse(const std::string &content) 
 		}
 
 		event.log_content = content;
-		event.structured_data = "{\"tool\": \"tfsec\", \"rule_id\": \"" + event.error_code + "\", \"severity\": \"" +
-		                        event.severity + "\", \"resource\": \"" + event.function_name + "\"" +
-		                        (provider_str.empty() ? "" : ", \"provider\": \"" + provider_str + "\"") +
-		                        (service_str.empty() ? "" : ", \"service\": \"" + service_str + "\"") + impact_str +
+		event.structured_data = "{\"tool\": \"tfsec\", \"rule_id\": \"" + SafeParsing::EscapeJsonString(event.error_code) + "\", \"severity\": \"" +
+		                        SafeParsing::EscapeJsonString(event.severity) + "\", \"resource\": \"" + SafeParsing::EscapeJsonString(event.function_name) + "\"" +
+		                        (provider_str.empty() ? "" : ", \"provider\": \"" + SafeParsing::EscapeJsonString(provider_str) + "\"") +
+		                        (service_str.empty() ? "" : ", \"service\": \"" + SafeParsing::EscapeJsonString(service_str) + "\"") + impact_str +
 		                        "}";
 
 		events.push_back(event);

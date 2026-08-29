@@ -1,4 +1,5 @@
 #include "cargo_test_json_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include "yyjson.hpp"
 #include <sstream>
 #include <map>
@@ -148,7 +149,7 @@ std::vector<ValidationEvent> CargoTestJSONParser::parse(const std::string &conte
 
 					// Set raw output and structured data
 					event.log_content = line; // Use the specific line for this test
-					event.structured_data = "{\"tool\": \"cargo_test\", \"event\": \"" + event_str + "\"}";
+					event.structured_data = "{\"tool\": \"cargo_test\", \"event\": \"" + SafeParsing::EscapeJsonString(event_str) + "\"}";
 
 					events.push_back(event);
 					test_events.erase(test_name);

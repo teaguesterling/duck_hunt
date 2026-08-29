@@ -1,4 +1,5 @@
 #include "winston_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include "duckdb/common/string_util.hpp"
 #include "yyjson.hpp"
 #include <sstream>
@@ -119,8 +120,8 @@ static bool ParseWinstonText(const std::string &line, ValidationEvent &event, in
 
 	// Build structured_data JSON
 	std::string json = "{";
-	json += "\"level\":\"" + level + "\"";
-	json += ",\"service\":\"" + event.category + "\"";
+	json += "\"level\":\"" + SafeParsing::EscapeJsonString(level) + "\"";
+	json += ",\"service\":\"" + SafeParsing::EscapeJsonString(event.category) + "\"";
 	json += "}";
 	event.structured_data = json;
 

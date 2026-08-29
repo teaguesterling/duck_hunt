@@ -102,7 +102,7 @@ std::vector<ValidationEvent> PlaywrightTextParser::parse(const std::string &cont
 				event.execution_time = 0;
 				event.tool_name = "playwright";
 				event.category = "playwright_text";
-				event.structured_data = "{\"browser\": \"" + current_browser + "\"}";
+				event.structured_data = "{\"browser\": \"" + SafeParsing::EscapeJsonString(current_browser) + "\"}";
 				event.log_line_start = failure_start_line;
 				event.log_line_end = current_line_num - 1;
 				events.push_back(event);
@@ -130,7 +130,7 @@ std::vector<ValidationEvent> PlaywrightTextParser::parse(const std::string &cont
 			event.tool_name = "playwright";
 			event.category = "playwright_text";
 			event.log_content = line;
-			event.structured_data = "{\"browser\": \"" + current_browser + "\"}";
+			event.structured_data = "{\"browser\": \"" + SafeParsing::EscapeJsonString(current_browser) + "\"}";
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
 
@@ -167,7 +167,7 @@ std::vector<ValidationEvent> PlaywrightTextParser::parse(const std::string &cont
 			event.tool_name = "playwright";
 			event.category = "playwright_text";
 			event.log_content = line;
-			event.structured_data = "{\"browser\": \"" + current_browser + "\"}";
+			event.structured_data = "{\"browser\": \"" + SafeParsing::EscapeJsonString(current_browser) + "\"}";
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
 
@@ -190,7 +190,7 @@ std::vector<ValidationEvent> PlaywrightTextParser::parse(const std::string &cont
 				event.execution_time = 0;
 				event.tool_name = "playwright";
 				event.category = "playwright_text";
-				event.structured_data = "{\"browser\": \"" + current_browser + "\"}";
+				event.structured_data = "{\"browser\": \"" + SafeParsing::EscapeJsonString(current_browser) + "\"}";
 				event.log_line_start = failure_start_line;
 				event.log_line_end = current_line_num - 1;
 				events.push_back(event);
@@ -295,7 +295,7 @@ std::vector<ValidationEvent> PlaywrightTextParser::parse(const std::string &cont
 		event.execution_time = 0;
 		event.tool_name = "playwright";
 		event.category = "playwright_text";
-		event.structured_data = "{\"browser\": \"" + current_browser + "\"}";
+		event.structured_data = "{\"browser\": \"" + SafeParsing::EscapeJsonString(current_browser) + "\"}";
 		event.log_line_start = failure_start_line;
 		event.log_line_end = current_line_num;
 		events.push_back(event);
