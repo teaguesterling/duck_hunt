@@ -190,8 +190,10 @@ std::vector<ValidationEvent> SpotBugsJSONParser::parse(const std::string &conten
 
 		// Set raw output and structured data
 		event.log_content = content;
-		event.structured_data = "{\"tool\": \"spotbugs\", \"type\": \"" + SafeParsing::EscapeJsonString(event.error_code) + "\", \"priority\": \"" +
-		                        SafeParsing::EscapeJsonString(event.severity) + "\", \"category\": \"" + SafeParsing::EscapeJsonString(event.category) + "\"}";
+		event.structured_data = "{\"tool\": \"spotbugs\", \"type\": \"" +
+		                        SafeParsing::EscapeJsonString(event.error_code) + "\", \"priority\": \"" +
+		                        SafeParsing::EscapeJsonString(event.severity) + "\", \"category\": \"" +
+		                        SafeParsing::EscapeJsonString(event.category) + "\"}";
 
 		events.push_back(event);
 	}

@@ -107,7 +107,8 @@ std::vector<ValidationEvent> EslintTextParser::parse(const std::string &content)
 			event.log_content = line;
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
-			event.structured_data = "{\"rule\": \"" + SafeParsing::EscapeJsonString(rule) + "\", \"severity\": \"" + SafeParsing::EscapeJsonString(severity) + "\"}";
+			event.structured_data = "{\"rule\": \"" + SafeParsing::EscapeJsonString(rule) + "\", \"severity\": \"" +
+			                        SafeParsing::EscapeJsonString(severity) + "\"}";
 
 			events.push_back(event);
 		}

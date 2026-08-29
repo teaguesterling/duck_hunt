@@ -164,8 +164,10 @@ std::vector<ValidationEvent> BanditJSONParser::parse(const std::string &content)
 
 		// Set raw output and structured data (include CWE ID if present)
 		event.log_content = content;
-		event.structured_data = "{\"tool\": \"bandit\", \"test_id\": \"" + SafeParsing::EscapeJsonString(event.error_code) + "\", \"severity\": \"" +
-		                        SafeParsing::EscapeJsonString(event.severity) + "\"" + (cwe_id_str.empty() ? "" : ", \"cwe_id\": " + cwe_id_str) + "}";
+		event.structured_data = "{\"tool\": \"bandit\", \"test_id\": \"" +
+		                        SafeParsing::EscapeJsonString(event.error_code) + "\", \"severity\": \"" +
+		                        SafeParsing::EscapeJsonString(event.severity) + "\"" +
+		                        (cwe_id_str.empty() ? "" : ", \"cwe_id\": " + cwe_id_str) + "}";
 
 		events.push_back(event);
 	}

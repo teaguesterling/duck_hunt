@@ -132,7 +132,8 @@ std::vector<ValidationEvent> MarkdownlintJSONParser::parse(const std::string &co
 
 		// Set raw output and structured data
 		event.log_content = content;
-		event.structured_data = "{\"tool\": \"markdownlint\", \"rule\": \"" + SafeParsing::EscapeJsonString(event.error_code) + "\"}";
+		event.structured_data =
+		    "{\"tool\": \"markdownlint\", \"rule\": \"" + SafeParsing::EscapeJsonString(event.error_code) + "\"}";
 
 		events.push_back(event);
 	}

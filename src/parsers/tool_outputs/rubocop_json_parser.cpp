@@ -150,7 +150,8 @@ std::vector<ValidationEvent> RuboCopJSONParser::parse(const std::string &content
 
 			// Set raw output and structured data
 			event.log_content = content;
-			event.structured_data = "{\"tool\": \"rubocop\", \"cop_name\": \"" + SafeParsing::EscapeJsonString(event.error_code) +
+			event.structured_data = "{\"tool\": \"rubocop\", \"cop_name\": \"" +
+			                        SafeParsing::EscapeJsonString(event.error_code) +
 			                        "\", \"correctable\": " + (is_correctable ? "true" : "false") + "}";
 
 			events.push_back(event);

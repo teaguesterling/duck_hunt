@@ -112,7 +112,8 @@ std::vector<ValidationEvent> PylintParser::parse(const std::string &content) con
 			event.tool_name = "pylint";
 			event.category = "code_quality";
 			event.log_content = line;
-			event.structured_data = "{\"error_code\": \"" + SafeParsing::EscapeJsonString(error_code) + "\", \"symbol\": \"" + SafeParsing::EscapeJsonString(symbol) + "\"}";
+			event.structured_data = "{\"error_code\": \"" + SafeParsing::EscapeJsonString(error_code) +
+			                        "\", \"symbol\": \"" + SafeParsing::EscapeJsonString(symbol) + "\"}";
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
 

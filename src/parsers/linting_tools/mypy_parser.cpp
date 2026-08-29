@@ -160,7 +160,8 @@ std::vector<ValidationEvent> MypyParser::parse(const std::string &content) const
 			event.category = "type_checking";
 			event.execution_time = 0.0;
 			event.log_content = line;
-			event.structured_data = "{\"error_code\": \"" + SafeParsing::EscapeJsonString(error_code) + "\", \"severity\": \"" + SafeParsing::EscapeJsonString(severity) + "\"}";
+			event.structured_data = "{\"error_code\": \"" + SafeParsing::EscapeJsonString(error_code) +
+			                        "\", \"severity\": \"" + SafeParsing::EscapeJsonString(severity) + "\"}";
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
 
@@ -240,7 +241,8 @@ std::vector<ValidationEvent> MypyParser::parse(const std::string &content) const
 			event.ref_column = -1;
 			event.execution_time = 0.0;
 			event.log_content = line;
-			event.structured_data = "{\"error_count\": " + std::to_string(err_cnt) + ", \"file_count\": " + std::to_string(file_cnt) +
+			event.structured_data = "{\"error_count\": " + std::to_string(err_cnt) +
+			                        ", \"file_count\": " + std::to_string(file_cnt) +
 			                        ", \"checked_count\": " + std::to_string(chk_cnt) + "}";
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;

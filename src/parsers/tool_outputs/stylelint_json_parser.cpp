@@ -153,8 +153,9 @@ std::vector<ValidationEvent> StylelintJSONParser::parse(const std::string &conte
 
 			// Set raw output and structured data
 			event.log_content = content;
-			event.structured_data = "{\"tool\": \"stylelint\", \"rule\": \"" + SafeParsing::EscapeJsonString(event.error_code) +
-			                        "\", \"severity\": \"" + SafeParsing::EscapeJsonString(event.severity) + "\"}";
+			event.structured_data = "{\"tool\": \"stylelint\", \"rule\": \"" +
+			                        SafeParsing::EscapeJsonString(event.error_code) + "\", \"severity\": \"" +
+			                        SafeParsing::EscapeJsonString(event.severity) + "\"}";
 
 			events.push_back(event);
 		}

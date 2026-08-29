@@ -14,8 +14,8 @@ static const std::regex RE_TEST_FAILED(R"(\[\s*FAILED\s*\]\s*(.+)\s*\((\d+)\s*ms
 static const std::regex RE_TEST_SKIPPED(R"(\[\s*SKIPPED\s*\]\s*(.+)\s*\((\d+)\s*ms\))");
 static const std::regex RE_TEST_SUITE_START(R"(\[----------\]\s*(\d+)\s*tests? from\s*(.+))");
 static const std::regex RE_TEST_SUITE_END(R"(\[----------\]\s*(\d+)\s*tests? from\s*(.+)\s*\((\d+)\s*ms total\))");
-static const std::regex
-    RE_TEST_SUMMARY_START(R"(\[==========\]\s*(\d+)\s*tests? from\s*(\d+)\s*test suites? ran\.\s*\((\d+)\s*ms total\))");
+static const std::regex RE_TEST_SUMMARY_START(
+    R"(\[==========\]\s*(\d+)\s*tests? from\s*(\d+)\s*test suites? ran\.\s*\((\d+)\s*ms total\))");
 static const std::regex RE_TESTS_PASSED_SUMMARY(R"(\[\s*PASSED\s*\]\s*(\d+)\s*tests?\.)");
 static const std::regex RE_TESTS_FAILED_SUMMARY(R"(\[\s*FAILED\s*\]\s*(\d+)\s*tests?,\s*listed below:)");
 static const std::regex RE_FAILED_TEST_LIST(R"(\[\s*FAILED\s*\]\s*(.+))");
@@ -51,7 +51,7 @@ std::vector<ValidationEvent> GTestTextParser::parse(const std::string &content) 
 			current_test_name = match[1].str();
 		}
 		// Check for test passed
-		else 		if (SafeParsing::SafeRegexMatch(line, match, RE_TEST_PASSED)) {
+		else if (SafeParsing::SafeRegexMatch(line, match, RE_TEST_PASSED)) {
 			std::string test_name = match[1].str();
 			std::string time_str = match[2].str();
 			int64_t execution_time = SafeParsing::SafeStoll(time_str, 0);
@@ -163,7 +163,8 @@ std::vector<ValidationEvent> GTestTextParser::parse(const std::string &content) 
 			event.category = "gtest_text";
 			event.log_content = line;
 			event.function_name = "";
-			event.structured_data = "{\"total_tests\": " + std::to_string(tests_cnt) + ", \"total_suites\": " + std::to_string(suites_cnt) +
+			event.structured_data = "{\"total_tests\": " + std::to_string(tests_cnt) +
+			                        ", \"total_suites\": " + std::to_string(suites_cnt) +
 			                        ", \"total_time_ms\": " + std::to_string(time_ms) + "}";
 
 			events.push_back(event);
@@ -244,8 +245,8 @@ std::vector<ValidationEvent> GTestTextParser::parse(const std::string &content) 
 			event.category = "gtest_text";
 			event.log_content = line;
 			event.function_name = current_test_suite;
-			event.structured_data =
-			    "{\"file_path\": \"" + SafeParsing::EscapeJsonString(file_path) + "\", \"line_number\": " + std::to_string(line_number) + "}";
+			event.structured_data = "{\"file_path\": \"" + SafeParsing::EscapeJsonString(file_path) +
+			                        "\", \"line_number\": " + std::to_string(line_number) + "}";
 
 			events.push_back(event);
 		}

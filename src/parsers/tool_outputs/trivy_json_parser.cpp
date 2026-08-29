@@ -185,8 +185,9 @@ std::vector<ValidationEvent> TrivyJSONParser::parse(const std::string &content) 
 				}
 
 				event.log_content = content;
-				event.structured_data = "{\"tool\": \"trivy\", \"vuln_id\": \"" + SafeParsing::EscapeJsonString(event.error_code) +
-				                        "\", \"severity\": \"" + SafeParsing::EscapeJsonString(event.severity) + "\", \"package\": \"" +
+				event.structured_data = "{\"tool\": \"trivy\", \"vuln_id\": \"" +
+				                        SafeParsing::EscapeJsonString(event.error_code) + "\", \"severity\": \"" +
+				                        SafeParsing::EscapeJsonString(event.severity) + "\", \"package\": \"" +
 				                        SafeParsing::EscapeJsonString(event.function_name) + "\"" + cvss_info + "}";
 
 				events.push_back(event);
@@ -264,8 +265,9 @@ std::vector<ValidationEvent> TrivyJSONParser::parse(const std::string &content) 
 				}
 
 				event.log_content = content;
-				event.structured_data = "{\"tool\": \"trivy\", \"config_id\": \"" + SafeParsing::EscapeJsonString(event.error_code) +
-				                        "\", \"severity\": \"" + SafeParsing::EscapeJsonString(event.severity) + "\"}";
+				event.structured_data = "{\"tool\": \"trivy\", \"config_id\": \"" +
+				                        SafeParsing::EscapeJsonString(event.error_code) + "\", \"severity\": \"" +
+				                        SafeParsing::EscapeJsonString(event.severity) + "\"}";
 
 				events.push_back(event);
 			}

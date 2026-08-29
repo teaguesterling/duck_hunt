@@ -149,7 +149,8 @@ std::vector<ValidationEvent> KtlintJSONParser::parse(const std::string &content)
 
 			// Set raw output and structured data
 			event.log_content = content;
-			event.structured_data = "{\"tool\": \"ktlint\", \"rule\": \"" + SafeParsing::EscapeJsonString(event.error_code) + "\", \"severity\": \"" +
+			event.structured_data = "{\"tool\": \"ktlint\", \"rule\": \"" +
+			                        SafeParsing::EscapeJsonString(event.error_code) + "\", \"severity\": \"" +
 			                        SafeParsing::EscapeJsonString(event.severity) + "\"}";
 
 			events.push_back(event);

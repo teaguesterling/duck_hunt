@@ -132,7 +132,8 @@ std::vector<ValidationEvent> SwiftLintJSONParser::parse(const std::string &conte
 
 		// Set raw output and structured data
 		event.log_content = content;
-		event.structured_data = "{\"tool\": \"swiftlint\", \"rule_id\": \"" + SafeParsing::EscapeJsonString(event.error_code) + "\", \"type\": \"" +
+		event.structured_data = "{\"tool\": \"swiftlint\", \"rule_id\": \"" +
+		                        SafeParsing::EscapeJsonString(event.error_code) + "\", \"type\": \"" +
 		                        SafeParsing::EscapeJsonString(event.suggestion) + "\"}";
 
 		events.push_back(event);
