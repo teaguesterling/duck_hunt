@@ -56,14 +56,36 @@ static void DuckHuntUnloadParserFunction(DataChunk &args, ExpressionState &state
 	});
 }
 
+// Both of these raise InvalidInputException from inside their execute callback,
+// so they must declare themselves fallible. DuckDB v1.5 already has this flag
+// (BaseScalarFunction::SetFallible, function.hpp:211) and already consults it
+// through Expression::CanThrow(); v2.0 additionally *enforces* it and turns an
+// undeclared throw into:
+//
+//   INTERNAL Error: Scalar function "duck_hunt_load_parser_config" threw an
+//   execution error, but the function is not marked as fallible - the function
+//   must call SetFallible().
+//
+// Marking is not free — on the pin `errors` gates conjunct reordering, filter
+// pushdown and dictionary-expression caching — so only functions with a real
+// escaping throw are marked. The ScalarFunction is hoisted to a local because
+// SetFallible() needs an object to act on.
 ScalarFunction GetDuckHuntLoadParserConfigFunction() {
-	return ScalarFunction("duck_hunt_load_parser_config", {LogicalType::VARCHAR}, LogicalType::VARCHAR,
-	                      DuckHuntLoadParserConfigFunction);
+	// Throws InvalidInputException for an invalid JSON config and for attempts
+	// to replace a built-in parser (the inner catch rethrows, it does not
+	// swallow).
+	ScalarFunction fun("duck_hunt_load_parser_config", {LogicalType::VARCHAR}, LogicalType::VARCHAR,
+	                   DuckHuntLoadParserConfigFunction);
+	fun.SetFallible();
+	return fun;
 }
 
 ScalarFunction GetDuckHuntUnloadParserFunction() {
-	return ScalarFunction("duck_hunt_unload_parser", {LogicalType::VARCHAR}, LogicalType::BOOLEAN,
-	                      DuckHuntUnloadParserFunction);
+	// Throws InvalidInputException when asked to unload a built-in parser.
+	ScalarFunction fun("duck_hunt_unload_parser", {LogicalType::VARCHAR}, LogicalType::BOOLEAN,
+	                   DuckHuntUnloadParserFunction);
+	fun.SetFallible();
+	return fun;
 }
 
 } // namespace duckdb

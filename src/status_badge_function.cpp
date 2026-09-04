@@ -86,6 +86,14 @@ static void StatusBadgeFromCountsNoRunningFunction(DataChunk &args, ExpressionSt
 	                                                    });
 }
 
+// None of the three overloads is marked SetFallible(): all three are total
+// functions over their input (string comparison / integer comparison producing
+// one of five constant badges) with no throw, no allocation-dependent failure
+// path and no call out of this file. That also keeps this set clear of the
+// FunctionSet compat trap — the pinned DuckDB's FunctionSet has `vector<T>
+// functions` and no set-level SetFallible, while main's has SetFallible() and
+// `vector<shared_ptr<const T>>`, so a set that *did* need marking would need a
+// member probe here.
 ScalarFunctionSet GetStatusBadgeFunction() {
 	ScalarFunctionSet set("status_badge");
 
