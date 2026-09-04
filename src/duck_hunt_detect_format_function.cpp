@@ -48,6 +48,17 @@ static void DuckHuntDetectFormatFunction(DataChunk &args, ExpressionState &state
 // 'unknown'. Marking is optimizer-visible on the pinned DuckDB (`errors` feeds
 // Expression::CanThrow(), which gates conjunct reordering, filter pushdown and
 // dictionary caching), so it is left unset rather than set defensively.
+//
+// ONE CAVEAT, recorded for whoever re-enables the Windows leg: 27 canParse()
+// implementations call std::regex_search directly rather than through
+// SafeRegexSearch, and MSVC's std::regex enforces a match-complexity cap that
+// libstdc++ and libc++ do not (this is the same cap that keeps windows_amd64
+// excluded in MainDistributionPipeline.yml). On MSVC those calls can raise
+// std::regex_error(error_complexity), which would make this function fallible
+// on that platform only — and on DuckDB v2.0 an unmarked throw is reported as
+// an opaque INTERNAL Error instead of the regex error. If Windows comes back,
+// either route those canParse() bodies through SafeParsing::SafeRegexSearch
+// (preferred — it is what that helper exists for) or mark this fallible.
 ScalarFunction GetDuckHuntDetectFormatFunction() {
 	return ScalarFunction("duck_hunt_detect_format", {LogicalType::VARCHAR}, LogicalType::VARCHAR,
 	                      DuckHuntDetectFormatFunction);
