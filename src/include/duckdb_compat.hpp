@@ -120,9 +120,9 @@ inline void CompatSetCreateInfoQualification(INFO &info, const char *schema, con
 // Without this, VariadicExecutor (and similar) reports:
 //   "Mismatch in input vector sizes ... expected 0 rows but got N"
 //
-// duck_hunt writes output vectors positionally and never calls Vector::Append /
-// AppendValue (verified: `grep -rnE '\.Append\(|AppendValue' src/` is empty), so
-// SetChildCardinality is the correct choice on the new API. Selection is by
+// duck_hunt writes output vectors positionally and never calls the appending
+// Vector APIs (audited: zero such call sites in src/), so SetChildCardinality
+// is the correct choice on the new API. Selection is by
 // member probe rather than by `__has_include("duckdb/common/vector/list_vector.hpp")`:
 // that header can be backported without SetChildCardinality coming along, which
 // would break the *pinned* build at the next submodule bump.
