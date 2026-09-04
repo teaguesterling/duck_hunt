@@ -38,6 +38,16 @@ static void DuckHuntDetectFormatFunction(DataChunk &args, ExpressionState &state
 	});
 }
 
+// Deliberately NOT marked SetFallible(). Audited transitively: this reaches
+// ParserRegistry::findParser -> IParser::canParse for every registered parser.
+// No canParse() implementation throws, directly or through a helper — every
+// throw under src/parsers lives in parse()/parseWithContext(), which is the
+// table function path, not this one. The config-based parsers' detection regex
+// goes through SafeParsing::SafeRegexSearch, which catches and returns false
+// rather than propagating. Empty input and "no parser matched" both return
+// 'unknown'. Marking is optimizer-visible on the pinned DuckDB (`errors` feeds
+// Expression::CanThrow(), which gates conjunct reordering, filter pushdown and
+// dictionary caching), so it is left unset rather than set defensively.
 ScalarFunction GetDuckHuntDetectFormatFunction() {
 	return ScalarFunction("duck_hunt_detect_format", {LogicalType::VARCHAR}, LogicalType::VARCHAR,
 	                      DuckHuntDetectFormatFunction);
