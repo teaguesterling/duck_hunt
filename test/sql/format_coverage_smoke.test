@@ -1,0 +1,128 @@
+# name: test/sql/format_coverage_smoke.test
+# description: named smoke coverage for formats that had no test referencing them by name (issue #55)
+# group: [sql]
+
+require duck_hunt
+
+require json
+
+# =============================================================================
+# Issue #55, item 3: per-format test coverage.
+#
+# Each block below pins one format that previously had no test/sql test naming
+# it: a representative line of real tool output, parsed with the format given
+# explicitly, must produce events attributed to the right tool and must emit
+# structured_data that is either empty or valid JSON.
+# =============================================================================
+
+# --- android (logcat) --------------------------------------------------------
+query II
+SELECT DISTINCT tool_name, bool_and(structured_data IS NULL OR structured_data = '' OR json_valid(structured_data)) OVER ()
+FROM parse_duck_hunt_log('03-17 16:13:38.811  1702  2395 D WindowManager: Failed to deliver inputEvent', 'android');
+----
+android	true
+
+# --- hdfs --------------------------------------------------------------------
+query II
+SELECT DISTINCT tool_name, bool_and(structured_data IS NULL OR structured_data = '' OR json_valid(structured_data)) OVER ()
+FROM parse_duck_hunt_log('081109 203615 148 INFO dfs.DataNode$PacketResponder: PacketResponder 1 for block blk_38865049064139660 terminating', 'hdfs');
+----
+hdfs	true
+
+# --- zookeeper ---------------------------------------------------------------
+query II
+SELECT DISTINCT tool_name, bool_and(structured_data IS NULL OR structured_data = '' OR json_valid(structured_data)) OVER ()
+FROM parse_duck_hunt_log('2015-07-29 17:41:41,648 - INFO  [main:QuorumPeer@1019] - tickTime set to 2000', 'zookeeper');
+----
+zookeeper	true
+
+# --- openstack ---------------------------------------------------------------
+query II
+SELECT DISTINCT tool_name, bool_and(structured_data IS NULL OR structured_data = '' OR json_valid(structured_data)) OVER ()
+FROM parse_duck_hunt_log('nova-api.log.1.2017-05-16_13:53:08 2017-05-16 00:00:00.008 25746 INFO nova.osapi_compute.wsgi.server [req-38101a0b-2096-447d-96ea-a692162415ae 113d3a99c3da401fbd62cc2caa5b96d2 54fadb412c4e40cdbaed9335e4c35a9e - - -] 10.11.10.1 "GET /v2/ HTTP/1.1" status: 200 len: 1893 time: 0.2477829', 'openstack');
+----
+openstack	true
+
+# --- bgl (Blue Gene/L RAS log) ----------------------------------------------
+query II
+SELECT DISTINCT tool_name, bool_and(structured_data IS NULL OR structured_data = '' OR json_valid(structured_data)) OVER ()
+FROM parse_duck_hunt_log('- 1117838570 2005.06.03 R02-M1-N0-C:J12-U11 2005-06-03-15.42.50.363779 R02-M1-N0-C:J12-U11 RAS KERNEL INFO instruction cache parity error corrected', 'bgl');
+----
+bgl	true
+
+# --- hadolint (text) ---------------------------------------------------------
+query II
+SELECT DISTINCT tool_name, bool_and(structured_data IS NULL OR structured_data = '' OR json_valid(structured_data)) OVER ()
+FROM parse_duck_hunt_log('Dockerfile:3 DL3006 warning: Always tag the version of an image explicitly', 'hadolint_text');
+----
+hadolint	true
+
+# --- shellcheck (text) -------------------------------------------------------
+query II
+SELECT DISTINCT tool_name, bool_and(structured_data IS NULL OR structured_data = '' OR json_valid(structured_data)) OVER ()
+FROM parse_duck_hunt_log(E'In script.sh line 3:\necho $foo\n     ^-- SC2086: Double quote to prevent globbing and word splitting.', 'shellcheck_text');
+----
+shellcheck	true
+
+# --- eslint (text/stylish) ---------------------------------------------------
+query II
+SELECT DISTINCT tool_name, bool_and(structured_data IS NULL OR structured_data = '' OR json_valid(structured_data)) OVER ()
+FROM parse_duck_hunt_log(E'/src/app.js\n  1:1  error  Unexpected console statement  no-console\n\n1 problem (1 error, 0 warnings)', 'eslint_text');
+----
+eslint	true
+
+# --- go test (text) ----------------------------------------------------------
+query II
+SELECT DISTINCT tool_name, bool_and(structured_data IS NULL OR structured_data = '' OR json_valid(structured_data)) OVER ()
+FROM parse_duck_hunt_log(E'=== RUN   TestFoo\n--- PASS: TestFoo (0.00s)\nPASS\nok  \texample.com/pkg\t0.002s', 'gotest_text');
+----
+go_test	true
+
+# --- bandit (text) -----------------------------------------------------------
+query II
+SELECT DISTINCT tool_name, bool_and(structured_data IS NULL OR structured_data = '' OR json_valid(structured_data)) OVER ()
+FROM parse_duck_hunt_log(E'>> Issue: [B101:assert_used] Use of assert detected.\n   Severity: Low   Confidence: High\n   Location: ./app.py:5:0', 'bandit_text');
+----
+bandit	true
+
+# --- apache error log --------------------------------------------------------
+query II
+SELECT DISTINCT tool_name, bool_and(structured_data IS NULL OR structured_data = '' OR json_valid(structured_data)) OVER ()
+FROM parse_duck_hunt_log('[Wed Oct 11 14:32:52 2000] [error] [client 127.0.0.1] client denied by server configuration: /export/home/live/ap/htdocs/test', 'apache_error');
+----
+apache_error	true
+
+# --- playwright (text reporter) ---------------------------------------------
+query II
+SELECT DISTINCT tool_name, bool_and(structured_data IS NULL OR structured_data = '' OR json_valid(structured_data)) OVER ()
+FROM parse_duck_hunt_log(E'Running 3 tests using 1 worker\n  1 tests/example.spec.ts:3:1 basic test (1s)\n  1 passed (2s)', 'playwright_text');
+----
+playwright	true
+
+# --- ruff (text) -------------------------------------------------------------
+query II
+SELECT DISTINCT tool_name, bool_and(structured_data IS NULL OR structured_data = '' OR json_valid(structured_data)) OVER ()
+FROM parse_duck_hunt_log(E'F401 [*] `os` imported but unused\n   --> src/app.py:1:1\nhelp: Remove unused import\nFound 1 error.', 'ruff_text');
+----
+ruff	true
+
+# --- generic_error (catch-all) ----------------------------------------------
+query II
+SELECT DISTINCT tool_name, bool_and(structured_data IS NULL OR structured_data = '' OR json_valid(structured_data)) OVER ()
+FROM parse_duck_hunt_log('Error: something bad happened', 'generic_error');
+----
+generic	true
+
+# --- unity editor build log --------------------------------------------------
+query II
+SELECT DISTINCT tool_name, bool_and(structured_data IS NULL OR structured_data = '' OR json_valid(structured_data)) OVER ()
+FROM parse_duck_hunt_log(E'Unity Editor version: 2021.3.16f1\nAssets/Scripts/Player.cs(12,9): error CS0103: The name does not exist in the current context', 'unity_editor');
+----
+unity-csc	true
+
+# --- playwright (json reporter) ---------------------------------------------
+query II
+SELECT DISTINCT tool_name, bool_and(structured_data IS NULL OR structured_data = '' OR json_valid(structured_data)) OVER ()
+FROM parse_duck_hunt_log('{"config":{"rootDir":"/repo"},"stats":{"expected":1,"unexpected":1,"skipped":0,"flaky":0},"suites":[{"title":"example.spec.ts","file":"example.spec.ts","specs":[{"title":"basic test","ok":false,"file":"example.spec.ts","line":3,"column":1,"tests":[{"results":[{"status":"failed","duration":12,"error":{"message":"expect failed"}}]}]}]}]}', 'playwright_json');
+----
+playwright	true

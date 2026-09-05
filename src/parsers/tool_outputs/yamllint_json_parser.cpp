@@ -1,4 +1,5 @@
 #include "yamllint_json_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include "yyjson.hpp"
 
 namespace duckdb {
@@ -139,8 +140,9 @@ std::vector<ValidationEvent> YamllintJSONParser::parse(const std::string &conten
 
 		// Set raw output and structured data
 		event.log_content = content;
-		event.structured_data =
-		    "{\"tool\": \"yamllint\", \"rule\": \"" + event.error_code + "\", \"level\": \"" + event.severity + "\"}";
+		event.structured_data = "{\"tool\": \"yamllint\", \"rule\": \"" +
+		                        SafeParsing::EscapeJsonString(event.error_code) + "\", \"level\": \"" +
+		                        SafeParsing::EscapeJsonString(event.severity) + "\"}";
 
 		events.push_back(event);
 	}

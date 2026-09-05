@@ -130,7 +130,9 @@ static bool ParseHdfsLine(const std::string &line, ValidationEvent &event, int64
 	event.status = MapLevelToStatus(event.severity);
 
 	// Build structured_data JSON
-	event.structured_data = "{\"component\":\"" + component + "\",\"level\":\"" + level + "\",\"pid\":\"" + pid + "\"}";
+	event.structured_data = "{\"component\":\"" + SafeParsing::EscapeJsonString(component) + "\",\"level\":\"" +
+	                        SafeParsing::EscapeJsonString(level) + "\",\"pid\":\"" +
+	                        SafeParsing::EscapeJsonString(pid) + "\"}";
 	event.log_content = line;
 
 	return true;

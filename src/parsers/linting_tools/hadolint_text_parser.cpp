@@ -107,7 +107,8 @@ std::vector<ValidationEvent> HadolintTextParser::parse(const std::string &conten
 			event.log_content = line;
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
-			event.structured_data = "{\"code\": \"" + code + "\", \"severity\": \"" + severity_str + "\"}";
+			event.structured_data = "{\"code\": \"" + SafeParsing::EscapeJsonString(code) + "\", \"severity\": \"" +
+			                        SafeParsing::EscapeJsonString(severity_str) + "\"}";
 
 			events.push_back(event);
 		}

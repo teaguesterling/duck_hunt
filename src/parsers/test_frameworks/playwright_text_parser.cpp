@@ -233,8 +233,8 @@ std::vector<ValidationEvent> PlaywrightTextParser::parse(const std::string &cont
 			event.tool_name = "playwright";
 			event.category = "playwright_text";
 			event.log_content = line;
-			event.structured_data =
-			    "{\"passed\": " + std::to_string(passed_count) + ", \"duration\": \"" + duration + "\"}";
+			event.structured_data = "{\"passed\": " + std::to_string(passed_count) + ", \"duration\": \"" +
+			                        SafeParsing::EscapeJsonString(duration) + "\"}";
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
 

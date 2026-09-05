@@ -1,4 +1,5 @@
 #include "clippy_json_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include "yyjson.hpp"
 #include <sstream>
 
@@ -186,8 +187,8 @@ std::vector<ValidationEvent> ClippyJSONParser::parse(const std::string &content)
 
 		// Set raw output and structured data
 		event.log_content = line; // Use the specific line for this issue
-		event.structured_data =
-		    "{\"tool\": \"clippy\", \"level\": \"" + event.severity + "\", \"code\": \"" + event.error_code + "\"}";
+		event.structured_data = "{\"tool\": \"clippy\", \"level\": \"" + SafeParsing::EscapeJsonString(event.severity) +
+		                        "\", \"code\": \"" + SafeParsing::EscapeJsonString(event.error_code) + "\"}";
 
 		events.push_back(event);
 

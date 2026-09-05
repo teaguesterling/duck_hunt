@@ -152,12 +152,27 @@ IParser *ParserRegistry::getParser(const std::string &format_name) const {
 	return (it != format_map_.end()) ? it->second : nullptr;
 }
 
+// Whether a candidate parser actually extracts anything from a sniff window.
+//
+// Used only to skip empty claimants during detection (see findParser). Parsers
+// that need a ClientContext are not probed - they are assumed to yield, so they
+// keep their registration-order position.
+static bool DetectionCandidateYields(IParser *parser, const std::string &sniff) {
+	if (parser->requiresContext()) {
+		return true;
+	}
+	try {
+		return !parser->parse(sniff).empty();
+	} catch (const std::exception &) {
+		return false;
+	} catch (...) {
+		return false;
+	}
+}
+
 IParser *ParserRegistry::findParser(const std::string &content) const {
 	// Ensure parsers are initialized (call_once ensures this only runs once)
 	InitializeAllParsers();
-
-	std::lock_guard<std::mutex> lock(registry_mutex_);
-	ensureSortedLocked();
 
 	// Bound format detection to an 8 KB sniff window. Every parser's canParse()
 	// runs against every input on format:='auto' (O(content) x N parsers); several
@@ -169,14 +184,58 @@ IParser *ParserRegistry::findParser(const std::string &content) const {
 	                              ? content.substr(0, SafeParsing::MAX_DETECTION_SNIFF_SIZE)
 	                              : content;
 
-	// Try parsers in priority order
-	for (IParser *parser : sorted_parsers_) {
+	// Snapshot the priority-ordered parser list, then drop the lock. canParse()
+	// and parse() must not run while the registry mutex is held: several parsers
+	// (the workflow-engine ones) call back into the registry to delegate to a
+	// sub-parser, and registry_mutex_ is not recursive.
+	std::vector<IParser *> ordered;
+	{
+		std::lock_guard<std::mutex> lock(registry_mutex_);
+		ensureSortedLocked();
+		ordered = sorted_parsers_;
+	}
+
+	// Collect every claimant at the highest priority that claims the content.
+	// Lower-priority claimants are deliberately ignored: priority is the coarse,
+	// author-declared ordering and stays authoritative across priority levels.
+	std::vector<IParser *> candidates;
+	int best_priority = 0;
+	for (IParser *parser : ordered) {
+		if (!candidates.empty() && parser->getPriority() != best_priority) {
+			break; // ordered is sorted by descending priority
+		}
 		if (parser->canParse(sniff)) {
-			return parser;
+			if (candidates.empty()) {
+				best_priority = parser->getPriority();
+			}
+			candidates.push_back(parser);
 		}
 	}
 
-	return nullptr;
+	if (candidates.empty()) {
+		return nullptr;
+	}
+	if (candidates.size() == 1) {
+		return candidates.front();
+	}
+
+	// Ambiguous: 74 of the built-in parsers share priority 80, so among those the
+	// winner is decided purely by registration order. Order is deliberate in
+	// places (gcc_text is meant to win over the build-wrapper parsers on a log
+	// that contains both) so it stays the decision rule -- with one exception: a
+	// parser that claims the content but extracts nothing from it must not
+	// out-rank one that actually parses it. That case is never intentional; it is
+	// a canParse() that recognised a marker its parse() cannot use.
+	for (IParser *candidate : candidates) {
+		if (DetectionCandidateYields(candidate, sniff)) {
+			return candidate;
+		}
+	}
+
+	// Nothing yields - keep the historical registration-order winner.
+	IParser *best = candidates.front();
+
+	return best;
 }
 
 // Convert SQL LIKE pattern to regex pattern string

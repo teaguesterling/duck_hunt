@@ -108,8 +108,9 @@ std::vector<ValidationEvent> RubocopTextParser::parse(const std::string &content
 			event.log_content = line;
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
-			event.structured_data =
-			    "{\"cop\": \"" + cop_name + "\", \"severity_code\": \"" + std::string(1, severity_char) + "\"}";
+			event.structured_data = "{\"cop\": \"" + SafeParsing::EscapeJsonString(cop_name) +
+			                        "\", \"severity_code\": \"" +
+			                        SafeParsing::EscapeJsonString(std::string(1, severity_char)) + "\"}";
 
 			events.push_back(event);
 		}

@@ -238,7 +238,8 @@ std::vector<ValidationEvent> PytestParser::parse(const std::string &content) con
 
 			summary.structured_data = "{\"passed\":" + std::to_string(passed) +
 			                          ",\"failed\":" + std::to_string(failed) +
-			                          ",\"skipped\":" + std::to_string(skipped) + ",\"duration\":" + duration_str + "}";
+			                          ",\"skipped\":" + std::to_string(skipped) +
+			                          ",\"duration\":" + SafeParsing::JsonNumberOrString(duration_str) + "}";
 
 			events.push_back(summary);
 			continue;

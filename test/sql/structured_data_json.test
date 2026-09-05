@@ -1,0 +1,111 @@
+# name: test/sql/structured_data_json.test
+# description: structured_data must always be valid JSON, even when parsed fields contain quotes, backslashes or control characters (issue #55)
+# group: [sql]
+
+require duck_hunt
+
+require json
+
+# =============================================================================
+# Issue #55, item 1: "Unescaped JSON via string concatenation"
+#
+# Several parsers build the structured_data column by concatenating
+# regex-captured / JSON-decoded runtime strings directly into a JSON literal.
+# Any captured value containing a double quote or a backslash produces
+# malformed JSON. The assertion here is deliberately structural -- the output
+# must parse as JSON and the field must round-trip -- not a string comparison.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# bazel: WARNING: (.+) -> {"warning": "..."}
+# -----------------------------------------------------------------------------
+query I
+SELECT bool_and(json_valid(structured_data))
+FROM parse_duck_hunt_log(E'INFO: Analyzed 1 target (1 packages loaded, 1 targets configured).\nWARNING: flag "--legacy_flag" is deprecated', 'bazel');
+----
+true
+
+query I
+SELECT json_extract_string(structured_data, '$.warning')
+FROM parse_duck_hunt_log(E'INFO: Analyzed 1 target (1 packages loaded, 1 targets configured).\nWARNING: flag "--legacy_flag" is deprecated', 'bazel')
+WHERE category = 'build_warning';
+----
+flag "--legacy_flag" is deprecated
+
+# bazel: backslashes in a warning must survive too
+query I
+SELECT bool_and(json_valid(structured_data))
+FROM parse_duck_hunt_log(E'WARNING: could not stat C:\\build\\x\\out', 'bazel');
+----
+true
+
+# bazel: FAIL <file>:<line>: <message> -> {"failure_message": "..."}
+query I
+SELECT bool_and(json_valid(structured_data))
+FROM parse_duck_hunt_log('FAIL //pkg/test.cc:42: expected "a" but got "b"', 'bazel');
+----
+true
+
+# -----------------------------------------------------------------------------
+# black: --- <path> (original) -> {"action": "diff_start", "file": "..."}
+# -----------------------------------------------------------------------------
+query I
+SELECT bool_and(json_valid(structured_data))
+FROM parse_duck_hunt_log(E'would reformat weird"name.py\n--- weird"name.py\t(original)\n+++ weird"name.py\t(formatted)', 'black');
+----
+true
+
+query I
+SELECT json_extract_string(structured_data, '$.file')
+FROM parse_duck_hunt_log(E'would reformat weird"name.py\n--- weird"name.py\t(original)\n+++ weird"name.py\t(formatted)', 'black')
+WHERE json_extract_string(structured_data, '$.action') = 'diff_start';
+----
+weird"name.py
+
+# -----------------------------------------------------------------------------
+# github_cli: ##[group]<step> -> {"step": "...", "type": "error"}
+# -----------------------------------------------------------------------------
+query I
+SELECT bool_and(json_valid(structured_data))
+FROM parse_duck_hunt_log(E'##[group]Run make "check"\n::error::build failed\n##[endgroup]', 'github_cli');
+----
+true
+
+query I
+SELECT json_extract_string(structured_data, '$.step')
+FROM parse_duck_hunt_log(E'##[group]Run make "check"\n::error::build failed\n##[endgroup]', 'github_cli');
+----
+Run make "check"
+
+# -----------------------------------------------------------------------------
+# clippy_json: lint code comes straight out of the input JSON
+# -----------------------------------------------------------------------------
+query I
+SELECT bool_and(json_valid(structured_data))
+FROM parse_duck_hunt_log('{"message":{"level":"warn","message":"needless borrow","code":{"code":"clippy::odd\"name"},"spans":[{"is_primary":true,"file_name":"src/main.rs","line_start":3,"column_start":5}]}}', 'clippy_json');
+----
+true
+
+query I
+SELECT json_extract_string(structured_data, '$.code')
+FROM parse_duck_hunt_log('{"message":{"level":"warn","message":"needless borrow","code":{"code":"clippy::odd\"name"},"spans":[{"is_primary":true,"file_name":"src/main.rs","line_start":3,"column_start":5}]}}', 'clippy_json');
+----
+clippy::odd"name
+
+# -----------------------------------------------------------------------------
+# distributed-systems parsers embed captured components/tags verbatim
+# -----------------------------------------------------------------------------
+query I
+SELECT bool_and(json_valid(structured_data))
+FROM parse_duck_hunt_log('17/06/09 20:10:40 INFO exec"utor.Executor: Running task 0.0', 'spark');
+----
+true
+
+# -----------------------------------------------------------------------------
+# Regression guard: the originally reported gtest site (already escaped)
+# -----------------------------------------------------------------------------
+query I
+SELECT bool_and(json_valid(structured_data))
+FROM parse_duck_hunt_log(E'[==========] Running 1 test from 1 test suite.\n[----------] 1 test from Suite\n[ RUN      ] Suite.Case\nSuite.Case: weird"path.cc:17: Failure\n[  FAILED  ] Suite.Case (1 ms)\n[==========] 1 test from 1 test suite ran. (1 ms total)\n[  FAILED  ] 1 test.', 'gtest');
+----
+true

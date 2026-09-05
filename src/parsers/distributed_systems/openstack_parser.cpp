@@ -170,22 +170,14 @@ static bool ParseOpenStackLine(const std::string &line, ValidationEvent &event, 
 	event.status = MapLevelToStatus(event.severity);
 
 	// Build structured_data JSON
-	event.structured_data = "{\"component\":\"" + component + "\",\"level\":\"" + level + "\",\"pid\":\"" + pid + "\"";
+	event.structured_data = "{\"component\":\"" + SafeParsing::EscapeJsonString(component) + "\",\"level\":\"" +
+	                        SafeParsing::EscapeJsonString(level) + "\",\"pid\":\"" +
+	                        SafeParsing::EscapeJsonString(pid) + "\"";
 	if (!log_file.empty()) {
-		event.structured_data += ",\"log_file\":\"" + log_file + "\"";
+		event.structured_data += ",\"log_file\":\"" + SafeParsing::EscapeJsonString(log_file) + "\"";
 	}
 	if (!request_id.empty()) {
-		// Escape special chars
-		std::string escaped_req;
-		for (char c : request_id) {
-			if (c == '"')
-				escaped_req += "\\\"";
-			else if (c == '\\')
-				escaped_req += "\\\\";
-			else
-				escaped_req += c;
-		}
-		event.structured_data += ",\"request_id\":\"" + escaped_req + "\"";
+		event.structured_data += ",\"request_id\":\"" + SafeParsing::EscapeJsonString(request_id) + "\"";
 	}
 	event.structured_data += "}";
 

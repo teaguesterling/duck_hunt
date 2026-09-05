@@ -1,4 +1,5 @@
 #include "shellcheck_json_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include "yyjson.hpp"
 
 namespace duckdb {
@@ -154,8 +155,9 @@ std::vector<ValidationEvent> ShellCheckJSONParser::parse(const std::string &cont
 
 		// Set raw output and structured data
 		event.log_content = content;
-		event.structured_data =
-		    "{\"tool\": \"shellcheck\", \"code\": \"" + event.error_code + "\", \"level\": \"" + event.severity + "\"}";
+		event.structured_data = "{\"tool\": \"shellcheck\", \"code\": \"" +
+		                        SafeParsing::EscapeJsonString(event.error_code) + "\", \"level\": \"" +
+		                        SafeParsing::EscapeJsonString(event.severity) + "\"}";
 
 		events.push_back(event);
 	}

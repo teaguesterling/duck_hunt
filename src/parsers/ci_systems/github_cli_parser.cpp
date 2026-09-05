@@ -1,4 +1,5 @@
 #include "github_cli_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <sstream>
 #include <regex>
 
@@ -139,8 +140,10 @@ std::vector<ValidationEvent> GitHubCliParser::parseRunsList(const std::string &c
 			event.ref_column = -1;
 			event.execution_time = 0.0;
 			event.log_content = line;
-			event.structured_data = "{\"status\": \"" + status + "\", \"conclusion\": \"" + conclusion +
-			                        "\", \"branch\": \"" + branch + "\", \"time\": \"" + time + "\"}";
+			event.structured_data = "{\"status\": \"" + SafeParsing::EscapeJsonString(status) +
+			                        "\", \"conclusion\": \"" + SafeParsing::EscapeJsonString(conclusion) +
+			                        "\", \"branch\": \"" + SafeParsing::EscapeJsonString(branch) + "\", \"time\": \"" +
+			                        SafeParsing::EscapeJsonString(time) + "\"}";
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
 
@@ -215,7 +218,8 @@ std::vector<ValidationEvent> GitHubCliParser::parseRunView(const std::string &co
 			event.ref_column = -1;
 			event.execution_time = 0.0;
 			event.log_content = line;
-			event.structured_data = "{\"run_id\": \"" + run_id + "\", \"job_status\": \"" + job_status + "\"}";
+			event.structured_data = "{\"run_id\": \"" + SafeParsing::EscapeJsonString(run_id) +
+			                        "\", \"job_status\": \"" + SafeParsing::EscapeJsonString(job_status) + "\"}";
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
 
@@ -272,7 +276,8 @@ std::vector<ValidationEvent> GitHubCliParser::parseWorkflowLog(const std::string
 			event.ref_column = -1;
 			event.execution_time = 0.0;
 			event.log_content = line;
-			event.structured_data = "{\"step\": \"" + current_step + "\", \"type\": \"error\"}";
+			event.structured_data =
+			    "{\"step\": \"" + SafeParsing::EscapeJsonString(current_step) + "\", \"type\": \"error\"}";
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
 
@@ -294,7 +299,8 @@ std::vector<ValidationEvent> GitHubCliParser::parseWorkflowLog(const std::string
 			event.ref_column = -1;
 			event.execution_time = 0.0;
 			event.log_content = line;
-			event.structured_data = "{\"step\": \"" + current_step + "\", \"type\": \"warning\"}";
+			event.structured_data =
+			    "{\"step\": \"" + SafeParsing::EscapeJsonString(current_step) + "\", \"type\": \"warning\"}";
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
 
@@ -316,7 +322,8 @@ std::vector<ValidationEvent> GitHubCliParser::parseWorkflowLog(const std::string
 			event.ref_column = -1;
 			event.execution_time = 0.0;
 			event.log_content = line;
-			event.structured_data = "{\"step\": \"" + current_step + "\", \"type\": \"notice\"}";
+			event.structured_data =
+			    "{\"step\": \"" + SafeParsing::EscapeJsonString(current_step) + "\", \"type\": \"notice\"}";
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
 

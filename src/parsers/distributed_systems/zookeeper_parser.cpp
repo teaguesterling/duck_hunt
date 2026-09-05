@@ -173,20 +173,11 @@ static bool ParseZookeeperLine(const std::string &line, ValidationEvent &event, 
 		}
 	}
 
-	// Build structured_data JSON (escape special chars in thread)
-	std::string escaped_thread;
-	for (char c : thread) {
-		if (c == '"')
-			escaped_thread += "\\\"";
-		else if (c == '\\')
-			escaped_thread += "\\\\";
-		else
-			escaped_thread += c;
-	}
-
-	event.structured_data = "{\"thread\":\"" + escaped_thread + "\",\"level\":\"" + level + "\"";
+	// Build structured_data JSON
+	event.structured_data = "{\"thread\":\"" + SafeParsing::EscapeJsonString(thread) + "\",\"level\":\"" +
+	                        SafeParsing::EscapeJsonString(level) + "\"";
 	if (!class_name.empty()) {
-		event.structured_data += ",\"class\":\"" + class_name + "\"";
+		event.structured_data += ",\"class\":\"" + SafeParsing::EscapeJsonString(class_name) + "\"";
 	}
 	event.structured_data += "}";
 
