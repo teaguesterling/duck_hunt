@@ -167,8 +167,10 @@ static bool ParseAndroidLine(const std::string &line, ValidationEvent &event, in
 	event.status = MapLevelToStatus(event.severity);
 
 	// Build structured_data JSON
-	event.structured_data = "{\"tag\":\"" + tag + "\",\"level\":\"" + std::string(1, level) + "\",\"pid\":\"" + pid +
-	                        "\",\"tid\":\"" + tid + "\"}";
+	event.structured_data = "{\"tag\":\"" + SafeParsing::EscapeJsonString(tag) + "\",\"level\":\"" +
+	                        SafeParsing::EscapeJsonString(std::string(1, level)) + "\",\"pid\":\"" +
+	                        SafeParsing::EscapeJsonString(pid) + "\",\"tid\":\"" + SafeParsing::EscapeJsonString(tid) +
+	                        "\"}";
 	event.log_content = line;
 
 	return true;

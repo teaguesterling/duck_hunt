@@ -218,6 +218,68 @@ inline std::string EscapeJsonString(const std::string &str) {
 }
 
 /**
+ * Emit a captured value in a JSON *number* position.
+ *
+ * Captures that parser authors treat as numeric are not guaranteed to be:
+ * a group like `([\d.]+)` happily matches "1.2.3" or "...", and free-form
+ * substring extraction ("Skipped X files") can yield anything at all. Dropping
+ * such a value straight into a number slot produces a document that no JSON
+ * reader will accept.
+ *
+ * A value that is already a valid JSON number is returned verbatim, so
+ * well-formed logs produce byte-identical structured_data to before. Anything
+ * else is returned as a quoted, escaped JSON string, which keeps the
+ * surrounding document parseable without discarding what was captured.
+ */
+inline std::string JsonNumberOrString(const std::string &value) {
+	size_t i = 0;
+	const size_t n = value.size();
+	bool valid = true;
+
+	if (i < n && value[i] == '-') {
+		i++;
+	}
+	// Integer part: "0" or [1-9][0-9]*
+	if (i >= n || !std::isdigit(static_cast<unsigned char>(value[i]))) {
+		valid = false;
+	} else if (value[i] == '0') {
+		i++;
+	} else {
+		while (i < n && std::isdigit(static_cast<unsigned char>(value[i]))) {
+			i++;
+		}
+	}
+	// Fractional part
+	if (valid && i < n && value[i] == '.') {
+		i++;
+		if (i >= n || !std::isdigit(static_cast<unsigned char>(value[i]))) {
+			valid = false;
+		}
+		while (i < n && std::isdigit(static_cast<unsigned char>(value[i]))) {
+			i++;
+		}
+	}
+	// Exponent
+	if (valid && i < n && (value[i] == 'e' || value[i] == 'E')) {
+		i++;
+		if (i < n && (value[i] == '+' || value[i] == '-')) {
+			i++;
+		}
+		if (i >= n || !std::isdigit(static_cast<unsigned char>(value[i]))) {
+			valid = false;
+		}
+		while (i < n && std::isdigit(static_cast<unsigned char>(value[i]))) {
+			i++;
+		}
+	}
+
+	if (valid && i == n) {
+		return value;
+	}
+	return "\"" + EscapeJsonString(value) + "\"";
+}
+
+/**
  * Parse file:line:column format WITHOUT regex (no backtracking risk).
  * Handles formats like:
  *   - /path/file.cpp:42:10: error: message

@@ -166,7 +166,7 @@ std::vector<ValidationEvent> TfsecJSONParser::parse(const std::string &content) 
 		yyjson_val *impact = yyjson_obj_get(issue, "impact");
 		std::string impact_str;
 		if (impact && yyjson_is_str(impact)) {
-			impact_str = ", \"impact\": \"" + std::string(yyjson_get_str(impact)) + "\"";
+			impact_str = ", \"impact\": \"" + SafeParsing::EscapeJsonString(std::string(yyjson_get_str(impact))) + "\"";
 		}
 
 		// Get provider and service info

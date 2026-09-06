@@ -122,8 +122,9 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string &content) cons
 			event.category = "performance";
 			event.execution_time = elapsed;
 			event.log_content = line;
-			event.structured_data =
-			    "{\"elapsed_time\": " + match[1].str() + ", \"critical_path_time\": " + match[2].str() + "}";
+			event.structured_data = "{\"elapsed_time\": " + SafeParsing::JsonNumberOrString(match[1].str()) +
+			                        ", \"critical_path_time\": " + SafeParsing::JsonNumberOrString(match[2].str()) +
+			                        "}";
 
 			events.push_back(event);
 		}
@@ -143,7 +144,8 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string &content) cons
 			event.category = "test_result";
 			event.execution_time = duration;
 			event.log_content = line;
-			event.structured_data = "{\"target\": \"" + target + "\", \"duration\": " + match[2].str() + "}";
+			event.structured_data = "{\"target\": \"" + SafeParsing::EscapeJsonString(target) +
+			                        "\", \"duration\": " + SafeParsing::JsonNumberOrString(match[2].str()) + "}";
 
 			events.push_back(event);
 		}
@@ -166,7 +168,8 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string &content) cons
 			event.category = "test_result";
 			event.execution_time = duration;
 			event.log_content = line;
-			event.structured_data = "{\"target\": \"" + target + "\", \"duration\": " + match[2].str() +
+			event.structured_data = "{\"target\": \"" + SafeParsing::EscapeJsonString(target) +
+			                        "\", \"duration\": " + SafeParsing::JsonNumberOrString(match[2].str()) +
 			                        ", \"current_attempt\": " + std::to_string(current_attempt) +
 			                        ", \"total_attempts\": " + std::to_string(total_attempts) + "}";
 
@@ -188,8 +191,9 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string &content) cons
 			event.category = "test_timeout";
 			event.execution_time = duration;
 			event.log_content = line;
-			event.structured_data =
-			    "{\"target\": \"" + target + "\", \"duration\": " + match[2].str() + ", \"reason\": \"timeout\"}";
+			event.structured_data = "{\"target\": \"" + SafeParsing::EscapeJsonString(target) +
+			                        "\", \"duration\": " + SafeParsing::JsonNumberOrString(match[2].str()) +
+			                        ", \"reason\": \"timeout\"}";
 
 			events.push_back(event);
 		}
@@ -210,7 +214,7 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string &content) cons
 			event.tool_name = "bazel";
 			event.category = "test_flaky";
 			event.log_content = line;
-			event.structured_data = "{\"target\": \"" + target +
+			event.structured_data = "{\"target\": \"" + SafeParsing::EscapeJsonString(target) +
 			                        "\", \"passed_attempts\": " + std::to_string(passed_attempts) +
 			                        ", \"total_attempts\": " + std::to_string(total_attempts) + "}";
 
@@ -230,7 +234,8 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string &content) cons
 			event.tool_name = "bazel";
 			event.category = "test_result";
 			event.log_content = line;
-			event.structured_data = "{\"target\": \"" + target + "\", \"reason\": \"skipped\"}";
+			event.structured_data =
+			    "{\"target\": \"" + SafeParsing::EscapeJsonString(target) + "\", \"reason\": \"skipped\"}";
 
 			events.push_back(event);
 		}
@@ -297,7 +302,7 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string &content) cons
 			event.tool_name = "bazel";
 			event.category = "build_warning";
 			event.log_content = line;
-			event.structured_data = "{\"warning\": \"" + warning_msg + "\"}";
+			event.structured_data = "{\"warning\": \"" + SafeParsing::EscapeJsonString(warning_msg) + "\"}";
 
 			events.push_back(event);
 		}
@@ -318,7 +323,7 @@ std::vector<ValidationEvent> BazelParser::parse(const std::string &content) cons
 			event.tool_name = "bazel";
 			event.category = "test_failure";
 			event.log_content = line;
-			event.structured_data = "{\"failure_message\": \"" + failure_msg + "\"}";
+			event.structured_data = "{\"failure_message\": \"" + SafeParsing::EscapeJsonString(failure_msg) + "\"}";
 
 			events.push_back(event);
 		}

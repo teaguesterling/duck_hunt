@@ -146,8 +146,11 @@ static bool ParseBglLine(const std::string &line, ValidationEvent &event, int64_
 	event.status = MapLevelToStatus(event.severity);
 
 	// Build structured_data JSON
-	event.structured_data = "{\"node\":\"" + node + "\",\"source\":\"" + source + "\",\"component\":\"" + component +
-	                        "\",\"level\":\"" + level + "\",\"alert_type\":\"" + alert_type + "\"}";
+	event.structured_data = "{\"node\":\"" + SafeParsing::EscapeJsonString(node) + "\",\"source\":\"" +
+	                        SafeParsing::EscapeJsonString(source) + "\",\"component\":\"" +
+	                        SafeParsing::EscapeJsonString(component) + "\",\"level\":\"" +
+	                        SafeParsing::EscapeJsonString(level) + "\",\"alert_type\":\"" +
+	                        SafeParsing::EscapeJsonString(alert_type) + "\"}";
 
 	event.log_content = line;
 

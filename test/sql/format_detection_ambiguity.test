@@ -1,0 +1,76 @@
+# name: test/sql/format_detection_ambiguity.test
+# description: auto-detection must not be decided by registration order when several parsers claim the same log (issue #55)
+# group: [sql]
+
+require duck_hunt
+
+# =============================================================================
+# Issue #55, item 2: "Auto-detect first-match-wins mis-routing"
+#
+# ParserRegistry::findParser() walks parsers in priority order and returns the
+# first whose canParse() is true. 74 of the built-in parsers share priority 80,
+# so among those the winner is decided purely by registration order. A log that
+# merely *embeds* another tool's marker (the classic case is a literal
+# "[  FAILED  ]" line in captured output) therefore mis-routes to whichever
+# parser happens to be registered first, and the log is parsed with the wrong
+# grammar.
+#
+# Two things now guard against that, both exercised below:
+#   1. findParser() skips a claimant that extracts nothing from the content.
+#      A canParse() that recognises a marker its parse() cannot use must never
+#      out-rank a parser that actually reads the log.
+#   2. The gtest parser no longer claims a log on a single "[  FAILED  ]"
+#      occurrence; a genuine gtest run emits a structural banner or repeats the
+#      marker in its summary.
+#
+# Registration order otherwise stays the decision rule - it is deliberate in
+# places (gcc_text is meant to beat the build-wrapper parsers on a log holding
+# both), so it is not overridden by any "explains more of the log" heuristic.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Baselines: each log on its own detects as itself.
+# -----------------------------------------------------------------------------
+query I
+SELECT duck_hunt_detect_format(E'Inspecting 3 files\nCCC\n\napp/models/user.rb:5:3: C: Style/StringLiterals: Prefer single-quoted strings\n\n3 files inspected, 1 offense detected');
+----
+rubocop_text
+
+query I
+SELECT duck_hunt_detect_format(E'[==========] Running 1 test from 1 test suite.\n[----------] 1 test from Suite\n[ RUN      ] Suite.Case\n[  FAILED  ] Suite.Case (1 ms)\n[==========] 1 test from 1 test suite ran. (1 ms total)\n[  FAILED  ] 1 test, listed below:');
+----
+gtest_text
+
+query I
+SELECT duck_hunt_detect_format(E'[INFO] Scanning for projects...\n[INFO] Building my-app 1.0.0\n[INFO] --- maven-compiler-plugin:3.8.1:compile (default-compile) @ my-app ---\n[ERROR] Failed to execute goal on project my-app: Compilation failure\n[INFO] BUILD FAILURE');
+----
+maven_build
+
+# -----------------------------------------------------------------------------
+# A RuboCop run whose output embeds a single gtest "[  FAILED  ]" line.
+# gtest_text and rubocop_text both claim it; rubocop_text explains the log.
+# -----------------------------------------------------------------------------
+query I
+SELECT duck_hunt_detect_format(E'Inspecting 3 files\nCCC\n\napp/models/user.rb:5:3: C: Style/StringLiterals: Prefer single-quoted strings\napp/models/user.rb:9:1: W: Lint/UselessAssignment: Useless assignment to variable\n[  FAILED  ] SomeNative.Test (1 ms)\n\n3 files inspected, 2 offenses detected');
+----
+rubocop_text
+
+# -----------------------------------------------------------------------------
+# A Maven build whose output embeds a gtest "[  FAILED  ]" line from a native
+# test step. This one used to detect as junit_text -- a parser that claims the
+# content and then yields no events at all. maven_build must win.
+# -----------------------------------------------------------------------------
+query I
+SELECT duck_hunt_detect_format(E'[INFO] Scanning for projects...\n[INFO] Building my-app 1.0.0\n[INFO] --- maven-compiler-plugin:3.8.1:compile (default-compile) @ my-app ---\n[ERROR] /src/main/java/App.java:[12,15] cannot find symbol\n[ERROR] /src/main/java/App.java:[19,3] incompatible types\n[WARNING] /src/main/java/Old.java:[4,9] deprecated API\n[INFO] Running native smoke tests\n[  FAILED  ] NativeSuite.Thing (2 ms)\n[INFO] BUILD FAILURE');
+----
+maven_build
+
+# -----------------------------------------------------------------------------
+# The disambiguation must not corrupt parsing: the rubocop log above still has
+# to yield rubocop offences when parsed via 'auto'.
+# -----------------------------------------------------------------------------
+query I
+SELECT DISTINCT tool_name
+FROM parse_duck_hunt_log(E'Inspecting 3 files\nCCC\n\napp/models/user.rb:5:3: C: Style/StringLiterals: Prefer single-quoted strings\napp/models/user.rb:9:1: W: Lint/UselessAssignment: Useless assignment to variable\n[  FAILED  ] SomeNative.Test (1 ms)\n\n3 files inspected, 2 offenses detected', 'auto');
+----
+rubocop

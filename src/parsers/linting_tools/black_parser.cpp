@@ -1,4 +1,5 @@
 #include "black_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <regex>
 #include <sstream>
 
@@ -87,8 +88,8 @@ std::vector<ValidationEvent> BlackParser::parse(const std::string &content) cons
 			event.category = "code_formatting";
 			event.execution_time = 0.0;
 			event.log_content = line;
-			event.structured_data =
-			    "{\"reformat_count\": " + reformat_count + ", \"unchanged_count\": " + unchanged_count + "}";
+			event.structured_data = "{\"reformat_count\": " + SafeParsing::JsonNumberOrString(reformat_count) +
+			                        ", \"unchanged_count\": " + SafeParsing::JsonNumberOrString(unchanged_count) + "}";
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
 
@@ -132,7 +133,8 @@ std::vector<ValidationEvent> BlackParser::parse(const std::string &content) cons
 			event.category = "code_formatting";
 			event.execution_time = 0.0;
 			event.log_content = line;
-			event.structured_data = "{\"action\": \"diff_start\", \"file\": \"" + current_file + "\"}";
+			event.structured_data =
+			    "{\"action\": \"diff_start\", \"file\": \"" + SafeParsing::EscapeJsonString(current_file) + "\"}";
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
 

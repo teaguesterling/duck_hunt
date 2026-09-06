@@ -1,4 +1,5 @@
 #include "isort_parser.hpp"
+#include "parsers/base/safe_parsing.hpp"
 #include <sstream>
 
 namespace duckdb {
@@ -118,7 +119,7 @@ std::vector<ValidationEvent> IsortParser::parse(const std::string &content) cons
 			event.tool_name = "isort";
 			event.category = "import_sorting";
 			event.log_content = line;
-			event.structured_data = "{\"skipped_count\":" + count_str + "}";
+			event.structured_data = "{\"skipped_count\":" + SafeParsing::JsonNumberOrString(count_str) + "}";
 			event.log_line_start = current_line_num;
 			event.log_line_end = current_line_num;
 

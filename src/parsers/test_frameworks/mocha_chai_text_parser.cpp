@@ -248,8 +248,8 @@ std::vector<ValidationEvent> MochaChaiTextParser::parse(const std::string &conte
 			summary_event.category = "mocha_chai_text";
 			summary_event.log_content = line;
 			summary_event.function_name = "";
-			summary_event.structured_data =
-			    "{\"passing_tests\": " + std::to_string(passing_count) + ", \"total_time\": \"" + total_time + "\"}";
+			summary_event.structured_data = "{\"passing_tests\": " + std::to_string(passing_count) +
+			                                ", \"total_time\": \"" + SafeParsing::EscapeJsonString(total_time) + "\"}";
 
 			events.push_back(summary_event);
 		} else if (std::regex_match(line, match, RE_FAILING_LINE)) {

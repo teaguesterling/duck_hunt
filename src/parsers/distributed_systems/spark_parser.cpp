@@ -142,7 +142,8 @@ static bool ParseSparkLine(const std::string &line, ValidationEvent &event, int6
 	event.status = MapLevelToStatus(event.severity);
 
 	// Build structured_data JSON
-	event.structured_data = "{\"component\":\"" + component + "\",\"level\":\"" + level + "\"}";
+	event.structured_data = "{\"component\":\"" + SafeParsing::EscapeJsonString(component) + "\",\"level\":\"" +
+	                        SafeParsing::EscapeJsonString(level) + "\"}";
 	event.log_content = line;
 
 	return true;

@@ -25,9 +25,26 @@ static const std::regex RE_GLOBAL_ENV_TEARDOWN(R"(\[----------\]\s*Global test e
 } // anonymous namespace
 
 bool GTestTextParser::canParse(const std::string &content) const {
-	return content.find("[RUN      ]") != std::string::npos || content.find("[       OK ]") != std::string::npos ||
-	       content.find("[  FAILED  ]") != std::string::npos || content.find("[==========]") != std::string::npos ||
-	       content.find("[----------]") != std::string::npos;
+	// Structural banners: these only ever appear in gtest's own output.
+	if (content.find("[RUN      ]") != std::string::npos || content.find("[       OK ]") != std::string::npos ||
+	    content.find("[==========]") != std::string::npos || content.find("[----------]") != std::string::npos) {
+		return true;
+	}
+
+	// "[  FAILED  ]" on its own is weak evidence: other tools' logs quote it in
+	// captured output, and claiming on a single occurrence mis-routes the whole
+	// log to this parser (issue #55). A real gtest run that reports a failure
+	// emits the per-test line *and* the "[  FAILED  ] N tests" summary, so
+	// require at least two occurrences before claiming on this marker alone.
+	size_t occurrences = 0;
+	for (size_t pos = content.find("[  FAILED  ]"); pos != std::string::npos;
+	     pos = content.find("[  FAILED  ]", pos + 1)) {
+		if (++occurrences >= 2) {
+			return true;
+		}
+	}
+
+	return false;
 }
 
 std::vector<ValidationEvent> GTestTextParser::parse(const std::string &content) const {
