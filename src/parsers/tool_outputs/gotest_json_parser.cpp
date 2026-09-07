@@ -5,6 +5,20 @@ namespace duckdb {
 
 using namespace duckdb_yyjson;
 
+// Extract the Go test function name from a `go test` test name.
+// Subtests registered via t.Run() are reported as "Parent/subtest", but only the
+// leading segment names a function that is actually declared in the source, so
+// the subtest path is dropped here and preserved in test_name.
+// Kept in sync with ExtractGoFunctionName in
+// src/parsers/test_frameworks/gotest_text_parser.cpp.
+static std::string ExtractGoFunctionName(const std::string &test_name) {
+	size_t slash = test_name.find('/');
+	if (slash != std::string::npos) {
+		return test_name.substr(0, slash);
+	}
+	return test_name;
+}
+
 bool GoTestJSONParser::canParse(const std::string &content) const {
 	// Look for Go test JSON patterns (one JSON per line)
 	if (content.find("\"Action\"") == std::string::npos || content.find("\"Package\"") == std::string::npos) {
@@ -95,7 +109,7 @@ std::vector<ValidationEvent> GoTestJSONParser::parse(const std::string &content)
 			event.event_type = ValidationEventType::TEST_RESULT;
 			event.ref_file = package_str;
 			event.test_name = test_str;
-			event.function_name = test_str;
+			event.function_name = ExtractGoFunctionName(test_str);
 			event.ref_line = -1;
 			event.ref_column = -1;
 			event.execution_time = 0.0;

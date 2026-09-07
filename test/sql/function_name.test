@@ -1,0 +1,188 @@
+# name: test/sql/function_name.test
+# description: function_name population across formats (issue #42)
+# group: [sql]
+
+require duck_hunt
+
+# =============================================================================
+# ISSUE #42: function_name is always empty for common log formats
+#
+# This file is the cross-format contract for the function_name column. It pins
+# BOTH halves of the answer:
+#
+#   1. Formats whose input actually carries a function/symbol name must populate
+#      it. Those are asserted below with concrete expected values.
+#
+#   2. Formats whose input carries no such concept must leave it empty. Those
+#      are asserted to be '' on purpose, so that "empty" is a documented,
+#      tested contract rather than an unnoticed gap. A value is NEVER invented
+#      for these -- an empty string meaning "not available" is correct; a
+#      fabricated name would be worse than the empty column the issue reported.
+#
+# See docs/function-name.md for the full per-format table.
+# =============================================================================
+
+
+# =============================================================================
+# mypy_text -- extracted from the message, which is the only place mypy names a
+# symbol. Extraction existed but had NO test coverage at all before this file,
+# so it could have regressed silently.
+# =============================================================================
+
+# Argument N to "func" ... -> func
+query I
+SELECT function_name FROM parse_duck_hunt_log('src/app.py:88: error: Argument 1 to "run_build" has incompatible type "int"; expected "str"  [arg-type]', 'mypy_text');
+----
+run_build
+
+# Name "x" is not defined -> x
+query I
+SELECT function_name FROM parse_duck_hunt_log('src/db.py:12: error: Name "Foo" is not defined  [name-defined]', 'mypy_text');
+----
+Foo
+
+# "Class" has no attribute "method" -> Class.method
+query I
+SELECT function_name FROM parse_duck_hunt_log('src/db.py:31: error: "Session" has no attribute "commitx"  [attr-defined]', 'mypy_text');
+----
+Session.commitx
+
+# DOCUMENTED EMPTY: this is the exact example from issue #42. The message names
+# no function at all -- "function" here is a bare noun, not an identifier -- so
+# there is nothing to extract and nothing may be invented.
+query I
+SELECT function_name FROM parse_duck_hunt_log('src/core.py:42: error: Returning Any from function declared to return "str"  [no-any-return]', 'mypy_text');
+----
+(empty)
+
+
+# =============================================================================
+# gotest_text -- the fix in this change. A Go test name IS the identifier of a
+# real top-level function, and the gotest_json sibling already populated
+# function_name, so text output leaving it empty was a genuine inconsistency.
+# =============================================================================
+
+query I
+SELECT function_name FROM parse_duck_hunt_log('=== RUN   TestAddition
+--- PASS: TestAddition (0.00s)
+PASS
+ok  	example.com/pkg	0.015s', 'gotest_text') WHERE test_name = 'TestAddition';
+----
+TestAddition
+
+# Subtests registered with t.Run() are appended as "Parent/sub". Only the
+# leading segment names a function that is actually declared in the source, so
+# the subtest path is dropped here and preserved in test_name. Reporting
+# "TestSuite/subcase" would fabricate a function that exists in no Go file.
+query II
+SELECT test_name, function_name FROM parse_duck_hunt_log('=== RUN   TestSuite/subcase
+--- PASS: TestSuite/subcase (0.00s)
+PASS
+ok  	example.com/pkg	0.015s', 'gotest_text') WHERE test_name = 'TestSuite/subcase';
+----
+TestSuite/subcase	TestSuite
+
+# Failing tests carry it too -- this is the case the issue's use case
+# ("which functions have the most errors") actually needs.
+query I
+SELECT function_name FROM parse_duck_hunt_log('=== RUN   TestDivision
+--- FAIL: TestDivision (0.01s)
+    math_test.go:42: expected 5, got 4
+FAIL
+FAIL	example.com/pkg	0.015s', 'gotest_text') WHERE test_name = 'TestDivision';
+----
+TestDivision
+
+
+# =============================================================================
+# gotest_json -- same subtest rule, so the two Go parsers agree. Previously
+# this used the full "Parent/sub" string, which named a nonexistent function.
+# =============================================================================
+
+query II
+SELECT test_name, function_name FROM parse_duck_hunt_log('{"Action":"run","Package":"example.com/pkg","Test":"TestSuite/subcase"}
+{"Action":"pass","Package":"example.com/pkg","Test":"TestSuite/subcase","Elapsed":0.01}', 'gotest_json');
+----
+TestSuite/subcase	TestSuite
+
+query II
+SELECT test_name, function_name FROM parse_duck_hunt_log('{"Action":"run","Package":"example.com/pkg","Test":"TestAddition"}
+{"Action":"pass","Package":"example.com/pkg","Test":"TestAddition","Elapsed":0.01}', 'gotest_json');
+----
+TestAddition	TestAddition
+
+
+# =============================================================================
+# pytest_text -- regression guard at the cross-format level (detailed cases
+# live in pytest_parser.test).
+# =============================================================================
+
+query I
+SELECT function_name FROM parse_duck_hunt_log('tests/test_mcp_server.py::TestExecTool::test_exec_with_args PASSED [100%]', 'pytest_text');
+----
+test_exec_with_args
+
+
+# =============================================================================
+# pytest_json -- must agree with pytest_text. It previously reported the whole
+# qualified id ("TestExecTool::test_exec_with_args"), so GROUP BY function_name
+# split one function into two groups depending on whether the same run was read
+# from --json-report or from console output. The class prefix is part of the
+# test id, not of the declared function, and stays in test_name.
+# =============================================================================
+
+query II
+SELECT test_name, function_name FROM parse_duck_hunt_log('{"tests":[{"nodeid":"tests/test_mcp_server.py::TestExecTool::test_exec_with_args","outcome":"passed"}]}', 'pytest_json');
+----
+TestExecTool::test_exec_with_args	test_exec_with_args
+
+# Parameterisation is stripped here too, matching pytest_text.
+query II
+SELECT test_name, function_name FROM parse_duck_hunt_log('{"tests":[{"nodeid":"tests/test_params.py::TestSuite::test_case[param1-param2]","outcome":"passed"}]}', 'pytest_json');
+----
+TestSuite::test_case[param1-param2]	test_case
+
+# Standalone function: unchanged by the extraction.
+query II
+SELECT test_name, function_name FROM parse_duck_hunt_log('{"tests":[{"nodeid":"tests/test_simple.py::test_standalone","outcome":"passed"}]}', 'pytest_json');
+----
+test_standalone	test_standalone
+
+
+# =============================================================================
+# gcc_text -- GCC emits an explicit "In function 'name':" context line, which
+# applies to every diagnostic until the next one.
+# =============================================================================
+
+query I
+SELECT DISTINCT function_name FROM parse_duck_hunt_log('src/main.c: In function ''process_data'':
+src/main.c:42:5: warning: unused variable ''tmp'' [-Wunused-variable]', 'gcc_text') WHERE function_name != '';
+----
+process_data
+
+
+# =============================================================================
+# DOCUMENTED EMPTY: clang-tidy.
+#
+# The issue asked for "gcc/clang". GCC is covered above because it emits an
+# explicit function-context line. clang-tidy does NOT: its output is purely
+# file:line:col: severity: message [rule], with the source line and a caret
+# instead of any enclosing-function marker. Verified against the four recorded
+# clang-tidy samples in this repo -- zero occurrences of "In function".
+#
+# So there is no function name in the input to extract, and this asserts the
+# column stays empty rather than being filled with the rule name (which is
+# already carried by error_code, and is not a function).
+# =============================================================================
+
+query I
+SELECT DISTINCT function_name FROM parse_duck_hunt_log('/path/to/file.cpp:123:45: warning: implicit conversion changes signedness [bugprone-narrowing-conversions]', 'clang_tidy_text');
+----
+(empty)
+
+# The bracketed rule is not lost -- it is carried by error_code, which is where a
+# check name belongs. This pins that the rule is NOT smuggled into function_name.
+query I
+SELECT error_code FROM parse_duck_hunt_log('/path/to/file.cpp:123:45: warning: implicit conversion changes signedness [bugprone-narrowing-conversions]', 'clang_tidy_text');
+----
+bugprone-narrowing-conversions

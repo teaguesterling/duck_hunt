@@ -19,6 +19,91 @@ scope → group → unit → subunit
 
 ---
 
+## `function_name` Availability
+
+`function_name` is only as good as the tool output behind it. Some formats name a
+function; many genuinely do not. **An empty `function_name` is a meaningful,
+supported value: it means the source log did not carry one.** Duck Hunt does not
+infer or fabricate a name where the input has none, because a guessed function
+name is worse than an empty column — it joins against real code and silently
+produces wrong answers.
+
+Filter on it explicitly rather than assuming it is populated:
+
+```sql
+-- Which functions have the most errors?
+-- The NOT NULL / != '' guard is required: without it the empty group swallows
+-- every event from a format that cannot supply a function name.
+SELECT function_name, COUNT(*) AS error_count
+FROM read_duck_hunt_log('build.log')
+WHERE severity = 'error'
+  AND function_name != ''
+GROUP BY function_name
+ORDER BY error_count DESC;
+```
+
+### Populated — the input names a function
+
+| Format | Source of the name | Example |
+|--------|--------------------|---------|
+| `gcc_text` | GCC's `In function 'x':` context line, applied to following diagnostics | `process_data`, `void Handler::run()` |
+| `mypy_text` | Extracted from the message (`Argument N to "f"`, `Name "x" is not defined`, `"C" has no attribute "m"`) | `run_build`, `Session.commitx` |
+| `pytest_text`, `pytest_json` | Test function from the test id, minus class prefix and `[param]` suffix | `test_create_user` |
+| `gotest_text`, `gotest_json` | The Go test function; `t.Run()` subtest paths are trimmed to the declared function (see below) | `TestAddition` |
+| `junit_xml` | `suite::test` | `TestUserService::test_create` |
+| `junit_text` | Test method | `testCreateUser` |
+| `valgrind`, `gdb_lldb`, `strace` | Stack frame, symbol, or syscall name | `malloc`, `openat` |
+| `lcov_info` | Per-function coverage records | `parse_header` |
+| `python_logging`, `log4j`, `logrus` | Traceback frame / `func` field emitted by the logger | `handle_request` |
+
+### Structurally empty — the input has no function to name
+
+These are **not** gaps to be fixed. The information does not exist in the input:
+
+| Format | Why |
+|--------|-----|
+| `clang_tidy` | Output is `file:line:col: severity: message [rule]` with a source line and caret. It has no enclosing-function marker — unlike GCC, clang-tidy never emits `In function`. The bracketed rule is a check name, not a function, and is already exposed as `error_code`. |
+| `flake8`, `ruff`, `pylint`, `black`, `isort`, `shellcheck`, `hadolint`, and most line-oriented linters | Report file/line/column and a rule code only. |
+| `pytest_cov` | Coverage is reported per file, not per function. |
+| `playwright_text`, `playwright_json` | Test titles are free-text prose (`"should log in"`), not identifiers of declared functions. |
+| Web access, syslog, firewall, and infrastructure formats (`nginx_access`, `apache_access`, `iptables_log`, `vpc_flow`, ...) | Request and packet records have no source-code dimension at all. |
+
+### Overloaded uses
+
+A few parsers put a non-function identifier in `function_name` because it is the
+closest available column. Treat these as tool-specific, and prefer `error_code`
+or `structured_data` where possible:
+
+| Format | What it actually holds |
+|--------|------------------------|
+| `eslint_json`, `sqlfluff_json`, `tflint_json` | Lint rule ID (e.g. `no-unused-vars`) |
+| `trivy_json` | Vulnerable package name |
+| `gcp_cloud_logging`, S3 access | API operation / method name |
+| `gradle` | Gradle task name |
+| `gtest_text` | The **test suite**, not the test — `MathTest.Addition` yields `MathTest`. Also empty unless the `[----------] N tests from Suite` header line is present, since that is where the suite name is read from. |
+| `rspec_text`, `mocha_chai_text` | The enclosing `describe`/context block title, which is free-text prose rather than an identifier (`"a logged-in user"`). |
+
+### Go subtests
+
+`go test` reports subtests registered via `t.Run()` as `Parent/subtest`. Only the
+leading segment names a function that is actually declared in the source — the
+subtest body is a closure. Both Go parsers therefore keep the full path in
+`test_name` and report only the declared function in `function_name`:
+
+| `test_name` | `function_name` |
+|-------------|-----------------|
+| `TestAddition` | `TestAddition` |
+| `TestSuite/subcase` | `TestSuite` |
+| `TestSuite/a/b` | `TestSuite` |
+
+### Known gaps
+
+| Format | Note |
+|--------|------|
+| `nunit_xunit_text` | Test ids are fully-qualified (`Namespace.Class.Method`), so a method name *is* present in the input and could be extracted. Not yet implemented. |
+
+---
+
 ## CI/CD Workflows
 
 **Parsers:** `github_actions`, `gitlab_ci`, `jenkins`, `docker_build`

@@ -37,7 +37,7 @@ For code locations referenced in events (lint issues, test failures, stack trace
 | `ref_file` | VARCHAR | Path to referenced source code file |
 | `ref_line` | INTEGER | Line number in source file (-1 if not applicable) |
 | `ref_column` | INTEGER | Column number in source file (-1 if not applicable) |
-| `function_name` | VARCHAR | Function/method name in source code |
+| `function_name` | VARCHAR | Function/method name in source code. Empty string when the source log does not name one — this is expected for many formats, not a parse failure, and Duck Hunt never infers a name the input did not contain. Guard aggregations with `function_name != ''`. See [function_name availability](field_mappings.md#function_name-availability) for which formats populate it. |
 
 ## Classification Fields
 
