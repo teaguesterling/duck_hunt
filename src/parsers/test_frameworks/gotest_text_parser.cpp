@@ -13,6 +13,24 @@ static const std::regex RE_ERROR_LOCATION(R"(^\s+([^:]+\.go):(\d+):\s*(.+)$)");
 static const std::regex RE_PKG_PATTERN(R"(^(ok|FAIL)\s+(\S+)\s+([\d.]+)s)");
 } // anonymous namespace
 
+// Extract the Go test function name from a `go test` test name.
+//
+// A Go test name is the identifier of a real top-level function in the package
+// (e.g. `func TestAddition(t *testing.T)`), so it can be reported verbatim as
+// function_name. Subtests registered via t.Run() are appended to the parent's
+// name with '/' separators ("TestSuite/subcase", "TestSuite/a/b"), but they are
+// closures, not declared functions -- only the leading segment names a function
+// that actually exists in the source. Reporting the full subtest path would
+// fabricate a function name that cannot be found in any Go file, so we keep the
+// leading segment and leave the subtest path in test_name.
+static std::string ExtractGoFunctionName(const std::string &test_name) {
+	size_t slash = test_name.find('/');
+	if (slash != std::string::npos) {
+		return test_name.substr(0, slash);
+	}
+	return test_name;
+}
+
 bool GoTestTextParser::canParse(const std::string &content) const {
 	// Look for Go test-specific patterns:
 	// 1. "=== RUN" lines
@@ -176,6 +194,7 @@ std::vector<ValidationEvent> GoTestTextParser::parse(const std::string &content)
 		event.event_type = ValidationEventType::TEST_RESULT;
 		event.tool_name = "go_test";
 		event.test_name = test.name;
+		event.function_name = ExtractGoFunctionName(test.name);
 		event.execution_time = test.duration;
 		event.category = "test";
 		event.log_line_start = test.start_line;

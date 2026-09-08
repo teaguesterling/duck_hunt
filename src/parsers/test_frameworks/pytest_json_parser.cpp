@@ -5,6 +5,28 @@ namespace duckdb {
 
 using namespace duckdb_yyjson;
 
+// Extract the Python test function name from a pytest test id.
+// "TestClass::test_method"        -> "test_method"
+// "test_standalone"               -> "test_standalone"
+// "TestClass::test_method[param]" -> "test_method"
+// The class prefix and the parameterisation suffix are part of the test id, not
+// of the declared function, and both remain available in test_name. Kept in sync
+// with ExtractFunctionName in src/parsers/test_frameworks/pytest_parser.cpp so
+// that grouping by function_name gives the same answer for --json-report output
+// as for the text output of the same run.
+static std::string ExtractPytestFunctionName(const std::string &test_name) {
+	std::string name = test_name;
+	size_t bracket = name.find('[');
+	if (bracket != std::string::npos) {
+		name = name.substr(0, bracket);
+	}
+	size_t last_sep = name.rfind("::");
+	if (last_sep != std::string::npos) {
+		return name.substr(last_sep + 2);
+	}
+	return name;
+}
+
 bool PytestJSONParser::canParse(const std::string &content) const {
 	// Look for pytest JSON structure
 	if (content.find("\"tests\"") == std::string::npos || content.find("\"nodeid\"") == std::string::npos) {
@@ -96,10 +118,10 @@ std::vector<ValidationEvent> PytestJSONParser::parse(const std::string &content)
 			if (separator != std::string::npos) {
 				event.ref_file = nodeid_str.substr(0, separator);
 				event.test_name = nodeid_str.substr(separator + 2);
-				event.function_name = event.test_name;
+				event.function_name = ExtractPytestFunctionName(event.test_name);
 			} else {
 				event.test_name = nodeid_str;
-				event.function_name = nodeid_str;
+				event.function_name = ExtractPytestFunctionName(nodeid_str);
 			}
 		}
 
