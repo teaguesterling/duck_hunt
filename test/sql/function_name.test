@@ -19,7 +19,7 @@ require duck_hunt
 #      for these -- an empty string meaning "not available" is correct; a
 #      fabricated name would be worse than the empty column the issue reported.
 #
-# See docs/function-name.md for the full per-format table.
+# See docs/field_mappings.md ("function_name Availability") for the full per-format table.
 # =============================================================================
 
 
