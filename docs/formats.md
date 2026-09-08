@@ -378,6 +378,28 @@ SELECT ref_file, ref_line, error_code, message
 FROM read_duck_hunt_log('test/samples/mypy.txt', 'mypy_text');
 ```
 
+**`error_code` and bracketed types:** mypy writes the error code as the last
+`[...]` on the line, but messages carry their own brackets whenever a generic
+type is involved (`list[str]`, `dict[str, int]`). `error_code` is taken from the
+**trailing** bracket only, and `message` keeps everything before it, brackets
+included:
+
+```
+app.py:6: error: Incompatible types in assignment (expression has type "dict[str, int]")  [assignment]
+  message    -> Incompatible types in assignment (expression has type "dict[str, int]")
+  error_code -> assignment
+```
+
+When mypy emits no trailing code — every `note:` line, and any run under
+`--hide-error-codes` — `error_code` is **empty**. A bracket is never taken out
+of the message text to fill it:
+
+```
+app.py:20: note: Revealed type is "dict[str, int]"
+  message    -> Revealed type is "dict[str, int]"
+  error_code -> (empty)
+```
+
 ---
 
 ### gotest_json

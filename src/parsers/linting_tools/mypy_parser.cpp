@@ -44,7 +44,22 @@ static const std::regex RE_MYPY_SUMMARY_CHECK(R"(Found \d+ errors? in \d+ files?
 static const std::regex RE_MYPY_SUCCESS_CHECK(R"(Success: no issues found in \d+ source files?)");
 
 // parse patterns
-static const std::regex RE_MYPY_MESSAGE(R"(([^:]+):(\d+):\s*(error|warning|note):\s*(.+?)\s*\[([^\]]+)\])");
+//
+// The error code is the LAST bracket on the line, not the first. Real mypy
+// messages routinely contain their own brackets, because that is how modern
+// Python spells a generic type:
+//
+//   Incompatible types in assignment (expression has type "dict[str, int]")  [assignment]
+//   Returning Any from function declared to return "list[str]"  [no-any-return]
+//
+// A non-greedy `(.+?)\s*\[([^\]]+)\]` takes the type's bracket instead, which
+// truncates `message` mid-type and puts a fragment of a type name ('str',
+// 'str, int') into `error_code`. Both look plausible and neither raises, so a
+// GROUP BY invents categories mypy never emits and a WHERE on a real code
+// silently drops every row that is one. Anchoring the code to end-of-line and
+// disallowing whitespace inside it makes the trailing code win. `\s*$` also
+// tolerates a trailing '\r' from a CRLF log.
+static const std::regex RE_MYPY_MESSAGE(R"(([^:]+):(\d+):\s*(error|warning|note):\s*(.+?)\s*\[([^\]\s]+)\]\s*$)");
 static const std::regex RE_MYPY_MESSAGE_NO_CODE(R"(([^:]+):(\d+):\s*(error|warning|note):\s*(.+))");
 static const std::regex RE_MYPY_SUMMARY(R"(Found (\d+) errors? in (\d+) files? \(checked (\d+) files?\))");
 static const std::regex RE_MYPY_SUCCESS(R"(Success: no issues found in (\d+) source files?)");
