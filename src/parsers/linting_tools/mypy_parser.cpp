@@ -56,10 +56,29 @@ static const std::regex RE_MYPY_SUCCESS_CHECK(R"(Success: no issues found in \d+
 // truncates `message` mid-type and puts a fragment of a type name ('str',
 // 'str, int') into `error_code`. Both look plausible and neither raises, so a
 // GROUP BY invents categories mypy never emits and a WHERE on a real code
-// silently drops every row that is one. Anchoring the code to end-of-line and
-// disallowing whitespace inside it makes the trailing code win. `\s*$` also
-// tolerates a trailing '\r' from a CRLF log.
-static const std::regex RE_MYPY_MESSAGE(R"(([^:]+):(\d+):\s*(error|warning|note):\s*(.+?)\s*\[([^\]\s]+)\]\s*$)");
+// silently drops every row that is one. Anchoring the code to end-of-line makes
+// the trailing code win. `\s*$` also tolerates a trailing '\r' from a CRLF log
+// (the parse loop getlines raw content, so CRLF input keeps its '\r').
+//
+// End-of-line `]` is NOT by itself evidence of an error code. mypy quotes types
+// when it interpolates them into prose, but prints them bare in signature and
+// binding notes -- `Possible overload variants:`, `Revealed local types are:`,
+// `Following member(s) of "C" have conflicts:` -- where a single-argument
+// generic ends the line in `]`:
+//
+//   note:     def f(x: int) -> list[int]         (mypy --strict on requests: Iterator[bytes])
+//   note:     b: list[int]
+//
+// `[^\]\s]+` alone accepts `int`/`bytes` there and re-creates the very bug this
+// pattern fixes, on a severity that carries no code. What actually separates a
+// code from a subscript is whitespace: mypy renders the code as `f"{s}  [{code}]"`
+// (mypy/errors.py), always space-separated, whereas `list[int]` is glued to the
+// name it subscripts. Hence `\s+` before the bracket, not `\s*`.
+//
+// Severity is not a usable discriminator here: mypy suppresses codes on notes
+// except for SHOW_NOTE_CODES = {annotation-unchecked, deprecated}, which do
+// print a real trailing code on a `note:` line.
+static const std::regex RE_MYPY_MESSAGE(R"(([^:]+):(\d+):\s*(error|warning|note):\s*(.+?)\s+\[([^\]\s]+)\]\s*$)");
 static const std::regex RE_MYPY_MESSAGE_NO_CODE(R"(([^:]+):(\d+):\s*(error|warning|note):\s*(.+))");
 static const std::regex RE_MYPY_SUMMARY(R"(Found (\d+) errors? in (\d+) files? \(checked (\d+) files?\))");
 static const std::regex RE_MYPY_SUCCESS(R"(Success: no issues found in (\d+) source files?)");
