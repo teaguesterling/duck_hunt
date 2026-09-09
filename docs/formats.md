@@ -378,6 +378,41 @@ SELECT ref_file, ref_line, error_code, message
 FROM read_duck_hunt_log('test/samples/mypy.txt', 'mypy_text');
 ```
 
+**`error_code` and bracketed types:** mypy writes the error code as the last
+`[...]` on the line, but messages carry their own brackets whenever a generic
+type is involved (`list[str]`, `dict[str, int]`). `error_code` is taken from the
+**trailing** bracket only, and `message` keeps everything before it, brackets
+included:
+
+```
+app.py:6: error: Incompatible types in assignment (expression has type "dict[str, int]")  [assignment]
+  message    -> Incompatible types in assignment (expression has type "dict[str, int]")
+  error_code -> assignment
+```
+
+When mypy emits no trailing code — almost every `note:` line, and any run under
+`--hide-error-codes` — `error_code` is **empty**. A bracket is never taken out
+of the message text to fill it:
+
+```
+app.py:20: note: Revealed type is "dict[str, int]"
+  message    -> Revealed type is "dict[str, int]"
+  error_code -> (empty)
+```
+
+The code is recognised by the whitespace mypy always puts in front of it
+(`message  [code]`). A bracket glued to the token before it is a subscripted
+type, not a code — which is how bare-signature notes are read correctly:
+
+```
+a.py:9: note:     def f(x: int) -> list[int]
+  message    -> def f(x: int) -> list[int]
+  error_code -> (empty)
+```
+
+`note:` lines are not universally code-less: mypy does print a code on
+`annotation-unchecked` and `deprecated` notes, and those are captured normally.
+
 ---
 
 ### gotest_json

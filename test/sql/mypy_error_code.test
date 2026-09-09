@@ -1,0 +1,288 @@
+# name: test/sql/mypy_error_code.test
+# description: mypy_text error_code / message split with bracketed types (issue #63)
+# group: [sql]
+
+require duck_hunt
+
+# =============================================================================
+# ISSUE #63: bracketed types truncate `message` and corrupt `error_code`
+#
+# mypy prints the error code as a trailing `[code]` at end of line, but real
+# messages routinely contain their own brackets -- `list[str]`, `dict[str, int]`
+# -- because that is how modern Python spells a generic type. A non-greedy
+# `(.+?)\s*\[([^\]]+)\]` takes the FIRST bracket, i.e. the type's own, so:
+#
+#   message    is cut mid-type and still reads like a complete phrase
+#   error_code becomes 'str' or 'str, int' -- a plausible-looking non-code
+#
+# Neither is detectable downstream. `GROUP BY error_code` invents categories
+# that mypy never emits, and `WHERE error_code = 'assignment'` silently drops
+# every row that is one. Nothing raises.
+#
+# Every input line below is verbatim real `mypy` output (mypy 2.3.1), not a
+# hand-written approximation.
+#
+# The contract this file pins:
+#   1. The error code is the LAST bracket on the line, never an inner one.
+#   2. `message` keeps the whole text before that trailing bracket, brackets
+#      and all.
+#   3. When no trailing code is present -- `note:` lines, and anything run
+#      under `--hide-error-codes` -- `error_code` is EMPTY. A bracket is never
+#      taken out of the message text to fill it. Empty means "mypy did not say",
+#      which is the truthful answer; a scavenged fragment is not.
+# =============================================================================
+
+
+# -----------------------------------------------------------------------------
+# 1. Bracketed types in the message: the trailing code must win
+# -----------------------------------------------------------------------------
+
+# Two inner brackets, one of them containing a comma+space. Before the fix this
+# yielded message='Incompatible types in assignment (expression has type "dict'
+# and error_code='str, int'.
+query II
+SELECT message, error_code
+FROM parse_duck_hunt_log('app.py:6: error: Incompatible types in assignment (expression has type "dict[str, int]", variable has type "list[str]")  [assignment]', 'mypy_text');
+----
+Incompatible types in assignment (expression has type "dict[str, int]", variable has type "list[str]")	assignment
+
+# The exact example from the issue. Before the fix: error_code='str'.
+query II
+SELECT message, error_code
+FROM parse_duck_hunt_log('src/core.py:42: error: Returning Any from function declared to return "list[str]"  [no-any-return]', 'mypy_text');
+----
+Returning Any from function declared to return "list[str]"	no-any-return
+
+query II
+SELECT message, error_code
+FROM parse_duck_hunt_log('app.py:7: error: Incompatible return value type (got "list[str]", expected "dict[str, int]")  [return-value]', 'mypy_text');
+----
+Incompatible return value type (got "list[str]", expected "dict[str, int]")	return-value
+
+# Nested brackets -- the last one on the line is still the code.
+query II
+SELECT message, error_code
+FROM parse_duck_hunt_log('app.py:9: error: Argument 1 to "f" has incompatible type "dict[str, list[int]]"; expected "list[str]"  [arg-type]', 'mypy_text');
+----
+Argument 1 to "f" has incompatible type "dict[str, list[int]]"; expected "list[str]"	arg-type
+
+# -----------------------------------------------------------------------------
+# 2. Messages with no brackets of their own still work (no regression)
+# -----------------------------------------------------------------------------
+
+query II
+SELECT message, error_code
+FROM parse_duck_hunt_log('app.py:19: error: Name "undefined_name" is not defined  [name-defined]', 'mypy_text');
+----
+Name "undefined_name" is not defined	name-defined
+
+query II
+SELECT message, error_code
+FROM parse_duck_hunt_log('app.py:27: error: "C" has no attribute "missing_method"  [attr-defined]', 'mypy_text');
+----
+"C" has no attribute "missing_method"	attr-defined
+
+# -----------------------------------------------------------------------------
+# 3. DOCUMENTED EMPTY: no trailing code means no error_code
+#
+# `note:` lines never carry an error code, and a revealed type is bracketed
+# almost by definition. Before the fix this note reported error_code='str, int'
+# -- a severity that mypy never assigns codes to, given a code that does not
+# exist.
+# -----------------------------------------------------------------------------
+
+query II
+SELECT message, error_code
+FROM parse_duck_hunt_log('app.py:20: note: Revealed type is "dict[str, int]"', 'mypy_text');
+----
+Revealed type is "dict[str, int]"	(empty)
+
+# `mypy --hide-error-codes` (and any pre-0.730 mypy) emits messages with no
+# trailing bracket at all. The bracketed type must stay in the message.
+query II
+SELECT message, error_code
+FROM parse_duck_hunt_log('app.py:6: error: Incompatible types in assignment (expression has type "dict[str, int]", variable has type "list[str]")', 'mypy_text');
+----
+Incompatible types in assignment (expression has type "dict[str, int]", variable has type "list[str]")	(empty)
+
+query II
+SELECT message, error_code
+FROM parse_duck_hunt_log('app.py:7: error: Incompatible return value type (got "list[str]", expected "dict[str, int]")', 'mypy_text');
+----
+Incompatible return value type (got "list[str]", expected "dict[str, int]")	(empty)
+
+# -----------------------------------------------------------------------------
+# 4. structured_data carries the same corrected code, not the scavenged one
+# -----------------------------------------------------------------------------
+
+query I
+SELECT structured_data
+FROM parse_duck_hunt_log('src/core.py:42: error: Returning Any from function declared to return "list[str]"  [no-any-return]', 'mypy_text');
+----
+{"error_code": "no-any-return", "severity": "error"}
+
+# -----------------------------------------------------------------------------
+# 5. The aggregate that the issue is really about
+#
+# The diagnostic lines of a real mypy run (the trailing summary line is left
+# out so every row here is a diagnostic). `GROUP BY error_code` must produce
+# only codes mypy actually emits. Before the fix this returned rows keyed 'str'
+# and 'str, int' and NO rows keyed 'assignment' or 'return-value'.
+# -----------------------------------------------------------------------------
+
+query II
+SELECT error_code, COUNT(*)
+FROM parse_duck_hunt_log('app.py:6: error: Incompatible types in assignment (expression has type "dict[str, int]", variable has type "list[str]")  [assignment]
+app.py:7: error: Incompatible return value type (got "list[str]", expected "dict[str, int]")  [return-value]
+app.py:18: error: Argument 1 to "bad_arg" has incompatible type "str"; expected "int"  [arg-type]
+app.py:19: error: Name "undefined_name" is not defined  [name-defined]
+app.py:20: note: Revealed type is "dict[str, int]"
+app.py:27: error: "C" has no attribute "missing_method"  [attr-defined]
+app.py:31: error: Incompatible return value type (got "int | None", expected "int")  [return-value]', 'mypy_text')
+GROUP BY error_code
+ORDER BY error_code;
+----
+(empty)	1
+arg-type	1
+assignment	1
+attr-defined	1
+name-defined	1
+return-value	2
+
+# The filter in the issue: every assignment-coded row is found.
+query I
+SELECT COUNT(*)
+FROM parse_duck_hunt_log('app.py:6: error: Incompatible types in assignment (expression has type "dict[str, int]", variable has type "list[str]")  [assignment]
+app.py:7: error: Incompatible return value type (got "list[str]", expected "dict[str, int]")  [return-value]', 'mypy_text')
+WHERE error_code = 'assignment';
+----
+1
+
+# -----------------------------------------------------------------------------
+# 6. function_name extraction (#42) still reads the full message, so a name
+#    that sits past the point where the old regex truncated is now reachable.
+# -----------------------------------------------------------------------------
+
+query I
+SELECT function_name
+FROM parse_duck_hunt_log('app.py:9: error: Argument 1 to "load_config" has incompatible type "dict[str, int]"; expected "list[str]"  [arg-type]', 'mypy_text');
+----
+load_config
+
+# -----------------------------------------------------------------------------
+# 7. UNQUOTED types in `note:` lines -- the case that "types are always quoted"
+#    misses.
+#
+# mypy quotes types when it interpolates them into prose, but NOT when it
+# prints a signature or a binding. Three standard note families print bare
+# types, and a single-argument generic then ends the line in `]`:
+#
+#   Possible overload variants:        (No overload variant of ... [call-overload])
+#   Revealed local types are:          (reveal_locals())
+#   Following member(s) of ...:        (protocol / structural mismatch)
+#
+# `]` at end of line is therefore NOT sufficient evidence of an error code.
+# mypy renders a real code as exactly `f"{s}  [{code}]"` (mypy/errors.py) --
+# always separated from the message by whitespace -- whereas `list[int]` is
+# glued to the type name it subscripts. That separator is the discriminator.
+#
+# Every line below is verbatim `mypy` 2.3.1 output.
+# -----------------------------------------------------------------------------
+
+# Overload variant notes. The `list[int]` variant is the trap: `int` contains
+# no space, so a code capture that only forbids whitespace accepts it and cuts
+# the message at 'def f(x: int) -> list'.
+query III
+SELECT severity, message, error_code
+FROM parse_duck_hunt_log('a.py:9: error: No overload variant of "f" matches argument type "float"  [call-overload]
+a.py:9: note: Possible overload variants:
+a.py:9: note:     def f(x: int) -> list[int]
+a.py:9: note:     def f(x: str) -> dict[str, int]', 'mypy_text')
+ORDER BY event_id;
+----
+error	No overload variant of "f" matches argument type "float"	call-overload
+info	Possible overload variants:	(empty)
+info	def f(x: int) -> list[int]	(empty)
+info	def f(x: str) -> dict[str, int]	(empty)
+
+# reveal_locals(): bare bindings, one per line, unquoted.
+query III
+SELECT severity, message, error_code
+FROM parse_duck_hunt_log('a.py:15: note: Revealed local types are:
+a.py:15: note:     a: int
+a.py:15: note:     b: list[int]
+a.py:15: note:     c: dict[str, int]', 'mypy_text')
+ORDER BY event_id;
+----
+info	Revealed local types are:	(empty)
+info	a: int	(empty)
+info	b: list[int]	(empty)
+info	c: dict[str, int]	(empty)
+
+# Protocol member conflict notes: bare signatures under Expected:/Got:.
+query III
+SELECT severity, message, error_code
+FROM parse_duck_hunt_log('b.py:12: note: Following member(s) of "C" have conflicts:
+b.py:12: note:     Expected:
+b.py:12: note:         def m(self) -> list[int]
+b.py:12: note:     Got:
+b.py:12: note:         def m(self) -> set[int]', 'mypy_text')
+ORDER BY event_id;
+----
+info	Following member(s) of "C" have conflicts:	(empty)
+info	Expected:	(empty)
+info	def m(self) -> list[int]	(empty)
+info	Got:	(empty)
+info	def m(self) -> set[int]	(empty)
+
+# -----------------------------------------------------------------------------
+# 8. Notes that DO carry a code must keep it.
+#
+# mypy suppresses codes on notes except for SHOW_NOTE_CODES = {
+# annotation-unchecked, deprecated } (mypy/errors.py). So "notes are never
+# coded" is not a usable rule either -- the whitespace separator is what
+# distinguishes these from the bare-signature notes above.
+# -----------------------------------------------------------------------------
+
+query III
+SELECT severity, message, error_code
+FROM parse_duck_hunt_log('e.py:2: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]', 'mypy_text');
+----
+info	By default the bodies of untyped functions are not checked, consider using --check-untyped-defs	annotation-unchecked
+
+query III
+SELECT severity, message, error_code
+FROM parse_duck_hunt_log('d.py:8: error: function d.old is deprecated: use g  [deprecated]', 'mypy_text');
+----
+error	function d.old is deprecated: use g	deprecated
+
+# A message whose own text ends in a bracket, with a real code after it.
+# The separator rule still picks the trailing code, not the embedded one.
+query II
+SELECT message, error_code
+FROM parse_duck_hunt_log('app.py:3: error: Unused "type: ignore[assignment]" comment  [unused-ignore]', 'mypy_text');
+----
+Unused "type: ignore[assignment]" comment	unused-ignore
+
+# -----------------------------------------------------------------------------
+# 9. Not synthetic: plain `mypy --strict` on an unmodified third-party package.
+#
+# `mypy --strict requests-2.34.2/src` (mypy 2.3.1, no --hide-error-codes, no
+# flags chosen to provoke this) emits the two overload-variant notes below.
+# The first ends in `Iterator[bytes]`; `bytes` contains no whitespace, so a
+# code capture keyed only on "trailing bracket, no spaces inside" accepts it
+# and reports error_code='bytes' on a truncated message. The second survives
+# only by luck -- `str | bytes` happens to contain spaces.
+# -----------------------------------------------------------------------------
+
+query II
+SELECT message, error_code
+FROM parse_duck_hunt_log('requests/models.py:1008: note:     def iter_content(self, chunk_size: int | None = ..., decode_unicode: Literal[False] = ...) -> Iterator[bytes]', 'mypy_text');
+----
+def iter_content(self, chunk_size: int | None = ..., decode_unicode: Literal[False] = ...) -> Iterator[bytes]	(empty)
+
+query II
+SELECT message, error_code
+FROM parse_duck_hunt_log('requests/models.py:1008: note:     def iter_content(self, chunk_size: int | None = ..., *, decode_unicode: Literal[True]) -> Iterator[str | bytes]', 'mypy_text');
+----
+def iter_content(self, chunk_size: int | None = ..., *, decode_unicode: Literal[True]) -> Iterator[str | bytes]	(empty)
