@@ -210,6 +210,104 @@ SELECT status, test_name, severity FROM parse_duck_hunt_log('TEST: FAILED - test
 ----
 FAIL	test_io	error
 
+# A status_map match is terminal even when tokens are not PASS/FAIL themselves.
+statement ok
+SELECT duck_hunt_load_parser_config('{
+  "name": "status_map_only_clobber",
+  "patterns": [
+    {
+      "regex": "(?P<status>GOOD|BAD|MEH) (?P<test_name>\\S+)",
+      "event_type": "TEST_RESULT",
+      "status_map": {"GOOD": "PASS", "BAD": "FAIL", "MEH": "SKIP"}
+    }
+  ]
+}');
+
+query III
+SELECT status, severity, test_name
+FROM parse_duck_hunt_log(E'GOOD a\nBAD b\nMEH c', 'status_map_only_clobber');
+----
+PASS	info	a
+FAIL	error	b
+SKIP	info	c
+
+# A captured severity that has no map entry cannot clobber a matched status.
+statement ok
+SELECT duck_hunt_load_parser_config('{
+  "name": "status_map_captured_severity_clobber",
+  "patterns": [
+    {
+      "regex": "(?P<status>GOOD|BAD) (?P<severity>\\w+) (?P<test_name>\\S+)",
+      "event_type": "TEST_RESULT",
+      "status_map": {"GOOD": "PASS", "BAD": "FAIL"}
+    }
+  ]
+}');
+
+query III
+SELECT status, severity, test_name
+FROM parse_duck_hunt_log(E'GOOD warning a\nBAD info b', 'status_map_captured_severity_clobber');
+----
+PASS	info	a
+FAIL	error	b
+
+# A fixed pattern severity cannot clobber a matched status.
+statement ok
+SELECT duck_hunt_load_parser_config('{
+  "name": "status_map_fixed_severity_clobber",
+  "patterns": [
+    {
+      "regex": "(?P<status>GOOD|BAD) (?P<test_name>\\S+)",
+      "event_type": "TEST_RESULT",
+      "severity": "warning",
+      "status_map": {"GOOD": "PASS", "BAD": "FAIL"}
+    }
+  ]
+}');
+
+query III
+SELECT status, severity, test_name
+FROM parse_duck_hunt_log(E'GOOD a\nBAD b', 'status_map_fixed_severity_clobber');
+----
+PASS	info	a
+FAIL	error	b
+
+# Test status_map and severity_map together, including unmatched status values
+statement ok
+SELECT duck_hunt_load_parser_config('{
+  "name": "status_severity_mapped",
+  "patterns": [
+    {
+      "regex": "(?P<status>PASSED|XPASS|WEIRD|UNKNOWN) (?P<test_name>.*)",
+      "event_type": "TEST_RESULT",
+      "severity_map": {
+        "PASSED": "info",
+        "XPASS": "warning",
+        "WEIRD": "critical"
+      },
+      "status_map": {
+        "PASSED": "PASS",
+        "XPASS": "PASS"
+      }
+    }
+  ]
+}');
+
+query III
+SELECT status, test_name, severity FROM parse_duck_hunt_log('XPASS test_expected_failure', 'status_severity_mapped');
+----
+PASS	test_expected_failure	warning
+
+query III
+SELECT status, test_name, severity FROM parse_duck_hunt_log('WEIRD test_unmapped_status', 'status_severity_mapped');
+----
+ERROR	test_unmapped_status	critical
+
+query III
+SELECT status, test_name, severity FROM parse_duck_hunt_log('UNKNOWN test_unmapped_value', 'status_severity_mapped');
+----
+INFO	test_unmapped_value	info
+
 # =============================================================================
 # Field Mappings
 # =============================================================================
@@ -857,6 +955,18 @@ SELECT duck_hunt_unload_parser('severity_mapped');
 
 statement ok
 SELECT duck_hunt_unload_parser('status_mapped');
+
+statement ok
+SELECT duck_hunt_unload_parser('status_map_only_clobber');
+
+statement ok
+SELECT duck_hunt_unload_parser('status_map_captured_severity_clobber');
+
+statement ok
+SELECT duck_hunt_unload_parser('status_map_fixed_severity_clobber');
+
+statement ok
+SELECT duck_hunt_unload_parser('status_severity_mapped');
 
 statement ok
 SELECT duck_hunt_unload_parser('file_location');

@@ -113,7 +113,8 @@ struct ValidationEvent {
 	int64_t pattern_id;      // Pattern cluster ID (-1 if unassigned)
 
 	ValidationEvent()
-	    : event_id(0), ref_line(-1), ref_column(-1), log_line_start(-1), log_line_end(-1), execution_time(0.0),
+	    : event_id(0), event_type(ValidationEventType::UNKNOWN), ref_line(-1), ref_column(-1),
+	      status(ValidationEventStatus::INFO), log_line_start(-1), log_line_end(-1), execution_time(0.0),
 	      similarity_score(0.0), pattern_id(-1) {
 	}
 };

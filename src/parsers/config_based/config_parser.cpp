@@ -431,34 +431,34 @@ std::vector<ValidationEvent> ConfigBasedParser::parseLineInternal(const std::str
 			std::string status_val = getGroupValue(match, pattern.group_names, {"status", "result"});
 
 			// Check status_map first (for TEST_RESULT)
-			if (!status_val.empty() && !pattern.status_map.empty()) {
-				auto status_it = pattern.status_map.find(status_val);
-				if (status_it != pattern.status_map.end()) {
-					std::string mapped_status = status_it->second;
-					if (mapped_status == "PASS") {
-						event.status = ValidationEventStatus::PASS;
-						event.severity = "info";
-					} else if (mapped_status == "FAIL") {
-						event.status = ValidationEventStatus::FAIL;
-						event.severity = "error";
-					} else if (mapped_status == "SKIP") {
-						event.status = ValidationEventStatus::SKIP;
-						event.severity = "info";
-					}
+			std::string severity_key = severity_val.empty() ? status_val : severity_val;
+			auto sev_it = pattern.severity_map.find(severity_key);
+			auto status_it = pattern.status_map.find(status_val);
+			if (!status_val.empty() && status_it != pattern.status_map.end()) {
+				std::string mapped_status = status_it->second;
+				if (mapped_status == "PASS") {
+					event.status = ValidationEventStatus::PASS;
+					event.severity = "info";
+				} else if (mapped_status == "FAIL") {
+					event.status = ValidationEventStatus::FAIL;
+					event.severity = "error";
+				} else if (mapped_status == "SKIP") {
+					event.status = ValidationEventStatus::SKIP;
+					event.severity = "info";
 				}
-			} else if (!severity_val.empty() && !pattern.severity_map.empty()) {
-				// Check severity_map
-				auto sev_it = pattern.severity_map.find(severity_val);
 				if (sev_it != pattern.severity_map.end()) {
 					event.severity = sev_it->second;
-					// Set status based on severity
-					if (event.severity == "error" || event.severity == "critical") {
-						event.status = ValidationEventStatus::ERROR;
-					} else if (event.severity == "warning") {
-						event.status = ValidationEventStatus::WARNING;
-					} else {
-						event.status = ValidationEventStatus::INFO;
-					}
+				}
+			} else if (!severity_key.empty() && sev_it != pattern.severity_map.end()) {
+				// Check severity_map
+				event.severity = sev_it->second;
+				// Set status based on severity
+				if (event.severity == "error" || event.severity == "critical") {
+					event.status = ValidationEventStatus::ERROR;
+				} else if (event.severity == "warning") {
+					event.status = ValidationEventStatus::WARNING;
+				} else {
+					event.status = ValidationEventStatus::INFO;
 				}
 			} else if (!pattern.fixed_severity.empty()) {
 				// Use fixed severity
@@ -522,6 +522,9 @@ std::vector<ValidationEvent> ConfigBasedParser::parseLineInternal(const std::str
 							event.severity = "error";
 						} else if (status_upper == "SKIP" || status_upper == "SKIPPED") {
 							event.status = ValidationEventStatus::SKIP;
+							event.severity = "info";
+						} else {
+							event.status = ValidationEventStatus::INFO;
 							event.severity = "info";
 						}
 					} else {
