@@ -1,5 +1,6 @@
 #include "ruff_parser.hpp"
 #include "parsers/base/safe_parsing.hpp"
+#include <cstring>
 #include <regex>
 #include <sstream>
 
@@ -21,13 +22,25 @@ static const std::regex RE_HELP_LINE(R"(^help:\s*(.+))");
 static const std::regex RE_SUMMARY_LINE(R"(Found\s+(\d+)\s+error)");
 // Fixable summary: "[*] 3 fixable with the `--fix` option."
 static const std::regex RE_FIXABLE_LINE(R"(\[\*\]\s*(\d+)\s+fixable)");
+
+static bool HasLineStartingWith(const std::string &content, const char *token) {
+	std::istringstream stream(content);
+	std::string line;
+	while (std::getline(stream, line)) {
+		auto first_non_space = line.find_first_not_of(" \t");
+		if (first_non_space != std::string::npos && line.compare(first_non_space, std::strlen(token), token) == 0) {
+			return true;
+		}
+	}
+	return false;
+}
 } // anonymous namespace
 
 bool RuffParser::canParse(const std::string &content) const {
 	// Ruff uses Rust-style diagnostics with --> file:line:col
 	// Also look for ruff-specific patterns
-	bool has_arrow_location = content.find("   --> ") != std::string::npos;
-	bool has_pipe_context = content.find("    |") != std::string::npos;
+	bool has_arrow_location = HasLineStartingWith(content, "-->");
+	bool has_pipe_context = HasLineStartingWith(content, "|");
 
 	if (has_arrow_location && has_pipe_context) {
 		// Check for ruff rule codes (letter + numbers like F401, E501, W503)
@@ -139,7 +152,7 @@ std::vector<ValidationEvent> RuffParser::parse(const std::string &content) const
 			events.push_back(summary);
 		}
 		// Context lines (lines with | for source display)
-		else if (in_issue && line.find("    |") != std::string::npos) {
+		else if (in_issue && HasLineStartingWith(line, "|")) {
 			// Just extend the log_line_end
 			current_event.log_line_end = line_num;
 		}
