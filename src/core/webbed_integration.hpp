@@ -39,21 +39,23 @@ public:
 
 	/**
 	 * Read XML file using webbed's read_xml table function.
-	 * Returns a materialized result with all rows.
+	 * Returns the query result (materialized on v1.5; QueryResult is the
+	 * base on both lines).
 	 * @param file_path Path to the XML file
 	 * @param record_element The XML element to treat as records (e.g., "test-case")
 	 */
-	static unique_ptr<MaterializedQueryResult> ReadXml(ClientContext &context, const std::string &file_path,
-	                                                   const std::string &record_element);
+	static unique_ptr<QueryResult> ReadXml(ClientContext &context, const std::string &file_path,
+	                                       const std::string &record_element);
 
 	/**
 	 * Parse XML content string using webbed's parse_xml table function.
-	 * Returns a materialized result with all rows. No temp files needed.
+	 * Returns the query result (materialized on v1.5; QueryResult is the
+	 * base on both lines). No temp files needed.
 	 * @param xml_content The XML content to parse
 	 * @param record_element The XML element to treat as records (e.g., "test-case")
 	 */
-	static unique_ptr<MaterializedQueryResult> ParseXml(ClientContext &context, const std::string &xml_content,
-	                                                    const std::string &record_element);
+	static unique_ptr<QueryResult> ParseXml(ClientContext &context, const std::string &xml_content,
+	                                        const std::string &record_element);
 
 	/**
 	 * Get a helpful error message for when webbed is required but not loaded.
