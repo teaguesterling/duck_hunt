@@ -98,8 +98,8 @@ bool WebbedIntegration::IsValidXml(ClientContext &context, const std::string &xm
 	}
 }
 
-unique_ptr<MaterializedQueryResult> WebbedIntegration::ReadXml(ClientContext &context, const std::string &file_path,
-                                                               const std::string &record_element) {
+unique_ptr<QueryResult> WebbedIntegration::ReadXml(ClientContext &context, const std::string &file_path,
+                                                   const std::string &record_element) {
 	if (!IsWebbedAvailable(context)) {
 		throw InvalidInputException(GetWebbedRequiredError());
 	}
@@ -120,11 +120,11 @@ unique_ptr<MaterializedQueryResult> WebbedIntegration::ReadXml(ClientContext &co
 		throw InvalidInputException("read_xml failed: %s", result->GetError());
 	}
 
-	return unique_ptr_cast<QueryResult, MaterializedQueryResult>(std::move(result));
+	return result;
 }
 
-unique_ptr<MaterializedQueryResult> WebbedIntegration::ParseXml(ClientContext &context, const std::string &xml_content,
-                                                                const std::string &record_element) {
+unique_ptr<QueryResult> WebbedIntegration::ParseXml(ClientContext &context, const std::string &xml_content,
+                                                    const std::string &record_element) {
 	if (!IsWebbedAvailable(context)) {
 		throw InvalidInputException(GetWebbedRequiredError());
 	}
@@ -143,7 +143,7 @@ unique_ptr<MaterializedQueryResult> WebbedIntegration::ParseXml(ClientContext &c
 		throw InvalidInputException("parse_xml failed: %s", result->GetError());
 	}
 
-	return unique_ptr_cast<QueryResult, MaterializedQueryResult>(std::move(result));
+	return result;
 }
 
 std::string WebbedIntegration::GetWebbedRequiredError() {
