@@ -170,6 +170,7 @@ Use Python-style `(?P<name>...)` capture groups to extract fields:
 |------------|--------------|-------------|
 | `message`, `msg` | message | Error/warning message |
 | `severity`, `level` | severity | Severity level |
+| `status`, `result` | status | Test status; used by `status_map` and by `severity_map` when no severity/level is captured |
 | `file`, `file_path`, `path` | ref_file | File path |
 | `line`, `lineno`, `line_number` | ref_line | Line number |
 | `column`, `col` | ref_column | Column number |
