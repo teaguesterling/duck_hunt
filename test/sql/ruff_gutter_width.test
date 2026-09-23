@@ -1,0 +1,24 @@
+# name: test/sql/ruff_gutter_width.test
+# description: Detect Ruff text diagnostics with narrow and wide gutters
+# group: [sql]
+
+require duck_hunt
+
+# Narrow gutter: Ruff pads the arrow and context to the one-digit line number.
+query I
+SELECT duck_hunt_detect_format((SELECT content FROM read_text('test/samples/linting_tools/ruff_output.txt')));
+----
+ruff_text
+
+# Wide gutter: Ruff pads the arrow and context to the three-digit line number.
+query I
+SELECT duck_hunt_detect_format(E'F401 [*] `os` imported but unused\n   --> big.py:400:1\n    |\n400 | import os\n    | ^^^^^^^^\n    |\nhelp: Remove unused import\nFound 1 error.');
+----
+ruff_text
+
+# Narrow-gutter context lines are included in the parsed log span.
+query I
+SELECT log_line_end
+FROM parse_duck_hunt_log(E'F401 [*] `os` imported but unused\n --> bad.py:1:1\n  |\n1 | import os\n  | ^^^^^^^^\ntrailing text', 'ruff_text');
+----
+5
