@@ -38,7 +38,7 @@ std::vector<ValidationEvent> UnityTestXmlParser::parseWithContext(ClientContext 
 	// v1.5.x keeps it public with no accessor. Selected by member probe (not
 	// identifier.hpp presence, which is backported ahead of GetNames) — see
 	// CompatResultNames in duckdb_compat.hpp.
-	auto &names = CompatResultNames(*result);
+	auto names = CompatResultNames(*result);
 
 	idx_t name_idx = DConstants::INVALID_INDEX;
 	idx_t fullname_idx = DConstants::INVALID_INDEX;
