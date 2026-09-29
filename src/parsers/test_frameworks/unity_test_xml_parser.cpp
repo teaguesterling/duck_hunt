@@ -3,6 +3,7 @@
 #include "core/webbed_integration.hpp"
 #include "duckdb/main/connection.hpp"
 #include "duckdb/main/query_result.hpp"
+#include "duckdb_compat.hpp"
 #include "duckdb/common/types/value.hpp"
 #include "duckdb/common/string_util.hpp"
 
@@ -32,15 +33,12 @@ std::vector<ValidationEvent> UnityTestXmlParser::parseWithContext(ClientContext 
 	std::vector<ValidationEvent> events;
 	int64_t event_id = 1;
 
-	// Get column indices for the fields we need
-	// duckdb main made BaseQueryResult::names private and exposes GetNames();
-	// v1.5.3 has the public member and no accessor. Same Identifier refactor,
-	// so it keys on the same probe as the shims in duckdb_compat.hpp.
-#if __has_include("duckdb/common/identifier.hpp")
-	auto &names = result->GetNames();
-#else
-	auto &names = result->names;
-#endif
+	// Get column indices for the fields we need.
+	// BaseQueryResult::names went private behind GetNames() on duckdb main;
+	// v1.5.x keeps it public with no accessor. Selected by member probe (not
+	// identifier.hpp presence, which is backported ahead of GetNames) — see
+	// CompatResultNames in duckdb_compat.hpp.
+	auto names = CompatResultNames(*result);
 
 	idx_t name_idx = DConstants::INVALID_INDEX;
 	idx_t fullname_idx = DConstants::INVALID_INDEX;

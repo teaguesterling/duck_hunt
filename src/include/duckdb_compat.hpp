@@ -40,6 +40,7 @@
 
 #if __has_include("duckdb/common/identifier.hpp")
 #include "duckdb/common/identifier.hpp"
+#define DUCKDB_HAS_IDENTIFIER 1
 #endif
 
 namespace duckdb {
@@ -111,6 +112,67 @@ inline void CompatSetCreateInfoQualificationImpl(INFO &info, const char *schema,
 template <class INFO>
 inline void CompatSetCreateInfoQualification(INFO &info, const char *schema, const char *name) {
 	CompatSetCreateInfoQualificationImpl(info, schema, name, CompatHasSetSchema<INFO>());
+}
+
+// --- QueryResult column-names accessor ---
+// TWO independent things changed between the lines, and conflating them is
+// exactly the partial-backport trap:
+//   1. ACCESS PATH: duckdb main made BaseQueryResult::names private behind
+//      GetNames(); v1.5.x keeps `names` public with no accessor.
+//   2. ELEMENT TYPE: on v1.5.x it is vector<string>; on v2.0
+//      GetNames() returns `const vector<Identifier> &` (verified against
+//      duckdb main query_result.hpp:43,65 — same Identifier refactor as
+//      CompatBindNames above).
+// v1.5.6 backports identifier.hpp while keeping `names` public AND string, so
+// a header-keyed probe (`__has_include`) is a false positive on BOTH axes.
+// Select the access path by a member probe of GetNames() itself, and
+// normalize the element type with CompatNameStr — never gate either on the
+// header. Returns vector<string> BY VALUE (one return type across all lines;
+// this is a cold test-framework path, so the copy is irrelevant).
+//
+// String-passthrough / Identifier::GetIdentifierName() extractor. The
+// Identifier overload is only *declared* when identifier.hpp is present (you
+// cannot name a type that does not exist); it never *selects* the branch —
+// overload resolution does that on the real element type, so on v1.5.6 (header
+// present, elements still string) the string overload still wins.
+inline string CompatNameStr(const string &name) {
+	return name;
+}
+#ifdef DUCKDB_HAS_IDENTIFIER
+inline string CompatNameStr(const Identifier &id) {
+	return id.GetIdentifierName();
+}
+#endif
+
+template <class T, class = void>
+struct CompatHasGetNames : std::false_type {};
+
+template <class T>
+struct CompatHasGetNames<T, decltype(void(std::declval<T &>().GetNames()))> : std::true_type {};
+
+// c++11: no auto-return / if constexpr, so tag dispatch; every *Impl is a
+// template so the v2.0-only GetNames() body is not instantiated on the v1.5 build.
+template <class RESULT>
+inline vector<string> CompatResultNamesImpl(RESULT &result, std::true_type) { // v2.0
+	vector<string> out;
+	for (auto &n : result.GetNames()) {
+		out.push_back(CompatNameStr(n));
+	}
+	return out;
+}
+
+template <class RESULT>
+inline vector<string> CompatResultNamesImpl(RESULT &result, std::false_type) { // v1.5
+	vector<string> out;
+	for (auto &n : result.names) {
+		out.push_back(CompatNameStr(n));
+	}
+	return out;
+}
+
+template <class RESULT>
+inline vector<string> CompatResultNames(RESULT &result) {
+	return CompatResultNamesImpl(result, CompatHasGetNames<RESULT>());
 }
 
 // --- Output chunk finalization ---
