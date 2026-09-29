@@ -113,6 +113,39 @@ inline void CompatSetCreateInfoQualification(INFO &info, const char *schema, con
 	CompatSetCreateInfoQualificationImpl(info, schema, name, CompatHasSetSchema<INFO>());
 }
 
+// --- QueryResult column-names accessor ---
+// duckdb main made BaseQueryResult::names private and exposes GetNames();
+// v1.5.x keeps names public and has no accessor. This is the SAME
+// partial-backport trap CompatBindNames documents: v1.5.6 backports
+// identifier.hpp (so `__has_include("duckdb/common/identifier.hpp")` is a
+// false positive) while GetNames() is still absent, so a header-keyed probe
+// selects GetNames() and breaks the *pinned* build. Answer the member
+// question with a member probe of GetNames() itself.
+//
+// Returns `const vector<string> &` on both lines: on v1.5 it binds a const
+// ref to the public `names` member (no copy); on v2.0 it forwards GetNames().
+template <class T, class = void>
+struct CompatHasGetNames : std::false_type {};
+
+template <class T>
+struct CompatHasGetNames<T, decltype(void(std::declval<T &>().GetNames()))>
+    : std::true_type {};
+
+template <class RESULT>
+inline const vector<string> &CompatResultNamesImpl(RESULT &result, std::true_type) {
+	return result.GetNames(); // v2.0
+}
+
+template <class RESULT>
+inline const vector<string> &CompatResultNamesImpl(RESULT &result, std::false_type) {
+	return result.names; // v1.5
+}
+
+template <class RESULT>
+inline const vector<string> &CompatResultNames(RESULT &result) {
+	return CompatResultNamesImpl(result, CompatHasGetNames<RESULT>());
+}
+
 // --- Output chunk finalization ---
 // DuckDB main mandates per-vector Size() tracking; DataChunk::SetCardinality only
 // updates chunk.count. SetChildCardinality additionally calls FlatVector::SetSize
