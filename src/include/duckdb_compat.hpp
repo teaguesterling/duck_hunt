@@ -148,8 +148,7 @@ template <class T, class = void>
 struct CompatHasGetNames : std::false_type {};
 
 template <class T>
-struct CompatHasGetNames<T, decltype(void(std::declval<T &>().GetNames()))>
-    : std::true_type {};
+struct CompatHasGetNames<T, decltype(void(std::declval<T &>().GetNames()))> : std::true_type {};
 
 // c++11: no auto-return / if constexpr, so tag dispatch; every *Impl is a
 // template so the v2.0-only GetNames() body is not instantiated on the v1.5 build.
