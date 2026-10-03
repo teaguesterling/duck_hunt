@@ -48,7 +48,23 @@ jobs:
       duckdb_version: v2.0-cyanoptera
       ci_tools_version: main
       extension_name: duck_hunt
-      exclude_archs: 'linux_arm64;linux_amd64_musl;linux_arm64_musl;osx_amd64;osx_arm64;windows_amd64;windows_arm64;windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads'
+      # osx_arm64 is INCLUDED (not in the exclude list) on purpose: a v2.0 x macOS
+      # behavioural regression (missing-file tolerance throwing IO Error on the
+      # v2.0/macOS build -- a narrow catch(const IOException&) that missed the open
+      # exception there; exact mechanism not isolated) was invisible to a Linux-only
+      # leg and only caught at registry descriptor time. Testing v2.0 on osx_arm64
+      # here gates that class in-flight. Rest excluded to keep it a build-AND-test
+      # smoke of the v2.0 line, not a full matrix.
+      #
+      # reduced_ci_mode: 'disabled' is LOAD-BEARING, not cosmetic. The default
+      # ('auto') enables reduced CI on pull_request, which drops EVERY non-Linux arch
+      # from the generated matrix regardless of exclude_archs -- so on PRs (the event
+      # this leg's `if:` is meant to gate) the osx_arm64 above would silently vanish
+      # and the leg would be Linux-only. 'disabled' builds the full declared matrix on
+      # every event, and also sets fail-fast:false so one arch's failure doesn't cancel
+      # the others.
+      exclude_archs: 'linux_arm64;linux_amd64_musl;linux_arm64_musl;osx_amd64;windows_amd64;windows_arm64;windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads'
+      reduced_ci_mode: 'disabled'
       vcpkg_binary_sources: 'clear'
 
   # Drift guard: make the "no v2.0 leg" gap unrepresentable rather than merely fixed.
