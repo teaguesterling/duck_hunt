@@ -48,7 +48,14 @@ jobs:
       duckdb_version: v2.0-cyanoptera
       ci_tools_version: main
       extension_name: duck_hunt
-      exclude_archs: 'linux_arm64;linux_amd64_musl;linux_arm64_musl;osx_amd64;osx_arm64;windows_amd64;windows_arm64;windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads'
+      # osx_arm64 is INCLUDED (not in the exclude list) on purpose: a v2.0 x macOS
+      # behavioural regression (missing-file tolerance throwing IO Error on macOS
+      # under v2.0 -- an exception-typeinfo mismatch across the extension/core dylib
+      # boundary that a narrow catch(const IOException&) missed) was invisible to a
+      # Linux-only leg and only caught at registry descriptor time. Testing v2.0 on
+      # osx_arm64 here gates that class in-flight. Rest excluded to keep it a
+      # build-AND-test smoke of the v2.0 line, not a full matrix.
+      exclude_archs: 'linux_arm64;linux_amd64_musl;linux_arm64_musl;osx_amd64;windows_amd64;windows_arm64;windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads'
       vcpkg_binary_sources: 'clear'
 
   # Drift guard: make the "no v2.0 leg" gap unrepresentable rather than merely fixed.

@@ -935,7 +935,14 @@ OperatorResultType ReadDuckHuntLogInOutFunction(ExecutionContext &context, Table
 			std::vector<std::string> files;
 			try {
 				files = GetFilesFromPattern(context.client, source_path);
-			} catch (const IOException &) {
+			} catch (const std::exception &) {
+				// Broadened from catch(const IOException&): on the DuckDB v2.0/macOS build
+				// a missing/unreadable path escaped the narrow catch and surfaced as
+				// "Cannot open file". Mechanism not isolated -- v1.5.6/macOS catches the
+				// same exception and IOException's declaration is unchanged across both
+				// lines, so this is not simply a Mach-O typeinfo-dedup difference. Untested
+				// on wasm/emscripten (those legs build but never run tests). Matches the
+				// ReadDuckHuntLogInitGlobal path's broad catch.
 				files.clear();
 			}
 
@@ -944,7 +951,13 @@ OperatorResultType ReadDuckHuntLogInOutFunction(ExecutionContext &context, Table
 				std::string content;
 				try {
 					content = ReadContentFromSource(context.client, file_path);
-				} catch (const IOException &) {
+				} catch (const std::exception &e) {
+					// Broadened (see note above); preserve genuine guard errors.
+					std::string err = e.what();
+					if (err.find("maximum size limit") != std::string::npos ||
+					    err.find("Invalid file path") != std::string::npos) {
+						throw;
+					}
 					continue;
 				}
 
@@ -999,7 +1012,9 @@ OperatorResultType ReadDuckHuntLogInOutFunction(ExecutionContext &context, Table
 				std::string peek_content;
 				try {
 					peek_content = PeekContentFromSource(context.client, source_path, SNIFF_BUFFER_SIZE);
-				} catch (const IOException &) {
+				} catch (const std::exception &) {
+					// Broadened (see note above): a missing/unreadable file must yield 0
+					// rows; on the v2.0/macOS build it escaped the narrow catch(IOException).
 					CompatSetOutputCardinality(output, 0);
 					lstate.initialized = false;
 					return OperatorResultType::NEED_MORE_INPUT;
@@ -1025,7 +1040,9 @@ OperatorResultType ReadDuckHuntLogInOutFunction(ExecutionContext &context, Table
 				// Initialize streaming mode
 				try {
 					lstate.line_reader = make_uniq<LineReader>(context.client, source_path);
-				} catch (const IOException &) {
+				} catch (const std::exception &) {
+					// Broadened (see note above): tolerate a missing/unreadable file in
+					// streaming mode; the narrow catch(IOException) missed it on v2.0/macOS.
 					CompatSetOutputCardinality(output, 0);
 					lstate.initialized = false;
 					return OperatorResultType::NEED_MORE_INPUT;
@@ -1040,7 +1057,13 @@ OperatorResultType ReadDuckHuntLogInOutFunction(ExecutionContext &context, Table
 				std::string content;
 				try {
 					content = ReadContentFromSource(context.client, source_path);
-				} catch (const IOException &) {
+				} catch (const std::exception &e) {
+					// Broadened (see note above); preserve genuine guard errors.
+					std::string err = e.what();
+					if (err.find("maximum size limit") != std::string::npos ||
+					    err.find("Invalid file path") != std::string::npos) {
+						throw;
+					}
 					CompatSetOutputCardinality(output, 0);
 					lstate.initialized = false;
 					return OperatorResultType::NEED_MORE_INPUT;
