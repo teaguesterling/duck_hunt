@@ -17,6 +17,7 @@
 #include "duckdb/catalog/catalog.hpp"
 #include "duckdb/parser/parsed_data/create_table_function_info.hpp"
 #include "duckdb_compat.hpp"
+#include "named_parameter_compat.hpp"
 #include <algorithm>
 #include <regex>
 #include <sstream>
@@ -439,16 +440,20 @@ TableFunctionSet GetReadDuckHuntWorkflowLogFunction() {
 	TableFunction single_arg("read_duck_hunt_workflow_log", {LogicalType::VARCHAR}, ReadDuckHuntWorkflowLogFunction,
 	                         ReadDuckHuntWorkflowLogBind, ReadDuckHuntWorkflowLogInitGlobal,
 	                         ReadDuckHuntWorkflowLogInitLocal);
-	single_arg.named_parameters["severity_threshold"] = LogicalType::VARCHAR;
-	single_arg.named_parameters["ignore_errors"] = LogicalType::BOOLEAN;
+	DeclareNamedParameters(single_arg, {
+	                                       {"severity_threshold", LogicalType::VARCHAR},
+	                                       {"ignore_errors", LogicalType::BOOLEAN},
+	                                   });
 	set.AddFunction(single_arg);
 
 	// Two argument version: read_duck_hunt_workflow_log(source, format)
 	TableFunction two_arg("read_duck_hunt_workflow_log", {LogicalType::VARCHAR, LogicalType::VARCHAR},
 	                      ReadDuckHuntWorkflowLogFunction, ReadDuckHuntWorkflowLogBind,
 	                      ReadDuckHuntWorkflowLogInitGlobal, ReadDuckHuntWorkflowLogInitLocal);
-	two_arg.named_parameters["severity_threshold"] = LogicalType::VARCHAR;
-	two_arg.named_parameters["ignore_errors"] = LogicalType::BOOLEAN;
+	DeclareNamedParameters(two_arg, {
+	                                    {"severity_threshold", LogicalType::VARCHAR},
+	                                    {"ignore_errors", LogicalType::BOOLEAN},
+	                                });
 	set.AddFunction(two_arg);
 
 	return set;

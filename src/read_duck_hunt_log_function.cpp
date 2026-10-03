@@ -34,6 +34,7 @@
 #include "duckdb/common/enums/file_glob_options.hpp"
 #include "duckdb/common/enums/file_compression_type.hpp"
 #include "duckdb_compat.hpp"
+#include "named_parameter_compat.hpp"
 #include "yyjson.hpp"
 #include <fstream>
 #include <regex>
@@ -1182,11 +1183,13 @@ TableFunctionSet GetReadDuckHuntLogFunction() {
 	TableFunction single_arg("read_duck_hunt_log", {LogicalType::VARCHAR}, nullptr, ReadDuckHuntLogBind,
 	                         ReadDuckHuntLogInOutInitGlobal, ReadDuckHuntLogInOutInitLocal);
 	single_arg.in_out_function = ReadDuckHuntLogInOutFunction;
-	single_arg.named_parameters["severity_threshold"] = LogicalType::VARCHAR;
-	single_arg.named_parameters["ignore_errors"] = LogicalType::BOOLEAN;
-	single_arg.named_parameters["content"] = LogicalType::ANY;
-	single_arg.named_parameters["context"] = LogicalType::INTEGER;
-	single_arg.named_parameters["include_unparsed"] = LogicalType::BOOLEAN;
+	DeclareNamedParameters(single_arg, {
+	                                       {"severity_threshold", LogicalType::VARCHAR},
+	                                       {"ignore_errors", LogicalType::BOOLEAN},
+	                                       {"content", LogicalType::ANY},
+	                                       {"context", LogicalType::INTEGER},
+	                                       {"include_unparsed", LogicalType::BOOLEAN},
+	                                   });
 	set.AddFunction(single_arg);
 
 	// Two argument version: read_duck_hunt_log(source, format)
@@ -1194,11 +1197,13 @@ TableFunctionSet GetReadDuckHuntLogFunction() {
 	TableFunction two_arg("read_duck_hunt_log", {LogicalType::VARCHAR, LogicalType::VARCHAR}, nullptr,
 	                      ReadDuckHuntLogBind, ReadDuckHuntLogInOutInitGlobal, ReadDuckHuntLogInOutInitLocal);
 	two_arg.in_out_function = ReadDuckHuntLogInOutFunction;
-	two_arg.named_parameters["severity_threshold"] = LogicalType::VARCHAR;
-	two_arg.named_parameters["ignore_errors"] = LogicalType::BOOLEAN;
-	two_arg.named_parameters["content"] = LogicalType::ANY;
-	two_arg.named_parameters["context"] = LogicalType::INTEGER;
-	two_arg.named_parameters["include_unparsed"] = LogicalType::BOOLEAN;
+	DeclareNamedParameters(two_arg, {
+	                                    {"severity_threshold", LogicalType::VARCHAR},
+	                                    {"ignore_errors", LogicalType::BOOLEAN},
+	                                    {"content", LogicalType::ANY},
+	                                    {"context", LogicalType::INTEGER},
+	                                    {"include_unparsed", LogicalType::BOOLEAN},
+	                                });
 	set.AddFunction(two_arg);
 
 	return set;
@@ -1212,11 +1217,13 @@ TableFunctionSet GetParseDuckHuntLogFunction() {
 	TableFunction single_arg("parse_duck_hunt_log", {LogicalType::VARCHAR}, nullptr, ParseDuckHuntLogBind,
 	                         ParseDuckHuntLogInOutInitGlobal, ParseDuckHuntLogInOutInitLocal);
 	single_arg.in_out_function = ParseDuckHuntLogInOutFunction;
-	single_arg.named_parameters["severity_threshold"] = LogicalType::VARCHAR;
-	single_arg.named_parameters["ignore_errors"] = LogicalType::BOOLEAN;
-	single_arg.named_parameters["content"] = LogicalType::ANY;
-	single_arg.named_parameters["context"] = LogicalType::INTEGER;
-	single_arg.named_parameters["include_unparsed"] = LogicalType::BOOLEAN;
+	DeclareNamedParameters(single_arg, {
+	                                       {"severity_threshold", LogicalType::VARCHAR},
+	                                       {"ignore_errors", LogicalType::BOOLEAN},
+	                                       {"content", LogicalType::ANY},
+	                                       {"context", LogicalType::INTEGER},
+	                                       {"include_unparsed", LogicalType::BOOLEAN},
+	                                   });
 	set.AddFunction(single_arg);
 
 	// Two argument version: parse_duck_hunt_log(content, format)
@@ -1224,11 +1231,13 @@ TableFunctionSet GetParseDuckHuntLogFunction() {
 	TableFunction two_arg("parse_duck_hunt_log", {LogicalType::VARCHAR, LogicalType::VARCHAR}, nullptr,
 	                      ParseDuckHuntLogBind, ParseDuckHuntLogInOutInitGlobal, ParseDuckHuntLogInOutInitLocal);
 	two_arg.in_out_function = ParseDuckHuntLogInOutFunction;
-	two_arg.named_parameters["severity_threshold"] = LogicalType::VARCHAR;
-	two_arg.named_parameters["ignore_errors"] = LogicalType::BOOLEAN;
-	two_arg.named_parameters["content"] = LogicalType::ANY;
-	two_arg.named_parameters["context"] = LogicalType::INTEGER;
-	two_arg.named_parameters["include_unparsed"] = LogicalType::BOOLEAN;
+	DeclareNamedParameters(two_arg, {
+	                                    {"severity_threshold", LogicalType::VARCHAR},
+	                                    {"ignore_errors", LogicalType::BOOLEAN},
+	                                    {"content", LogicalType::ANY},
+	                                    {"context", LogicalType::INTEGER},
+	                                    {"include_unparsed", LogicalType::BOOLEAN},
+	                                });
 	set.AddFunction(two_arg);
 
 	return set;
