@@ -45,7 +45,7 @@ public:
 	std::vector<CommandPattern> getCommandPatterns() const override {
 		return {
 		    CommandPattern::Like("go test%"),
-		    CommandPattern::Regexp("go\\s+test\\s+(?!.*-json)"),
+		    CommandPattern::Regexp("go\\s+test\\s+"),
 		};
 	}
 	std::vector<std::string> getGroups() const override {

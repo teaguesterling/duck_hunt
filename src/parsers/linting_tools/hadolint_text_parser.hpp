@@ -41,7 +41,7 @@ public:
 		    CommandPattern::Literal("hadolint"),
 		    CommandPattern::Like("hadolint %"),
 		    CommandPattern::Like("hadolint Dockerfile%"),
-		    CommandPattern::Regexp("hadolint\\s+(?!.*(-f|--format)[= ]?json)"),
+		    CommandPattern::Regexp("hadolint\\s+"),
 		};
 	}
 	std::vector<std::string> getGroups() const override {

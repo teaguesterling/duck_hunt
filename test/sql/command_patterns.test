@@ -1,0 +1,35 @@
+# name: test/sql/command_patterns.test
+# description: every command pattern compiles in the matcher, and JSON variants still rank above text
+# group: [sql]
+
+require duck_hunt
+
+# A pattern the regex engine cannot compile (RE2 has no lookahead) made the matcher throw
+# "invalid perl operator: (?!" for every command, matching or not.
+statement ok
+FROM duck_hunt_match_command_patterns('echo hello');
+
+query I
+SELECT format FROM duck_hunt_match_command_patterns('eslint src/') LIMIT 1;
+----
+eslint_text
+
+query I
+SELECT format FROM duck_hunt_match_command_patterns('eslint -f json src/') LIMIT 1;
+----
+eslint_json
+
+query I
+SELECT format FROM duck_hunt_match_command_patterns('go test ./...') LIMIT 1;
+----
+gotest_text
+
+query I
+SELECT format FROM duck_hunt_match_command_patterns('go test -json ./...') LIMIT 1;
+----
+gotest_json
+
+query I
+SELECT format FROM duck_hunt_match_command_patterns('shellcheck --format=json x.sh') LIMIT 1;
+----
+shellcheck_json
