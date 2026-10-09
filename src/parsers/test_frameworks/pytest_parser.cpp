@@ -260,6 +260,25 @@ void PytestParser::parseTestLine(const std::string &line, int64_t &event_id, std
 	// Parse pytest test result line using simple string parsing
 	// Format 1: "file.py::test_name STATUS" or "file.py::test_name STATUS [extra]"
 	// Format 2: "STATUS file.py::test_name - message" (short test summary)
+	// pytest-xdist prefixes Format 2 with the worker and progress: "[gw3] [ 12%] PASSED file.py::test_name".
+	const std::string &raw_line = line;
+	std::string body = line;
+	if (body.rfind("[gw", 0) == 0) {
+		size_t tag_end = body.find("] ");
+		size_t progress_end = body.find("%] ");
+		size_t cut = progress_end != std::string::npos ? progress_end + 3 : (tag_end != std::string::npos ? tag_end + 2 : 0);
+		body = body.substr(cut);
+	}
+	while (!body.empty() && body.back() == ' ') {
+		body.pop_back();
+	}
+	parseResultLine(body, raw_line, event_id, events, log_line_num, failure_info, emitted_tests);
+}
+
+void PytestParser::parseResultLine(const std::string &line, const std::string &raw_line, int64_t &event_id,
+                                   std::vector<ValidationEvent> &events, int32_t log_line_num,
+                                   const std::unordered_map<std::string, FailureInfo> &failure_info,
+                                   std::unordered_set<std::string> &emitted_tests) const {
 	size_t separator = line.find("::");
 	if (separator == std::string::npos) {
 		return;
@@ -273,7 +292,7 @@ void PytestParser::parseTestLine(const std::string &line, int64_t &event_id, std
 	event.ref_column = -1;
 	event.execution_time = 0.0;
 	event.category = "test";
-	event.log_content = line;
+	event.log_content = raw_line;
 	event.structured_data = "pytest_text";
 	event.log_line_start = log_line_num;
 	event.log_line_end = log_line_num;

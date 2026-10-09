@@ -1,0 +1,26 @@
+# name: test/sql/pytest_xdist.test
+# description: pytest-xdist result lines ("[gw3] [ 12%] PASSED file.py::test") parse like the status-first summary lines
+# group: [sql]
+
+require duck_hunt
+
+query IIII
+SELECT status, ref_file, test_name, message FROM parse_duck_hunt_log('[gw0] [  0%] PASSED app/tests/test_a.py::TestA::test_active ', 'pytest_text');
+----
+PASS	app/tests/test_a.py	TestA::test_active	Test passed
+
+query IIII
+SELECT status, ref_file, test_name, message FROM parse_duck_hunt_log('[gw3] [ 57%] FAILED app/tests/test_b.py::test_breaks - AssertionError: boom', 'pytest_text');
+----
+FAIL	app/tests/test_b.py	test_breaks	AssertionError: boom
+
+query II
+SELECT status, test_name FROM parse_duck_hunt_log('[gw1] [100%] SKIPPED app/tests/test_c.py::test_later', 'pytest_text');
+----
+SKIP	test_later
+
+# the original line, prefix included, stays in log_content
+query I
+SELECT log_content FROM parse_duck_hunt_log('[gw0] [  0%] PASSED app/tests/test_a.py::test_x', 'pytest_text');
+----
+[gw0] [  0%] PASSED app/tests/test_a.py::test_x
