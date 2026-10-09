@@ -41,7 +41,7 @@ public:
 		return {
 		    CommandPattern::Literal("eslint"),     CommandPattern::Like("eslint %"),
 		    CommandPattern::Like("npx eslint %"),  CommandPattern::Like("yarn eslint %"),
-		    CommandPattern::Like("pnpm eslint %"), CommandPattern::Regexp("eslint\\s+(?!.*(-f|--format)\\s*json)"),
+		    CommandPattern::Like("pnpm eslint %"), CommandPattern::Regexp("eslint\\s+"),
 		};
 	}
 	std::vector<std::string> getGroups() const override {

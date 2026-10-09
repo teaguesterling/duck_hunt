@@ -41,7 +41,7 @@ public:
 		    CommandPattern::Literal("rubocop"),
 		    CommandPattern::Like("rubocop %"),
 		    CommandPattern::Like("bundle exec rubocop %"),
-		    CommandPattern::Regexp("rubocop\\s+(?!.*(-f|--format)\\s*json)"),
+		    CommandPattern::Regexp("rubocop\\s+"),
 		};
 	}
 	std::vector<std::string> getGroups() const override {
