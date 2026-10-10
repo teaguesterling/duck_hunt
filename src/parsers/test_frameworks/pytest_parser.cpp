@@ -266,7 +266,8 @@ void PytestParser::parseTestLine(const std::string &line, int64_t &event_id, std
 	if (body.rfind("[gw", 0) == 0) {
 		size_t tag_end = body.find("] ");
 		size_t progress_end = body.find("%] ");
-		size_t cut = progress_end != std::string::npos ? progress_end + 3 : (tag_end != std::string::npos ? tag_end + 2 : 0);
+		size_t cut =
+		    progress_end != std::string::npos ? progress_end + 3 : (tag_end != std::string::npos ? tag_end + 2 : 0);
 		body = body.substr(cut);
 	}
 	while (!body.empty() && body.back() == ' ') {
