@@ -41,7 +41,7 @@ public:
 		return {
 		    CommandPattern::Literal("shellcheck"),
 		    CommandPattern::Like("shellcheck %"),
-		    CommandPattern::Regexp("shellcheck\\s+(?!.*(-f|--format)[= ]?json)"),
+		    CommandPattern::Regexp("shellcheck\\s+"),
 		};
 	}
 	std::vector<std::string> getGroups() const override {
