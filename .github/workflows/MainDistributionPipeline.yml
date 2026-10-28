@@ -107,7 +107,20 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@main
     with:
-      duckdb_version: v2.0-cyanoptera
+      # The PINNED STAGED PAIR, not the branch name. `v2.0-cyanoptera` fails
+      # ci_phase.py's STAGED_DUCKDB_VERSION_PATTERN, so ci-tools resolved the
+      # branch's staged version and used it ONLY to build the download URL,
+      # never writing it back: the library then reported the staged version
+      # while CMake stamped the extension `v2.0-cyanoptera`, and every require
+      # failed. Measured on duckdb_markdown job 121336086218 (prebuilt
+      # bb5bdadda4/v2.0.1-alpha50125 -> 54 files `require markdown: FAILED`)
+      # against job 122478167754 (404 on b060f56de7, built from source -> 60
+      # passed). This leg's green runs were the second case: unvisited by
+      # staging, not correct. `v2.0.1-alpha50125` MATCHES that pattern, so the
+      # substitution never runs and the URL carries this exact version -- which
+      # is the one staging serves for this commit.
+      duckdb_version: v2.0.1-alpha50125
+      duckdb_commit: bb5bdadda4ee51d39b359fe8f4d1960973191175
       ci_tools_version: main
       extension_name: duck_hunt
       # osx_arm64 is INCLUDED (not in the exclude list) on purpose: a v2.0 x macOS
@@ -146,8 +159,9 @@ jobs:
     name: DuckDB version drift guard
     runs-on: ubuntu-latest
     env:
-      DUCKDB_VERSION: v1.5.6
-      DUCKDB_NEXT: v2.0-cyanoptera
+      DUCKDB_VERSION: v2.0.0
+      DUCKDB_NEXT: v2.0.1-alpha50125
+      DUCKDB_VARIANT: v1.5.6
     steps:
       - uses: actions/checkout@v4
       - name: Assert both the stable and v2.0 lines are built
@@ -156,11 +170,14 @@ jobs:
           n=$(grep -c "duckdb_version: ${DUCKDB_VERSION}$" "$wf" || true)
           m=$(grep -c "duckdb_version: ${DUCKDB_NEXT}$" "$wf" || true)
           [ "$n" -ge 1 ] || { echo "::error::no job builds the stable line duckdb_version: ${DUCKDB_VERSION}"; exit 1; }
-          [ "$m" -ge 1 ] || { echo "::error::no job builds the v2.0 line duckdb_version: ${DUCKDB_NEXT} (cyanoptera leg missing/renamed?)"; exit 1; }
-          echo "drift guard OK: stable=${DUCKDB_VERSION} (${n} job(s)), next=${DUCKDB_NEXT} (${m} job(s))"
+          v=$(grep -c "duckdb_version: ${DUCKDB_VARIANT}$" "$wf" || true)
+          [ "$m" -ge 1 ] || { echo "::error::no job builds the v2.0 next line duckdb_version: ${DUCKDB_NEXT}"; exit 1; }
+          [ "$v" -ge 1 ] || { echo "::error::no job builds the variant line duckdb_version: ${DUCKDB_VARIANT}"; exit 1; }
+          echo "drift guard OK: shipping=${DUCKDB_VERSION} (${n} job(s)), next=${DUCKDB_NEXT} (${m} job(s)), variant=${DUCKDB_VARIANT} (${v} job(s))"
 
-  # Stable/default build, tracks the v1.5-variegata submodule pin. THIS is the
-  # merge gate. Windows excluded again: the build itself is fine now (variegata
+  # Shipping build, tracks the v2.0.0 submodule pin. THIS is the merge gate.
+  # v2.0.0 is the shipping line as of this commit; v1.5.6 moves to the variant
+  # leg below and keeps its own coverage. Windows excluded again: the build itself is fine now (variegata
   # vendors a fmt without the removed MSVC stdext::checked_array_iterator), but
   # MSVC's std::regex enforces a match-complexity cap that libstdc++/libc++ do
   # not, and three parser tests (config_parser, format_groups, sample_files)
@@ -168,6 +185,32 @@ jobs:
   # patterns are simplified below MSVC's cap or moved off std::regex.
   duckdb-stable-build:
     name: Build extension binaries
+    uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v1.5-variegata
+    with:
+      duckdb_version: v2.0.0
+      # Hex, and load-bearing. A branch name is fatal as a *commit*: DuckDB's
+      # CMakeLists requires a hex GIT_COMMIT_HASH and errors with
+      # `Invalid DuckDB commit 'v2.0-cyanoptera'`. The version half must still
+      # match STAGED_DUCKDB_VERSION_PATTERN so ci_phase.py never substitutes a
+      # staged version behind it; `v2.0.0` does.
+      duckdb_commit: d54cbbe3df17e8e5ce68312f483b4155836112aa
+      ci_tools_version: v2.0-cyanoptera
+      extension_name: duck_hunt
+      exclude_archs: 'windows_amd64;windows_amd64_mingw'
+
+      # The guard belongs here now that this leg is the gate. ci_tools
+      # v2.0-cyanoptera HAS `T` (v1.5-variegata does not), so
+      # test_env_variables reaches run_tests.py and a load failure reads
+      # `require duck_hunt: FAILED` instead of a silent skip.
+      test_config: '{"test_env_variables": {"T": "--test-flags \"--require duck_hunt\" \"test/*\""}}'
+
+  # The OLD shipping line, kept as a variant so the promote does not drop v1.5
+  # coverage. Deliberately carries NO test_config: `T ?=` is absent from
+  # duckdb_extension.Makefile on v1.5-variegata, so test_env_variables is
+  # silently ignored there and a guard written here would look active while
+  # doing nothing. The wasm symbol check below consumes this leg's artifacts.
+  duckdb-variegata-build:
+    name: Build extension binaries (DuckDB v1.5 variant)
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v1.5-variegata
     with:
       duckdb_version: v1.5.6
@@ -179,8 +222,8 @@ jobs:
     name: Code Quality Check
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_code_quality.yml@v1.5-variegata
     with:
-      duckdb_version: v1.5.6
-      ci_tools_version: v1.5-variegata
+      duckdb_version: v2.0.0
+      ci_tools_version: v2.0-cyanoptera
       extension_name: duck_hunt
       format_checks: 'format'
 
@@ -198,7 +241,11 @@ jobs:
   #                          version/toolchain skew, downstream of symbol resolution).
   wasm-symbol-check:
     name: WASM symbol resolution check
-    needs: [duckdb-stable-build]
+    # Points at the VARIANT leg, not the shipping leg: this check downloads
+    # <ext>-v1.5.6-extension-wasm_* and loads it in a v1.5-variegata engine, so
+    # it must follow the leg that still builds v1.5.6. Extending it to the v2.0.0
+    # line is deliberately NOT part of this promote.
+    needs: [duckdb-variegata-build]
     # Run as long as the build wasn't cancelled, even if an unrelated platform
     # leg of the stable build failed: the wasm artifacts build independently,
     # so the guard should still inspect them. If they're genuinely missing, the
