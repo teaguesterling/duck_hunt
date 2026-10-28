@@ -26,6 +26,51 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # RESOLVE main TO A (commit, version) PAIR. `duckdb_version: main` reached the
+  # build as DUCKDB_VERSION=main, and duckdb main's CMakeLists.txt reads that env var
+  # as its explicit version (line 487 at a494af27aa takes DUCKDB_EXPLICIT_VERSION from
+  # ENV{DUCKDB_VERSION}; line 497 takes GIT_COMMIT_HASH from ENV{DUCKDB_COMMIT}, which
+  # is why the commit half of the pair is load-bearing too). The library then reports
+  # 'vmain' while the extension is stamped 'main', the loader refuses it, and every
+  # test SKIPS at its require line while the leg reports success.
+  #
+  # The version is computed the way duckdb's own CMake does for a dev build:
+  # v<scripts/ci/release_version.txt>.0-dev<git rev-list --count HEAD>. Staging has no
+  # prebuilt for a main commit, so ci-tools builds from source; ci_phase.py's staged
+  # lookup is keyed on the COMMIT, 404s, and its caller falls back.
+  #
+  # `--filter=tree:0` is deliberate and is NOT `blob:none`: `rev-list --count` needs
+  # the whole commit history, only its trees are skippable.
+  #
+  # Canonical text: duckdb_scalarfs at 6271b22, proven there on four platforms.
+  duckdb-main-ref:
+    name: Canary build — resolve DuckDB main
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    outputs:
+      commit: ${{ steps.resolve.outputs.commit }}
+      version: ${{ steps.resolve.outputs.version }}
+    steps:
+      - id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+          # Commits only: rev-list --count needs the whole history, not its trees.
+          git clone --quiet --filter=tree:0 --no-checkout --single-branch --branch main \
+              https://github.com/duckdb/duckdb.git "$tmp/duckdb"
+          commit=$(git -C "$tmp/duckdb" rev-parse HEAD)
+          release=$(git -C "$tmp/duckdb" show HEAD:scripts/ci/release_version.txt | tr -d '[:space:]')
+          count=$(git -C "$tmp/duckdb" rev-list --count HEAD)
+          version="v${release}.0-dev${count}"
+          if ! [[ "$version" =~ ^v[0-9]+\.[0-9]+\.0-dev[0-9]+$ ]]; then
+            echo "::error::could not build a dev version for duckdb main at $commit (got '$version')"
+            exit 1
+          fi
+          echo "duckdb main -> $commit, version $version"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
   # Forward-compat canary built against duckdb `main`. EXPECTED to go red on
   # upstream API drift (e.g. CreateMacroInfo::schema/name) — this leg is NOT a
   # merge blocker. Windows stays excluded here (main's fmt/MSVC state is not the
@@ -33,12 +78,20 @@ jobs:
   duckdb-next-build:
     name: Canary — build against DuckDB main (advisory)
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    needs: duckdb-main-ref
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@main
     with:
-      duckdb_version: main
+      duckdb_version: ${{ needs.duckdb-main-ref.outputs.version }}
+      duckdb_commit: ${{ needs.duckdb-main-ref.outputs.commit }}
       ci_tools_version: main
       extension_name: duck_hunt
       exclude_archs: 'windows_amd64;windows_amd64_mingw'
+
+      # THE GUARD. Fixing the version is only half of it: without `--require duck_hunt`
+      # a load failure stays a silent skip that reports success, which is how
+      # `0 passed, N skipped` survived here. With the guard the same condition
+      # reads `require duck_hunt: FAILED`.
+      test_config: '{"test_env_variables": {"T": "--test-flags \"--require duck_hunt\" \"test/*\""}}'
 
   # Real v2.0 leg (distinct from the advisory main canary above). This builds the
   # line the community registry actually ships as the prerelease (build_next.yml =
