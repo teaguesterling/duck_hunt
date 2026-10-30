@@ -185,7 +185,12 @@ jobs:
   # patterns are simplified below MSVC's cap or moved off std::regex.
   duckdb-stable-build:
     name: Build extension binaries
-    uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v1.5-variegata
+    # The REF must move with the inputs, not just `ci_tools_version`. They are two
+    # different things: this ref picks which reusable workflow runs, and
+    # `_extension_distribution.yml@v1.5-variegata` has no `duckdb_commit` input at
+    # all. Passing one is an unknown-input error at run-creation time, which fails
+    # the WHOLE run as `startup_failure` -- every job, not just this leg.
+    uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v2.0-cyanoptera
     with:
       duckdb_version: v2.0.0
       # Hex, and load-bearing. A branch name is fatal as a *commit*: DuckDB's
@@ -220,7 +225,7 @@ jobs:
 
   code-quality-check:
     name: Code Quality Check
-    uses: duckdb/extension-ci-tools/.github/workflows/_extension_code_quality.yml@v1.5-variegata
+    uses: duckdb/extension-ci-tools/.github/workflows/_extension_code_quality.yml@v2.0-cyanoptera
     with:
       duckdb_version: v2.0.0
       ci_tools_version: v2.0-cyanoptera
