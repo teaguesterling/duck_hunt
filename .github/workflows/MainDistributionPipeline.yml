@@ -161,7 +161,6 @@ jobs:
     env:
       DUCKDB_VERSION: v2.0.0
       DUCKDB_NEXT: v2.0.1-alpha50125
-      DUCKDB_VARIANT: v1.5.6
     steps:
       - uses: actions/checkout@v4
       - name: Assert both the stable and v2.0 lines are built
@@ -170,10 +169,8 @@ jobs:
           n=$(grep -c "duckdb_version: ${DUCKDB_VERSION}$" "$wf" || true)
           m=$(grep -c "duckdb_version: ${DUCKDB_NEXT}$" "$wf" || true)
           [ "$n" -ge 1 ] || { echo "::error::no job builds the stable line duckdb_version: ${DUCKDB_VERSION}"; exit 1; }
-          v=$(grep -c "duckdb_version: ${DUCKDB_VARIANT}$" "$wf" || true)
           [ "$m" -ge 1 ] || { echo "::error::no job builds the v2.0 next line duckdb_version: ${DUCKDB_NEXT}"; exit 1; }
-          [ "$v" -ge 1 ] || { echo "::error::no job builds the variant line duckdb_version: ${DUCKDB_VARIANT}"; exit 1; }
-          echo "drift guard OK: shipping=${DUCKDB_VERSION} (${n} job(s)), next=${DUCKDB_NEXT} (${m} job(s)), variant=${DUCKDB_VARIANT} (${v} job(s))"
+          echo "drift guard OK: shipping=${DUCKDB_VERSION} (${n} job(s)), next=${DUCKDB_NEXT} (${m} job(s))"
 
   # Shipping build, tracks the v2.0.0 submodule pin. THIS is the merge gate.
   # v2.0.0 is the shipping line as of this commit; v1.5.6 moves to the variant
@@ -209,19 +206,6 @@ jobs:
       # `require duck_hunt: FAILED` instead of a silent skip.
       test_config: '{"test_env_variables": {"T": "--test-flags \"--require duck_hunt\" \"test/*\""}}'
 
-  # The OLD shipping line, kept as a variant so the promote does not drop v1.5
-  # coverage. Deliberately carries NO test_config: `T ?=` is absent from
-  # duckdb_extension.Makefile on v1.5-variegata, so test_env_variables is
-  # silently ignored there and a guard written here would look active while
-  # doing nothing. The wasm symbol check below consumes this leg's artifacts.
-  duckdb-variegata-build:
-    name: Build extension binaries (DuckDB v1.5 variant)
-    uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v1.5-variegata
-    with:
-      duckdb_version: v1.5.6
-      ci_tools_version: v1.5-variegata
-      extension_name: duck_hunt
-      exclude_archs: 'windows_amd64;windows_amd64_mingw'
 
   code-quality-check:
     name: Code Quality Check
@@ -246,11 +230,11 @@ jobs:
   #                          version/toolchain skew, downstream of symbol resolution).
   wasm-symbol-check:
     name: WASM symbol resolution check
-    # Points at the VARIANT leg, not the shipping leg: this check downloads
-    # <ext>-v1.5.6-extension-wasm_* and loads it in a v1.5-variegata engine, so
-    # it must follow the leg that still builds v1.5.6. Extending it to the v2.0.0
-    # line is deliberately NOT part of this promote.
-    needs: [duckdb-variegata-build]
+    # Follows the SHIPPING leg. It used to follow the v1.5.6 variant leg, because
+    # that was the only leg whose wasm artifacts an available engine could load.
+    # Both halves of that constraint are gone: the v1.5.6 leg has retired, and an
+    # engine built from this repo's exact pinned commit now exists (see layer 2).
+    needs: [duckdb-stable-build]
     # Run as long as the build wasn't cancelled, even if an unrelated platform
     # leg of the stable build failed: the wasm artifacts build independently,
     # so the guard should still inspect them. If they're genuinely missing, the
@@ -265,11 +249,11 @@ jobs:
       - name: Download WASM artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: duck_hunt-v1.5.6-extension-wasm_*
+          pattern: duck_hunt-v2.0.0-extension-wasm_*
           path: wasm-artifacts
       - name: Layer 1 — static symbol check (no symbol may be unresolved)
         run: bash test/wasm/run_wasm_checks.sh wasm-artifacts
-      - name: Layer 2 — live load test in duckdb-wasm (informational until official v1.5-variegata)
+      - name: Layer 2 — live load test in duckdb-wasm (exact engine match, still informational)
         continue-on-error: true
         # continue-on-error alone is NOT enough: a hung step runs to the job
         # limit and gets *cancelled*, and cancellation overrides
@@ -282,9 +266,17 @@ jobs:
         run: |
           set -uo pipefail
           timeout 300 npm install --no-save
-          mkdir -p repo/v1.5.6/wasm_eh
-          cp "$GITHUB_WORKSPACE/wasm-artifacts/duck_hunt-v1.5.6-extension-wasm_eh/duck_hunt.duckdb_extension.wasm" \
-             repo/v1.5.6/wasm_eh/
+          mkdir -p repo/v2.0.0/wasm_eh
+          cp "$GITHUB_WORKSPACE/wasm-artifacts/duck_hunt-v2.0.0-extension-wasm_eh/duck_hunt.duckdb_extension.wasm" \
+             repo/v2.0.0/wasm_eh/
+          # THE ENGINE NOW MATCHES THE BUILD EXACTLY. load_test.cjs defaulted to
+          # @haybarn/haybarn-wasm because no official engine matched the v1.5 line.
+          # @duckdb/duckdb-wasm@1.33.1-dev113.0 is built from duckdb commit
+          # d54cbbe3df17e8e5ce68312f483b4155836112aa -- the v2.0.0 tag commit this
+          # repo pins. Measured 2026-11-02 by grepping that package's
+          # duckdb-base.wasm / duckdb-threads.wasm for `d54cbbe3df`; the `latest`
+          # tag (dev57.0) is a v1.5.4-era engine and does NOT contain it.
           timeout 240 node load_test.cjs --repo repo --name duck_hunt --platform eh \
+            --engine @duckdb/duckdb-wasm \
             --query "SELECT duck_hunt_detect_format('{\"tests\":[{\"nodeid\":\"a::b\",\"outcome\":\"failed\"}]}') AS fmt" \
             --expect '"fmt":"pytest_json"'
