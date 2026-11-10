@@ -33,10 +33,28 @@ watchdog.unref();
 
 const duckdb = require(`${enginePkg}/dist/duckdb-node`);
 const dist = path.dirname(require.resolve(`${enginePkg}/dist/duckdb-node.cjs`));
-const BUNDLES = {
-  mvp: { mainModule: path.join(dist, "duckdb-mvp.wasm"), mainWorker: path.join(dist, "duckdb-node-mvp.worker.cjs") },
-  eh: { mainModule: path.join(dist, "duckdb-eh.wasm"), mainWorker: path.join(dist, "duckdb-node-eh.worker.cjs") },
-};
+// Bundle file names are NOT stable across engine generations, so resolve them
+// from what the installed engine actually ships. The v1.5 line shipped one pair
+// per platform (duckdb-{mvp,eh}.wasm + duckdb-node-{mvp,eh}.worker.cjs); the 2.0
+// line collapsed them into a single pair (duckdb-base.wasm +
+// duckdb-node-base.worker.cjs), and its duckdb-base.wasm carries the one platform
+// string `wasm_eh`, so base IS the eh build. Hard-coding the old names made the
+// 2.0 engine die with MODULE_NOT_FOUND on duckdb-node-eh.worker.cjs.
+function bundleFor(p) {
+  const perPlatform = {
+    mainModule: path.join(dist, `duckdb-${p}.wasm`),
+    mainWorker: path.join(dist, `duckdb-node-${p}.worker.cjs`),
+  };
+  if (fs.existsSync(perPlatform.mainWorker)) return perPlatform;
+  const base = {
+    mainModule: path.join(dist, "duckdb-base.wasm"),
+    mainWorker: path.join(dist, "duckdb-node-base.worker.cjs"),
+  };
+  if (fs.existsSync(base.mainWorker)) return base;
+  console.error(`FAIL: ${enginePkg} ships neither ${path.basename(perPlatform.mainWorker)} ` +
+                `nor ${path.basename(base.mainWorker)} in ${dist}`);
+  process.exit(1);
+}
 
 const server = http.createServer((req, res) => {
   const fp = path.join(repoDir, decodeURIComponent(req.url.split("?")[0]));
@@ -52,7 +70,7 @@ const server = http.createServer((req, res) => {
   const repoUrl = `http://127.0.0.1:${server.address().port}`;
   console.error(`[load_test] serving ${repoDir} at ${repoUrl}; engine=${enginePkg} platform=${platform}`);
 
-  const bundle = BUNDLES[platform];
+  const bundle = bundleFor(platform);
   const worker = new Worker(bundle.mainWorker);
   const db = new duckdb.AsyncDuckDB(new duckdb.VoidLogger(), worker);
   await db.instantiate(bundle.mainModule);
