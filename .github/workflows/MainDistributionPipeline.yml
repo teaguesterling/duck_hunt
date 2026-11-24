@@ -159,7 +159,7 @@ jobs:
     name: DuckDB version drift guard
     runs-on: ubuntu-latest
     env:
-      DUCKDB_VERSION: v2.0.0
+      DUCKDB_VERSION: v2.0.1
       DUCKDB_NEXT: v2.0.1-alpha50125
     steps:
       - uses: actions/checkout@v4
@@ -172,7 +172,7 @@ jobs:
           [ "$m" -ge 1 ] || { echo "::error::no job builds the v2.0 next line duckdb_version: ${DUCKDB_NEXT}"; exit 1; }
           echo "drift guard OK: shipping=${DUCKDB_VERSION} (${n} job(s)), next=${DUCKDB_NEXT} (${m} job(s))"
 
-  # Shipping build, tracks the v2.0.0 submodule pin. THIS is the merge gate.
+  # Shipping build, tracks the v2.0.1 submodule pin. THIS is the merge gate.
   # v2.0.0 is the shipping line as of this commit; v1.5.6 moves to the variant
   # leg below and keeps its own coverage. Windows excluded again: the build itself is fine now (variegata
   # vendors a fmt without the removed MSVC stdext::checked_array_iterator), but
@@ -189,13 +189,13 @@ jobs:
     # the WHOLE run as `startup_failure` -- every job, not just this leg.
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v2.0-cyanoptera
     with:
-      duckdb_version: v2.0.0
+      duckdb_version: v2.0.1
       # Hex, and load-bearing. A branch name is fatal as a *commit*: DuckDB's
       # CMakeLists requires a hex GIT_COMMIT_HASH and errors with
       # `Invalid DuckDB commit 'v2.0-cyanoptera'`. The version half must still
       # match STAGED_DUCKDB_VERSION_PATTERN so ci_phase.py never substitutes a
-      # staged version behind it; `v2.0.0` does.
-      duckdb_commit: d54cbbe3df17e8e5ce68312f483b4155836112aa
+      # staged version behind it; `v2.0.1` does.
+      duckdb_commit: 8d78114e90a53823803660bf821f6073ac87da8c
       ci_tools_version: v2.0-cyanoptera
       extension_name: duck_hunt
       exclude_archs: 'windows_amd64;windows_amd64_mingw'
@@ -211,7 +211,7 @@ jobs:
     name: Code Quality Check
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_code_quality.yml@v2.0-cyanoptera
     with:
-      duckdb_version: v2.0.0
+      duckdb_version: v2.0.1
       ci_tools_version: v2.0-cyanoptera
       extension_name: duck_hunt
       format_checks: 'format'
@@ -249,7 +249,7 @@ jobs:
       - name: Download WASM artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: duck_hunt-v2.0.0-extension-wasm_*
+          pattern: duck_hunt-v2.0.1-extension-wasm_*
           path: wasm-artifacts
       - name: Layer 1 — static symbol check (no symbol may be unresolved)
         run: bash test/wasm/run_wasm_checks.sh wasm-artifacts
@@ -266,9 +266,9 @@ jobs:
         run: |
           set -uo pipefail
           timeout 300 npm install --no-save
-          mkdir -p repo/v2.0.0/wasm_eh
-          cp "$GITHUB_WORKSPACE/wasm-artifacts/duck_hunt-v2.0.0-extension-wasm_eh/duck_hunt.duckdb_extension.wasm" \
-             repo/v2.0.0/wasm_eh/
+          mkdir -p repo/v2.0.1/wasm_eh
+          cp "$GITHUB_WORKSPACE/wasm-artifacts/duck_hunt-v2.0.1-extension-wasm_eh/duck_hunt.duckdb_extension.wasm" \
+             repo/v2.0.1/wasm_eh/
           # THE ENGINE NOW MATCHES THE BUILD EXACTLY. load_test.cjs defaulted to
           # @haybarn/haybarn-wasm because no official engine matched the v1.5 line.
           # @duckdb/duckdb-wasm@1.33.1-dev113.0 is built from duckdb commit
